@@ -5,6 +5,20 @@ import torchvision.transforms as T
 from helper_functions import create_dilation_list
 
 
+class Network(nn.Module):
+    def __init__(self, c_in: int, width_height_in: int):
+        super().__init__()
+        self.conv1 = nn.Conv2d(c_in, c_in, kernel_size=1, dilation=1, stride=1, padding=0)
+        self.res_module1 = MetResModule(c_num=c_in, width_height=width_height_in, kernel_size=3, stride=1,
+                                        inverse_ratio=2)
+        self.sample_module1 = SampleModule(c_in, c_in * 2, width_height_out=width_height_in / 2)  # w h
+
+    def forward(self, x: torch.Tensor):
+        x = self.conv1(x)
+        x = self.res_module1(x)
+        x = self.sample_module1(x)
+        return x
+
 class SampleModule(nn.Module):
     """
     Sample Module
@@ -23,36 +37,6 @@ class SampleModule(nn.Module):
         return x
 
 
-# class MetResModule(nn.Module):
-#     """
-#     Residual module inspired by MetNet2
-#     channel num (c_num) and width height remain conserved
-#     Applies dilated convolution starting with a dilation rate of 1 (normal convolution) exponentially building up to a
-#     dilation rate that results in a virtual kernel size of 1/2 (or whatever is given by inverse_ratio)
-#     of the width and height
-#     """
-#     def __init__(self, c_num: int, width_height: int, kernel_size: int, num_dils: int, stride: int=1, inverse_ratio=2):
-#         super().__init__()
-#         # TODO: Implement this with nn.ModuleDict() in future!!
-#         self.dilation_list = create_dilation_list(width_height, inverse_ratio=inverse_ratio)
-#         self.dil_block1 = MetDilBlock(c_num, width_height, self.dilation_list[0], kernel_size, stride)
-#         self.dil_block2 = MetDilBlock(c_num, width_height, self.dilation_list[1], kernel_size, stride)
-#         self.dil_block3 = MetDilBlock(c_num, width_height, self.dilation_list[2], kernel_size, stride)
-#         self.dil_block4 = MetDilBlock(c_num, width_height, self.dilation_list[3], kernel_size, stride)
-#         self.dil_block5 = MetDilBlock(c_num, width_height, self.dilation_list[4], kernel_size, stride)
-#         self.dil_block6 = MetDilBlock(c_num, width_height, self.dilation_list[5], kernel_size, stride)
-#
-#     def forward(self, x: torch.Tensor):
-#
-#         out = self.dil_block1(x)
-#         out = self.dil_block2(out)
-#         out = self.dil_block3(out)
-#         out = self.dil_block4(out)
-#         out = self.dil_block5(out)
-#         out = self.dil_block6(out)
-#         return out
-
-
 class MetResModule(nn.Module):
     """
     Residual module inspired by MetNet2
@@ -61,7 +45,7 @@ class MetResModule(nn.Module):
     dilation rate that results in a virtual kernel size of 1/2 (or whatever is given by inverse_ratio)
     of the width and height
     """
-    def __init__(self, c_num: int, width_height: int, kernel_size: int, num_dils: int, stride: int=1, inverse_ratio=2):
+    def __init__(self, c_num: int, width_height: int, kernel_size: int = 3, stride: int = 1, inverse_ratio=2):
         super().__init__()
         # TODO: Implement this with nn.ModuleDict() in future!!
         self.dilation_list = create_dilation_list(width_height, inverse_ratio=inverse_ratio)
@@ -70,7 +54,7 @@ class MetResModule(nn.Module):
         # size defined by inverse_ratio
         for i, dilation in enumerate(self.dilation_list):
             self.dilation_blocks.add_module(
-                MetDilBlock(c_num, width_height, dilation, kernel_size, stride)
+                name='dil_block_{}'.format(i), module=MetDilBlock(c_num, width_height, dilation, kernel_size, stride)
             )
 
     def forward(self, x: torch.Tensor):
@@ -84,7 +68,7 @@ class MetDilBlock(nn.Module):
     The Dilation Block. Similar to MetNet2's Dilation Block
     height, width reimain conserved, chanell number remains conserved
     """
-    def __init__(self, c_num: int, width_height: int, dilation: int, kernel_size: int, stride: int=1):
+    def __init__(self, c_num: int, width_height: int, dilation: int, kernel_size: int, stride: int = 1):
         super().__init__()
         # TODO implement formula
 
