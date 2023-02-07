@@ -5,10 +5,11 @@ import torchvision.transforms as T
 from helper_functions import create_dilation_list
 
 
-class Network(nn.Module):
+class Network_one_pass(nn.Module):
     def __init__(self, c_in: int, width_height_in: int):
         super().__init__()
         self.conv1 = nn.Conv2d(c_in, c_in, kernel_size=1, dilation=1, stride=1, padding=0)
+
         self.res_module1 = MetResModule(c_num=c_in, width_height=width_height_in, kernel_size=3, stride=1,
                                         inverse_ratio=2)
         self.sample_module1 = SampleModule(c_in, c_in * 2, width_height_out=width_height_in / 2)  # w h
@@ -18,6 +19,39 @@ class Network(nn.Module):
         x = self.res_module1(x)
         x = self.sample_module1(x)
         return x
+
+
+class Network(nn.Module):
+    def __init__(self, c_in: int, width_height_in: int):
+        super().__init__()
+        self.conv1 = nn.Conv2d(c_in, c_in, kernel_size=1, dilation=1, stride=1, padding=0)
+        self.net_modules = nn.ModuleList()
+        test_list = []
+        c_curr = c_in
+        for i in range(3):
+            # log2(256)=8 log2(32)=5 --> We need three sampling modules that half the size
+            # ['c_in: 8 c_out: 16 height: 128.0', 'c_in: 16 c_out: 32 height: 64.0', 'c_in: 32 c_out: 64 height: 32.0']
+            # i += 1
+
+            self.net_modules.add_module(
+                name='res_module_{}'.format(i),
+                module=MetResModule(c_num=c_curr, width_height=width_height_in / (2 ** (i-1)), kernel_size=3, stride=1,
+                                         inverse_ratio=2)
+            )
+            self.net_modules.add_module(
+                name='sample_module_{}'.format(i),
+                module=SampleModule(c_in=c_in * i, c_out=c_in * i * 2, width_height_out=width_height_in / (2 ** i))  # w h
+            )
+            test_list.append('c_in: {} c_out: {} height: {}'.format(c_curr, c_curr * 2, width_height_in / (2 ** i)))
+            c_curr = c_curr * 2
+        pass
+
+    def forward(self, x: torch.Tensor):
+        x = self.conv1(x)
+        for module in self.net_modules:
+            x = module(x)
+        return x
+
 
 class SampleModule(nn.Module):
     """
