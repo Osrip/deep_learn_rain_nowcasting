@@ -31,19 +31,22 @@ class Network(nn.Module):
         for i in range(3):
             # log2(256)=8 log2(32)=5 --> We need three sampling modules that half the size
             # ['c_in: 8 c_out: 16 height: 128.0', 'c_in: 16 c_out: 32 height: 64.0', 'c_in: 32 c_out: 64 height: 32.0']
-            # i += 1
+            i += 1
 
             self.net_modules.add_module(
                 name='res_module_{}'.format(i),
-                module=MetResModule(c_num=c_curr, width_height=width_height_in / (2 ** (i-1)), kernel_size=3, stride=1,
+                module=MetResModule(c_num=c_curr, width_height=int(width_height_in / (2 ** (i-1))), kernel_size=3, stride=1,
                                          inverse_ratio=2)
             )
             self.net_modules.add_module(
                 name='sample_module_{}'.format(i),
-                module=SampleModule(c_in=c_in * i, c_out=c_in * i * 2, width_height_out=width_height_in / (2 ** i))  # w h
+                module=SampleModule(c_in=c_curr, c_out=c_curr * 2, width_height_out=int(width_height_in / (2 ** i)))  # w h
             )
-            test_list.append('c_in: {} c_out: {} height: {}'.format(c_curr, c_curr * 2, width_height_in / (2 ** i)))
             c_curr = c_curr * 2
+
+            test_list.append('c_in: {} c_out: {} curr_height: {} out_height: {}'
+                             .format(c_curr, c_curr * 2, width_height_in / (2 ** (i-1)), width_height_in / (2 ** i)))
+
         pass
 
     def forward(self, x: torch.Tensor):
