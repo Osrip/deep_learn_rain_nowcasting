@@ -5,27 +5,12 @@ import torchvision.transforms as T
 from helper_functions import create_dilation_list
 
 
-# class Network_TEST_one_pass(nn.Module):
-#     def __init__(self, c_in: int, width_height_in: int):
-#         super().__init__()
-#         self.conv1 = nn.Conv2d(c_in, c_in, kernel_size=1, dilation=1, stride=1, padding=0)
-#
-#         self.res_module1 = MetResModule(c_num=c_in, width_height=width_height_in, kernel_size=3, stride=1,
-#                                         inverse_ratio=2)
-#         self.sample_module1 = SampleModule(c_in, c_in * 2, width_height_out=width_height_in / 2)  # w h
-#
-#     def forward(self, x: torch.Tensor):
-#         x = self.conv1(x)
-#         x = self.res_module1(x)
-#         x = self.sample_module1(x)
-#         return x
-
-
 class Network(nn.Module):
     def __init__(self, c_in: int, width_height_in: int):
         super().__init__()
         self.conv1 = nn.Conv2d(c_in, c_in, kernel_size=1, dilation=1, stride=1, padding=0)
         self.net_modules = nn.ModuleList()
+        self.soft_max = nn.Softmax(dim=1)
         test_list = []
         c_curr = c_in
         for i in range(3):
@@ -53,6 +38,7 @@ class Network(nn.Module):
         x = self.conv1(x)
         for module in self.net_modules:
             x = module(x)
+        x = self.soft_max(x)
         return x
 
 
@@ -114,8 +100,6 @@ class MetDilBlock(nn.Module):
         self.layer_norm1 = nn.LayerNorm(width_height)
         self.dilation2 = nn.Conv2d(c_num, c_num, kernel_size, dilation=dilation, stride=stride, padding=padding)
         self.layer_norm2 = nn.LayerNorm(width_height)
-
-        # self.layernorm = nn.LayerNorm() needs w x h dimensions as input
 
     def forward(self, x: torch.Tensor):
 
