@@ -15,7 +15,9 @@ class Network(nn.Module):
         c_curr = c_in
         for i in range(3):
             # log2(256)=8 log2(32)=5 --> We need three sampling modules that half the size
-            # ['c_in: 16 c_out: 32 curr_height: 256.0 out_height: 128.0', 'c_in: 32 c_out: 64 curr_height: 128.0 out_height: 64.0', 'c_in: 64 c_out: 128 curr_height: 64.0 out_height: 32.0']
+            # ['c_in: 16 c_out: 32 curr_height: 256.0 out_height: 128.0',
+            # 'c_in: 32 c_out: 64 curr_height: 128.0 out_height: 64.0',
+            # 'c_in: 64 c_out: 128 curr_height: 64.0 out_height: 32.0']
             i += 1
 
             self.net_modules.add_module(
