@@ -57,7 +57,6 @@ class SampleModule(nn.Module):
 
     def forward(self, x: torch.Tensor):
         x = self.crop(x)
-        # T.CenterCrop(size=self.width_height_out)(x)
         x = self.conv(x)
         return x
 

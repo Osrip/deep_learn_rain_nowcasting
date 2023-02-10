@@ -7,6 +7,9 @@ import torchvision.transforms as T
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
 from helper_functions import map_mm_to_one_hot_index
+import datetime
+from exceptions import CountException
+
 # Remember to install package netCDF4 !!
 
 
@@ -16,6 +19,27 @@ def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/da
     data_dataset = hf.get(data_keys)
     flag_dataset = hf.get(flag_keys)
     return data_dataset, flag_dataset
+
+
+def iterate_through_data_names(start_date_time, future_iterations_from_start: int, minutes_per_iteration: int):
+    '''
+    start_date_time_ datetime object
+    
+    Datetime object is initialized with:
+    
+    datetime.datetime(year, month, day, hour, minute, second, microsecond)
+    b = datetime(2022, 12, 28, 23, 55, 59, 342380)
+    '''
+
+    load_dates = []
+    if minutes_per_iteration % 5 != 0:
+        raise CountException('Only 5 minute steps available')
+
+    for i in range(future_iterations_from_start):
+        time_diff = minutes_per_iteration * i
+        date_time = start_date_time + datetime.timedelta(minutes=time_diff)
+        load_dates.append(date_time)
+    return load_dates
 
 
 def flag_data(data_dataset, flag_dataset):
@@ -58,11 +82,30 @@ def img_one_hot(data_arr: np.ndarray, num_c: int):
     vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
     data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=64, mm_min=0, mm_max=20)
     data_indexed = torch.from_numpy(data_arr)
-    data_hot = F.one_hot(data_indexed, num_c)
-    # TODO Why does this work with long tensor? but not int or float?? Long temnsor is Int64!!
+    # data_hot = F.one_hot(data_indexed, num_c)
+    # Why does this work with long tensor? but not int or float?? Long tensor is Int64!!
     data_hot = F.one_hot(data_indexed.long(), 64)
     # TODO! Seems to work but check, write test!!!
     return data_hot
+
+
+def load_data_sequence(start_date_time: datetime.datetime, folder_path: str, future_iterations_from_start: int, minutes_per_iteration: int,
+                       width_height: int):
+    load_dates = iterate_through_data_names(start_date_time, future_iterations_from_start, minutes_per_iteration)
+    data_arr_list = []
+    data_sequence = np.empty([len(load_dates), width_height, width_height])
+    for i, date in enumerate(load_dates):
+        # DE1200_RV_Recalc_20201220_1150_+000000
+        # Load Picture
+        file_name = 'DE1200_RV_Recalc_{}_{}_+000000.hdf'.format(date.strftime('%Y%m%d'), date.strftime('%H%M'))
+        input_path = '{}{}'.format(folder_path, file_name)
+        data_dataset, flag_dataset = import_data(input_path)
+        data_arr = flag_data(data_dataset, flag_dataset)
+        data_tensor = torch.from_numpy(data_arr)
+        # Crop Picture
+        data_tensor = T.CenterCrop(size=width_height)(data_tensor)
+        data_sequence[i, :, :] = data_tensor.numpy()
+    return data_sequence
 
 
 if __name__ == '__main__':
@@ -74,6 +117,10 @@ if __name__ == '__main__':
     # plot_data(data_arr)
     # plot_data(np.array(flag_dataset))
     # plot_data_log(data_arr)
+    start_date_time = datetime.datetime(2020, 12, 20)
+    # iterate_through_data_names(start_date, future_iterations_from_start=3, minutes_per_iteration=5)
+    data_sequence = load_data_sequence(start_date_time, input_folder, future_iterations_from_start=3, minutes_per_iteration=5,
+                       width_height=256)
 
     blub = img_one_hot(data_arr, 64)
     pass

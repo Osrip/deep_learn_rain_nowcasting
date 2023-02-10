@@ -5,6 +5,8 @@ import torchvision.transforms as T
 from helper_functions import create_dilation_list
 
 from modules_blocks import Network
+
+
 def main():
 
     # device = torch.device('cuda')
