@@ -9,8 +9,27 @@ import matplotlib.pyplot as plt
 from helper_functions import map_mm_to_one_hot_index
 import datetime
 from exceptions import CountException
+from torch.utils.data import Dataset, DataLoader
 import einops
 # Remember to install package netCDF4 !!
+
+
+class PrecipitationDataset(Dataset):
+    def __init__(self, data_sequence, num_pictures_loaded, num_c_output):
+        self.data_sequence = data_sequence
+        # TODO: Implement recalculating the datasequence to one hot
+        self.num_pictures_loaded = num_pictures_loaded
+
+        data_sequence_one_hot = img_one_hot(data_sequence, num_c_output)
+        self.data_sequence_one_hot = einops.rearrange(data_sequence_one_hot, 'i w h c -> i c w h')
+
+    def __len__(self):
+        return np.shape(self.data_sequence)[0] - self.num_pictures_loaded
+
+    def __getitem__(self, idx):
+        # Returns the first pictures as input data and the last picture as training picture
+        return self.data_sequence[idx:idx+self.num_pictures_loaded-1, :, :], \
+            self.data_sequence_one_hot[idx+self.num_pictures_loaded, :, :, :]
 
 
 def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',
@@ -86,8 +105,9 @@ def img_one_hot(data_arr: np.ndarray, num_c: int):
     # data_hot = F.one_hot(data_indexed, num_c)
     # Why does this work with long tensor? but not int or float?? Long tensor is Int64!!
     data_hot = F.one_hot(data_indexed.long(), num_c)
-    data_hot = einops.rearrange(data_hot, 'w h c -> c w h')
+    # data_hot = einops.rearrange(data_hot, 'w h c -> c w h')
     # TODO! Seems to work but check, write test!!!
+    # Quick check: Compare data_sequence[1,5,5] to one_hot_data_sequence[1,:,5,5]
     return data_hot
 
 
