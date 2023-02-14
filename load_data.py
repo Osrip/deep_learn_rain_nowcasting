@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from helper_functions import map_mm_to_one_hot_index
 import datetime
 from exceptions import CountException
-
+import einops
 # Remember to install package netCDF4 !!
 
 
@@ -80,11 +80,12 @@ def img_one_hot(data_arr: np.ndarray, num_c: int):
     # TODO: Is it a good idea to add an extra index for nans? ...
     #  probably not a good idea to let the network predict them... but how should we handle them?
     vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
-    data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=64, mm_min=0, mm_max=20)
+    # TODO:pass mm index!
+    data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c, mm_min=0, mm_max=20)
     data_indexed = torch.from_numpy(data_arr)
     # data_hot = F.one_hot(data_indexed, num_c)
     # Why does this work with long tensor? but not int or float?? Long tensor is Int64!!
-    data_hot = F.one_hot(data_indexed.long(), 64)
+    data_hot = F.one_hot(data_indexed.long(), num_c)
     # TODO! Seems to work but check, write test!!!
     return data_hot
 
