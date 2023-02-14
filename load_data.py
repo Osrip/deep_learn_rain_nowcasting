@@ -80,12 +80,13 @@ def img_one_hot(data_arr: np.ndarray, num_c: int):
     # TODO: Is it a good idea to add an extra index for nans? ...
     #  probably not a good idea to let the network predict them... but how should we handle them?
     vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
-    # TODO:pass mm index!
+    # TODO:pass mm:min mm_max!
     data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c, mm_min=0, mm_max=20)
     data_indexed = torch.from_numpy(data_arr)
     # data_hot = F.one_hot(data_indexed, num_c)
     # Why does this work with long tensor? but not int or float?? Long tensor is Int64!!
     data_hot = F.one_hot(data_indexed.long(), num_c)
+    data_hot = einops.rearrange(data_hot, 'w h c -> c w h')
     # TODO! Seems to work but check, write test!!!
     return data_hot
 

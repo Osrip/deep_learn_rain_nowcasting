@@ -39,16 +39,20 @@ def train(model, start_date_time: datetime.datetime, device, folder_path: str, n
     data_sequence = load_data_sequence(start_date_time, folder_path, future_iterations_from_start=num_training_samples,
                                        width_height=width_height, minutes_per_iteration=minutes_per_iteration)
     for epoch in range(num_epochs):
+        print('Epoch: {}'.format(epoch))
         for i in range(np.shape(data_sequence)[0] - num_pictures_loaded):
+            print('Picture: {}'.format(i))
             # TODO: IMPLEMENT BATCHES!!!
             input_sequence = data_sequence[i:i+num_pictures_loaded-1, :, :]
             input_sequence = torch.from_numpy(input_sequence)
             input_sequence = input_sequence.float()
             # Add dummy batch dimension
             input_sequence = torch.unsqueeze(input_sequence, 0)
-            target = np.squeeze(data_sequence[i+num_pictures_loaded, :, :]) # Get rid of 1st dimension with np squeeze??
+            target = np.squeeze(data_sequence[i+num_pictures_loaded, :, :])  # Get rid of 1st dimension with np squeeze??
             target = img_one_hot(target, num_channels_one_hot_output)
             target = T.CenterCrop(size=width_height_target)(target)
+            target = torch.unsqueeze(target, 0)
+            target = target.float()
             optimizer.zero_grad()
 
             pred = model(input_sequence)
