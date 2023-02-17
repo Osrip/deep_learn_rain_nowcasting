@@ -19,8 +19,11 @@ class PrecipitationDataset(Dataset):
         self.data_sequence = data_sequence
         self.num_pictures_loaded = num_pictures_loaded
 
+        mm_min = np.floor(np.min(data_sequence))
+        mm_max = np.ceil(np.max(data_sequence))
+
         # TODO: implement log conversion in one hot
-        data_sequence_one_hot = img_one_hot(data_sequence, num_c_output)
+        data_sequence_one_hot = img_one_hot(data_sequence, num_c_output, mm_min, mm_max)
         self.data_sequence_one_hot = einops.rearrange(data_sequence_one_hot, 'i w h c -> i c w h')
 
         # log transform
@@ -105,7 +108,7 @@ def plot_data_log(data_arr):
     plt.show()
 
 
-def img_one_hot(data_arr: np.ndarray, num_c: int):
+def img_one_hot(data_arr: np.ndarray, num_c: int, mm_min, mm_max):
     '''
     Adds one hot encoded channel dimension
     '''
@@ -113,7 +116,7 @@ def img_one_hot(data_arr: np.ndarray, num_c: int):
     #  probably not a good idea to let the network predict them... but how should we handle them?
     vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
     # TODO:pass mm:min mm_max!
-    data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=0, mm_max=20)
+    data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-2, mm_min=mm_min, mm_max=mm_max)
     data_indexed = torch.from_numpy(data_arr_indexed)
     # TODO: This should be data_arr_indexed!!
     # data_hot = F.one_hot(data_indexed, num_c)
