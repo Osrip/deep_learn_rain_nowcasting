@@ -6,7 +6,7 @@ import torch.nn as nn
 import torchvision.transforms as T
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
-from helper_functions import map_mm_to_one_hot_index
+from helper_functions import bin_to_one_hot_index_linear
 import datetime
 from exceptions import CountException
 from torch.utils.data import Dataset, DataLoader
@@ -16,21 +16,18 @@ import einops
 
 class PrecipitationDataset(Dataset):
     def __init__(self, data_sequence, num_pictures_loaded, num_c_output, log_transform=True, normalize=True):
-        self.data_sequence = data_sequence
+        data_sequence = data_sequence
+        data_sequence = np.log(data_sequence+1)
         self.num_pictures_loaded = num_pictures_loaded
 
-        mm_min = np.floor(np.min(data_sequence))
-        mm_max = np.ceil(np.max(data_sequence))
-
         # TODO: implement log conversion in one hot
-        data_sequence_one_hot = img_one_hot(data_sequence, num_c_output, mm_min, mm_max)
+        data_sequence_one_hot = img_one_hot(data_sequence, num_c_output)
         self.data_sequence_one_hot = einops.rearrange(data_sequence_one_hot, 'i w h c -> i c w h')
 
         # log transform
         # Errors encountered!
         # Log transform with log x+1 to handle zeros
-        # data_sequence = np.log(data_sequence+1)
-        # self.data_sequence = normalize_data(data_sequence)
+        self.data_sequence = normalize_data(data_sequence)
 
     def __len__(self):
         return np.shape(self.data_sequence)[0] - self.num_pictures_loaded
@@ -108,23 +105,20 @@ def plot_data_log(data_arr):
     plt.show()
 
 
-def img_one_hot(data_arr: np.ndarray, num_c: int, mm_min, mm_max):
+def img_one_hot(data_arr: np.ndarray, num_c: int):
     '''
     Adds one hot encoded channel dimension
     '''
-    # TODO: Is it a good idea to add an extra index for nans? ...
-    #  probably not a good idea to let the network predict them... but how should we handle them?
-    vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
-    # TODO:pass mm:min mm_max!
-    data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=mm_min, mm_max=mm_max)
+
+    # vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
+
+    # data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=mm_min, mm_max=mm_max)
+
+    data_arr_indexed = bin_to_one_hot_index_linear(data_arr, num_c)
+    # data_arr_indexed = bin_to_one_hot_index_log(data_arr, num_c)
     data_indexed = torch.from_numpy(data_arr_indexed)
-    # TODO: This should be data_arr_indexed!!
-    # data_hot = F.one_hot(data_indexed, num_c)
-    # Why does this work with long tensor? but not int or float?? Long tensor is Int64!!
     data_hot = F.one_hot(data_indexed.long(), num_c)
-    # data_hot = einops.rearrange(data_hot, 'w h c -> c w h')
-    # TODO! Seems to work but check, write test!!!
-    # Quick check: Compare data_sequence[1,5,5] to one_hot_data_sequence[1,:,5,5]
+
     return data_hot
 
 

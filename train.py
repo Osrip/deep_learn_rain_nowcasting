@@ -153,7 +153,7 @@ def train(model, train_start_date_time: datetime.datetime, device, folder_path: 
 
 if __name__ == '__main__':
 
-    num_training_samples = 200 # Number of loaded pictures (first pics not used for training but only input)
+    num_training_samples = 200# Number of loaded pictures (first pics not used for training but only input)
     num_validation_samples = 200
     minutes_per_iteration = 5
     width_height = 256
