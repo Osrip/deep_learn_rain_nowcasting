@@ -1,6 +1,5 @@
 import numpy as np
 import sys
-from exceptions import BoundsException
 
 
 def create_dilation_list(width_height, inverse_ratio=4):
@@ -14,6 +13,16 @@ def create_dilation_list(width_height, inverse_ratio=4):
             raise Exception('Caught up')
 
     return out
+
+
+def bin_to_one_hot_index(mm_data, num_indecies):
+    '''
+    index starts counting at 0 and has max index at max_index --> length of indecies is max_index + 1 !!!
+    '''
+    # TODO: Use logarithmic binning to account for long tailed data distribution of precipitation???
+    linspace_binning = np.linspace(np.min(mm_data), np.max(mm_data), num=num_indecies) # num_indecies + 1 as the very last entry will never be used
+    indecies = np.digitize(mm_data, linspace_binning)
+    return indecies
 
 
 def map_mm_to_one_hot_index(mm, num_indecies, mm_min, mm_max):
