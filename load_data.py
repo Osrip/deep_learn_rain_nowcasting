@@ -15,13 +15,19 @@ import einops
 
 
 class PrecipitationDataset(Dataset):
-    def __init__(self, data_sequence, num_pictures_loaded, num_c_output):
+    def __init__(self, data_sequence, num_pictures_loaded, num_c_output, log_transform=True, normalize=True):
         self.data_sequence = data_sequence
-        # TODO: Implement recalculating the datasequence to one hot
         self.num_pictures_loaded = num_pictures_loaded
 
+        # TODO: implement log conversion in one hot
         data_sequence_one_hot = img_one_hot(data_sequence, num_c_output)
         self.data_sequence_one_hot = einops.rearrange(data_sequence_one_hot, 'i w h c -> i c w h')
+
+        # log transform
+        # Errors encountered!
+        # Log transform with log x+1 to handle zeros
+        # data_sequence = np.log(data_sequence+1)
+        # self.data_sequence = normalize_data(data_sequence)
 
     def __len__(self):
         return np.shape(self.data_sequence)[0] - self.num_pictures_loaded
@@ -30,6 +36,13 @@ class PrecipitationDataset(Dataset):
         # Returns the first pictures as input data and the last picture as training picture
         return self.data_sequence[idx:idx+self.num_pictures_loaded-1, :, :], \
             self.data_sequence_one_hot[idx+self.num_pictures_loaded, :, :, :]
+
+
+def normalize_data(data_sequence):
+    flattened_data = data_sequence.flatten()
+    std_data = np.std(flattened_data)
+    mean_data = np.mean(flattened_data)
+    return (data_sequence - mean_data) / std_data
 
 
 def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',
@@ -100,8 +113,9 @@ def img_one_hot(data_arr: np.ndarray, num_c: int):
     #  probably not a good idea to let the network predict them... but how should we handle them?
     vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
     # TODO:pass mm:min mm_max!
-    data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c, mm_min=0, mm_max=20)
-    data_indexed = torch.from_numpy(data_arr)
+    data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=0, mm_max=20)
+    data_indexed = torch.from_numpy(data_arr_indexed)
+    # TODO: This should be data_arr_indexed!!
     # data_hot = F.one_hot(data_indexed, num_c)
     # Why does this work with long tensor? but not int or float?? Long tensor is Int64!!
     data_hot = F.one_hot(data_indexed.long(), num_c)
@@ -111,8 +125,8 @@ def img_one_hot(data_arr: np.ndarray, num_c: int):
     return data_hot
 
 
-def load_data_sequence(start_date_time: datetime.datetime, folder_path: str, future_iterations_from_start: int, minutes_per_iteration: int,
-                       width_height: int):
+def load_data_sequence(start_date_time: datetime.datetime, folder_path: str, future_iterations_from_start: int,
+                       minutes_per_iteration: int, width_height: int):
     load_dates = iterate_through_data_names(start_date_time, future_iterations_from_start, minutes_per_iteration)
     data_arr_list = []
     data_sequence = np.empty([len(load_dates), width_height, width_height])
@@ -141,8 +155,8 @@ if __name__ == '__main__':
     # plot_data_log(data_arr)
     start_date_time = datetime.datetime(2020, 12, 20)
     # iterate_through_data_names(start_date, future_iterations_from_start=3, minutes_per_iteration=5)
-    data_sequence = load_data_sequence(start_date_time, input_folder, future_iterations_from_start=3, minutes_per_iteration=5,
-                       width_height=256)
+    data_sequence = load_data_sequence(start_date_time, input_folder, future_iterations_from_start=3,
+                                       minutes_per_iteration=5, width_height=256)
 
     blub = img_one_hot(data_arr, 64)
     pass

@@ -66,7 +66,6 @@ def train(model, train_start_date_time: datetime.datetime, device, folder_path: 
     sim_name = 'Run_·{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    max_accuracy = 0
     # TODO: Enable saving to pickle at some point
     data_sequence = load_data_sequence(train_start_date_time, folder_path, future_iterations_from_start=num_training_samples+num_validation_samples,
                                        width_height=width_height, minutes_per_iteration=minutes_per_iteration)
@@ -77,7 +76,7 @@ def train(model, train_start_date_time: datetime.datetime, device, folder_path: 
     train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
 
     validation_data_set = PrecipitationDataset(validation_data_sequence, num_pictures_loaded, num_channels_one_hot_output)
-    validation_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
+    validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
 
     losses = []
     validation_losses = []
@@ -104,7 +103,6 @@ def train(model, train_start_date_time: datetime.datetime, device, folder_path: 
         validation_losses.append(validation_loss)
         print('Epoch: {} Loss: {}'.format(epoch, avg_inner_loss))
         plot_losses(losses, validation_losses, sim_name)
-
 
 
 # def train(model, start_date_time: datetime.datetime, device, folder_path: str, num_training_samples: int,
@@ -153,12 +151,10 @@ def train(model, train_start_date_time: datetime.datetime, device, folder_path: 
     # TODO: Continue this!!
 
 
-
-
 if __name__ == '__main__':
 
-    num_training_samples = 20 # Number of loaded pictures (first pics not used for training but only input)
-    num_validation_samples = 20
+    num_training_samples = 200 # Number of loaded pictures (first pics not used for training but only input)
+    num_validation_samples = 200
     minutes_per_iteration = 5
     width_height = 256
     learning_rate = 0.0001
