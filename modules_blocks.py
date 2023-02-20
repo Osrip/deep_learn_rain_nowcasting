@@ -19,7 +19,6 @@ class Network(nn.Module):
             # 'c_in: 32 c_out: 64 curr_height: 128.0 out_height: 64.0',
             # 'c_in: 64 c_out: 128 curr_height: 64.0 out_height: 32.0']
             i += 1
-
             self.net_modules.add_module(
                 name='res_module_{}'.format(i),
                 module=MetResModule(c_num=c_curr, width_height=int(width_height_in / (2 ** (i-1))), kernel_size=3, stride=1,
@@ -71,7 +70,6 @@ class MetResModule(nn.Module):
     """
     def __init__(self, c_num: int, width_height: int, kernel_size: int = 3, stride: int = 1, inverse_ratio=2):
         super().__init__()
-        # TODO: Implement this with nn.ModuleDict() in future!!
         self.dilation_list = create_dilation_list(width_height, inverse_ratio=inverse_ratio)
         self.dilation_blocks = nn.ModuleList()
         # Create the amount of dilation blocks needed to increase dilation factor exponentially until kernel reaches

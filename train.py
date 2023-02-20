@@ -11,7 +11,8 @@ import datetime
 from load_data import load_data_sequence, img_one_hot, PrecipitationDataset
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
-
+from helper_functions import load_zipped_pickle, save_zipped_pickle
+import os
 
 
 def check_backward(model, learning_rate, device):
@@ -42,29 +43,29 @@ def validate(model, validation_data_loader):
     return np.mean(validation_losses)
 
 
-def plot_losses(losses, validation_losses, sim_name):
+def plot_losses(losses, validation_losses, plot_dir):
     plt.plot(losses)
     plt.title('Training Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    plt.savefig('Results/{}_loss.png'.format(sim_name), dpi=100)
+    plt.savefig('{}/{}_loss.png'.format(plot_dir, sim_name), dpi=100)
     plt.show()
     plt.plot(validation_losses)
     plt.title('Validation Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    plt.savefig('Results/{}_validation_loss.png'.format(sim_name), dpi=100)
+    plt.savefig('{}/{}_validation_loss.png'.format(plot_dir, sim_name), dpi=100)
     plt.show()
 
 
-def train(model, train_start_date_time: datetime.datetime, device, folder_path: str, num_training_samples: int, num_validation_samples,
+def train(model, sim_name, train_start_date_time: datetime.datetime, device, folder_path: str, num_training_samples: int, num_validation_samples,
           minutes_per_iteration: int, width_height: int, learning_rate: int, num_epochs: int,
-          num_input_time_steps: int, num_channels_one_hot_output, width_height_target, batch_size):
+          num_input_time_steps: int, num_channels_one_hot_output, width_height_target, batch_size, dirs):
     accuracies = []
     # Add one to
     num_pictures_loaded = num_input_time_steps + 1
 
-    sim_name = 'Run_·{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     # TODO: Enable saving to pickle at some point
@@ -103,53 +104,8 @@ def train(model, train_start_date_time: datetime.datetime, device, folder_path: 
         validation_loss = validate(model, validation_data_loader)
         validation_losses.append(validation_loss)
         print('Epoch: {} Loss: {}'.format(epoch, avg_inner_loss))
-        plot_losses(losses, validation_losses, sim_name)
-
-
-# def train(model, start_date_time: datetime.datetime, device, folder_path: str, num_training_samples: int,
-#           minutes_per_iteration: int, width_height: int, learning_rate: int, num_epochs: int,
-#           num_input_time_steps: int, num_channels_one_hot_output, width_height_target):
-#     accuracies = []
-#     # Add one to
-#     num_pictures_loaded = num_input_time_steps + 1
-#
-#     sim_name = 'Run_·{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-#     criterion = nn.CrossEntropyLoss()
-#     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-#     max_accuracy = 0
-#     # TODO: Enable saving to pickle at some point
-#     data_sequence = load_data_sequence(start_date_time, folder_path, future_iterations_from_start=num_training_samples,
-#                                        width_height=width_height, minutes_per_iteration=minutes_per_iteration)
-#     for epoch in range(num_epochs):
-#         print('Epoch: {}'.format(epoch))
-#         for i in range(np.shape(data_sequence)[0] - num_pictures_loaded):
-#             print('Picture: {}'.format(i))
-#             # TODO: IMPLEMENT BATCHES!!!
-#             input_sequence = data_sequence[i:i+num_pictures_loaded-1, :, :]
-#             input_sequence = torch.from_numpy(input_sequence)
-#             input_sequence = input_sequence.float()
-#             # Add dummy batch dimension
-#             input_sequence = torch.unsqueeze(input_sequence, 0)
-#             target = np.squeeze(data_sequence[i+num_pictures_loaded, :, :])  # Get rid of 1st dimension with np squeeze??
-#             target = img_one_hot(target, num_channels_one_hot_output)
-#             target = T.CenterCrop(size=width_height_target)(target)
-#             target = torch.unsqueeze(target, 0)
-#             target = target.float()
-#             optimizer.zero_grad()
-#
-#             pred = model(input_sequence)
-#             loss = criterion(pred, target)
-#             loss.backward()
-#             optimizer.step()
-
-    # Todo: implement validation to estimate accuracy!
-
-
-
-
-
-
-    # TODO: Continue this!!
+        plot_losses(losses, validation_losses, dirs['plot_dir'])
+    return model
 
 
 if __name__ == '__main__':
@@ -165,6 +121,17 @@ if __name__ == '__main__':
     num_channels_one_hot_output = 32  # TODO: Check this!! Not 64??
     width_height_target = 32
     batch_size = 10
+    save_trained_model = True
+
+    sim_name = 'Run_·{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+
+    dirs = {}
+    dirs['save_dir'] = 'runs/{}'.format(sim_name)
+    dirs['plot_dir'] = '{}/plots'.format(dirs['save_dir'])
+    dirs['model_dir'] = '{}/model'.format(dirs['save_dir'])
+    for _, make_dir in dirs.items():
+        if not os.path.exists(make_dir):
+            os.makedirs(make_dir)
 
     model = Network(c_in=num_input_time_steps, width_height_in=width_height)
     # NETWORK STILL NEEDS NUMBER OF OUTPUT CHANNELS num_channels_one_hot_output !!!
@@ -175,11 +142,13 @@ if __name__ == '__main__':
     # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
     folder_path = 'dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    # device = 'cpu'
-    device = 'cuda'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print('Training started on {}'.format(device))
 
-    train(model, train_start_date_time, device, folder_path, num_training_samples, num_validation_samples, minutes_per_iteration, width_height,
-          learning_rate, num_epochs, num_input_time_steps, num_channels_one_hot_output, width_height_target, batch_size)
+    trained_model = train(model, sim_name, train_start_date_time, device, folder_path, num_training_samples, num_validation_samples, minutes_per_iteration, width_height,
+          learning_rate, num_epochs, num_input_time_steps, num_channels_one_hot_output, width_height_target, batch_size, dirs)
+    if save_trained_model:
+        save_zipped_pickle('{}/trained_model'.format(dirs['model_dir']), trained_model)
     pass
 
 

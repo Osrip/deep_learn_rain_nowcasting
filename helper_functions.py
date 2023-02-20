@@ -1,5 +1,7 @@
 import numpy as np
 import sys
+import pickle
+import gzip
 
 
 def create_dilation_list(width_height, inverse_ratio=4):
@@ -46,4 +48,16 @@ def bin_to_one_hot_index_linear(mm_data, num_indecies):
     return indecies
 
 
+def save_zipped_pickle(title, data):
+    '''
+    Compresses data and saves it
+    '''
+    with gzip.GzipFile(title + 'pickle.pgz', 'w') as f:
+        pickle.dump(data, f)
+
+
+def load_zipped_pickle(file):
+    data = gzip.GzipFile(file + 'pickle.pgz', 'rb')
+    data = pickle.load(data)
+    return data
 
