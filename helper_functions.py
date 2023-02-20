@@ -52,12 +52,12 @@ def save_zipped_pickle(title, data):
     '''
     Compresses data and saves it
     '''
-    with gzip.GzipFile(title + 'pickle.pgz', 'w') as f:
+    with gzip.GzipFile(title + '.pickle.pgz', 'w') as f:
         pickle.dump(data, f)
 
 
 def load_zipped_pickle(file):
-    data = gzip.GzipFile(file + 'pickle.pgz', 'rb')
+    data = gzip.GzipFile(file + '.pickle.pgz', 'rb')
     data = pickle.load(data)
     return data
 

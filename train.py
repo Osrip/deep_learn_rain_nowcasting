@@ -115,7 +115,7 @@ if __name__ == '__main__':
     minutes_per_iteration = 5
     width_height = 256
     learning_rate = 0.0001
-    num_epochs = 10000
+    num_epochs = 5
     num_input_time_steps = 4
     optical_flow_input = False  # Not yet working!
     num_channels_one_hot_output = 32  # TODO: Check this!! Not 64??
