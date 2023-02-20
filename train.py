@@ -175,7 +175,8 @@ if __name__ == '__main__':
     # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
     folder_path = 'dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    device = 'cpu'
+    # device = 'cpu'
+    device = 'cuda'
 
     train(model, train_start_date_time, device, folder_path, num_training_samples, num_validation_samples, minutes_per_iteration, width_height,
           learning_rate, num_epochs, num_input_time_steps, num_channels_one_hot_output, width_height_target, batch_size)
