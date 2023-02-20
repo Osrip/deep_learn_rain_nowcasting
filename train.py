@@ -84,7 +84,7 @@ def train(model, train_start_date_time: datetime.datetime, device, folder_path: 
         inner_losses = []
         for i, (input_sequence, target) in enumerate(train_data_loader):
 
-            print('Picture: {}'.format(i))
+            print('Batch: {}'.format(i))
             input_sequence = input_sequence.float()
             target = T.CenterCrop(size=width_height_target)(target)
             target = target.float()
@@ -171,7 +171,9 @@ if __name__ == '__main__':
     # Throws an error on remote venv for some reason
     # optimized_model = check_backward(model, learning_rate=0.001, device='cpu')
     train_start_date_time = datetime.datetime(2020, 12, 1)
-    folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
+    # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
+    folder_path = 'dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
+
     device = 'cpu'
 
     train(model, train_start_date_time, device, folder_path, num_training_samples, num_validation_samples, minutes_per_iteration, width_height,
