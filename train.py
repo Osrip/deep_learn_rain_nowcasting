@@ -27,17 +27,18 @@ def check_backward(model, learning_rate, device):
 
 
 def validate(model, validation_data_loader):
-    criterion = nn.CrossEntropyLoss()
-    validation_losses = []
-    for i, (input_sequence, target) in enumerate(validation_data_loader):
-        input_sequence = input_sequence.float()
-        target = T.CenterCrop(size=width_height_target)(target)
-        target = target.float()
+    with torch.no_grad():
+        criterion = nn.CrossEntropyLoss()
+        validation_losses = []
+        for i, (input_sequence, target) in enumerate(validation_data_loader):
+            input_sequence = input_sequence.float()
+            target = T.CenterCrop(size=width_height_target)(target)
+            target = target.float()
 
-        pred = model(input_sequence)
-        loss = criterion(pred, target)
-        loss = float(loss.detach().numpy())
-        validation_losses.append(loss)
+            pred = model(input_sequence)
+            loss = criterion(pred, target)
+            loss = float(loss.detach().numpy())
+            validation_losses.append(loss)
     return np.mean(validation_losses)
 
 
@@ -153,8 +154,8 @@ def train(model, train_start_date_time: datetime.datetime, device, folder_path: 
 
 if __name__ == '__main__':
 
-    num_training_samples = 200# Number of loaded pictures (first pics not used for training but only input)
-    num_validation_samples = 200
+    num_training_samples = 20# Number of loaded pictures (first pics not used for training but only input)
+    num_validation_samples = 20
     minutes_per_iteration = 5
     width_height = 256
     learning_rate = 0.0001
