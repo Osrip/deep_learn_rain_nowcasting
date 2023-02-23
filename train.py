@@ -13,6 +13,10 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from helper_functions import load_zipped_pickle, save_zipped_pickle
 import os
+from plotting.plot_img_histogram import plot_img_histogram
+
+
+
 
 
 def check_backward(model, learning_rate, device):
@@ -68,7 +72,7 @@ def train(model, sim_name, train_start_date_time: datetime.datetime, device, fol
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    # TODO: Enable saving to pickle at some point
+    # TODO: Enable saving to pickle at some pointhttps://www.ebay-kleinanzeigen.de/s-anzeige/maloja-radset-trikot-hose/2192308033-230-7449
     data_sequence = load_data_sequence(train_start_date_time, folder_path, future_iterations_from_start=num_training_samples+num_validation_samples,
                                        width_height=width_height, minutes_per_iteration=minutes_per_iteration)
     train_data_sequence = data_sequence[0:num_training_samples, :, :]
@@ -105,13 +109,15 @@ def train(model, sim_name, train_start_date_time: datetime.datetime, device, fol
         validation_losses.append(validation_loss)
         print('Epoch: {} Loss: {}'.format(epoch, avg_inner_loss))
         plot_losses(losses, validation_losses, dirs['plot_dir'])
+        plot_img_histogram(pred, '{}/pred_dist_ep{}'.format(dirs['plot_dir'], epoch), title='Prediciton')
+        plot_img_histogram(input_sequence, '{}/input_dist_ep{}'.format(dirs['plot_dir'], epoch), title='Input')
     return model
 
 
 if __name__ == '__main__':
 
-    num_training_samples = 1000# Number of loaded pictures (first pics not used for training but only input)
-    num_validation_samples = 600
+    num_training_samples = 20 # 1000  # Number of loaded pictures (first pics not used for training but only input)
+    num_validation_samples = 20 # 600
     minutes_per_iteration = 5
     width_height = 256
     learning_rate = 0.0001
@@ -122,8 +128,12 @@ if __name__ == '__main__':
     width_height_target = 32
     batch_size = 10
     save_trained_model = True
+    load_model = False
+    load_model_name = 'Run_·20230220-191041'
 
-    sim_name = 'Run_·{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+
+
+    sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 
     dirs = {}
     dirs['save_dir'] = 'runs/{}'.format(sim_name)
@@ -133,7 +143,11 @@ if __name__ == '__main__':
         if not os.path.exists(make_dir):
             os.makedirs(make_dir)
 
-    model = Network(c_in=num_input_time_steps, width_height_in=width_height)
+
+    if load_model:
+        model = load_zipped_pickle('runs/{}/model/trained_model'.format(load_model_name))
+    else:
+        model = Network(c_in=num_input_time_steps, width_height_in=width_height)
     # NETWORK STILL NEEDS NUMBER OF OUTPUT CHANNELS num_channels_one_hot_output !!!
 
     # Throws an error on remote venv for some reason
