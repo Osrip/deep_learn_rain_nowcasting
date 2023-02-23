@@ -74,7 +74,7 @@ def iterate_through_data_names(start_date_time, future_iterations_from_start: in
     return load_dates
 
 
-def flag_data(data_dataset, flag_dataset):
+def flag_data(data_dataset, flag_dataset, nan_letter=0):
     data_arr = np.array(data_dataset)
     flag_arr = np.array(flag_dataset)
     # set all flag values of 0 (data available) True
@@ -83,7 +83,7 @@ def flag_data(data_dataset, flag_dataset):
     flag_bool = booler_func(flag_arr)
     # Replace all False in flag_bool with nan
     # data_arr[~flag_bool] = np.NAN
-    data_arr[~flag_bool] = 0
+    data_arr[~flag_bool] = nan_letter
     return data_arr
 
 
@@ -109,11 +109,8 @@ def img_one_hot(data_arr: np.ndarray, num_c: int):
     '''
     Adds one hot encoded channel dimension
     '''
-
     # vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
-
     # data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=mm_min, mm_max=mm_max)
-
     data_arr_indexed = bin_to_one_hot_index_linear(data_arr, num_c)
     # data_arr_indexed = bin_to_one_hot_index_log(data_arr, num_c)
     data_indexed = torch.from_numpy(data_arr_indexed)
@@ -147,9 +144,9 @@ if __name__ == '__main__':
     input_path = input_folder + input_file
     data_dataset, flag_dataset = import_data(input_path)
     data_arr = flag_data(data_dataset, flag_dataset)
-    # plot_data(data_arr)
-    # plot_data(np.array(flag_dataset))
-    # plot_data_log(data_arr)
+    plot_data(data_arr)
+    plot_data(np.array(flag_dataset))
+    plot_data_log(data_arr)
     start_date_time = datetime.datetime(2020, 12, 20)
     # iterate_through_data_names(start_date, future_iterations_from_start=3, minutes_per_iteration=5)
     data_sequence = load_data_sequence(start_date_time, input_folder, future_iterations_from_start=3,

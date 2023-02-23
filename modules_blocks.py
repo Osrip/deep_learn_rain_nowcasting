@@ -8,6 +8,7 @@ from helper_functions import create_dilation_list
 class Network(nn.Module):
     def __init__(self, c_in: int, width_height_in: int):
         super().__init__()
+        # TODO No doubling of channels in conv 2d???!!!
         self.conv1 = nn.Conv2d(c_in, c_in, kernel_size=1, dilation=1, stride=1, padding=0)
         self.net_modules = nn.ModuleList()
         self.soft_max = nn.Softmax(dim=1)
