@@ -35,7 +35,7 @@ def validate(model, validation_data_loader):
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
         validation_losses = []
-        for i, (input_sequence, target) in enumerate(validation_data_loader):
+        for i, (input_sequence, target, _, _) in enumerate(validation_data_loader):
             input_sequence = input_sequence.float()
             target = T.CenterCrop(size=width_height_target)(target)
             target = target.float()
@@ -72,11 +72,13 @@ def train(model, sim_name, train_start_date_time: datetime.datetime, device, fol
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    # TODO: Enable saving to pickle at some pointhttps://www.ebay-kleinanzeigen.de/s-anzeige/maloja-radset-trikot-hose/2192308033-230-7449
+    # TODO: Enable saving to pickle at some point
+    print('Load Data')
     data_sequence = load_data_sequence(train_start_date_time, folder_path, future_iterations_from_start=num_training_samples+num_validation_samples,
                                        width_height=width_height, minutes_per_iteration=minutes_per_iteration)
     train_data_sequence = data_sequence[0:num_training_samples, :, :]
     validation_data_sequence = data_sequence[num_training_samples:, :, :]
+
 
     train_data_set = PrecipitationDataset(train_data_sequence, num_pictures_loaded, num_channels_one_hot_output)
     train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
@@ -88,7 +90,7 @@ def train(model, sim_name, train_start_date_time: datetime.datetime, device, fol
     validation_losses = []
     for epoch in range(num_epochs):
         inner_losses = []
-        for i, (input_sequence, target) in enumerate(train_data_loader):
+        for i, (input_sequence, target, input_sequence_unnormalized, target_unnormalized) in enumerate(train_data_loader):
 
             print('Batch: {}'.format(i))
             input_sequence = input_sequence.float()
@@ -107,26 +109,28 @@ def train(model, sim_name, train_start_date_time: datetime.datetime, device, fol
         losses.append(avg_inner_loss)
         validation_loss = validate(model, validation_data_loader)
         validation_losses.append(validation_loss)
-        print('Epoch: {} Loss: {}'.format(epoch, avg_inner_loss))
+        print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, validation_loss))
         plot_losses(losses, validation_losses, dirs['plot_dir'])
         plot_img_histogram(pred, '{}/pred_dist_ep{}'.format(dirs['plot_dir'], epoch), title='Prediciton')
-        plot_img_histogram(input_sequence, '{}/input_dist_ep{}'.format(dirs['plot_dir'], epoch), title='Input')
+        plot_img_histogram(input_sequence_unnormalized, '{}/input_dist_ep{}'.format(dirs['plot_dir'], epoch), title='Input')
+        plot_img_histogram(target_unnormalized, '{}/target_dist_ep{}'.format(dirs['plot_dir'], epoch),
+                           title='Input')
     return model
 
 
 if __name__ == '__main__':
 
-    num_training_samples = 20 # 1000  # Number of loaded pictures (first pics not used for training but only input)
-    num_validation_samples = 20 # 600
+    num_training_samples = 1000  # Number of loaded pictures (first pics not used for training but only input)
+    num_validation_samples = 600
     minutes_per_iteration = 5
     width_height = 256
-    learning_rate = 0.0001
+    learning_rate = 0.0001  # Schedule this at some point??
     num_epochs = 1000
     num_input_time_steps = 4
     optical_flow_input = False  # Not yet working!
     num_channels_one_hot_output = 32  # TODO: Check this!! Not 64??
     width_height_target = 32
-    batch_size = 10
+    batch_size = 40  # 10
     save_trained_model = True
     load_model = False
     load_model_name = 'Run_·20230220-191041'

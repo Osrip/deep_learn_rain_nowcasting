@@ -11,12 +11,27 @@ import datetime
 from exceptions import CountException
 from torch.utils.data import Dataset, DataLoader
 import einops
+from tqdm import tqdm
 # Remember to install package netCDF4 !!
 
 
 class PrecipitationDataset(Dataset):
     def __init__(self, data_sequence, num_pictures_loaded, num_c_output, log_transform=True, normalize=True):
-        data_sequence = data_sequence
+        """
+        Attributes:
+        self.data_sequence --> log normalized data sequence
+        seöf.data_sequence_not_normalized --> not normalized data sequence
+        self.data_sequence_one_hot --> log data sequence in one hot encoding
+        self.num_pictures_loaded --> number of pictures loded
+
+        returns (tuple in subsequent order):
+        log normalized data sequence --> training data frames,
+        log one hot data sequence --> target data frame,
+        unnormalized data sequence --> training frames
+        unnormalized data sequence --> target frame
+
+        """
+        self.data_sequence_not_normalized = data_sequence
         data_sequence = np.log(data_sequence+1)
         self.num_pictures_loaded = num_pictures_loaded
 
@@ -35,7 +50,11 @@ class PrecipitationDataset(Dataset):
     def __getitem__(self, idx):
         # Returns the first pictures as input data and the last picture as training picture
         return self.data_sequence[idx:idx+self.num_pictures_loaded-1, :, :], \
-            self.data_sequence_one_hot[idx+self.num_pictures_loaded, :, :, :]
+            self.data_sequence_one_hot[idx+self.num_pictures_loaded, :, :, :], \
+            self.data_sequence_not_normalized[idx:idx+self.num_pictures_loaded-1, :, :], \
+            self.data_sequence_not_normalized[idx:idx + self.num_pictures_loaded, :, :]
+            #  [:idx+self.num_pictures_loaded-1] <-- For data_sequence training data (several frames)
+            #  [idx+self.num_pictures_loaded, :, :, :] <-- for one_hot target (one frame)
 
 
 def normalize_data(data_sequence):
@@ -87,11 +106,15 @@ def flag_data(data_dataset, flag_dataset, nan_letter=0):
     return data_arr
 
 
-def plot_data(data_arr):
+def plot_data(data_arr, flag_naming=False):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     pixel_plot = plt.imshow(data_arr, cmap='Greens', interpolation='nearest', origin='lower')
     plt.colorbar(pixel_plot)
+    if flag_naming:
+        plt.savefig('misc/flag.png', dpi=300, bbox_inches='tight')
+    else:
+        plt.savefig('misc/data.png', dpi=300, bbox_inches='tight')
     plt.show()
 
 
@@ -102,6 +125,15 @@ def plot_data_log(data_arr):
     pixel_plot = plt.matshow(data_arr, cmap='Greens', norm=LogNorm(vmin=0.01, vmax=1), interpolation='nearest',
                              origin='lower')
     plt.colorbar(pixel_plot)
+    plt.savefig('misc/log_data.png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+
+def plot_data_boo(data_arr):
+    boo_data = data_arr < 0.001
+    pixel_plot = plt.plot(boo_data)
+    # plt.colorbar(pixel_plot)
+    plt.savefig('misc/data_close_to_zero.png', dpi=300, bbox_inches='tight')
     plt.show()
 
 
@@ -124,7 +156,7 @@ def load_data_sequence(start_date_time: datetime.datetime, folder_path: str, fut
     load_dates = iterate_through_data_names(start_date_time, future_iterations_from_start, minutes_per_iteration)
     data_arr_list = []
     data_sequence = np.empty([len(load_dates), width_height, width_height])
-    for i, date in enumerate(load_dates):
+    for i, date in tqdm(enumerate(load_dates), total=len(load_dates)):
         # DE1200_RV_Recalc_20201220_1150_+000000
         # Load Picture
         file_name = 'DE1200_RV_Recalc_{}_{}_+000000.hdf'.format(date.strftime('%Y%m%d'), date.strftime('%H%M'))
@@ -145,8 +177,9 @@ if __name__ == '__main__':
     data_dataset, flag_dataset = import_data(input_path)
     data_arr = flag_data(data_dataset, flag_dataset)
     plot_data(data_arr)
-    plot_data(np.array(flag_dataset))
+    plot_data(np.array(flag_dataset), flag_naming=True)
     plot_data_log(data_arr)
+    plot_data_boo(data_arr)
     start_date_time = datetime.datetime(2020, 12, 20)
     # iterate_through_data_names(start_date, future_iterations_from_start=3, minutes_per_iteration=5)
     data_sequence = load_data_sequence(start_date_time, input_folder, future_iterations_from_start=3,

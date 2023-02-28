@@ -14,6 +14,7 @@ def plot_img_histogram(img, save_path):
 
 
 def plot_img_histogram(img, save_path_name, title=''):
+
     flat_img = torch.flatten(img)
     flat_img = flat_img.detach().numpy()
     plt.subplot(211)
@@ -24,7 +25,7 @@ def plot_img_histogram(img, save_path_name, title=''):
     # Use non-equal bin sizes, such that they look equal on log scale.
     # TODO: This does not work ... should work for both pred and input sequence ... however only works for one of them
     # TODO: when either log + 1 or log + 0 FIX THIS BS!!
-    logbins = np.logspace(np.log10(bins[0]+1e-10), np.log10(bins[-1]+1e-10), len(bins))
+    logbins = np.logspace(np.log10(bins[0]++1e-9), np.log10(bins[-1]+1e-9), len(bins))
     plt.subplot(212)
     plt.hist(flat_img, bins=logbins)
     plt.xscale('log')
