@@ -14,9 +14,9 @@ def plot_img_histogram(img, save_path):
 
 
 def plot_img_histogram(img, save_path_name, title=''):
-
+    plt.figure()
     flat_img = torch.flatten(img)
-    flat_img = flat_img.detach().numpy()
+    flat_img = flat_img.detach().cpu().numpy()
     plt.subplot(211)
     plt.title(title)
     hist, bins, _ = plt.hist(flat_img, bins=8)
