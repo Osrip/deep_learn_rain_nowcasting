@@ -6,14 +6,17 @@ from helper_functions import create_dilation_list
 
 
 class Network(nn.Module):
-    def __init__(self, c_in: int, width_height_in: int):
+    def __init__(self, c_in: int, upscale_c_to, num_bins_crossentropy, width_height_in: int):
+        """
+        upscale_c_to: the number of channels, that the first convolution scales up to
+        """
         super().__init__()
         # TODO No doubling of channels in conv 2d???!!!
-        self.conv1 = nn.Conv2d(c_in, c_in, kernel_size=1, dilation=1, stride=1, padding=0)
+        self.conv1_1_upscale = nn.Conv2d(c_in, upscale_c_to, kernel_size=1, dilation=1, stride=1, padding=0)
         self.net_modules = nn.ModuleList()
         self.soft_max = nn.Softmax(dim=1)
         test_list = []
-        c_curr = c_in
+        c_curr = upscale_c_to
         for i in range(3):
             # log2(256)=8 log2(32)=5 --> We need three sampling modules that half the size
             # ['c_in: 16 c_out: 32 curr_height: 256.0 out_height: 128.0',
@@ -22,8 +25,8 @@ class Network(nn.Module):
             i += 1
             self.net_modules.add_module(
                 name='res_module_{}'.format(i),
-                module=MetResModule(c_num=c_curr, width_height=int(width_height_in / (2 ** (i-1))), kernel_size=3, stride=1,
-                                         inverse_ratio=2)
+                module=MetResModule(c_num=c_curr, width_height=int(width_height_in / (2 ** (i-1))), kernel_size=3,
+                                    stride=1, inverse_ratio=2)
             )
             self.net_modules.add_module(
                 name='sample_module_{}'.format(i),
@@ -34,10 +37,12 @@ class Network(nn.Module):
             test_list.append('c_in: {} c_out: {} curr_height: {} out_height: {}'
                              .format(c_curr, c_curr * 2, width_height_in / (2 ** (i-1)), width_height_in / (2 ** i)))
 
+        self.conv1_1_downscale = nn.Conv2d(c_curr, num_bins_crossentropy, kernel_size=1, dilation=1, stride=1, padding=0)
     def forward(self, x: torch.Tensor):
-        x = self.conv1(x)
+        x = self.conv1_1_upscale(x)
         for module in self.net_modules:
             x = module(x)
+        x = self.conv1_1_downscale(x)
         x = self.soft_max(x)
         return x
 

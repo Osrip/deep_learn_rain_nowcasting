@@ -132,15 +132,19 @@ def train(model, sim_name, train_start_date_time: datetime.datetime, device, fol
 
 if __name__ == '__main__':
 
-    num_training_samples = 20 # 1000  # Number of loaded pictures (first pics not used for training but only input)
-    num_validation_samples = 20 # 600
+    num_training_samples = 20  # 1000  # Number of loaded pictures (first pics not used for training but only input)
+    num_validation_samples = 20  # 600
+
+    # Parameters that give the network architecture
+    upscale_c_to = 16
+    num_bins_crossentropy = 64
+
     minutes_per_iteration = 5
     width_height = 256
     learning_rate = 0.0001  # Schedule this at some point??
     num_epochs = 1000
     num_input_time_steps = 4
     optical_flow_input = False  # Not yet working!
-    num_channels_one_hot_output = 32  # TODO: Check this!! Not 64??
     width_height_target = 32
     batch_size = 10  # 10
     save_trained_model = True
@@ -165,7 +169,8 @@ if __name__ == '__main__':
     if load_model:
         model = load_zipped_pickle('runs/{}/model/trained_model'.format(load_model_name))
     else:
-        model = Network(c_in=num_input_time_steps, width_height_in=width_height)
+        model = Network(c_in=num_input_time_steps, upscale_c_to=upscale_c_to,
+                        num_bins_crossentropy=num_bins_crossentropy, width_height_in=width_height)
     model = model.to(device)
     # NETWORK STILL NEEDS NUMBER OF OUTPUT CHANNELS num_channels_one_hot_output !!!
 
@@ -179,7 +184,7 @@ if __name__ == '__main__':
     print('Training started on {}'.format(device), flush=True)
 
     trained_model = train(model, sim_name, train_start_date_time, device, folder_path, num_training_samples, num_validation_samples, minutes_per_iteration, width_height,
-          learning_rate, num_epochs, num_input_time_steps, num_channels_one_hot_output, width_height_target, batch_size, dirs)
+          learning_rate, num_epochs, num_input_time_steps, num_bins_crossentropy, width_height_target, batch_size, dirs)
     if save_trained_model:
         save_zipped_pickle('{}/trained_model'.format(dirs['model_dir']), trained_model)
     pass
