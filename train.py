@@ -49,17 +49,14 @@ def validate(model, validation_data_loader):
 
 def plot_losses(losses, validation_losses, plot_dir):
     plt.figure()
-    plt.plot(losses)
-    plt.title('Training Loss')
+    plt.plot(losses, label='Training Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
+    # plt.savefig('{}/{}_loss.png'.format(plot_dir, sim_name), dpi=100)
+    # plt.show()
+    plt.plot(validation_losses, label='Validation Loss')
+    plt.legend()
     plt.savefig('{}/{}_loss.png'.format(plot_dir, sim_name), dpi=100)
-    plt.show()
-    plt.plot(validation_losses)
-    plt.title('Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.savefig('{}/{}_validation_loss.png'.format(plot_dir, sim_name), dpi=100)
     plt.show()
 
 
@@ -74,7 +71,7 @@ def train(model, sim_name, train_start_date_time: datetime.datetime, device, fol
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     # TODO: Enable saving to pickle at some point
-    print('Load Data')
+    print('Load Data', flush=True)
     data_sequence = load_data_sequence(train_start_date_time, folder_path, future_iterations_from_start=num_training_samples+num_validation_samples,
                                        width_height=width_height, minutes_per_iteration=minutes_per_iteration)
     train_data_sequence = data_sequence[0:num_training_samples, :, :]
@@ -102,7 +99,7 @@ def train(model, sim_name, train_start_date_time: datetime.datetime, device, fol
             input_sequence_unnormalized = input_sequence_unnormalized.to(device)
             target_unnormalized = target_unnormalized.to(device)
 
-            print('Batch: {}'.format(i))
+            print('Batch: {}'.format(i), flush=True)
 
             target = T.CenterCrop(size=width_height_target)(target)
             target = target.float()
@@ -124,7 +121,7 @@ def train(model, sim_name, train_start_date_time: datetime.datetime, device, fol
         losses.append(avg_inner_loss)
         validation_loss = validate(model, validation_data_loader)
         validation_losses.append(validation_loss)
-        print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, validation_loss))
+        print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, validation_loss), flush=True)
         plot_losses(losses, validation_losses, dirs['plot_dir'])
         plot_img_histogram(pred, '{}/ep{}_pred_dist'.format(dirs['plot_dir'], epoch), title='Prediciton')
         plot_img_histogram(input_sequence_unnormalized, '{}/ep{}_input_dist'.format(dirs['plot_dir'], epoch), title='Input')
@@ -135,8 +132,8 @@ def train(model, sim_name, train_start_date_time: datetime.datetime, device, fol
 
 if __name__ == '__main__':
 
-    num_training_samples = 20 #1000  # Number of loaded pictures (first pics not used for training but only input)
-    num_validation_samples = 20 #600
+    num_training_samples = 20 # 1000  # Number of loaded pictures (first pics not used for training but only input)
+    num_validation_samples = 20 # 600
     minutes_per_iteration = 5
     width_height = 256
     learning_rate = 0.0001  # Schedule this at some point??
@@ -163,6 +160,7 @@ if __name__ == '__main__':
             os.makedirs(make_dir)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = 'cpu'
 
     if load_model:
         model = load_zipped_pickle('runs/{}/model/trained_model'.format(load_model_name))
@@ -178,7 +176,7 @@ if __name__ == '__main__':
     folder_path = 'dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
 
-    print('Training started on {}'.format(device))
+    print('Training started on {}'.format(device), flush=True)
 
     trained_model = train(model, sim_name, train_start_date_time, device, folder_path, num_training_samples, num_validation_samples, minutes_per_iteration, width_height,
           learning_rate, num_epochs, num_input_time_steps, num_channels_one_hot_output, width_height_target, batch_size, dirs)

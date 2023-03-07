@@ -34,8 +34,6 @@ class Network(nn.Module):
             test_list.append('c_in: {} c_out: {} curr_height: {} out_height: {}'
                              .format(c_curr, c_curr * 2, width_height_in / (2 ** (i-1)), width_height_in / (2 ** i)))
 
-        pass
-
     def forward(self, x: torch.Tensor):
         x = self.conv1(x)
         for module in self.net_modules:
@@ -112,6 +110,3 @@ class MetDilBlock(nn.Module):
         out = F.relu(out)
 
         return x + out
-
-
-
