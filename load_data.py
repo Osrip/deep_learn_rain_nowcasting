@@ -1,4 +1,5 @@
 import h5py
+import xarray as xr
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -151,23 +152,24 @@ def img_one_hot(data_arr: np.ndarray, num_c: int):
     return data_hot
 
 
-def load_data_sequence(start_date_time: datetime.datetime, folder_path: str, future_iterations_from_start: int,
-                       minutes_per_iteration: int, width_height: int):
-    load_dates = iterate_through_data_names(start_date_time, future_iterations_from_start, minutes_per_iteration)
-    data_arr_list = []
-    data_sequence = np.empty([len(load_dates), width_height, width_height])
-    for i, date in tqdm(enumerate(load_dates), total=len(load_dates)):
-        # DE1200_RV_Recalc_20201220_1150_+000000
-        # Load Picture
-        file_name = 'DE1200_RV_Recalc_{}_{}_+000000.hdf'.format(date.strftime('%Y%m%d'), date.strftime('%H%M'))
-        input_path = '{}{}'.format(folder_path, file_name)
-        data_dataset, flag_dataset = import_data(input_path)
-        data_arr = flag_data(data_dataset, flag_dataset)
-        data_tensor = torch.from_numpy(data_arr)
-        # Crop Picture
-        data_tensor = T.CenterCrop(size=width_height)(data_tensor)
-        data_sequence[i, :, :] = data_tensor.numpy()
-    return data_sequence
+def load_data_sequence_preliminary(folder_path, data_file_name, width_height, data_variable_name, choose_time_span, time_span,
+                                   local_machine_mode, **__):
+    # TODO: Continue here!
+    
+    data_dataset = xr.open_dataset('{}/{}'.format(folder_path, data_file_name))
+    if choose_time_span:
+        data_dataset = data_dataset.sel(time=slice(time_span[0], time_span[1]))
+    data_arr = data_dataset[data_variable_name].values
+    # Get rid of steps dimension
+    if local_machine_mode:
+        data_arr = data_arr[:, 0, :, :]
+    else:
+        data_arr = data_arr[0, :, :, :]
+    data_tensor = torch.from_numpy(data_arr)
+
+    # Crop --> TODO: Implement this with x y variables of NetCDF in future!
+    data_tensor = T.CenterCrop(size=width_height)(data_tensor)
+    return data_tensor.numpy()
 
 
 if __name__ == '__main__':
