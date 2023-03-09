@@ -15,8 +15,8 @@ from helper_functions import load_zipped_pickle, save_zipped_pickle
 import os
 from plotting.plot_img_histogram import plot_img_histogram
 import copy
-from pysteps import verification
-fss = verification.get_method("FSS")
+# from pysteps import verification
+# fss = verification.get_method("FSS")
 
 
 def check_backward(model, learning_rate, device):
@@ -31,7 +31,7 @@ def check_backward(model, learning_rate, device):
     return model
 
 
-def validate(model, validation_data_loader, width_height_target):
+def validate(model, validation_data_loader, width_height_target, **__):
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
         validation_losses = []
@@ -88,14 +88,14 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
     losses = []
     validation_losses = []
-    # fss_verifications = []
+
     for epoch in range(num_epochs):
         inner_losses = []
         for i, (input_sequence, target, input_sequence_unnormalized, target_unnormalized) in enumerate(train_data_loader):
             input_sequence = input_sequence.float()
 
             input_sequence = input_sequence.to(device)
-            x = input_sequence.to(device=device, dtype=torch.float32)
+            input_sequence = input_sequence.to(device=device, dtype=torch.float32)
             target = target.to(device)
             input_sequence_unnormalized = input_sequence_unnormalized.to(device)
             target_unnormalized = target_unnormalized.to(device)
@@ -107,7 +107,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             target = target.to(device)
 
             optimizer.zero_grad()
-            pred = model(x)
+            pred = model(input_sequence)
             loss = criterion(pred, target)
             loss.backward()
             optimizer.step()
@@ -118,9 +118,12 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             # del loss_copy
             # loss = loss.to(device)
             inner_losses.append(inner_loss)
+            # TODO: Currently Target is baseline for test purposes. Change that for obvious reasons!!!
+
+
         avg_inner_loss = np.mean(inner_losses)
         losses.append(avg_inner_loss)
-        validation_loss = validate(model, validation_data_loader)
+        validation_loss = validate(model, validation_data_loader, **settings)
         validation_losses.append(validation_loss)
         print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, validation_loss), flush=True)
         plot_losses(losses, validation_losses, dirs['plot_dir'])
@@ -179,15 +182,15 @@ if __name__ == '__main__':
             'local_machine_mode': True,
 
             'sim_name': sim_name,
-            'folder_path': '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/first_CNN_on_Radolan/dwd_nc/test_data',
-            'data_file_name': 'DE1200_RV_Recalc_20190101.nc',
+            'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
+            'data_file_name': 'RV_recalc_data_2019-01.nc',
             'data_variable_name': 'RV_recalc',
             'choose_time_span': False,
             'time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
             'ratio_training_data': 0.6,
 
             # Parameters that give the network architecture
-            'upscale_c_to': 16,
+            'upscale_c_to': 512,
             'num_bins_crossentropy': 64,
 
             # 'minutes_per_iteration': 5,
@@ -207,6 +210,12 @@ if __name__ == '__main__':
 
     if settings['local_machine_mode']:
         settings['data_variable_name'] = 'WN_forecast'
+        settings['folder_path'] = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/first_CNN_on_Radolan/dwd_nc/test_data'
+        settings['data_file_name'] = 'DE1200_RV_Recalc_20190101.nc'
+        settings['choose_time_span'] = True
+        settings['time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
+        settings['upscale_c_to'] = 16
+        settings['batch_size'] = 10
 
     main(settings=settings, **settings)
 

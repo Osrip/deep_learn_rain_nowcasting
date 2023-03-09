@@ -155,8 +155,10 @@ def img_one_hot(data_arr: np.ndarray, num_c: int):
 def load_data_sequence_preliminary(folder_path, data_file_name, width_height, data_variable_name, choose_time_span, time_span,
                                    local_machine_mode, **__):
     # TODO: Continue here!
-    
-    data_dataset = xr.open_dataset('{}/{}'.format(folder_path, data_file_name))
+
+    load_path = '{}/{}'.format(folder_path, data_file_name)
+    print('Loading training/validation data from {}'.format(load_path))
+    data_dataset = xr.open_dataset(load_path)
     if choose_time_span:
         data_dataset = data_dataset.sel(time=slice(time_span[0], time_span[1]))
     data_arr = data_dataset[data_variable_name].values

@@ -10,3 +10,5 @@ Activate remote python venv:
 source /home/jan/Programming/remote/first_CNN_on_radolan_remote/virtual_env/bin/activate
 
 For some reason has to be started without sudo!
+
+rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc' -e ssh $(pwd)/* bst981@134.2.168.52:/mnt/qb/butz/bst981/first_CNN_on_Radolan
