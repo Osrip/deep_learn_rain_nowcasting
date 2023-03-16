@@ -8,7 +8,7 @@ import torchvision.transforms as T
 from helper_functions import create_dilation_list
 from modules_blocks import Network
 import datetime
-from load_data import img_one_hot, PrecipitationDataset, load_data_sequence_preliminary
+from load_data import img_one_hot, PrecipitationDataset, load_data_sequence_preliminary, normalize_data
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from helper_functions import load_zipped_pickle, save_zipped_pickle
@@ -35,15 +35,15 @@ def validate(model, validation_data_loader, width_height_target, **__):
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
         validation_losses = []
-        for i, (input_sequence, target, _, _) in enumerate(validation_data_loader):
+        for i, (input_sequence, target_one_hot, target) in enumerate(validation_data_loader):
             input_sequence = input_sequence.float()
             input_sequence = input_sequence.to(device)
-            target = T.CenterCrop(size=width_height_target)(target)
-            target = target.float()
-            target = target.to(device)
+            target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
+            target_one_hot = target_one_hot.float()
+            target_one_hot = target_one_hot.to(device)
 
             pred = model(input_sequence)
-            loss = criterion(pred, target)
+            loss = criterion(pred, target_one_hot)
             loss = float(loss.detach().cpu().numpy())
             validation_losses.append(loss)
     return np.mean(validation_losses)
@@ -64,7 +64,7 @@ def plot_losses(losses, validation_losses, plot_dir):
 
 def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int,
           num_bins_crossentropy, width_height_target, batch_size, ratio_training_data,
-          dirs, local_machine_mode, settings, **__):
+          dirs, local_machine_mode, log_transform, normalize, settings, **__):
     accuracies = []
     # Add one to
     num_pictures_loaded = num_input_time_steps + 1
@@ -73,16 +73,35 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     # TODO: Enable saving to pickle at some point
     print('Load Data', flush=True)
+
+
+
+
     data_sequence = load_data_sequence_preliminary(**settings)
+
+    if log_transform:
+        # Log transform with log x+1 to handle zeros
+        data_sequence = np.log(data_sequence+1)
+    if normalize:
+        data_sequence = normalize_data(data_sequence)
+
+    # min and max in log space if log transform True!
+    linspace_binning_min = np.min(data_sequence)
+    linspace_binning_max = np.max(data_sequence)
+
     num_training_samples = int(np.shape(data_sequence)[0] * ratio_training_data)
     train_data_sequence = data_sequence[0:num_training_samples, :, :]
     validation_data_sequence = data_sequence[num_training_samples:, :, :]
 
-    train_data_set = PrecipitationDataset(train_data_sequence, num_pictures_loaded, num_bins_crossentropy)
+
+
+    train_data_set = PrecipitationDataset(train_data_sequence, num_pictures_loaded, num_bins_crossentropy
+                                          , linspace_binning_min, linspace_binning_max)
     train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     del train_data_set
 
-    validation_data_set = PrecipitationDataset(validation_data_sequence, num_pictures_loaded, num_bins_crossentropy)
+    validation_data_set = PrecipitationDataset(validation_data_sequence, num_pictures_loaded, num_bins_crossentropy,
+                                               linspace_binning_min, linspace_binning_max)
     validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     del validation_data_set
 
@@ -91,24 +110,23 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
     for epoch in range(num_epochs):
         inner_losses = []
-        for i, (input_sequence, target, input_sequence_unnormalized, target_unnormalized) in enumerate(train_data_loader):
+        for i, (input_sequence, target_one_hot, target) in enumerate(train_data_loader):
             input_sequence = input_sequence.float()
 
             input_sequence = input_sequence.to(device)
             input_sequence = input_sequence.to(device=device, dtype=torch.float32)
-            target = target.to(device)
-            input_sequence_unnormalized = input_sequence_unnormalized.to(device)
-            target_unnormalized = target_unnormalized.to(device)
+            target_one_hot = target_one_hot.to(device)
+
 
             print('Batch: {}'.format(i), flush=True)
 
-            target = T.CenterCrop(size=width_height_target)(target)
-            target = target.float()
-            target = target.to(device)
+            target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
+            target_one_hot = target_one_hot.float()
+            target_one_hot = target_one_hot.to(device)
 
             optimizer.zero_grad()
             pred = model(input_sequence)
-            loss = criterion(pred, target)
+            loss = criterion(pred, target_one_hot)
             loss.backward()
             optimizer.step()
             inner_loss = float(loss.detach().cpu().numpy())
@@ -127,10 +145,12 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         validation_losses.append(validation_loss)
         print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, validation_loss), flush=True)
         plot_losses(losses, validation_losses, dirs['plot_dir'])
-        plot_img_histogram(pred, '{}/ep{}_pred_dist'.format(dirs['plot_dir'], epoch), title='Prediciton')
-        plot_img_histogram(input_sequence_unnormalized, '{}/ep{}_input_dist'.format(dirs['plot_dir'], epoch), title='Input')
-        plot_img_histogram(target_unnormalized, '{}/ep{}_target_dist'.format(dirs['plot_dir'], epoch),
-                           title='Target')
+        plot_img_histogram(pred, '{}/ep{}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
+                           linspace_binning_max, title='Prediciton')
+        plot_img_histogram(input_sequence, '{}/ep{}_input_dist'.format(dirs['plot_dir'], epoch),
+                           linspace_binning_min, linspace_binning_max, title='Input')
+        plot_img_histogram(target, '{}/ep{}_target_dist'.format(dirs['plot_dir'], epoch),
+                           linspace_binning_min, linspace_binning_max, title='Target')
     return model
 
 
@@ -205,7 +225,11 @@ if __name__ == '__main__':
             'load_model': False,
             'load_model_name': 'Run_·20230220-191041',
             'dirs': dirs,
-            'device': device
+            'device': device,
+
+            # Log transform input/ validation data --> log binning --> log(x+1)
+            'log_transform': True,
+            'normalize': True,
         }
 
     if settings['local_machine_mode']:

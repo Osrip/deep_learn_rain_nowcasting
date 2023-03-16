@@ -17,11 +17,11 @@ from tqdm import tqdm
 
 
 class PrecipitationDataset(Dataset):
-    def __init__(self, data_sequence, num_pictures_loaded, num_c_output, log_transform=True, normalize=True):
+    def __init__(self, data_sequence, num_pictures_loaded, num_c_output, linspace_binning_min, linspace_binning_max,
+                 normalize=True):
         """
         Attributes:
         self.data_sequence --> log normalized data sequence
-        seöf.data_sequence_not_normalized --> not normalized data sequence
         self.data_sequence_one_hot --> log data sequence in one hot encoding
         self.num_pictures_loaded --> number of pictures loded
 
@@ -30,20 +30,18 @@ class PrecipitationDataset(Dataset):
         log one hot data sequence --> target data frame,
         unnormalized data sequence --> training frames
         unnormalized data sequence --> target frame
-
         """
-        self.data_sequence_not_normalized = data_sequence
-        data_sequence = np.log(data_sequence+1)
+        self.data_sequence = data_sequence
         self.num_pictures_loaded = num_pictures_loaded
 
         # TODO: implement log conversion in one hot
-        data_sequence_one_hot = img_one_hot(data_sequence, num_c_output)
+        data_sequence_one_hot = img_one_hot(data_sequence, num_c_output, linspace_binning_min, linspace_binning_max)
         self.data_sequence_one_hot = einops.rearrange(data_sequence_one_hot, 'i w h c -> i c w h')
 
         # log transform
         # Errors encountered!
-        # Log transform with log x+1 to handle zeros
-        self.data_sequence = normalize_data(data_sequence)
+
+
 
     def __len__(self):
         return np.shape(self.data_sequence)[0] - self.num_pictures_loaded
@@ -52,8 +50,9 @@ class PrecipitationDataset(Dataset):
         # Returns the first pictures as input data and the last picture as training picture
         return self.data_sequence[idx:idx+self.num_pictures_loaded-1, :, :], \
             self.data_sequence_one_hot[idx+self.num_pictures_loaded, :, :, :], \
-            self.data_sequence_not_normalized[idx:idx+self.num_pictures_loaded-1, :, :], \
-            self.data_sequence_not_normalized[idx:idx + self.num_pictures_loaded, :, :]
+            self.data_sequence[idx + self.num_pictures_loaded, :, :], \
+            # self.data_sequence_not_normalized[idx:idx+self.num_pictures_loaded-1, :, :], \
+            # self.data_sequence_not_normalized[idx:idx + self.num_pictures_loaded, :, :]
             #  [:idx+self.num_pictures_loaded-1] <-- For data_sequence training data (several frames)
             #  [idx+self.num_pictures_loaded, :, :, :] <-- for one_hot target (one frame)
 
@@ -138,13 +137,13 @@ def plot_data_boo(data_arr):
     plt.show()
 
 
-def img_one_hot(data_arr: np.ndarray, num_c: int):
+def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning_min, linspace_binning_max):
     '''
     Adds one hot encoded channel dimension
     '''
     # vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
     # data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=mm_min, mm_max=mm_max)
-    data_arr_indexed = bin_to_one_hot_index_linear(data_arr, num_c)
+    data_arr_indexed = bin_to_one_hot_index_linear(data_arr, num_c, linspace_binning_min, linspace_binning_max)
     # data_arr_indexed = bin_to_one_hot_index_log(data_arr, num_c)
     data_indexed = torch.from_numpy(data_arr_indexed)
     data_hot = F.one_hot(data_indexed.long(), num_c)
