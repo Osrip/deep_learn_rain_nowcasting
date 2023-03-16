@@ -175,7 +175,7 @@ if __name__ == '__main__':
             os.makedirs(make_dir)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = 'cpu'
+    # device = 'cpu'
 
     settings =\
         {
@@ -210,12 +210,12 @@ if __name__ == '__main__':
 
     if settings['local_machine_mode']:
         settings['data_variable_name'] = 'WN_forecast'
-        settings['folder_path'] = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/first_CNN_on_Radolan/dwd_nc/test_data'
+        settings['folder_path'] = 'dwd_nc/test_data'
         settings['data_file_name'] = 'DE1200_RV_Recalc_20190101.nc'
         settings['choose_time_span'] = True
         settings['time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
-        settings['upscale_c_to'] = 16
-        settings['batch_size'] = 10
+        settings['upscale_c_to'] = 8
+        settings['batch_size'] = 2
 
     main(settings=settings, **settings)
 
