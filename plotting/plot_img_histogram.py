@@ -13,16 +13,17 @@ import matplotlib.pyplot as plt
 #     plt.show()
 
 
-def plot_img_histogram(img, save_path_name, xmin, xmax, title=''):
+def plot_img_histogram(img, save_path_name, xmin, xmax, num_bins_crossentropy, ignore_min_max=False, title='', **_):
     plt.figure()
     flat_img = torch.flatten(img)
     flat_img = flat_img.detach().cpu().numpy()
     plt.subplot(111)
     plt.title(title)
-    hist, bins, _ = plt.hist(flat_img, bins=8)
-    plt.xlim((xmin, xmax))
+    hist, bins, _ = plt.hist(flat_img, bins=num_bins_crossentropy)
+    if not ignore_min_max:
+        plt.xlim((xmin, xmax))
     plt.xlabel('log(x+1)')
-
+    plt.yscale('log')
 
     # histogram on log scale.
     # Use non-equal bin sizes, such that they look equal on log scale.

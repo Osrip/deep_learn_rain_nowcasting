@@ -83,7 +83,10 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         # Log transform with log x+1 to handle zeros
         data_sequence = np.log(data_sequence+1)
     if normalize:
-        data_sequence = normalize_data(data_sequence)
+        data_sequence, mean_data, std_data = normalize_data(data_sequence)
+    else:
+        mean_data = np.nan
+        std_data = np.nan
 
     # min and max in log space if log transform True!
     linspace_binning_min = np.min(data_sequence)
@@ -146,11 +149,11 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, validation_loss), flush=True)
         plot_losses(losses, validation_losses, dirs['plot_dir'])
         plot_img_histogram(pred, '{}/ep{}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
-                           linspace_binning_max, title='Prediciton')
+                           linspace_binning_max, ignore_min_max=True, title='Prediciton', **settings)
         plot_img_histogram(input_sequence, '{}/ep{}_input_dist'.format(dirs['plot_dir'], epoch),
-                           linspace_binning_min, linspace_binning_max, title='Input')
+                           linspace_binning_min, linspace_binning_max, title='Input', **settings)
         plot_img_histogram(target, '{}/ep{}_target_dist'.format(dirs['plot_dir'], epoch),
-                           linspace_binning_min, linspace_binning_max, title='Target')
+                           linspace_binning_min, linspace_binning_max, title='Target', **settings)
     return model
 
 

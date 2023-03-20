@@ -61,7 +61,7 @@ def normalize_data(data_sequence):
     flattened_data = data_sequence.flatten()
     std_data = np.std(flattened_data)
     mean_data = np.mean(flattened_data)
-    return (data_sequence - mean_data) / std_data
+    return (data_sequence - mean_data) / std_data, mean_data, std_data
 
 
 def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',
