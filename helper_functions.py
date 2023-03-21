@@ -3,6 +3,8 @@ import sys
 import pickle
 import gzip
 
+import torch
+
 
 def create_dilation_list(width_height, inverse_ratio=4):
     out = []
@@ -44,10 +46,29 @@ def bin_to_one_hot_index_linear(mm_data, num_indecies, linspace_binning_min, lin
     --> linspace_binning_min, linspace_binning_max have to be in log transformed space
     '''
     # TODO: Use logarithmic binning to account for long tailed data distribution of precipitation???
-    linspace_binning = np.linspace(np.min(mm_data), np.max(mm_data), num=num_indecies, endpoint=False)  # num_indecies + 1 as the very last entry will never be used
+    # Linspace binning always annotates the lowest value of the bin. The very last value (whoich is linspacebinning_max) is not
+    # not included in the linspace binning, such that the number of entries in linspace binning correstponts to the number of bins
+    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=num_indecies, endpoint=False)  # num_indecies + 1 as the very last entry will never be used
     # Indecies start counting at 1, therefore - 1
     indecies = np.digitize(mm_data, linspace_binning) - 1
-    return indecies
+    return indecies, linspace_binning
+
+
+def one_hot_to_mm(one_hot_tensor, linspace_binning, linspace_binning_max, channel_dim, mean_bin_vals=False):
+    '''
+    Converts one hot data back to precipitation mm data based upon argmax (highest bin wins)
+    mean_bin_vals==False --> bin value is lower bin bound (given by bin index in linspace_binning)
+    mean_bin_vals==True --> bin value is mean of lower and upper bin bound
+    '''
+    argmax_indecies = torch.argmax(one_hot_tensor, dim=channel_dim)
+    if mean_bin_vals:
+        linspace_binning_with_max = np.append(linspace_binning, linspace_binning_max)
+        mm_lower_bound = linspace_binning[argmax_indecies]
+        mm_upper_bound = linspace_binning_with_max[argmax_indecies + 1]
+        mm_data = np.mean(np.array([mm_lower_bound, mm_upper_bound]), axis=0)
+    else:
+        mm_data = linspace_binning[argmax_indecies]
+    return mm_data
 
 
 def save_zipped_pickle(title, data):
