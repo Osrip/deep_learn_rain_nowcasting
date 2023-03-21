@@ -44,7 +44,7 @@ def bin_to_one_hot_index_linear(mm_data, num_indecies, linspace_binning_min, lin
     --> linspace_binning_min, linspace_binning_max have to be in log transformed space
     '''
     # TODO: Use logarithmic binning to account for long tailed data distribution of precipitation???
-    linspace_binning = np.linspace(np.min(mm_data), np.max(mm_data), num=num_indecies, endpoint=False) # num_indecies + 1 as the very last entry will never be used
+    linspace_binning = np.linspace(np.min(mm_data), np.max(mm_data), num=num_indecies, endpoint=False)  # num_indecies + 1 as the very last entry will never be used
     # Indecies start counting at 1, therefore - 1
     indecies = np.digitize(mm_data, linspace_binning) - 1
     return indecies
