@@ -15,11 +15,14 @@ from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_
 import os
 from plotting.plot_img_histogram import plot_img_histogram
 from plotting.plot_images import plot_image
+from plotting.plot_quality_metrics import plot_relative_mse
 import warnings
 
 import copy
 # from pysteps import verification
 # fss = verification.get_method("FSS")
+
+mse_loss = torch.nn.MSELoss()
 
 
 def check_backward(model, learning_rate, device):
@@ -117,9 +120,11 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
     losses = []
     validation_losses = []
+    relative_mses = np.array([])
 
     for epoch in range(num_epochs):
         inner_losses = []
+        inner_relative_mses = np.array([])
         for i, (input_sequence, target_one_hot, target) in enumerate(train_data_loader):
             input_sequence = input_sequence.float()
 
@@ -139,6 +144,10 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             loss = criterion(pred, target_one_hot)
             loss.backward()
             optimizer.step()
+
+            # Quality metrics
+            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+            pred_mm = torch.from_numpy(pred_mm)
             inner_loss = float(loss.detach().cpu().numpy())
             # TODO: convert cudo tensor to numpy!! How to push to CPU for numpy conversion and then back to cuda??
             # loss_copy = copy.deepcopy(loss)
@@ -146,23 +155,33 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             # del loss_copy
             # loss = loss.to(device)
             inner_losses.append(inner_loss)
+
+            persistence = input_sequence[:, -1, :, :]
+            persistence = T.CenterCrop(size=width_height_target)(persistence)
+            mse_persistence_target = mse_loss(persistence, target).item()
+            mse_model_target = mse_loss(pred_mm, target).item()
+            inner_relative_mses = np.append(inner_relative_mses, 1-mse_persistence_target/mse_model_target)
+
+
+
             # TODO: Currently Target is baseline for test purposes. Change that for obvious reasons!!!
             if i == 0:
 
                 plot_image(target[0, :, :], save_path_name='{}/ep{}_target'.format(dirs['plot_dir_images'], epoch),
                            title='Target')
-                pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+
                 plot_image(pred_mm[0, :, :], save_path_name='{}/ep{}_pred'.format(dirs['plot_dir_images'], epoch),
                            title='Prediction')
 
-
-
-
+        relative_mses = np.append(relative_mses, inner_relative_mses)
         avg_inner_loss = np.mean(inner_losses)
         losses.append(avg_inner_loss)
         validation_loss = validate(model, validation_data_loader, **settings)
         validation_losses.append(validation_loss)
-        print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, validation_loss), flush=True)
+        print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, validation_loss),
+              flush=True)
+        plot_relative_mse(relative_mses, save_path_name='{}/ep{}_relative_mse'.format(dirs['plot_dir'], epoch),
+                          title='Relative MSE')
         plot_losses(losses, validation_losses, dirs['plot_dir'])
         plot_img_histogram(pred, '{}/ep{}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
                            linspace_binning_max, ignore_min_max=True, title='Prediciton', **settings)
