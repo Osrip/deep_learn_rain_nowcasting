@@ -54,11 +54,12 @@ def bin_to_one_hot_index_linear(mm_data, num_indecies, linspace_binning_min, lin
     return indecies, linspace_binning
 
 
-def one_hot_to_mm(one_hot_tensor, linspace_binning, linspace_binning_max, channel_dim, mean_bin_vals=False):
+def one_hot_to_mm(one_hot_tensor, linspace_binning, linspace_binning_max, channel_dim, mean_bin_vals=True):
     '''
     Converts one hot data back to precipitation mm data based upon argmax (highest bin wins)
     mean_bin_vals==False --> bin value is lower bin bound (given by bin index in linspace_binning)
     mean_bin_vals==True --> bin value is mean of lower and upper bin bound
+    channel dim: Channel dimension, that represents binning (num channels --> num bins)
     '''
     argmax_indecies = torch.argmax(one_hot_tensor, dim=channel_dim)
     if mean_bin_vals:

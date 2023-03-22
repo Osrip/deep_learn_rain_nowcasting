@@ -11,9 +11,12 @@ import datetime
 from load_data import img_one_hot, PrecipitationDataset, load_data_sequence_preliminary, normalize_data
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
-from helper_functions import load_zipped_pickle, save_zipped_pickle
+from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm
 import os
 from plotting.plot_img_histogram import plot_img_histogram
+from plotting.plot_images import plot_image
+import warnings
+
 import copy
 # from pysteps import verification
 # fss = verification.get_method("FSS")
@@ -101,11 +104,15 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     train_data_set = PrecipitationDataset(train_data_sequence, num_pictures_loaded, num_bins_crossentropy
                                           , linspace_binning_min, linspace_binning_max)
     train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
+    linspace_binning = train_data_set.linspace_binning
     del train_data_set
 
     validation_data_set = PrecipitationDataset(validation_data_sequence, num_pictures_loaded, num_bins_crossentropy,
                                                linspace_binning_min, linspace_binning_max)
     validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
+    if not (linspace_binning == validation_data_set.linspace_binning).all():
+        warnings.warn('Different linspace binning applied in training and validation data set!')
+
     del validation_data_set
 
     losses = []
@@ -122,7 +129,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
 
             print('Batch: {}'.format(i), flush=True)
-
+            target = T.CenterCrop(size=width_height_target)(target)
             target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
             target_one_hot = target_one_hot.float()
             target_one_hot = target_one_hot.to(device)
@@ -140,6 +147,15 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             # loss = loss.to(device)
             inner_losses.append(inner_loss)
             # TODO: Currently Target is baseline for test purposes. Change that for obvious reasons!!!
+            if i == 0:
+
+                plot_image(target[0, :, :], save_path_name='{}/ep{}_target'.format(dirs['plot_dir_images'], epoch),
+                           title='Target')
+                pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+                plot_image(pred_mm[0, :, :], save_path_name='{}/ep{}_pred'.format(dirs['plot_dir_images'], epoch),
+                           title='Prediction')
+
+
 
 
         avg_inner_loss = np.mean(inner_losses)
@@ -192,6 +208,7 @@ if __name__ == '__main__':
     dirs = {}
     dirs['save_dir'] = 'runs/{}'.format(sim_name)
     dirs['plot_dir'] = '{}/plots'.format(dirs['save_dir'])
+    dirs['plot_dir_images'] = '{}/images'.format(dirs['plot_dir'])
     dirs['model_dir'] = '{}/model'.format(dirs['save_dir'])
     for _, make_dir in dirs.items():
         if not os.path.exists(make_dir):
@@ -218,11 +235,11 @@ if __name__ == '__main__':
 
             # 'minutes_per_iteration': 5,
             'width_height': 256,
+            'width_height_target': 32,
             'learning_rate': 0.0001,  # Schedule this at some point??
             'num_epochs': 1000,
             'num_input_time_steps': 4,
             'optical_flow_input': False,  # Not yet working!
-            'width_height_target': 32,
             'batch_size': 10,  # 10
             'save_trained_model': True,
             'load_model': False,

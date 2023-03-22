@@ -34,7 +34,6 @@ class PrecipitationDataset(Dataset):
         self.data_sequence = data_sequence
         self.num_pictures_loaded = num_pictures_loaded
 
-        # TODO: implement log conversion in one hot
         data_sequence_one_hot, linspace_binning = img_one_hot(data_sequence, num_c_output, linspace_binning_min, linspace_binning_max)
         self.data_sequence_one_hot = einops.rearrange(data_sequence_one_hot, 'i w h c -> i c w h')
         self.linspace_binning = linspace_binning
