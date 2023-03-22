@@ -15,7 +15,7 @@ from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_
 import os
 from plotting.plot_img_histogram import plot_img_histogram
 from plotting.plot_images import plot_image
-from plotting.plot_quality_metrics import plot_relative_mse
+from plotting.plot_quality_metrics import plot_mse, plot_losses
 import warnings
 
 import copy
@@ -52,20 +52,8 @@ def validate(model, validation_data_loader, width_height_target, **__):
             loss = criterion(pred, target_one_hot)
             loss = float(loss.detach().cpu().numpy())
             validation_losses.append(loss)
-    return np.mean(validation_losses)
+    return validation_losses
 
-
-def plot_losses(losses, validation_losses, plot_dir):
-    plt.figure()
-    plt.plot(losses, label='Training Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    # plt.savefig('{}/{}_loss.png'.format(plot_dir, sim_name), dpi=100)
-    # plt.show()
-    plt.plot(validation_losses, label='Validation Loss')
-    plt.legend()
-    plt.savefig('{}/{}_loss.png'.format(plot_dir, sim_name), dpi=100)
-    plt.show()
 
 
 def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int,
@@ -79,9 +67,6 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     # TODO: Enable saving to pickle at some point
     print('Load Data', flush=True)
-
-
-
 
     data_sequence = load_data_sequence_preliminary(**settings)
 
@@ -120,11 +105,15 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
     losses = []
     validation_losses = []
-    relative_mses = np.array([])
+    relative_mses = []
+    presistence_target_mses = []
+    model_target_mses = []
 
     for epoch in range(num_epochs):
         inner_losses = []
-        inner_relative_mses = np.array([])
+        inner_relative_mses = []
+        inner_presistence_target_mses = []
+        inner_model_target_mses = []
         for i, (input_sequence, target_one_hot, target) in enumerate(train_data_loader):
             input_sequence = input_sequence.float()
 
@@ -160,7 +149,11 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             persistence = T.CenterCrop(size=width_height_target)(persistence)
             mse_persistence_target = mse_loss(persistence, target).item()
             mse_model_target = mse_loss(pred_mm, target).item()
-            inner_relative_mses = np.append(inner_relative_mses, 1-mse_persistence_target/mse_model_target)
+            relative_mse = 1-mse_persistence_target/mse_model_target
+            inner_relative_mses.append(relative_mse)
+            inner_presistence_target_mses.append(mse_persistence_target)
+            inner_model_target_mses.append(mse_model_target)
+
 
 
 
@@ -173,16 +166,24 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                 plot_image(pred_mm[0, :, :], save_path_name='{}/ep{}_pred'.format(dirs['plot_dir_images'], epoch),
                            title='Prediction')
 
-        relative_mses = np.append(relative_mses, inner_relative_mses)
+        relative_mses.append(inner_relative_mses)
+        presistence_target_mses.append(inner_presistence_target_mses)
+        model_target_mses.append(inner_model_target_mses)
+        losses.append(inner_losses)
+
         avg_inner_loss = np.mean(inner_losses)
-        losses.append(avg_inner_loss)
-        validation_loss = validate(model, validation_data_loader, **settings)
-        validation_losses.append(validation_loss)
-        print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, validation_loss),
+
+        inner_validation_losses = validate(model, validation_data_loader, **settings)
+        validation_losses.append(inner_validation_losses)
+        avg_inner_validation_loss = np.mean(inner_validation_losses)
+        print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, avg_inner_validation_loss),
               flush=True)
-        plot_relative_mse(relative_mses, save_path_name='{}/ep{}_relative_mse'.format(dirs['plot_dir'], epoch),
-                          title='Relative MSE')
-        plot_losses(losses, validation_losses, dirs['plot_dir'])
+        plot_mse([relative_mses], label_list=['relative MSE'], save_path_name='{}/ep{}_relative_mse'.format(dirs['plot_dir'], epoch),
+                 title='Relative MSE')
+        plot_mse([presistence_target_mses, model_target_mses], label_list=['Persistence Target MSE', 'Model Target MSE'],
+                 save_path_name='{}/ep{}_mse'.format(dirs['plot_dir'], epoch),
+                 title='MSE')
+        plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(dirs['plot_dir'], sim_name))
         plot_img_histogram(pred, '{}/ep{}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
                            linspace_binning_max, ignore_min_max=True, title='Prediciton', **settings)
         plot_img_histogram(input_sequence, '{}/ep{}_input_dist'.format(dirs['plot_dir'], epoch),
