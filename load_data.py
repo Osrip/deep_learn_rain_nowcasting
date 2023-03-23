@@ -63,6 +63,10 @@ def normalize_data(data_sequence):
     return (data_sequence - mean_data) / std_data, mean_data, std_data
 
 
+def inverse_normalize_data(data_sequence, mean_orig_data, std_orig_data):
+    return data_sequence * std_orig_data + mean_orig_data
+
+
 def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',
                 flag_keys='/origin1/grid1/category1/entity1/data1/flag_matrix1/flag'):
     hf = h5py.File(input_path)

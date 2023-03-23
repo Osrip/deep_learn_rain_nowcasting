@@ -1,11 +1,15 @@
 from helper_functions import one_hot_to_mm
-from load_data import img_one_hot
+from load_data import img_one_hot, normalize_data, inverse_normalize_data
 import numpy as np
 import torch
 import einops
 
 
+
 def test_img_one_hot():
+    '''
+    Unittest img_one_hot()
+    '''
     test_data = [1, 2, 3, 4, 5]
     one_hot_control = torch.tensor(
         [[1, 0, 0, 0, 0],
@@ -20,6 +24,7 @@ def test_img_one_hot():
 
 def test_one_hot_converting():
     '''
+    Integration test
     Test converting to one hot img_one_hot and then nack to mm with one_hot_to_mm in both, mean_bins and lower bound options
     (Validation data set is binning directly from test_data_set --> Information lost due to bins, that can't be reproduced)
     '''
@@ -76,8 +81,27 @@ def mean_of_bounds(x, linspace_binning, linspace_binning_max):
     return np.mean(np.array([lower_bounds, upper_bounds]), axis=0)
 
 
-if __name__ == '__main__':
+def test_normalize_inverse_normalize():
+    '''
+    Integration test checking whether inverse_normalize can reconstruct the data that has been normalized by normlaiz()
+    '''
+    test_data_set = np.random.rand(5,256,256)*5+432
+    normalized_test_data, mean, std = normalize_data(test_data_set)
+    reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std)
+    assert (reconstructed_test_data == test_data_set).all()
+
+
+def test_all():
+    '''
+    A mix of unit and integration tests that cover crucial functions
+    '''
     test_img_one_hot()
     test_one_hot_converting()
+    test_normalize_inverse_normalize()
+    print('All tests successfull')
+
+if __name__ == '__main__':
+
+    test_all()
 
 

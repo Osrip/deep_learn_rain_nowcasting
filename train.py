@@ -8,7 +8,8 @@ import torchvision.transforms as T
 from helper_functions import create_dilation_list
 from modules_blocks import Network
 import datetime
-from load_data import img_one_hot, PrecipitationDataset, load_data_sequence_preliminary, normalize_data
+from load_data import img_one_hot, PrecipitationDataset, load_data_sequence_preliminary, normalize_data,\
+    inverse_normalize_data
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm
@@ -17,6 +18,7 @@ from plotting.plot_img_histogram import plot_img_histogram
 from plotting.plot_images import plot_image
 from plotting.plot_quality_metrics import plot_mse, plot_losses
 import warnings
+from tests.test_basic_functions import test_all
 
 import copy
 # from pysteps import verification
@@ -74,10 +76,11 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         # Log transform with log x+1 to handle zeros
         data_sequence = np.log(data_sequence+1)
     if normalize:
-        data_sequence, mean_data, std_data = normalize_data(data_sequence)
+        data_sequence, mean_orig_data, std_orig_data = normalize_data(data_sequence)
+        data_sequence, mean_orig_data, std_orig_data = normalize_data(data_sequence)
     else:
-        mean_data = np.nan
-        std_data = np.nan
+        mean_orig_data = np.nan
+        std_orig_data = np.nan
 
     # min and max in log space if log transform True!
     linspace_binning_min = np.min(data_sequence)
@@ -160,10 +163,10 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             # TODO: Currently Target is baseline for test purposes. Change that for obvious reasons!!!
             if i == 0:
 
-                plot_image(target[0, :, :], save_path_name='{}/ep{}_target'.format(dirs['plot_dir_images'], epoch),
+                plot_image(inverse_normalize_data(target[0, :, :], mean_orig_data, std_orig_data), save_path_name='{}/ep{}_target'.format(dirs['plot_dir_images'], epoch),
                            title='Target')
 
-                plot_image(pred_mm[0, :, :], save_path_name='{}/ep{}_pred'.format(dirs['plot_dir_images'], epoch),
+                plot_image(inverse_normalize_data(pred_mm[0, :, :], mean_orig_data, std_orig_data), save_path_name='{}/ep{}_pred'.format(dirs['plot_dir_images'], epoch),
                            title='Prediction')
 
         relative_mses.append(inner_relative_mses)
@@ -184,17 +187,20 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                  save_path_name='{}/ep{}_mse'.format(dirs['plot_dir'], epoch),
                  title='MSE')
         plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(dirs['plot_dir'], sim_name))
-        plot_img_histogram(pred, '{}/ep{}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
+        plot_img_histogram(inverse_normalize_data(pred_mm, mean_orig_data, std_orig_data), '{}/ep{}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
                            linspace_binning_max, ignore_min_max=True, title='Prediciton', **settings)
-        plot_img_histogram(input_sequence, '{}/ep{}_input_dist'.format(dirs['plot_dir'], epoch),
+        plot_img_histogram(inverse_normalize_data(input_sequence, mean_orig_data, std_orig_data), '{}/ep{}_input_dist'.format(dirs['plot_dir'], epoch),
                            linspace_binning_min, linspace_binning_max, title='Input', **settings)
-        plot_img_histogram(target, '{}/ep{}_target_dist'.format(dirs['plot_dir'], epoch),
+        plot_img_histogram(inverse_normalize_data(target, mean_orig_data, std_orig_data), '{}/ep{}_target_dist'.format(dirs['plot_dir'], epoch),
                            linspace_binning_min, linspace_binning_max, title='Target', **settings)
     return model
 
 
 def main(save_trained_model, load_model, num_input_time_steps, upscale_c_to, load_model_name, width_height,
-         num_bins_crossentropy, settings, **_):
+         num_bins_crossentropy, testing, settings, **_):
+    if testing:
+        test_all()
+
     if load_model:
         model = load_zipped_pickle('runs/{}/model/trained_model'.format(load_model_name))
     else:
@@ -270,6 +276,8 @@ if __name__ == '__main__':
             # Log transform input/ validation data --> log binning --> log(x+1)
             'log_transform': True,
             'normalize': True,
+
+            'testing': True
         }
 
     if settings['local_machine_mode']:
@@ -280,6 +288,7 @@ if __name__ == '__main__':
         settings['time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
         settings['upscale_c_to'] = 8
         settings['batch_size'] = 2
+        settings['testing'] = True
 
     main(settings=settings, **settings)
 
