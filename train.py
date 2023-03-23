@@ -58,12 +58,18 @@ def validate(model, validation_data_loader, width_height_target, **__):
 
 
 
-def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int,
+def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int, num_lead_time_steps,
           num_bins_crossentropy, width_height_target, batch_size, ratio_training_data,
           dirs, local_machine_mode, log_transform, normalize, settings, **__):
     accuracies = []
-    # Add one to
-    num_pictures_loaded = num_input_time_steps + 1
+
+    # num_pictures_loaded = num_input_time_steps + 1 + num_lead_time_steps
+
+    # relative index of last input picture (starting from first input picture as idx 1)
+    last_input_rel_idx = num_input_time_steps
+    #  relative index of target picture (starting from first input picture as idx 1)
+    target_rel_idx = num_input_time_steps + 1 + num_lead_time_steps
+    # Number of pictures
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -92,18 +98,17 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
 
 
-    train_data_set = PrecipitationDataset(train_data_sequence, num_pictures_loaded, num_bins_crossentropy
-                                          , linspace_binning_min, linspace_binning_max)
+    train_data_set = PrecipitationDataset(train_data_sequence, last_input_rel_idx, target_rel_idx, num_bins_crossentropy,
+                                          linspace_binning_min, linspace_binning_max)
     train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     linspace_binning = train_data_set.linspace_binning
     del train_data_set
 
-    validation_data_set = PrecipitationDataset(validation_data_sequence, num_pictures_loaded, num_bins_crossentropy,
-                                               linspace_binning_min, linspace_binning_max)
+    validation_data_set = PrecipitationDataset(validation_data_sequence, last_input_rel_idx, target_rel_idx,
+                                               num_bins_crossentropy, linspace_binning_min, linspace_binning_max)
     validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     if not (linspace_binning == validation_data_set.linspace_binning).all():
         warnings.warn('Different linspace binning applied in training and validation data set!')
-
     del validation_data_set
 
     losses = []
@@ -268,7 +273,8 @@ if __name__ == '__main__':
             'width_height_target': 32,
             'learning_rate': 0.0001,  # Schedule this at some point??
             'num_epochs': 1000,
-            'num_input_time_steps': 4,
+            'num_input_time_steps': 4, # The number of subsequent time steps that are used for one predicition
+            'num_lead_time_steps': 5, # The number of pictures that are skipped from last input time step to target, starts with 0
             'optical_flow_input': False,  # Not yet working!
             'batch_size': 10,  # 10
             'save_trained_model': True,

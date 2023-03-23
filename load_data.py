@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 
 class PrecipitationDataset(Dataset):
-    def __init__(self, data_sequence, num_pictures_loaded, num_c_output, linspace_binning_min, linspace_binning_max,
+    def __init__(self, data_sequence, last_input_rel_idx, target_rel_idx, num_c_output, linspace_binning_min, linspace_binning_max,
                  normalize=True):
         """
         Attributes:
@@ -32,7 +32,9 @@ class PrecipitationDataset(Dataset):
         unnormalized data sequence --> target frame
         """
         self.data_sequence = data_sequence
-        self.num_pictures_loaded = num_pictures_loaded
+
+        self.last_input_rel_idx = last_input_rel_idx
+        self.target_rel_idx = target_rel_idx
 
         data_sequence_one_hot, linspace_binning = img_one_hot(data_sequence, num_c_output, linspace_binning_min, linspace_binning_max)
         self.data_sequence_one_hot = einops.rearrange(data_sequence_one_hot, 'i w h c -> i c w h')
@@ -43,13 +45,15 @@ class PrecipitationDataset(Dataset):
 
 
     def __len__(self):
-        return np.shape(self.data_sequence)[0] - self.num_pictures_loaded
+        return np.shape(self.data_sequence)[0] - self.target_rel_idx
 
     def __getitem__(self, idx):
         # Returns the first pictures as input data and the last picture as training picture
-        return self.data_sequence[idx:idx+self.num_pictures_loaded-1, :, :], \
-            self.data_sequence_one_hot[idx+self.num_pictures_loaded, :, :, :], \
-            self.data_sequence[idx + self.num_pictures_loaded, :, :], \
+        return self.data_sequence[idx:idx+self.last_input_rel_idx, :, :], \
+            self.data_sequence_one_hot[idx+self.target_rel_idx, :, :, :], \
+            self.data_sequence[idx + self.target_rel_idx, :, :], \
+            # Output: Training sequence mm, target one hot, target mm
+
             # self.data_sequence_not_normalized[idx:idx+self.num_pictures_loaded-1, :, :], \
             # self.data_sequence_not_normalized[idx:idx + self.num_pictures_loaded, :, :]
             #  [:idx+self.num_pictures_loaded-1] <-- For data_sequence training data (several frames)
