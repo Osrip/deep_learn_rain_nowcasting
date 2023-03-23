@@ -63,8 +63,23 @@ def normalize_data(data_sequence):
     return (data_sequence - mean_data) / std_data, mean_data, std_data
 
 
-def inverse_normalize_data(data_sequence, mean_orig_data, std_orig_data):
-    return data_sequence * std_orig_data + mean_orig_data
+def inverse_normalize_data(data_sequence, mean_orig_data, std_orig_data, inverse_log=True, inverse_normalize=True):
+    '''
+    Assumes that the original data has been logtransformed first and subsequently normalized to standard normal
+    '''
+
+    if inverse_normalize:
+        data_sequence = data_sequence * std_orig_data + mean_orig_data
+    if inverse_log:
+        data_sequence = np.exp(data_sequence) - 1
+
+    return data_sequence
+
+    # if inverse_log:
+    #     inverse_normalized = data_sequence * std_orig_data + mean_orig_data
+    #     return np.exp(inverse_normalized) - 1
+    # else:
+    #     return data_sequence * std_orig_data + mean_orig_data
 
 
 def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',

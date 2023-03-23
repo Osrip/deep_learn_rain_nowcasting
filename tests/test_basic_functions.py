@@ -87,8 +87,18 @@ def test_normalize_inverse_normalize():
     '''
     test_data_set = np.random.rand(5,256,256)*5+432
     normalized_test_data, mean, std = normalize_data(test_data_set)
-    reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std)
+    reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=False)
     assert (reconstructed_test_data == test_data_set).all()
+
+def test_normalize_inverse_normalize_log():
+    '''
+    Integration test checking whether inverse_normalize can reconstruct the data that has been normalized by normlaiz()
+    '''
+    test_data_set = np.random.rand(5, 256, 256) * 5 + 432
+    log_test_data = np.log(test_data_set+1)
+    normalized_test_data, mean, std = normalize_data(log_test_data)
+    reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=True)
+    assert (np.round(reconstructed_test_data, 5) == np.round(test_data_set, 5)).all()
 
 
 def test_all():
@@ -98,6 +108,7 @@ def test_all():
     test_img_one_hot()
     test_one_hot_converting()
     test_normalize_inverse_normalize()
+    test_normalize_inverse_normalize_log()
     print('All tests successfull')
 
 if __name__ == '__main__':
