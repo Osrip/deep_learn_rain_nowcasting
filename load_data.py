@@ -42,8 +42,6 @@ class PrecipitationDataset(Dataset):
         # log transform
         # Errors encountered!
 
-
-
     def __len__(self):
         return np.shape(self.data_sequence)[0] - self.target_rel_idx
 
@@ -52,6 +50,7 @@ class PrecipitationDataset(Dataset):
         return self.data_sequence[idx:idx+self.last_input_rel_idx, :, :], \
             self.data_sequence_one_hot[idx+self.target_rel_idx, :, :, :], \
             self.data_sequence[idx + self.target_rel_idx, :, :], \
+            # TODO Make sure Indexing does what it's supposed to do!
             # Output: Training sequence mm, target one hot, target mm
 
             # self.data_sequence_not_normalized[idx:idx+self.num_pictures_loaded-1, :, :], \
