@@ -8,8 +8,8 @@ import torchvision.transforms as T
 from helper_functions import create_dilation_list
 from modules_blocks import Network
 import datetime
-from load_data import img_one_hot, PrecipitationDataset, load_data_sequence_preliminary, normalize_data,\
-    inverse_normalize_data, data_scraper
+from load_data import img_one_hot, PrecipitationFilteredDataset, load_data_sequence_preliminary, normalize_data,\
+    inverse_normalize_data, filtering_data_scraper
 from torch.utils.data import Dataset, DataLoader
 
 import numpy as np
@@ -44,7 +44,7 @@ def validate(model, validation_data_loader, width_height_target, **__):
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
         validation_losses = []
-        for i, (input_sequence, target_one_hot, target) in enumerate(validation_data_loader):
+        for i, (input_sequence, target_one_hot, target, _) in enumerate(validation_data_loader):
             input_sequence = input_sequence.float()
             input_sequence = input_sequence.to(device)
             target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
@@ -82,46 +82,25 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     # TODO: Enable saving to pickle at some point
     print('Load Data', flush=True)
 
-    filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max =\
-        data_scraper(transform_f=transform_f, last_input_rel_idx=last_input_rel_idx, target_rel_idx=target_rel_idx,
-                     **settings)
+    filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max =\
+        filtering_data_scraper(transform_f=transform_f, last_input_rel_idx=last_input_rel_idx, target_rel_idx=target_rel_idx,
+                               **settings)
 
 
-    data_sequence = load_data_sequence_preliminary(**settings)
-
-
-
-    if log_transform:
-        # Log transform with log x+1 to handle zeros
-        data_sequence = np.log(data_sequence+1)
-    if normalize:
-        data_sequence, mean_orig_data, std_orig_data = normalize_data(data_sequence)
-        data_sequence, mean_orig_data, std_orig_data = normalize_data(data_sequence)
-    else:
-        mean_orig_data = np.nan
-        std_orig_data = np.nan
-
-    # min and max in log space if log transform True!
-    linspace_binning_min = np.min(data_sequence)
-    linspace_binning_max = np.max(data_sequence)
-
-    num_training_samples = int(np.shape(data_sequence)[0] * ratio_training_data)
-    train_data_sequence = data_sequence[0:num_training_samples, :, :]
-    validation_data_sequence = data_sequence[num_training_samples:, :, :]
+    num_training_samples = int(len(filtered_indecies) * ratio_training_data)
+    train_filtered_indecies = filtered_indecies[0:num_training_samples]
+    validation_filtered_indecies = filtered_indecies[num_training_samples:]
 
 
 
-    train_data_set = PrecipitationDataset(train_data_sequence, last_input_rel_idx, target_rel_idx, num_bins_crossentropy,
-                                          linspace_binning_min, linspace_binning_max)
+    train_data_set = PrecipitationFilteredDataset(train_filtered_indecies, linspace_binning_min, linspace_binning_max, transform_f, **settings)
     train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
-    linspace_binning = train_data_set.linspace_binning
+
     del train_data_set
 
-    validation_data_set = PrecipitationDataset(validation_data_sequence, last_input_rel_idx, target_rel_idx,
-                                               num_bins_crossentropy, linspace_binning_min, linspace_binning_max)
+    validation_data_set = PrecipitationFilteredDataset(validation_filtered_indecies, linspace_binning_min, linspace_binning_max, transform_f, **settings)
+
     validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
-    if not (linspace_binning == validation_data_set.linspace_binning).all():
-        warnings.warn('Different linspace binning applied in training and validation data set!')
     del validation_data_set
 
     losses = []
@@ -135,7 +114,11 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         inner_relative_mses = []
         inner_presistence_target_mses = []
         inner_model_target_mses = []
-        for i, (input_sequence, target_one_hot, target) in enumerate(train_data_loader):
+        for i, (input_sequence, target_one_hot, target, linspace_binning) in enumerate(train_data_loader):
+            linspace_binning_prev = linspace_binning
+            if i > 0:
+                if not (linspace_binning_prev == linspace_binning).all():
+                    warnings.warn('There is something wrong with linspace binning!')
             input_sequence = input_sequence.float()
 
             input_sequence = input_sequence.to(device)
@@ -313,6 +296,7 @@ if __name__ == '__main__':
         settings['upscale_c_to'] = 8
         settings['batch_size'] = 2
         settings['testing'] = True
+        settings['min_rain_ratio_target'] = 0 # No Filter
 
     main(settings=settings, **settings)
 

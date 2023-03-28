@@ -17,52 +17,54 @@ from tqdm import tqdm
 # Remember to install package netCDF4 !!
 
 
-class PrecipitationDataset(Dataset):
-    def __init__(self, data_sequence, last_input_rel_idx, target_rel_idx, num_c_output, linspace_binning_min, linspace_binning_max,
-                 normalize=True):
-        """
-        Attributes:
-        self.data_sequence --> log normalized data sequence
-        self.data_sequence_one_hot --> log data sequence in one hot encoding
-        self.num_pictures_loaded --> number of pictures loded
-
-        returns (tuple in subsequent order):
-        log normalized data sequence --> training data frames,
-        log one hot data sequence --> target data frame,
-        unnormalized data sequence --> training frames
-        unnormalized data sequence --> target frame
-        """
-        self.data_sequence = data_sequence
-
-        self.last_input_rel_idx = last_input_rel_idx
-        self.target_rel_idx = target_rel_idx
-
-        data_sequence_one_hot, linspace_binning = img_one_hot(data_sequence, num_c_output, linspace_binning_min, linspace_binning_max)
-        self.data_sequence_one_hot = einops.rearrange(data_sequence_one_hot, 'i w h c -> i c w h')
-        self.linspace_binning = linspace_binning
-        # log transform
-        # Errors encountered!
-
-    def __len__(self):
-        return np.shape(self.data_sequence)[0] - self.target_rel_idx
-
-    def __getitem__(self, idx):
-        # Returns the first pictures as input data and the last picture as training picture
-        return self.data_sequence[idx:idx+self.last_input_rel_idx, :, :], \
-            self.data_sequence_one_hot[idx+self.target_rel_idx, :, :, :], \
-            self.data_sequence[idx + self.target_rel_idx, :, :], \
-            # TODO Make sure Indexing does what it's supposed to do!
-            # Output: Training sequence mm, target one hot, target mm
-
-            # self.data_sequence_not_normalized[idx:idx+self.num_pictures_loaded-1, :, :], \
-            # self.data_sequence_not_normalized[idx:idx + self.num_pictures_loaded, :, :]
-            #  [:idx+self.num_pictures_loaded-1] <-- For data_sequence training data (several frames)
-            #  [idx+self.num_pictures_loaded, :, :, :] <-- for one_hot target (one frame)
+# class PrecipitationDataset(Dataset):
+#     def __init__(self, data_sequence, last_input_rel_idx, target_rel_idx, num_c_output, linspace_binning_min,
+#                  linspace_binning_max, normalize=True):
+#         """
+#         Attributes:
+#         self.data_sequence --> log normalized data sequence
+#         self.data_sequence_one_hot --> log data sequence in one hot encoding
+#         self.num_pictures_loaded --> number of pictures loded
+#
+#         returns (tuple in subsequent order):
+#         log normalized data sequence --> training data frames,
+#         log one hot data sequence --> target data frame,
+#         unnormalized data sequence --> training frames
+#         unnormalized data sequence --> target frame
+#         """
+#         self.data_sequence = data_sequence
+#         self.normalize = normalize
+#         self.last_input_rel_idx = last_input_rel_idx
+#         self.target_rel_idx = target_rel_idx
+#         self.transform_f = transform_f
+#
+#         data_sequence_one_hot, linspace_binning = img_one_hot(data_sequence, num_c_output, linspace_binning_min, linspace_binning_max)
+#         self.data_sequence_one_hot = einops.rearrange(data_sequence_one_hot, 'i w h c -> i c w h')
+#         self.linspace_binning = linspace_binning
+#         # log transform
+#         # Errors encountered!
+#
+#     def __len__(self):
+#         return np.shape(self.data_sequence)[0] - self.target_rel_idx
+#
+#     def __getitem__(self, idx):
+#         # Returns the first pictures as input data and the last picture as training picture
+#         return self.data_sequence[idx:idx+self.last_input_rel_idx, :, :], \
+#             self.data_sequence_one_hot[idx+self.target_rel_idx, :, :, :], \
+#             self.data_sequence[idx + self.target_rel_idx, :, :], \
+#             # TODO Make sure Indexing does what it's supposed to do!
+#             # Output: Training sequence mm, target one hot, target mm
+#
+#             # self.data_sequence_not_normalized[idx:idx+self.num_pictures_loaded-1, :, :], \
+#             # self.data_sequence_not_normalized[idx:idx + self.num_pictures_loaded, :, :]
+#             #  [:idx+self.num_pictures_loaded-1] <-- For data_sequence training data (several frames)
+#             #  [idx+self.num_pictures_loaded, :, :, :] <-- for one_hot target (one frame)
 
 
 class PrecipitationFilteredDataset(Dataset):
-    def __init__(self, data_sequence, last_input_rel_idx, target_rel_idx, num_c_output, linspace_binning_min, linspace_binning_max,
-                 normalize=True):
+    def __init__(self, filtered_data_loader_indecies, linspace_binning_min, linspace_binning_max, transform_f,
+                 num_bins_crossentropy, folder_path, width_height, width_height_target, data_variable_name,
+                 local_machine_mode, normalize=True, **__):
         """
         Attributes:
         self.data_sequence --> log normalized data sequence
@@ -75,36 +77,77 @@ class PrecipitationFilteredDataset(Dataset):
         unnormalized data sequence --> training frames
         unnormalized data sequence --> target frame
         """
-        self.data_sequence = data_sequence
 
-        self.last_input_rel_idx = last_input_rel_idx
-        self.target_rel_idx = target_rel_idx
 
-        data_sequence_one_hot, linspace_binning = img_one_hot(data_sequence, num_c_output, linspace_binning_min, linspace_binning_max)
-        self.data_sequence_one_hot = einops.rearrange(data_sequence_one_hot, 'i w h c -> i c w h')
-        self.linspace_binning = linspace_binning
+
+        self.linspace_binning = None # Gets assigned in __getitem__
+        # TODO pretty ugly due to evolutionary code history... Create linspace binning at the beginning in train.py at some point
+
+        self.filtered_data_loader_indecies = filtered_data_loader_indecies
+
+        self.folder_path = folder_path
+        self.transform_f = transform_f
+        self.width_height = width_height
+        self.width_height_target = width_height_target
+        self.normalize = normalize
+        self.num_bins_crossentropy = num_bins_crossentropy
+        self.linspace_binning_min = linspace_binning_min
+        self.linspace_binning_max = linspace_binning_max
+        self.data_variable_name = data_variable_name
+        self.local_machine_mode = local_machine_mode
         # log transform
         # Errors encountered!
 
     def __len__(self):
-        return np.shape(self.data_sequence)[0] - self.target_rel_idx
+        return len(self.filtered_data_loader_indecies)
 
     def __getitem__(self, idx):
+        if self.normalize:
+            lognormalize_data = lambda x: normalize_data(self.transform_f(x))[0]
+
         # Returns the first pictures as input data and the last picture as training picture
-        return self.data_sequence[idx:idx+self.last_input_rel_idx, :, :], \
-            self.data_sequence_one_hot[idx+self.target_rel_idx, :, :, :], \
-            self.data_sequence[idx + self.target_rel_idx, :, :], \
-            # TODO Make sure Indexing does what it's supposed to do!
-            # Output: Training sequence mm, target one hot, target mm
+        filtered_data_loader_indecies_dict = self.filtered_data_loader_indecies[idx]
+        file = filtered_data_loader_indecies_dict['file']
+        first_idx_input_sequence = filtered_data_loader_indecies_dict['first_idx_input_sequence']
+        last_idx_input_sequence = filtered_data_loader_indecies_dict['last_idx_input_sequence']
+        target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
+        data_dataset = xr.open_dataset('{}/{}'.format(self.folder_path, file))
+        input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence, last_idx_input_sequence)) # last_idx_input_sequence + 1 like in np! Did I already do that prior?
+        input_sequence = input_data_set[self.data_variable_name].values
+        # Get rid of steps dimension
+        if self.local_machine_mode:
+            input_sequence = input_sequence[:, 0, :, :]
+        else:
+            input_sequence = input_sequence[0, :, :, :]
 
-            # self.data_sequence_not_normalized[idx:idx+self.num_pictures_loaded-1, :, :], \
-            # self.data_sequence_not_normalized[idx:idx + self.num_pictures_loaded, :, :]
-            #  [:idx+self.num_pictures_loaded-1] <-- For data_sequence training data (several frames)
-            #  [idx+self.num_pictures_loaded, :, :, :] <-- for one_hot target (one frame)
+        input_sequence = np.array(T.CenterCrop(self.width_height)(torch.from_numpy(input_sequence)))
+        input_sequence = lognormalize_data(input_sequence)
+        target_data_set = data_dataset.isel(time=target_idx_input_sequence)
+        target = target_data_set[self.data_variable_name].values
+        # Get rid of steps dimension as we only have one index anyways
+        # TODO: Check what this does on Slurm with non-test data!
+        target = target[0]
+        target = np.array(T.CenterCrop(self.width_height_target)(torch.from_numpy(target)))
+        target = lognormalize_data(target)
+        target_one_hot, linspace_binning = img_one_hot(target, self.num_bins_crossentropy, self.linspace_binning_min,
+                                                              self.linspace_binning_max)
+        target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
 
 
-def data_scraper(transform_f, last_input_rel_idx, target_rel_idx, folder_path, data_file_names, width_height, data_variable_name,
-                 time_span, local_machine_mode, width_height_target, min_rain_ratio_target, choose_time_span=False, **__):
+        return input_sequence, target_one_hot, target, linspace_binning
+        # TODO: Returning linspace binning here every time is super ugly as this is a global constant!!!
+
+
+
+def lognormalize_data(data, mean_data, std_data, transform_f, normalize):
+    data = transform_f(data)
+    if normalize:
+        data, _, _ = normalize_data(data, mean_data=mean_data, std_data=std_data)
+    return data
+
+
+def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, folder_path, data_file_names, width_height, data_variable_name,
+                           time_span, local_machine_mode, width_height_target, min_rain_ratio_target, choose_time_span=False, **__):
     '''
     time span only refers to a single file
     '''
@@ -142,6 +185,7 @@ def data_scraper(transform_f, last_input_rel_idx, target_rel_idx, folder_path, d
 
                 # We are iterating through all 256x256 target frames that have been accepted by the filter
 
+                # !!!TODO: !!! num_x is zero when filter is never applied! Account for this !!!
                 num_x += np.shape(curr_data_sequence[target_idx_input_sequence].flatten())[0]
                 sum_x += np.sum(transform_f(curr_data_sequence[target_idx_input_sequence].flatten()))
                 sum_x_squared += np.sum(transform_f(curr_data_sequence[target_idx_input_sequence].flatten()) ** 2)
@@ -154,12 +198,16 @@ def data_scraper(transform_f, last_input_rel_idx, target_rel_idx, folder_path, d
 
             # TODO: Write a test for this!!
             # TODO: When is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
-            mean_filtered_data = sum_x / num_x
-            std_filtered_data = np.sqrt((sum_x_squared / num_x) - mean_filtered_data ** 2)
+        mean_filtered_data = sum_x / num_x
+        std_filtered_data = np.sqrt((sum_x_squared / num_x) - mean_filtered_data ** 2)
     return filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max
 
 
 def filter(input_sequence, target, min_rain_ratio_target):
+    '''
+    Looks whether on what percentage on target there is rain. If percentage exceeds min_rain_ratio_target return True, False otherwise
+    '''
+    return True
     # Todo: Implement filter!
     rainy_data_points = target[target > 0]
     if np.shape(rainy_data_points.flatten())[0] / np.shape(target.flatten())[0] > min_rain_ratio_target:
@@ -168,10 +216,12 @@ def filter(input_sequence, target, min_rain_ratio_target):
         return False
 
 
-def normalize_data(data_sequence):
+def normalize_data(data_sequence, mean_data=None, std_data=None):
     flattened_data = data_sequence.flatten()
-    std_data = np.std(flattened_data)
-    mean_data = np.mean(flattened_data)
+    if mean_data is None:
+        mean_data = np.mean(flattened_data)
+    if std_data is None:
+        std_data = np.std(flattened_data)
     return (data_sequence - mean_data) / std_data, mean_data, std_data
 
 
