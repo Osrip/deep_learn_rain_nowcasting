@@ -205,6 +205,7 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
 
 def filter(input_sequence, target, min_rain_ratio_target):
     '''
+    NOT WORKING YET ALSWAYS RETURNS TRUE FOR TEST PURPOSES
     Looks whether on what percentage on target there is rain. If percentage exceeds min_rain_ratio_target return True, False otherwise
     '''
     return True

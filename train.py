@@ -297,6 +297,7 @@ if __name__ == '__main__':
         settings['batch_size'] = 2
         settings['testing'] = True
         settings['min_rain_ratio_target'] = 0 # No Filter
+        # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
     main(settings=settings, **settings)
 
