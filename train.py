@@ -9,8 +9,9 @@ from helper_functions import create_dilation_list
 from modules_blocks import Network
 import datetime
 from load_data import img_one_hot, PrecipitationDataset, load_data_sequence_preliminary, normalize_data,\
-    inverse_normalize_data
+    inverse_normalize_data, data_scraper
 from torch.utils.data import Dataset, DataLoader
+
 import numpy as np
 from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm
 import os
@@ -57,11 +58,16 @@ def validate(model, validation_data_loader, width_height_target, **__):
     return validation_losses
 
 
-
 def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int, num_lead_time_steps,
           num_bins_crossentropy, width_height_target, batch_size, ratio_training_data,
           dirs, local_machine_mode, log_transform, normalize, settings, **__):
-    accuracies = []
+
+
+    if log_transform:
+        transform_f = lambda x: np.log(x + 1)
+    else:
+        transform_f = lambda x: x
+
 
     # num_pictures_loaded = num_input_time_steps + 1 + num_lead_time_steps
 
@@ -76,7 +82,14 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     # TODO: Enable saving to pickle at some point
     print('Load Data', flush=True)
 
+    filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max =\
+        data_scraper(transform_f=transform_f, last_input_rel_idx=last_input_rel_idx, target_rel_idx=target_rel_idx,
+                     **settings)
+
+
     data_sequence = load_data_sequence_preliminary(**settings)
+
+
 
     if log_transform:
         # Log transform with log x+1 to handle zeros
@@ -161,8 +174,6 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             inner_relative_mses.append(relative_mse)
             inner_presistence_target_mses.append(mse_persistence_target)
             inner_model_target_mses.append(mse_model_target)
-
-
 
 
             # TODO: Currently Target is baseline for test purposes. Change that for obvious reasons!!!
@@ -258,7 +269,7 @@ if __name__ == '__main__':
 
             'sim_name': sim_name,
             'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            'data_file_name': 'RV_recalc_data_2019-01.nc',
+            'data_file_names': ['RV_recalc_data_2019-01.nc'],
             'data_variable_name': 'RV_recalc',
             'choose_time_span': False,
             'time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
@@ -287,13 +298,16 @@ if __name__ == '__main__':
             'log_transform': True,
             'normalize': True,
 
+            'min_rain_ratio_target': 0.3,  # The minimal amount of rain required in the 32 x 32 target for target and its
+            # prior input sequence to make it through the filter into the training data
+
             'testing': True
         }
 
     if settings['local_machine_mode']:
         settings['data_variable_name'] = 'WN_forecast'
         settings['folder_path'] = 'dwd_nc/test_data'
-        settings['data_file_name'] = 'DE1200_RV_Recalc_20190101.nc'
+        settings['data_file_names'] = ['DE1200_RV_Recalc_20190101.nc']
         settings['choose_time_span'] = True
         settings['time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
         settings['upscale_c_to'] = 8
