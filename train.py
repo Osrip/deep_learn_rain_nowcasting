@@ -122,13 +122,12 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         inner_model_target_mses = []
         for i, (input_sequence, target_one_hot, target, linspace_binning) in enumerate(train_data_loader):
 
-            # For some weird reason linspace_binning has an extra dimension of size two when it is loaded
-            # even though the PrecipitationFilteredDataset class only return the correct one dimensionaöl linspace binning
-            # No idea what is happening here, debugged this step by step
+            # Linspace binning is processed by the data loader and is therefore converted to e tensor with added batch dimensions
+            # convert linspace_binning back to 1D array
             linspace_binning = np.array(linspace_binning[0])
-            linspace_binning_prev = linspace_binning
+            linspace_binning_control = linspace_binning
             if i > 0:
-                if not (linspace_binning_prev == linspace_binning).all():
+                if not (linspace_binning_control == linspace_binning).all():
                     raise Exception('There is something wrong with linspace binning!')
                     warnings.warn('There is something wrong with linspace binning!')
             input_sequence = input_sequence.float()

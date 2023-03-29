@@ -105,6 +105,7 @@ class PrecipitationFilteredDataset(Dataset):
         return len(self.filtered_data_loader_indecies)
 
     def __getitem__(self, idx):
+        # Loading everything directly from the disc
         # Returns the first pictures as input data and the last picture as training picture
         filtered_data_loader_indecies_dict = self.filtered_data_loader_indecies[idx]
         file = filtered_data_loader_indecies_dict['file']
@@ -131,6 +132,7 @@ class PrecipitationFilteredDataset(Dataset):
         target = lognormalize_data(target, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.normalize)
         target_one_hot, linspace_binning = img_one_hot(target, self.num_bins_crossentropy, self.linspace_binning_min,
                                                               self.linspace_binning_max)
+
         target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
 
 

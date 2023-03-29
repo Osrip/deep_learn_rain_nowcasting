@@ -111,6 +111,7 @@ def test_all():
     test_normalize_inverse_normalize_log()
     print('All tests successfull')
 
+
 if __name__ == '__main__':
 
     test_all()
