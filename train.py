@@ -99,12 +99,15 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     train_filtered_indecies = filtered_indecies[0:num_training_samples]
     validation_filtered_indecies = filtered_indecies[num_training_samples:]
 
-    train_data_set = PrecipitationFilteredDataset(train_filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max, transform_f, **settings)
+    train_data_set = PrecipitationFilteredDataset(train_filtered_indecies, mean_filtered_data, std_filtered_data,
+                                                  linspace_binning_min, linspace_binning_max, transform_f, **settings)
     train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
 
     del train_data_set
 
-    validation_data_set = PrecipitationFilteredDataset(validation_filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max, transform_f, **settings)
+    validation_data_set = PrecipitationFilteredDataset(validation_filtered_indecies, mean_filtered_data,
+                                                       std_filtered_data, linspace_binning_min, linspace_binning_max,
+                                                       transform_f, **settings)
 
     validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     del validation_data_set
@@ -122,7 +125,8 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         inner_model_target_mses = []
         for i, (input_sequence, target_one_hot, target, linspace_binning) in enumerate(train_data_loader):
 
-            # Linspace binning is processed by the data loader and is therefore converted to e tensor with added batch dimensions
+            # Linspace binning is processed by the data loader and is therefore converted to e tensor with added batch
+            # dimensions
             # convert linspace_binning back to 1D array
             linspace_binning = np.array(linspace_binning[0])
             linspace_binning_control = linspace_binning
@@ -195,8 +199,8 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         avg_inner_validation_loss = np.mean(inner_validation_losses)
         print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, avg_inner_validation_loss),
               flush=True)
-        plot_mse([relative_mses], label_list=['relative MSE'], save_path_name='{}/ep{}_relative_mse'.format(dirs['plot_dir'], epoch),
-                 title='Relative MSE')
+        plot_mse([relative_mses], label_list=['relative MSE'],
+                 save_path_name='{}/ep{}_relative_mse'.format(dirs['plot_dir'], epoch), title='Relative MSE')
         plot_mse([presistence_target_mses, model_target_mses], label_list=['Persistence Target MSE', 'Model Target MSE'],
                  save_path_name='{}/ep{}_mse'.format(dirs['plot_dir'], epoch),
                  title='MSE')

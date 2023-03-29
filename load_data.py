@@ -193,28 +193,35 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
                 sum_x_squared += np.sum(transform_f(curr_data_sequence[target_idx_input_sequence].flatten()) ** 2)
 
                 # linspace binning min and max have to be normalized later as the means and stds are available
-                if linspace_binning_min_unnormalized > np.min(curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]]):
-                    linspace_binning_min_unnormalized = np.min(curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+                if linspace_binning_min_unnormalized > np.min(
+                        curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]]):
+                    linspace_binning_min_unnormalized = np.min(
+                        curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
 
-                if linspace_binning_max_unnormalized < np.max(curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]]):
-                    linspace_binning_max_unnormalized = np.max(curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+                if linspace_binning_max_unnormalized < np.max(
+                        curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]]):
+                    linspace_binning_max_unnormalized = np.max(
+                        curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
 
             # TODO: Write a test for this!!
             # TODO: When is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
+        if num_x == 0:
+            raise Exception('No data passed the filter conditions of min_rain_ratio_target={}, such that there is no '
+                            'data for training and validation.'.format(min_rain_ratio_target))
         mean_filtered_data = sum_x / num_x
         std_filtered_data = np.sqrt((sum_x_squared / num_x) - mean_filtered_data ** 2)
-    return filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized
+    return filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
+        linspace_binning_max_unnormalized
 
 
 def filter(input_sequence, target, min_rain_ratio_target):
     '''
-    NOT WORKING YET ALSWAYS RETURNS TRUE FOR TEST PURPOSES
-    Looks whether on what percentage on target there is rain. If percentage exceeds min_rain_ratio_target return True, False otherwise
+    Looks whether on what percentage on target there is rain. If percentage exceeds min_rain_ratio_target return True
+    , False otherwise
     '''
-    return True
     # Todo: Implement filter!
     rainy_data_points = target[target > 0]
-    if np.shape(rainy_data_points.flatten())[0] / np.shape(target.flatten())[0] > min_rain_ratio_target:
+    if np.shape(rainy_data_points.flatten())[0] / np.shape(target.flatten())[0] >= min_rain_ratio_target:
         return True
     else:
         return False
@@ -328,7 +335,8 @@ def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning_min, linspace
     '''
     # vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
     # data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=mm_min, mm_max=mm_max)
-    data_arr_indexed, linspace_binning = bin_to_one_hot_index_linear(data_arr, num_c, linspace_binning_min, linspace_binning_max) # -0.00000001
+    data_arr_indexed, linspace_binning = bin_to_one_hot_index_linear(data_arr, num_c, linspace_binning_min,
+                                                                     linspace_binning_max) # -0.00000001
     # data_arr_indexed = bin_to_one_hot_index_log(data_arr, num_c)
     data_indexed = torch.from_numpy(data_arr_indexed)
     data_hot = F.one_hot(data_indexed.long(), num_c)
@@ -336,8 +344,8 @@ def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning_min, linspace
     return data_hot, linspace_binning
 
 
-def load_data_sequence_preliminary(folder_path, data_file_name, width_height, data_variable_name, choose_time_span, time_span,
-                                   local_machine_mode, **__):
+def load_data_sequence_preliminary(folder_path, data_file_name, width_height, data_variable_name, choose_time_span,
+                                   time_span, local_machine_mode, **__):
     '''
     This function loads one file and has the option to load a subset of the file instead by setting choose_time_span to true
     '''
