@@ -62,7 +62,7 @@ from tqdm import tqdm
 
 
 class PrecipitationFilteredDataset(Dataset):
-    def __init__(self, filtered_data_loader_indecies, linspace_binning_min, linspace_binning_max, transform_f,
+    def __init__(self, filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max, transform_f,
                  num_bins_crossentropy, folder_path, width_height, width_height_target, data_variable_name,
                  local_machine_mode, normalize=True, **__):
         """
@@ -93,8 +93,11 @@ class PrecipitationFilteredDataset(Dataset):
         self.num_bins_crossentropy = num_bins_crossentropy
         self.linspace_binning_min = linspace_binning_min
         self.linspace_binning_max = linspace_binning_max
+        self.mean_filtered_data = mean_filtered_data
+        self.std_filtered_data = std_filtered_data
         self.data_variable_name = data_variable_name
         self.local_machine_mode = local_machine_mode
+
         # log transform
         # Errors encountered!
 
@@ -102,9 +105,6 @@ class PrecipitationFilteredDataset(Dataset):
         return len(self.filtered_data_loader_indecies)
 
     def __getitem__(self, idx):
-        if self.normalize:
-            lognormalize_data = lambda x: normalize_data(self.transform_f(x))[0]
-
         # Returns the first pictures as input data and the last picture as training picture
         filtered_data_loader_indecies_dict = self.filtered_data_loader_indecies[idx]
         file = filtered_data_loader_indecies_dict['file']
@@ -121,14 +121,14 @@ class PrecipitationFilteredDataset(Dataset):
             input_sequence = input_sequence[0, :, :, :]
 
         input_sequence = np.array(T.CenterCrop(self.width_height)(torch.from_numpy(input_sequence)))
-        input_sequence = lognormalize_data(input_sequence)
+        input_sequence = lognormalize_data(input_sequence, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.normalize)
         target_data_set = data_dataset.isel(time=target_idx_input_sequence)
         target = target_data_set[self.data_variable_name].values
         # Get rid of steps dimension as we only have one index anyways
         # TODO: Check what this does on Slurm with non-test data!
         target = target[0]
         target = np.array(T.CenterCrop(self.width_height_target)(torch.from_numpy(target)))
-        target = lognormalize_data(target)
+        target = lognormalize_data(target, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.normalize)
         target_one_hot, linspace_binning = img_one_hot(target, self.num_bins_crossentropy, self.linspace_binning_min,
                                                               self.linspace_binning_max)
         target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
@@ -156,8 +156,8 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
     sum_x = 0
     sum_x_squared = 0
 
-    linspace_binning_min = np.inf
-    linspace_binning_max = -np.inf
+    linspace_binning_min_unnormalized = np.inf
+    linspace_binning_max_unnormalized = -np.inf
 
     for data_file_name in data_file_names:
 
@@ -190,17 +190,18 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
                 sum_x += np.sum(transform_f(curr_data_sequence[target_idx_input_sequence].flatten()))
                 sum_x_squared += np.sum(transform_f(curr_data_sequence[target_idx_input_sequence].flatten()) ** 2)
 
-                if linspace_binning_min > np.min(transform_f(curr_data_sequence[target_idx_input_sequence])):
-                    linspace_binning_min = np.min(transform_f(curr_data_sequence[target_idx_input_sequence]))
+                # linspace binning min and max have to be normalized later as the means and stds are available
+                if linspace_binning_min_unnormalized > np.min(curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]]):
+                    linspace_binning_min_unnormalized = np.min(curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
 
-                if linspace_binning_max < np.max(transform_f(curr_data_sequence[target_idx_input_sequence])):
-                    linspace_binning_max = np.max(transform_f(curr_data_sequence[target_idx_input_sequence]))
+                if linspace_binning_max_unnormalized < np.max(curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]]):
+                    linspace_binning_max_unnormalized = np.max(curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
 
             # TODO: Write a test for this!!
             # TODO: When is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
         mean_filtered_data = sum_x / num_x
         std_filtered_data = np.sqrt((sum_x_squared / num_x) - mean_filtered_data ** 2)
-    return filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max
+    return filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized
 
 
 def filter(input_sequence, target, min_rain_ratio_target):
@@ -325,7 +326,7 @@ def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning_min, linspace
     '''
     # vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
     # data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=mm_min, mm_max=mm_max)
-    data_arr_indexed, linspace_binning = bin_to_one_hot_index_linear(data_arr, num_c, linspace_binning_min, linspace_binning_max)
+    data_arr_indexed, linspace_binning = bin_to_one_hot_index_linear(data_arr, num_c, linspace_binning_min, linspace_binning_max) # -0.00000001
     # data_arr_indexed = bin_to_one_hot_index_log(data_arr, num_c)
     data_indexed = torch.from_numpy(data_arr_indexed)
     data_hot = F.one_hot(data_indexed.long(), num_c)

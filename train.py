@@ -9,7 +9,7 @@ from helper_functions import create_dilation_list
 from modules_blocks import Network
 import datetime
 from load_data import img_one_hot, PrecipitationFilteredDataset, load_data_sequence_preliminary, normalize_data,\
-    inverse_normalize_data, filtering_data_scraper
+    inverse_normalize_data, filtering_data_scraper, lognormalize_data
 from torch.utils.data import Dataset, DataLoader
 
 import numpy as np
@@ -82,23 +82,29 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     # TODO: Enable saving to pickle at some point
     print('Load Data', flush=True)
 
-    filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max =\
+    filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized =\
         filtering_data_scraper(transform_f=transform_f, last_input_rel_idx=last_input_rel_idx, target_rel_idx=target_rel_idx,
                                **settings)
+
+    # Normalize linspace binning thresholds now that data is available
+    linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized, mean_filtered_data, std_filtered_data,
+                                             transform_f, normalize) - 0.00001
+    # Subtract a small number to account for rounding errors made in the normalization process
+    linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_data, std_filtered_data,
+                                             transform_f, normalize)
+
 
 
     num_training_samples = int(len(filtered_indecies) * ratio_training_data)
     train_filtered_indecies = filtered_indecies[0:num_training_samples]
     validation_filtered_indecies = filtered_indecies[num_training_samples:]
 
-
-
-    train_data_set = PrecipitationFilteredDataset(train_filtered_indecies, linspace_binning_min, linspace_binning_max, transform_f, **settings)
+    train_data_set = PrecipitationFilteredDataset(train_filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max, transform_f, **settings)
     train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
 
     del train_data_set
 
-    validation_data_set = PrecipitationFilteredDataset(validation_filtered_indecies, linspace_binning_min, linspace_binning_max, transform_f, **settings)
+    validation_data_set = PrecipitationFilteredDataset(validation_filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max, transform_f, **settings)
 
     validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     del validation_data_set
@@ -115,9 +121,15 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         inner_presistence_target_mses = []
         inner_model_target_mses = []
         for i, (input_sequence, target_one_hot, target, linspace_binning) in enumerate(train_data_loader):
+
+            # For some weird reason linspace_binning has an extra dimension of size two when it is loaded
+            # even though the PrecipitationFilteredDataset class only return the correct one dimensionaöl linspace binning
+            # No idea what is happening here, debugged this step by step
+            linspace_binning = np.array(linspace_binning[0])
             linspace_binning_prev = linspace_binning
             if i > 0:
                 if not (linspace_binning_prev == linspace_binning).all():
+                    raise Exception('There is something wrong with linspace binning!')
                     warnings.warn('There is something wrong with linspace binning!')
             input_sequence = input_sequence.float()
 
@@ -162,7 +174,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             # TODO: Currently Target is baseline for test purposes. Change that for obvious reasons!!!
             if i == 0:
 
-                inv_norm = lambda x: inverse_normalize_data(x, mean_orig_data, std_orig_data, inverse_log=False, inverse_normalize=True)
+                inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False, inverse_normalize=True)
 
                 plot_image(inv_norm(target[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
                            save_path_name='{}/ep{}_target'.format(dirs['plot_dir_images'], epoch),
