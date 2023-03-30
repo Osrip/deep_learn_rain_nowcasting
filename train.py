@@ -264,7 +264,7 @@ if __name__ == '__main__':
 
     settings =\
         {
-            'local_machine_mode': False,
+            'local_machine_mode': True,
 
             'sim_name': sim_name,
             'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
@@ -313,7 +313,7 @@ if __name__ == '__main__':
         # settings['choose_time_span'] = True
         settings['choose_time_span'] = True
         # settings['time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
-        settings['time_span'] = (67, 89)
+        settings['time_span'] = (67, 150)
         settings['upscale_c_to'] = 8
         settings['batch_size'] = 2
         settings['testing'] = True

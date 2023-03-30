@@ -29,5 +29,4 @@ while not interrupt:
     if ((data != -1000000000.0) & (data != 0)).any():
         where = np.argwhere((data != -1000000000.0) & (data != 0))
         print(i)
-        print(where)
-        break
+        # print(where)

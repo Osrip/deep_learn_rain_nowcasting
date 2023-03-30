@@ -380,8 +380,8 @@ def load_data_sequence_preliminary(folder_path, data_file_name, width_height, da
     data_dataset = xr.open_dataset(load_path)
     if choose_time_span:
         # TODO Change this back, only for test purposes!!
-        # data_dataset = data_dataset.isel(time=slice(time_span[0], time_span[1]))
-        data_dataset = data_dataset.sel(time=slice(time_span[0], time_span[1]))
+        data_dataset = data_dataset.isel(time=slice(time_span[0], time_span[1]))
+        # data_dataset = data_dataset.sel(time=slice(time_span[0], time_span[1]))
     data_arr = data_dataset[data_variable_name].values
     data_arr = data_arr[:, 0, :, :]
     # Get rid of steps dimension
