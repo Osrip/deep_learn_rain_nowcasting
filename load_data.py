@@ -116,19 +116,20 @@ class PrecipitationFilteredDataset(Dataset):
         input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence, last_idx_input_sequence)) # last_idx_input_sequence + 1 like in np! Did I already do that prior?
         input_sequence = input_data_set[self.data_variable_name].values
         # Get rid of steps dimension
-        if self.local_machine_mode:
-            input_sequence = input_sequence[:, 0, :, :]
-        else:
-            input_sequence = input_sequence[0, :, :, :]
+        input_sequence = input_sequence[:, 0, :, :]
+        # if self.local_machine_mode:
+        #     input_sequence = input_sequence[:, 0, :, :]
+        # else:
+        #     input_sequence = input_sequence[0, :, :, :]
 
-        input_sequence = np.array(T.CenterCrop(self.width_height)(torch.from_numpy(input_sequence)))
+        input_sequence = np.array(T.CenterCrop(size=self.width_height)(torch.from_numpy(input_sequence)))
         input_sequence = lognormalize_data(input_sequence, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.normalize)
         target_data_set = data_dataset.isel(time=target_idx_input_sequence)
         target = target_data_set[self.data_variable_name].values
         # Get rid of steps dimension as we only have one index anyways
         # TODO: Check what this does on Slurm with non-test data!
         target = target[0]
-        target = np.array(T.CenterCrop(self.width_height_target)(torch.from_numpy(target)))
+        target = np.array(T.CenterCrop(size=self.width_height_target)(torch.from_numpy(target)))
         target = lognormalize_data(target, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.normalize)
         target_one_hot, linspace_binning = img_one_hot(target, self.num_bins_crossentropy, self.linspace_binning_min,
                                                               self.linspace_binning_max)
@@ -158,19 +159,26 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
     sum_x = 0
     sum_x_squared = 0
 
+    num_data_points_total = 0
+
     linspace_binning_min_unnormalized = np.inf
     linspace_binning_max_unnormalized = -np.inf
 
     for data_file_name in data_file_names:
-
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # TODO: DONT ALLOW TIME_SPAN CHOOSING, SCREWS UP INDECIES WHEN LOADING DATA
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         curr_data_sequence = load_data_sequence_preliminary(folder_path, data_file_name, width_height, data_variable_name,
                                                        choose_time_span, time_span, local_machine_mode)
+        print('np.shape(curr_data_sequence)[0]:{} \n  target_rel_idx:{} \n np.shape(curr_data_sequence)[0] - target_rel_idx: {}'
+              ''.format(np.shape(curr_data_sequence)[0], target_rel_idx, np.shape(curr_data_sequence)[0] - target_rel_idx))
         for i in range(np.shape(curr_data_sequence)[0] - target_rel_idx):
+            num_data_points_total += 1
             first_idx_input_sequence = i
             last_idx_input_sequence = i + last_input_rel_idx
             target_idx_input_sequence = i + target_rel_idx
 
-            curr_target_cropped = np.array(T.CenterCrop(width_height_target)(torch.from_numpy(curr_data_sequence[target_idx_input_sequence])))
+            curr_target_cropped = np.array(T.CenterCrop(size=width_height_target)(torch.from_numpy(curr_data_sequence[target_idx_input_sequence])))
             curr_input_sequence = curr_data_sequence[first_idx_input_sequence:last_idx_input_sequence, :, :]
             if filter(curr_input_sequence, curr_target_cropped, min_rain_ratio_target):
                 filtered_data_loader_indecies_dict = {}
@@ -208,10 +216,27 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
         if num_x == 0:
             raise Exception('No data passed the filter conditions of min_rain_ratio_target={}, such that there is no '
                             'data for training and validation.'.format(min_rain_ratio_target))
+        else:
+            print('{} data points out of a total of {} scanned data points'
+                  ' passed the filter condition of min_rain_ratio_target={}'.format(
+                num_x, num_data_points_total, min_rain_ratio_target))
         mean_filtered_data = sum_x / num_x
         std_filtered_data = np.sqrt((sum_x_squared / num_x) - mean_filtered_data ** 2)
     return filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
         linspace_binning_max_unnormalized
+
+
+# def filter(input_sequence, target, min_rain_ratio_target):
+#     '''
+#     Looks whether on what percentage on target there is rain. If percentage exceeds min_rain_ratio_target return True
+#     , False otherwise
+#     '''
+#     # Todo: Implement filter!
+#     rainy_data_points = target[target > 0]
+#     if np.shape(rainy_data_points.flatten())[0] / np.shape(target.flatten())[0] >= min_rain_ratio_target:
+#         return True
+#     else:
+#         return False
 
 
 def filter(input_sequence, target, min_rain_ratio_target):
@@ -221,11 +246,10 @@ def filter(input_sequence, target, min_rain_ratio_target):
     '''
     # Todo: Implement filter!
     rainy_data_points = target[target > 0]
-    if np.shape(rainy_data_points.flatten())[0] / np.shape(target.flatten())[0] >= min_rain_ratio_target:
+    if ((target != -1000000000.0) & (target != 0)).any():
         return True
     else:
         return False
-
 
 def normalize_data(data_sequence, mean_data=None, std_data=None):
     flattened_data = data_sequence.flatten()
@@ -355,13 +379,16 @@ def load_data_sequence_preliminary(folder_path, data_file_name, width_height, da
     print('Loading training/validation data from {}'.format(load_path))
     data_dataset = xr.open_dataset(load_path)
     if choose_time_span:
+        # TODO Change this back, only for test purposes!!
+        # data_dataset = data_dataset.isel(time=slice(time_span[0], time_span[1]))
         data_dataset = data_dataset.sel(time=slice(time_span[0], time_span[1]))
     data_arr = data_dataset[data_variable_name].values
+    data_arr = data_arr[:, 0, :, :]
     # Get rid of steps dimension
-    if local_machine_mode:
-        data_arr = data_arr[:, 0, :, :]
-    else:
-        data_arr = data_arr[0, :, :, :]
+    # if local_machine_mode:
+    #     data_arr = data_arr[:, 0, :, :]
+    # else:
+    #     data_arr = data_arr[0, :, :, :]
     data_tensor = torch.from_numpy(data_arr)
 
     # Crop --> TODO: Implement this with x y variables of NetCDF in future!

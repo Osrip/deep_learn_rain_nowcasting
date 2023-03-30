@@ -177,7 +177,8 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             # TODO: Currently Target is baseline for test purposes. Change that for obvious reasons!!!
             if i == 0:
 
-                inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False, inverse_normalize=True)
+                inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
+                                                            inverse_normalize=True)
 
                 plot_image(inv_norm(target[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
                            save_path_name='{}/ep{}_target'.format(dirs['plot_dir_images'], epoch),
@@ -263,11 +264,11 @@ if __name__ == '__main__':
 
     settings =\
         {
-            'local_machine_mode': True,
+            'local_machine_mode': False,
 
             'sim_name': sim_name,
             'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            'data_file_names': ['RV_recalc_data_2019-01.nc'],
+            'data_file_names': ['RV_recalc_data_2019-01.nc'],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
             'data_variable_name': 'RV_recalc',
             'choose_time_span': False,
             'time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
@@ -296,22 +297,27 @@ if __name__ == '__main__':
             'log_transform': True,
             'normalize': True,
 
-            'min_rain_ratio_target': 0.3,  # The minimal amount of rain required in the 32 x 32 target for target and its
+            'min_rain_ratio_target': 0.01, #Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its
             # prior input sequence to make it through the filter into the training data
 
             'testing': True
         }
 
     if settings['local_machine_mode']:
-        settings['data_variable_name'] = 'WN_forecast'
-        settings['folder_path'] = 'dwd_nc/test_data'
-        settings['data_file_names'] = ['DE1200_RV_Recalc_20190101.nc']
+        # settings['data_variable_name'] = 'WN_forecast'
+        settings['data_variable_name'] = 'RV_recalc'
+        # settings['folder_path'] = 'dwd_nc/test_data'
+        settings['folder_path'] = '/mnt/common/Jan/Programming/weather_data/dwd_nc/rv_recalc_months'
+        # settings['data_file_names'] = ['DE1200_RV_Recalc_20190101.nc']
+        settings['data_file_names'] = ['RV_recalc_data_2019-01.nc']
+        # settings['choose_time_span'] = True
         settings['choose_time_span'] = True
-        settings['time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
+        # settings['time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
+        settings['time_span'] = (67, 89)
         settings['upscale_c_to'] = 8
         settings['batch_size'] = 2
         settings['testing'] = True
-        settings['min_rain_ratio_target'] = 0 # No Filter
+        settings['min_rain_ratio_target'] = 0 #Deactivated # No Filter
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
     main(settings=settings, **settings)
