@@ -306,17 +306,22 @@ if __name__ == '__main__':
     if settings['local_machine_mode']:
         # settings['data_variable_name'] = 'WN_forecast'
         settings['data_variable_name'] = 'RV_recalc'
+
         # settings['folder_path'] = 'dwd_nc/test_data'
-        settings['folder_path'] = '/mnt/common/Jan/Programming/weather_data/dwd_nc/rv_recalc_months'
+        # settings['folder_path'] = '/mnt/common/Jan/Programming/weather_data/dwd_nc/rv_recalc_months'
+        settings['folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
+
         # settings['data_file_names'] = ['DE1200_RV_Recalc_20190101.nc']
-        settings['data_file_names'] = ['RV_recalc_data_2019-01.nc']
+        # settings['data_file_names'] = ['RV_recalc_data_2019-01.nc']
+        settings['data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
+
         # settings['choose_time_span'] = True
-        settings['choose_time_span'] = True
+        settings['choose_time_span'] = False
         # settings['time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
-        settings['time_span'] = (67, 150)
+        settings['time_span'] = (67, 150) # <-- now done according to index (isel instead of sel)
         settings['upscale_c_to'] = 8
         settings['batch_size'] = 2
-        settings['testing'] = True
+        settings['testing'] = True # Runs tests at the beginning
         settings['min_rain_ratio_target'] = 0 #Deactivated # No Filter
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
