@@ -35,8 +35,9 @@ def main(create_test_data, view_indecies_with_rain_cropped):
 
     if create_test_data:
 
-        data_sub_set = data_dataset.isel(time=slice(80, 300))
-        data_sub_set.to_netcdf('/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data/RV_recalc_data_2019-01_subset.nc')
+        # data_sub_set = data_dataset.isel(time=slice(80, 300))
+        data_sub_set = data_dataset.isel(time=slice(80, 1500))
+        data_sub_set.to_netcdf('/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data/RV_recalc_data_2019-01_subset_bigger.nc')
 
 
 if __name__ == '__main__':

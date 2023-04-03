@@ -93,6 +93,9 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_data, std_filtered_data,
                                              transform_f, normalize)
 
+    linspace_binning_min = linspace_binning_min - 0.1
+    linspace_binning_max = linspace_binning_max + 0.1
+
     linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=num_bins_crossentropy,
                                    endpoint=False)  # num_indecies + 1 as the very last entry will never be used
 
@@ -251,7 +254,16 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    local_machine_mode = True
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = 'cpu'
+
+    if local_machine_mode:
+        sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    else:
+        sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
+                                         int(os.environ['SLURM_ARRAY_TASK_ID']))
 
     dirs = {}
     dirs['save_dir'] = 'runs/{}'.format(sim_name)
@@ -262,14 +274,11 @@ if __name__ == '__main__':
         if not os.path.exists(make_dir):
             os.makedirs(make_dir)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # device = 'cpu'
-
     settings =\
         {
-            'local_machine_mode': True,
-
+            'local_machine_mode': local_machine_mode,
             'sim_name': sim_name,
+
             'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
             'data_file_names': ['RV_recalc_data_2019-01.nc'],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
             'data_variable_name': 'RV_recalc',
@@ -306,6 +315,12 @@ if __name__ == '__main__':
             'testing': True
         }
 
+
+
+
+
+
+
     if settings['local_machine_mode']:
         # settings['data_variable_name'] = 'WN_forecast'
         settings['data_variable_name'] = 'RV_recalc'
@@ -316,16 +331,16 @@ if __name__ == '__main__':
 
         # settings['data_file_names'] = ['DE1200_RV_Recalc_20190101.nc']
         # settings['data_file_names'] = ['RV_recalc_data_2019-01.nc']
-        settings['data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
+        settings['data_file_names'] = ['RV_recalc_data_2019-01_subset_bigger.nc']
 
         # settings['choose_time_span'] = True
         settings['choose_time_span'] = False
         # settings['time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
-        settings['time_span'] = (67, 150) # <-- now done according to index (isel instead of sel)
+        settings['time_span'] = (67, 150)  # <-- now done according to index (isel instead of sel)
         settings['upscale_c_to'] = 8
         settings['batch_size'] = 2
-        settings['testing'] = True # Runs tests at the beginning
-        settings['min_rain_ratio_target'] = 0 #Deactivated # No Filter
+        settings['testing'] = True  # Runs tests at the beginning
+        settings['min_rain_ratio_target'] = 0  # Deactivated # No Filter
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
     main(settings=settings, **settings)
