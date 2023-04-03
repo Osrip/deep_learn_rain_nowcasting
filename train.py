@@ -134,6 +134,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                 if not (linspace_binning_control == linspace_binning).all():
                     raise Exception('There is something wrong with linspace binning!')
                     warnings.warn('There is something wrong with linspace binning!')
+                    # print('There is something wrong with linspace binning!')
             input_sequence = input_sequence.float()
 
             input_sequence = input_sequence.to(device)

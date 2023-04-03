@@ -363,9 +363,16 @@ def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning_min, linspace
                                                                      linspace_binning_max) # -0.00000001
     # data_arr_indexed = bin_to_one_hot_index_log(data_arr, num_c)
     data_indexed = torch.from_numpy(data_arr_indexed)
+
+    # TODO: DEBUGGING ONLY!!!!! REMOVE THIS!!!!
+    data_indexed[data_indexed < 0] = 0
+
     data_hot = F.one_hot(data_indexed.long(), num_c)
 
     return data_hot, linspace_binning
+
+
+
 
 
 def load_data_sequence_preliminary(folder_path, data_file_name, width_height, data_variable_name, choose_time_span,
