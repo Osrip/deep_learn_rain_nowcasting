@@ -44,7 +44,7 @@ def validate(model, validation_data_loader, width_height_target, **__):
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
         validation_losses = []
-        for i, (input_sequence, target_one_hot, target, _) in enumerate(validation_data_loader):
+        for i, (input_sequence, target_one_hot, target) in enumerate(validation_data_loader):
             input_sequence = input_sequence.float()
             input_sequence = input_sequence.to(device)
             target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
@@ -93,24 +93,26 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_data, std_filtered_data,
                                              transform_f, normalize)
 
-
+    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=num_bins_crossentropy,
+                                   endpoint=False)  # num_indecies + 1 as the very last entry will never be used
 
     num_training_samples = int(len(filtered_indecies) * ratio_training_data)
     train_filtered_indecies = filtered_indecies[0:num_training_samples]
     validation_filtered_indecies = filtered_indecies[num_training_samples:]
 
     train_data_set = PrecipitationFilteredDataset(train_filtered_indecies, mean_filtered_data, std_filtered_data,
-                                                  linspace_binning_min, linspace_binning_max, transform_f, **settings)
+                                                  linspace_binning_min, linspace_binning_max, linspace_binning, transform_f, **settings)
     train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
-
     del train_data_set
 
     validation_data_set = PrecipitationFilteredDataset(validation_filtered_indecies, mean_filtered_data,
                                                        std_filtered_data, linspace_binning_min, linspace_binning_max,
-                                                       transform_f, **settings)
+                                                       linspace_binning, transform_f, **settings)
 
     validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     del validation_data_set
+
+
 
     losses = []
     validation_losses = []
@@ -123,12 +125,12 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         inner_relative_mses = []
         inner_presistence_target_mses = []
         inner_model_target_mses = []
-        for i, (input_sequence, target_one_hot, target, linspace_binning) in enumerate(train_data_loader):
+        for i, (input_sequence, target_one_hot, target) in enumerate(train_data_loader):
 
             # Linspace binning is processed by the data loader and is therefore converted to e tensor with added batch
             # dimensions
             # convert linspace_binning back to 1D array
-            linspace_binning = np.array(linspace_binning[0])
+            # linspace_binning = np.array(linspace_binning[0])
             linspace_binning_control = linspace_binning
             if i > 0:
                 if not (linspace_binning_control == linspace_binning).all():

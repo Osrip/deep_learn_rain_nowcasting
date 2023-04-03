@@ -39,7 +39,7 @@ def map_mm_to_one_hot_index(mm, num_indecies, mm_min, mm_max):
     return index
 
 
-def bin_to_one_hot_index_linear(mm_data, num_indecies, linspace_binning_min, linspace_binning_max):
+def bin_to_one_hot_index_linear(mm_data, linspace_binning):
     '''
     Can directly handle log data
     In practice gets passed log transformed data
@@ -48,10 +48,9 @@ def bin_to_one_hot_index_linear(mm_data, num_indecies, linspace_binning_min, lin
     # TODO: Use logarithmic binning to account for long tailed data distribution of precipitation???
     # Linspace binning always annotates the lowest value of the bin. The very last value (whoich is linspacebinning_max) is not
     # not included in the linspace binning, such that the number of entries in linspace binning correstponts to the number of bins
-    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=num_indecies, endpoint=False)  # num_indecies + 1 as the very last entry will never be used
     # Indecies start counting at 1, therefore - 1
     indecies = np.digitize(mm_data, linspace_binning, right=False) - 1
-    return indecies, linspace_binning
+    return indecies
 
 
 def one_hot_to_mm(one_hot_tensor, linspace_binning, linspace_binning_max, channel_dim, mean_bin_vals=True):

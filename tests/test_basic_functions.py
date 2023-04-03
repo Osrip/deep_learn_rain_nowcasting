@@ -17,7 +17,11 @@ def test_img_one_hot():
         [0, 0, 1, 0, 0],
         [0, 0, 0, 1, 0],
         [0, 0, 0, 0, 1]])
-    data_hot, linspace_binning = img_one_hot(test_data, 5, np.min(test_data), np.max(test_data))
+    num_c = 5
+    linspace_binning = np.linspace(np.min(test_data), np.max(test_data),
+                                   num=num_c,
+                                   endpoint=False)
+    data_hot= img_one_hot(test_data, num_c, linspace_binning)
     # expected linspace binning: array([1. , 1.8, 2.6, 3.4, 4.2])
     assert (data_hot == one_hot_control).all()
 
@@ -33,8 +37,12 @@ def test_one_hot_converting():
     linspace_binning_min = np.min(test_data)
     linspace_binning_max = np.max(test_data)
 
+    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max,
+                                   num=num_c,
+                                   endpoint=False)
+
     # Test conversion with img_one_hot...
-    data_hot, linspace_binning = img_one_hot(test_data, num_c, linspace_binning_min, linspace_binning_max)
+    data_hot= img_one_hot(test_data, num_c, linspace_binning)
     # Put channel dimension where it belongs
     data_hot = einops.rearrange(data_hot, 'i w h c -> i c w h')
 
