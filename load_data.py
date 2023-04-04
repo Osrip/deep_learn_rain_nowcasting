@@ -204,15 +204,21 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
                 sum_x_squared += np.sum(transform_f(curr_data_sequence[target_idx_input_sequence].flatten()) ** 2)
 
                 # linspace binning min and max have to be normalized later as the means and stds are available
-                if linspace_binning_min_unnormalized > np.min(
-                        curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]]):
-                    linspace_binning_min_unnormalized = np.min(
+
+                min_curr_input_and_target = np.min(
                         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
 
-                if linspace_binning_max_unnormalized < np.max(
-                        curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]]):
-                    linspace_binning_max_unnormalized = np.max(
+                if min_curr_input_and_target < 0:
+                    raise Exception('Values smaller than 0 within the test and validation dataset. Probably NaNs')
+
+                max_curr_input_and_target = np.max(
                         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+
+                if linspace_binning_min_unnormalized > min_curr_input_and_target:
+                    linspace_binning_min_unnormalized = min_curr_input_and_target
+
+                if linspace_binning_max_unnormalized < max_curr_input_and_target:
+                    linspace_binning_max_unnormalized = max_curr_input_and_target
 
             # TODO: Write a test for this!!
             # TODO: When is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
@@ -248,8 +254,11 @@ def filter(input_sequence, target, min_rain_ratio_target):
     , False otherwise
     '''
     # Todo: Implement filter!
-    rainy_data_points = target[target > 0]
-    if ((target != -1000000000.0) & (target != 0)).any():
+    # rainy_data_points = target[target > 0]
+    # Only take frames, that have any pixels that are neither 0 nor NaN AND pixels that have no NaNs
+    if ((target != -1000000000.0) & (target != 0)).any() and \
+            not (target == -1000000000.0).any() and \
+            not (input_sequence == -1000000000.0).any():
         return True
     else:
         return False

@@ -259,11 +259,11 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = 'cpu'
 
-    if local_machine_mode:
-        sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-    else:
-        sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
-                                         int(os.environ['SLURM_ARRAY_TASK_ID']))
+    # if local_machine_mode:
+    sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    # else:
+    #     sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
+    #                                      int(os.environ['SLURM_ARRAY_TASK_ID']))
 
     dirs = {}
     dirs['save_dir'] = 'runs/{}'.format(sim_name)
