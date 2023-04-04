@@ -7,6 +7,7 @@ from matplotlib import colors
 def plot_image(image, save_path_name, vmin, vmax, title=''):
     plt.figure()
     plt.title(title)
+    image = np.array(image.cpu())
     im = plt.imshow(image, vmin=vmin, vmax=vmax)
     plt.colorbar(im)
     plt.savefig(save_path_name, dpi=200)

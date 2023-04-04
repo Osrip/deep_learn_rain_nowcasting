@@ -152,6 +152,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
             target_one_hot = target_one_hot.float()
             target_one_hot = target_one_hot.to(device)
+            target = target.to(device)
 
             optimizer.zero_grad()
             pred = model(input_sequence)
@@ -161,7 +162,8 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
             # Quality metrics
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
-            pred_mm = torch.from_numpy(pred_mm)
+            pred_mm = torch.from_numpy(pred_mm).to(device)
+
             inner_loss = float(loss.detach().cpu().numpy())
             # TODO: convert cudo tensor to numpy!! How to push to CPU for numpy conversion and then back to cuda??
             # loss_copy = copy.deepcopy(loss)
@@ -263,7 +265,7 @@ if __name__ == '__main__':
     sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     # else:
     #     sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
-    #                                      int(os.environ['SLURM_ARRAY_TASK_ID']))
+    #                                      int(os.environ['SLURM_JOB_ID'])) # SLURM_ARRAY_TASK_ID
 
     dirs = {}
     dirs['save_dir'] = 'runs/{}'.format(sim_name)
@@ -327,11 +329,13 @@ if __name__ == '__main__':
 
         # settings['folder_path'] = 'dwd_nc/test_data'
         # settings['folder_path'] = '/mnt/common/Jan/Programming/weather_data/dwd_nc/rv_recalc_months'
-        settings['folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
+        # settings['folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
+        # settings['folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
+        settings['folder_path'] = 'dwd_nc/own_test_data'
 
         # settings['data_file_names'] = ['DE1200_RV_Recalc_20190101.nc']
         # settings['data_file_names'] = ['RV_recalc_data_2019-01.nc']
-        settings['data_file_names'] = ['RV_recalc_data_2019-01_subset_bigger.nc']
+        settings['data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
 
         # settings['choose_time_span'] = True
         settings['choose_time_span'] = False
