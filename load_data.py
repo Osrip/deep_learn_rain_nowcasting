@@ -263,6 +263,7 @@ def filter(input_sequence, target, min_rain_ratio_target):
     else:
         return False
 
+
 def normalize_data(data_sequence, mean_data=None, std_data=None):
     flattened_data = data_sequence.flatten()
     if mean_data is None:

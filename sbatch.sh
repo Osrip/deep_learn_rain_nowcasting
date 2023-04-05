@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --ntasks=1                # Number of tasks (see below)
-#SBATCH --cpus-per-task=90         # Number of CPU cores per task
+#SBATCH --cpus-per-task=16         # Number of CPU cores per task
 #SBATCH --nodes=1                 # Ensure that all cores are on one machine
-#SBATCH --time=0-09:00            # Runtime in D-HH:MM
+#SBATCH --time=0-10:00            # Runtime in D-HH:MM
 #SBATCH --gres=gpu:1    # optionally type and number of gpus
 #SBATCH --mem=200G                # Memory pool for all cores (see also --mem-per-cpu)
 #SBATCH --output=out_%j.out  # File to which STDOUT will be written - make sure this is not on $HOME

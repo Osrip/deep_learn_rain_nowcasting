@@ -256,7 +256,7 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    local_machine_mode = True
+    local_machine_mode = False
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = 'cpu'
@@ -289,7 +289,7 @@ if __name__ == '__main__':
             'ratio_training_data': 0.6,
 
             # Parameters that give the network architecture
-            'upscale_c_to': 512,
+            'upscale_c_to': 128, # 512,
             'num_bins_crossentropy': 64,
 
             # 'minutes_per_iteration': 5,
@@ -300,7 +300,7 @@ if __name__ == '__main__':
             'num_input_time_steps': 4, # The number of subsequent time steps that are used for one predicition
             'num_lead_time_steps': 5, # The number of pictures that are skipped from last input time step to target, starts with 0
             'optical_flow_input': False,  # Not yet working!
-            'batch_size': 10,  # 10
+            'batch_size': 4,  # 10
             'save_trained_model': True,
             'load_model': False,
             'load_model_name': 'Run_·20230220-191041',
