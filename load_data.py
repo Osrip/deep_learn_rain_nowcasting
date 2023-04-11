@@ -241,11 +241,15 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
 #     , False otherwise
 #     '''
 #     # Todo: Implement filter!
-#     rainy_data_points = target[target > 0]
-#     if np.shape(rainy_data_points.flatten())[0] / np.shape(target.flatten())[0] >= min_rain_ratio_target:
+#     # rainy_data_points = target[target > 0]
+#     # Only take frames, that have any pixels that are neither 0 nor NaN AND pixels that have no NaNs
+#     if ((target != -1000000000.0) & (target != 0)).any() and \
+#             not (target == -1000000000.0).any() and \
+#             not (input_sequence == -1000000000.0).any():
 #         return True
 #     else:
 #         return False
+
 
 
 def filter(input_sequence, target, min_rain_ratio_target):
@@ -256,7 +260,7 @@ def filter(input_sequence, target, min_rain_ratio_target):
     # Todo: Implement filter!
     # rainy_data_points = target[target > 0]
     # Only take frames, that have any pixels that are neither 0 nor NaN AND pixels that have no NaNs
-    if ((target != -1000000000.0) & (target != 0)).any() and \
+    if (len(target[target != 0]) > 0.3*len(target)) and \
             not (target == -1000000000.0).any() and \
             not (input_sequence == -1000000000.0).any():
         return True

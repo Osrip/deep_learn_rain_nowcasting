@@ -18,3 +18,21 @@ rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc
 
 SSD direktory to work on!
 /mnt/qb/work2/butz1/bst981
+
+
+
+### Torch Code
+
+from https://github.com/jthuemmel/SpatioTemporalNetworks/blob/main/train_mixed.py
+
+#######Print model parameters:
+
+print(sum(p.numel() for p in model.parameters() if p.requires_grad))
+
+#######Mixed precision training: (16 bit gradients instead of 32 bit):
+
+from torch.cuda.amp import GradScaler, autocast
+
+scaler = GradScaler()
+
+#generate predictions     with autocast():    if leadtime_mode:    leadtime = th.randint(horizon, (1,)).to(device, th.float32)    prediction = model(predictive[:, :, :context], prescribed, leadtime)    target = predictive[:, :, context + leadtime]    else:    prediction = model(predictive[:, :, :context], prescribed, horizon)    target = predictive[:, :, context:]    #calculate loss    loss = latMSE(prediction, target, w)    #backward pass        scaler.scale(loss).backward()    scaler.step(optimizer)           scaler.update()

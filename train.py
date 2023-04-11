@@ -40,6 +40,13 @@ def check_backward(model, learning_rate, device):
     return model
 
 
+def print_gpu_memory():
+    handle = nvidia_smi.nvmlDeviceGetHandleByIndex(0)
+    info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
+    print("Total memory:", info.total)
+    print("Free memory:", info.free)
+    print("Used memory:", info.used)
+
 def validate(model, validation_data_loader, width_height_target, **__):
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
@@ -148,6 +155,8 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
 
             print('Batch: {}'.format(i), flush=True)
+            if device == 'cuda':
+                print_gpu_memory()
             target = T.CenterCrop(size=width_height_target)(target)
             target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
             target_one_hot = target_one_hot.float()
@@ -258,17 +267,21 @@ if __name__ == '__main__':
 
     local_machine_mode = False
 
+    sim_name_suffix = '_32_batches'
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if device == 'cuda':
+        import nvidia_smi
     # device = 'cpu'
 
-    # if local_machine_mode:
-    sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-    # else:
-    #     sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
-    #                                      int(os.environ['SLURM_JOB_ID'])) # SLURM_ARRAY_TASK_ID
+    if local_machine_mode:
+        sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    else:
+        sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
+                                         int(os.environ['SLURM_JOB_ID'])) # SLURM_ARRAY_TASK_ID
 
     dirs = {}
-    dirs['save_dir'] = 'runs/{}'.format(sim_name)
+    dirs['save_dir'] = 'runs/{}{}'.format(sim_name, sim_name_suffix)
     dirs['plot_dir'] = '{}/plots'.format(dirs['save_dir'])
     dirs['plot_dir_images'] = '{}/images'.format(dirs['plot_dir'])
     dirs['model_dir'] = '{}/model'.format(dirs['save_dir'])
@@ -280,6 +293,7 @@ if __name__ == '__main__':
         {
             'local_machine_mode': local_machine_mode,
             'sim_name': sim_name,
+            'sim_same_suffix': sim_name_suffix,
 
             'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
             'data_file_names': ['RV_recalc_data_2019-01.nc'],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
@@ -289,8 +303,8 @@ if __name__ == '__main__':
             'ratio_training_data': 0.6,
 
             # Parameters that give the network architecture
-            'upscale_c_to': 128, # 512,
-            'num_bins_crossentropy': 64,
+            'upscale_c_to': 64, #128, # 512,
+            'num_bins_crossentropy': 32,
 
             # 'minutes_per_iteration': 5,
             'width_height': 256,
@@ -300,7 +314,7 @@ if __name__ == '__main__':
             'num_input_time_steps': 4, # The number of subsequent time steps that are used for one predicition
             'num_lead_time_steps': 5, # The number of pictures that are skipped from last input time step to target, starts with 0
             'optical_flow_input': False,  # Not yet working!
-            'batch_size': 4,  # 10
+            'batch_size': 16,  # 10 --> vielfache von 8
             'save_trained_model': True,
             'load_model': False,
             'load_model_name': 'Run_·20230220-191041',
@@ -336,12 +350,13 @@ if __name__ == '__main__':
         # settings['data_file_names'] = ['DE1200_RV_Recalc_20190101.nc']
         # settings['data_file_names'] = ['RV_recalc_data_2019-01.nc']
         settings['data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
+        # settings['data_file_names'] = ['RV_recalc_data_2019-01_subset_bigger.nc']
 
         # settings['choose_time_span'] = True
         settings['choose_time_span'] = False
         # settings['time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
         settings['time_span'] = (67, 150)  # <-- now done according to index (isel instead of sel)
-        settings['upscale_c_to'] = 8
+        settings['upscale_c_to'] = 32  # 8
         settings['batch_size'] = 2
         settings['testing'] = True  # Runs tests at the beginning
         settings['min_rain_ratio_target'] = 0  # Deactivated # No Filter
