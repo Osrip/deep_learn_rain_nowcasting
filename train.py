@@ -20,6 +20,8 @@ from plotting.plot_images import plot_image
 from plotting.plot_quality_metrics import plot_mse, plot_losses
 import warnings
 from tests.test_basic_functions import test_all
+from hurry.filesize import size
+from tqdm import tqdm
 
 import copy
 # from pysteps import verification
@@ -43,9 +45,7 @@ def check_backward(model, learning_rate, device):
 def print_gpu_memory():
     handle = nvidia_smi.nvmlDeviceGetHandleByIndex(0)
     info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
-    print("Total memory:", info.total)
-    print("Free memory:", info.free)
-    print("Used memory:", info.used)
+    print("Memory: Total: {}, Free: {}, Used:{}".format(size(info.total), size(info.free), size(info.used)))
 
 def validate(model, validation_data_loader, width_height_target, **__):
     with torch.no_grad():
@@ -122,8 +122,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     del validation_data_set
 
-
-
+    print('{} batches'.format(len(train_data_loader)))
     losses = []
     validation_losses = []
     relative_mses = []
@@ -131,11 +130,14 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     model_target_mses = []
 
     for epoch in range(num_epochs):
+        if device.type == 'cuda':
+            print_gpu_memory()
+
         inner_losses = []
         inner_relative_mses = []
         inner_presistence_target_mses = []
         inner_model_target_mses = []
-        for i, (input_sequence, target_one_hot, target) in enumerate(train_data_loader):
+        for i, (input_sequence, target_one_hot, target) in tqdm(enumerate(train_data_loader), total=len(train_data_loader)):
 
             # Linspace binning is processed by the data loader and is therefore converted to e tensor with added batch
             # dimensions
@@ -154,9 +156,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             target_one_hot = target_one_hot.to(device)
 
 
-            print('Batch: {}'.format(i), flush=True)
-            if device == 'cuda':
-                print_gpu_memory()
+
             target = T.CenterCrop(size=width_height_target)(target)
             target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
             target_one_hot = target_one_hot.float()
@@ -265,20 +265,20 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    local_machine_mode = False
+    local_machine_mode = True
 
     sim_name_suffix = '_32_batches'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    if device == 'cuda':
+    if device.type == 'cuda':
         import nvidia_smi
+        nvidia_smi.nvmlInit()
     # device = 'cpu'
 
     if local_machine_mode:
         sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     else:
-        sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
-                                         int(os.environ['SLURM_JOB_ID'])) # SLURM_ARRAY_TASK_ID
+        sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), int(os.environ['SLURM_JOB_ID'])) # SLURM_ARRAY_TASK_ID
 
     dirs = {}
     dirs['save_dir'] = 'runs/{}{}'.format(sim_name, sim_name_suffix)
