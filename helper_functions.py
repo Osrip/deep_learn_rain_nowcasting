@@ -2,6 +2,10 @@ import numpy as np
 import sys
 import pickle
 import gzip
+import os
+from os import listdir
+from os.path import isfile, join
+from shutil import copyfile
 
 import torch
 
@@ -85,6 +89,39 @@ def load_zipped_pickle(file):
     data = gzip.GzipFile(file + '.pickle.pgz', 'rb')
     data = pickle.load(data)
     return data
+
+
+def save_settings(settings, folder):
+    with open(folder + '/settings.csv', 'w') as f:
+        for key in settings.keys():
+            f.write("%s,%s\n" % (key, settings[key]))
+    pickle_out = open('{}settings.pickle'.format(folder), 'wb')
+    pickle.dump(settings, pickle_out)
+    pickle_out.close()
+
+
+def save_whole_project(save_folder):
+    '''Copies complete code into simulation folder'''
+    cwd = os.getcwd()
+
+    onlyfiles = []
+    for path, subdirs, files in os.walk(cwd):
+        for name in files:
+            if (isfile(join(cwd, name)) and (not 'venv' in name) and (not 'runs' in name) and (name.endswith('.py') or name.endswith('.txt')
+                                                                      or name.endswith('.ipynb'))):
+                onlyfiles.append(os.path.relpath(os.path.join(path, name), cwd))
+
+    # onlyfiles = [f for f in listdir(cwd) if (isfile(join(cwd, f)) and (f.endswith('.py') or f.endswith('.txt') or f.endswith('.ipynb')))]
+    for file in onlyfiles:
+        save_code(save_folder, file)
+
+def save_code(save_folder, filename):
+    src = filename
+    dst = save_folder + '/' + src
+    try:
+        copyfile(src, dst)
+    except FileNotFoundError:
+        os.makedirs(dst[0:dst.rfind('/')])
 
 
 

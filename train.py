@@ -13,7 +13,7 @@ from load_data import img_one_hot, PrecipitationFilteredDataset, load_data_seque
 from torch.utils.data import Dataset, DataLoader
 
 import numpy as np
-from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm
+from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm, save_settings, save_whole_project
 import os
 from plotting.plot_img_histogram import plot_img_histogram
 from plotting.plot_images import plot_image
@@ -75,7 +75,12 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     else:
         transform_f = lambda x: x
 
+    save_settings(settings, dirs['save_dir'])
 
+    # try:
+    save_whole_project(dirs['code_dir'])
+    # except Exception:
+    #     print('Could not create backup copy of code')
     # num_pictures_loaded = num_input_time_steps + 1 + num_lead_time_steps
 
     # relative index of last input picture (starting from first input picture as idx 1)
@@ -265,9 +270,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    local_machine_mode = True
+    local_machine_mode = False
 
-    sim_name_suffix = '_32_batches'
+    sim_name_suffix = ''
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -285,6 +290,8 @@ if __name__ == '__main__':
     dirs['plot_dir'] = '{}/plots'.format(dirs['save_dir'])
     dirs['plot_dir_images'] = '{}/images'.format(dirs['plot_dir'])
     dirs['model_dir'] = '{}/model'.format(dirs['save_dir'])
+    dirs['code_dir'] = '{}/code'.format(dirs['save_dir'])
+
     for _, make_dir in dirs.items():
         if not os.path.exists(make_dir):
             os.makedirs(make_dir)
@@ -314,7 +321,7 @@ if __name__ == '__main__':
             'num_input_time_steps': 4, # The number of subsequent time steps that are used for one predicition
             'num_lead_time_steps': 5, # The number of pictures that are skipped from last input time step to target, starts with 0
             'optical_flow_input': False,  # Not yet working!
-            'batch_size': 16,  # 10 --> vielfache von 8
+            'batch_size': 26,  # batch size 22: Total: 32G, Free: 6G, Used:25G  --> vielfache von 8 am besten
             'save_trained_model': True,
             'load_model': False,
             'load_model_name': 'Run_·20230220-191041',
