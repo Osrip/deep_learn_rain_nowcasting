@@ -17,7 +17,7 @@ from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_
 import os
 from plotting.plot_img_histogram import plot_img_histogram
 from plotting.plot_images import plot_image
-from plotting.plot_quality_metrics import plot_mse, plot_losses
+from plotting.plot_quality_metrics import plot_mse, plot_losses, plot_average_preds, plot_pixelwise_preds
 import warnings
 from tests.test_basic_functions import test_all
 from hurry.filesize import size
@@ -67,7 +67,7 @@ def validate(model, validation_data_loader, width_height_target, **__):
 
 def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int, num_lead_time_steps,
           num_bins_crossentropy, width_height_target, batch_size, ratio_training_data,
-          dirs, local_machine_mode, log_transform, normalize, settings, **__):
+          dirs, local_machine_mode, log_transform, normalize, plot_average_preds_boo, plot_pixelwise_preds_boo, settings, **__):
 
 
     if log_transform:
@@ -134,6 +134,10 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     presistence_target_mses = []
     model_target_mses = []
 
+    if plot_average_preds_boo or plot_pixelwise_preds_boo:
+        all_pred_mm = []
+        all_target_mm = []
+
     for epoch in range(num_epochs):
         if device.type == 'cuda':
             print_gpu_memory()
@@ -166,7 +170,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
             target_one_hot = target_one_hot.float()
             target_one_hot = target_one_hot.to(device)
-            target = target.to(device)
+            target = target.to(device).detach()
 
             optimizer.zero_grad()
             pred = model(input_sequence)
@@ -175,8 +179,17 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             optimizer.step()
 
             # Quality metrics
+            # TODO WHY ARE THERE NEGATIVE VALUES IN PRED MM??? --> CHECK NORMALIZATION
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
-            pred_mm = torch.from_numpy(pred_mm).to(device)
+            pred_mm = torch.from_numpy(pred_mm).to(device).detach()
+
+            if plot_average_preds_boo or plot_pixelwise_preds_boo:
+                for i in range(pred_mm.shape[0]):
+                    pred_mm_arr = pred_mm.detach().cpu().numpy()
+                    all_pred_mm.append(pred_mm_arr[i, :, :])
+
+                    target_arr = target.detach().cpu().numpy()
+                    all_target_mm.append(target_arr[i, :, :])
 
             inner_loss = float(loss.detach().cpu().numpy())
             # TODO: convert cudo tensor to numpy!! How to push to CPU for numpy conversion and then back to cuda??
@@ -215,6 +228,9 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         model_target_mses.append(inner_model_target_mses)
         losses.append(inner_losses)
 
+
+
+
         avg_inner_loss = np.mean(inner_losses)
 
         inner_validation_losses = validate(model, validation_data_loader, **settings)
@@ -234,6 +250,10 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                            linspace_binning_min, linspace_binning_max, title='Input', **settings)
         plot_img_histogram(target, '{}/ep{}_target_dist'.format(dirs['plot_dir'], epoch),
                            linspace_binning_min, linspace_binning_max, ignore_min_max=False, title='Target', **settings)
+
+        if plot_average_preds_boo:
+            plot_average_preds(all_pred_mm, all_target_mm, '{}/average_preds'.format(dirs['plot_dir']))
+
     return model
 
 
@@ -270,7 +290,7 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    local_machine_mode = False
+    local_machine_mode = True
 
     sim_name_suffix = ''
 
@@ -321,7 +341,7 @@ if __name__ == '__main__':
             'num_input_time_steps': 4, # The number of subsequent time steps that are used for one predicition
             'num_lead_time_steps': 5, # The number of pictures that are skipped from last input time step to target, starts with 0
             'optical_flow_input': False,  # Not yet working!
-            'batch_size': 26,  # batch size 22: Total: 32G, Free: 6G, Used:25G  --> vielfache von 8 am besten
+            'batch_size': 26,  # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
             'save_trained_model': True,
             'load_model': False,
             'load_model_name': 'Run_·20230220-191041',
@@ -335,7 +355,12 @@ if __name__ == '__main__':
             'min_rain_ratio_target': 0.01, #Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its
             # prior input sequence to make it through the filter into the training data
 
-            'testing': True
+            'testing': True,
+
+            # Plotting stuff
+            'plot_average_preds_boo': True,
+            'plot_pixelwise_preds_boo': True
+
         }
 
 
