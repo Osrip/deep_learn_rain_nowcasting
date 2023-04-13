@@ -51,16 +51,37 @@ def plot_average_preds(all_pred_mm, all_target_mm, save_path_name):
     plt.show()
 
 
-def plot_pixelwise_preds(all_pred_mm, all_target_mm, save_path_name):
-    plt.figure(figsize=(10, 7))
+def plot_pixelwise_preds(all_pred_mm, all_target_mm, save_path_name, swap_x_y=True):
+
+    all_pred_mm = np.array(all_pred_mm)
+    all_target_mm = np.array(all_target_mm)
+    reshape_f = lambda x: x.reshape(x.shape[0], -1)
+    reshaped_pred_mm = reshape_f(all_pred_mm)
+    reshaped_target_mm = reshape_f(all_target_mm)
+    if not swap_x_y:
+        reshaped_pred_mm = np.swapaxes(reshaped_pred_mm, 0, 1)
+        reshaped_target_mm = np.swapaxes(reshaped_target_mm, 0, 1)
+
+    xlabel = 'Training sample'
+    ylabel = 'Pixel #'
+
+    if swap_x_y:
+        tmp = ylabel
+        ylabel = xlabel
+        xlabel = tmp
+
+    plt.figure(figsize=(10, 10))
     plt.subplot(211)
-    plt.bar(np.arange(len(all_target_mm)), all_target_mm)
-    plt.title('Predictions')
+    plt.imshow(reshaped_target_mm)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title('Targets')
     plt.subplot(212)
-    plt.bar(np.arange(len(all_pred_mm)), all_pred_mm)
+    plt.imshow(reshaped_pred_mm)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     plt.title('Predictions')
-    plt.show()
-    plt.savefig(save_path_name, dpi=100)
+    plt.savefig(save_path_name, dpi=600, bbox_inches='tight')
     plt.show()
 
 

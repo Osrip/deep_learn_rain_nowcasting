@@ -254,6 +254,10 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         if plot_average_preds_boo:
             plot_average_preds(all_pred_mm, all_target_mm, '{}/average_preds'.format(dirs['plot_dir']))
 
+        if plot_pixelwise_preds_boo:
+            plot_pixelwise_preds(all_pred_mm, all_target_mm, '{}/pixelwise_preds'.format(dirs['plot_dir']))
+
+
     return model
 
 
