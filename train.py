@@ -207,7 +207,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             persistence = T.CenterCrop(size=width_height_target)(persistence)
             mse_persistence_target = mse_loss(persistence, target).item()
             mse_model_target = mse_loss(pred_mm, target).item()
-            relative_mse = 1-mse_persistence_target/mse_model_target
+            relative_mse = 1 - mse_persistence_target / mse_model_target
             inner_relative_mses.append(relative_mse)
             inner_presistence_target_mses.append(mse_persistence_target)
             inner_model_target_mses.append(mse_model_target)

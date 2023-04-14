@@ -96,7 +96,7 @@ def save_settings(settings, folder):
     with open(folder + '/settings.csv', 'w') as f:
         for key in settings.keys():
             f.write("%s,%s\n" % (key, settings[key]))
-    pickle_out = open('{}settings.pickle'.format(folder), 'wb')
+    pickle_out = open('{}/settings.pickle'.format(folder), 'wb')
     pickle.dump(settings, pickle_out)
     pickle_out.close()
 
@@ -108,7 +108,7 @@ def save_whole_project(save_folder):
     onlyfiles = []
     for path, subdirs, files in os.walk(cwd):
         for name in files:
-            if (isfile(join(cwd, name)) and (not 'venv' in name) and (not 'runs' in name) and (name.endswith('.py') or name.endswith('.txt')
+            if (isfile(join(cwd, name)) and (not 'venv' in path) and (not 'runs' in path) and (name.endswith('.py') or name.endswith('.txt')
                                                                       or name.endswith('.ipynb'))):
                 onlyfiles.append(os.path.relpath(os.path.join(path, name), cwd))
 
