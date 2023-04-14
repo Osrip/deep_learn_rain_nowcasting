@@ -252,15 +252,16 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
 
 
 
-def filter(input_sequence, target, min_rain_ratio_target):
+def filter(input_sequence, target, min_rain_ratio_target, percentage=1):
     '''
     Looks whether on what percentage on target there is rain. If percentage exceeds min_rain_ratio_target return True
     , False otherwise
+    percentage 0.3 default
     '''
     # Todo: Implement filter!
     # rainy_data_points = target[target > 0]
     # Only take frames, that have any pixels that are neither 0 nor NaN AND pixels that have no NaNs
-    if (len(target[target != 0]) > 0.3*len(target)) and \
+    if (len(target[target != 0]) > percentage*len(target)) and \
             not (target == -1000000000.0).any() and \
             not (input_sequence == -1000000000.0).any():
         return True

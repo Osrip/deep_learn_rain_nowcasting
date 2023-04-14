@@ -183,12 +183,16 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
             pred_mm = torch.from_numpy(pred_mm).to(device).detach()
 
+
             if plot_average_preds_boo or plot_pixelwise_preds_boo:
                 for i in range(pred_mm.shape[0]):
+
                     pred_mm_arr = pred_mm.detach().cpu().numpy()
+                    pred_mm_arr = inverse_normalize_data(pred_mm_arr, mean_filtered_data, std_filtered_data)
                     all_pred_mm.append(pred_mm_arr[i, :, :])
 
                     target_arr = target.detach().cpu().numpy()
+                    target_arr = inverse_normalize_data(target_arr, mean_filtered_data, std_filtered_data)
                     all_target_mm.append(target_arr[i, :, :])
 
             inner_loss = float(loss.detach().cpu().numpy())
