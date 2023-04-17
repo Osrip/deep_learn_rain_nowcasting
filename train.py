@@ -225,11 +225,11 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                                                             inverse_normalize=True)
 
                 plot_image(inv_norm(target[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
-                           save_path_name='{}/ep{}_target'.format(dirs['plot_dir_images'], epoch),
+                           save_path_name='{}/ep{:04}_target'.format(dirs['plot_dir_images'], epoch),
                            title='Target')
 
                 plot_image(inv_norm(pred_mm[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
-                           save_path_name='{}/ep{}_pred'.format(dirs['plot_dir_images'], epoch),
+                           save_path_name='{}/ep{:04}_pred'.format(dirs['plot_dir_images'], epoch),
                            title='Prediction')
 
         relative_mses.append(inner_relative_mses)
@@ -248,16 +248,16 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, avg_inner_validation_loss),
               flush=True)
         plot_mse([relative_mses], label_list=['relative MSE'],
-                 save_path_name='{}/ep{}_relative_mse'.format(dirs['plot_dir'], epoch), title='Relative MSE')
+                 save_path_name='{}/ep{:04}_relative_mse'.format(dirs['plot_dir'], epoch), title='Relative MSE')
         plot_mse([presistence_target_mses, model_target_mses], label_list=['Persistence Target MSE', 'Model Target MSE'],
-                 save_path_name='{}/ep{}_mse'.format(dirs['plot_dir'], epoch),
+                 save_path_name='{}/ep{:04}_mse'.format(dirs['plot_dir'], epoch),
                  title='MSE')
         plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(dirs['plot_dir'], sim_name))
-        plot_img_histogram(pred_mm, '{}/ep{}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
+        plot_img_histogram(pred_mm, '{}/ep{:04}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
                            linspace_binning_max, ignore_min_max=False, title='Prediciton', **settings)
-        plot_img_histogram(input_sequence, '{}/ep{}_input_dist'.format(dirs['plot_dir'], epoch),
+        plot_img_histogram(input_sequence, '{}/ep{:04}_input_dist'.format(dirs['plot_dir'], epoch),
                            linspace_binning_min, linspace_binning_max, title='Input', **settings)
-        plot_img_histogram(target, '{}/ep{}_target_dist'.format(dirs['plot_dir'], epoch),
+        plot_img_histogram(target, '{}/ep{:04}_target_dist'.format(dirs['plot_dir'], epoch),
                            linspace_binning_min, linspace_binning_max, ignore_min_max=False, title='Target', **settings)
 
         if plot_average_preds_boo:
