@@ -138,6 +138,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         all_pred_mm = []
         all_target_mm = []
 
+    # Iterate through epochs
     for epoch in range(num_epochs):
         if device.type == 'cuda':
             print_gpu_memory()
@@ -146,6 +147,8 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         inner_relative_mses = []
         inner_presistence_target_mses = []
         inner_model_target_mses = []
+
+        # Iterate through batches
         for i, (input_sequence, target_one_hot, target) in tqdm(enumerate(train_data_loader), total=len(train_data_loader)):
 
             # Linspace binning is processed by the data loader and is therefore converted to e tensor with added batch
@@ -187,15 +190,15 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
 
             if plot_average_preds_boo or plot_pixelwise_preds_boo:
-                for i in range(pred_mm.shape[0]):
+                for k in range(pred_mm.shape[0]):
 
                     pred_mm_arr = pred_mm.detach().cpu().numpy()
                     pred_mm_arr = inverse_normalize_data(pred_mm_arr, mean_filtered_data, std_filtered_data)
-                    all_pred_mm.append(pred_mm_arr[i, :, :])
+                    all_pred_mm.append(pred_mm_arr[k, :, :])
 
                     target_arr = target.detach().cpu().numpy()
                     target_arr = inverse_normalize_data(target_arr, mean_filtered_data, std_filtered_data)
-                    all_target_mm.append(target_arr[i, :, :])
+                    all_target_mm.append(target_arr[k, :, :])
 
             inner_loss = float(loss.detach().cpu().numpy())
             # TODO: convert cudo tensor to numpy!! How to push to CPU for numpy conversion and then back to cuda??
@@ -300,7 +303,7 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    local_machine_mode = False
+    local_machine_mode = True
 
     sim_name_suffix = '_3_days'
 
