@@ -172,11 +172,13 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             target_one_hot = target_one_hot.to(device)
             target = target.to(device).detach()
 
+            ####### Forward, Backward pass ##########
             optimizer.zero_grad()
             pred = model(input_sequence)
             loss = criterion(pred, target_one_hot)
             loss.backward()
             optimizer.step()
+            ################################
 
             # Quality metrics
             # TODO WHY ARE THERE NEGATIVE VALUES IN PRED MM??? --> CHECK NORMALIZATION
@@ -298,9 +300,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    local_machine_mode = True
+    local_machine_mode = False
 
-    sim_name_suffix = ''
+    sim_name_suffix = '_3_days'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':

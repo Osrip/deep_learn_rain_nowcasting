@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --ntasks=1                # Number of tasks (see below)
-#SBATCH --cpus-per-task=8         # Number of CPU cores per task
+#SBATCH --cpus-per-task=16         # Number of CPU cores per task
 #SBATCH --nodes=1                 # Ensure that all cores are on one machine
 #SBATCH --time=0-10:00            # Runtime in D-HH:MM
 #SBATCH --gres=gpu:1    # optionally type and number of gpus

@@ -273,7 +273,7 @@ def filter(input_sequence, target, min_rain_ratio_target, percentage=0.5, min_am
     '''
     Looks whether on what percentage on target there is more than min_amount_rain rain. If percentage exceeds min_rain_ratio_target return True
     , False otherwise
-    "reasonable amount of data passes: percentage=0.3, min_amount_rain=0.05"
+    "reasonable amount of data passes: percentage=0.5, min_amount_rain=0.05"
     '''
     # Todo: Implement filter!
     # rainy_data_points = target[target > 0]
@@ -392,14 +392,12 @@ def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning):
     Adds one hot encoded channel dimension
     Channel dimension is added as -1st dimension, so rearrange dimensions!
     '''
+    # TODO: Looks like only first third of bins is used in practice despite lognormalization!
     # vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
     # data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=mm_min, mm_max=mm_max)
     data_arr_indexed = bin_to_one_hot_index_linear(data_arr, linspace_binning) # -0.00000001
     # data_arr_indexed = bin_to_one_hot_index_log(data_arr, num_c)
     data_indexed = torch.from_numpy(data_arr_indexed)
-
-    # TODO: DEBUGGING ONLY!!!!! REMOVE THIS!!!!
-    # data_indexed[data_indexed < 0] = 0
 
     data_hot = F.one_hot(data_indexed.long(), num_c)
 
