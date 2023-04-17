@@ -51,6 +51,7 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples, save_pa
     plt.ylabel('Training sample #')
 
 
+
     plt.title('Predictions')
     plt.yscale('symlog')
 

@@ -16,7 +16,7 @@ import numpy as np
 from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm, save_settings, save_whole_project
 import os
 from plotting.plot_img_histogram import plot_img_histogram
-from plotting.plot_images import plot_image
+from plotting.plot_images import plot_image, plot_target_vs_pred
 from plotting.plot_quality_metrics import plot_mse, plot_losses, plot_average_preds, plot_pixelwise_preds
 import warnings
 from tests.test_basic_functions import test_all
@@ -232,13 +232,17 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
                 # inv_norm = lambda x: x
 
-                plot_image(inv_norm(target[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
-                           save_path_name='{}/ep{:04}_target'.format(dirs['plot_dir_images'], epoch),
-                           title='Target, data log, not normalized')
+                # plot_image(inv_norm(target[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
+                #            save_path_name='{}/ep{:04}_target'.format(dirs['plot_dir_images'], epoch),
+                #            title='Target, data log, not normalized')
+                #
+                # plot_image(inv_norm(pred_mm[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
+                #            save_path_name='{}/ep{:04}_pred'.format(dirs['plot_dir_images'], epoch),
+                #            title='Prediction, data log, not normalized')
 
-                plot_image(inv_norm(pred_mm[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
-                           save_path_name='{}/ep{:04}_pred'.format(dirs['plot_dir_images'], epoch),
-                           title='Prediction, data log, not normalized')
+                plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
+                           save_path_name='{}/ep{:04}_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
+                           title='Target, data log, not normalized')
 
         relative_mses.append(inner_relative_mses)
         persistence_target_mses.append(inner_persistence_target_mses)
