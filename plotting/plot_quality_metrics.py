@@ -33,21 +33,49 @@ def plot_losses(losses, validation_losses, save_path_name):
     plt.show()
 
 
-def plot_average_preds(all_pred_mm, all_target_mm, save_path_name):
+def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples, save_path_name):
     mean_arr_f = lambda x: np.mean(np.array(x), axis=(1,2))
 
     pred_mean = mean_arr_f(all_pred_mm)
     target_mean = mean_arr_f(all_target_mm)
 
-    plt.figure(figsize=(10, 7))
-    plt.subplot(211)
-    plt.bar(np.arange(len(target_mean)), target_mean)
-    plt.title('Targets')
-    plt.subplot(212)
+    fig = plt.figure(figsize=(10, 7))
+    ax2 = fig.add_subplot(212)
     plt.bar(np.arange(len(pred_mean)), pred_mean)
+    ylim2 = ax2.get_ylim()
+    xlim2 = ax2.get_xlim()
+
+    # plt.vlines(num_training_samples, xlim2[0], xlim2[1] - 0.5, colors='grey', linestyles='--', alpha=0.5)
+    vline_indecies = [num_training_samples * i for i in range(int(pred_mean.shape[0] / num_training_samples))]
+    plt.vlines(vline_indecies, xlim2[0], xlim2[1], colors='grey', linestyles='--', alpha=0.5)
+    plt.ylabel('Training sample #')
+
+
     plt.title('Predictions')
-    plt.show()
-    plt.savefig(save_path_name, dpi=100)
+    plt.yscale('symlog')
+
+    ax1 = fig.add_subplot(211)
+    plt.bar(np.arange(len(target_mean)), target_mean)
+    ylim1 = ax1.get_ylim()
+    xlim1 = ax1.get_xlim()
+
+    vline_indecies = [num_training_samples * i for i in range(int(target_mean.shape[0] / num_training_samples))]
+
+    plt.vlines(vline_indecies, xlim1[0], xlim1[1], colors='grey', linestyles='--', alpha=0.5)
+
+    plt.title('Targets')
+    plt.yscale('symlog')
+
+    if ylim1[1] > ylim2[1]:
+        ax1.set_ylim(ylim1)
+        ax2.set_ylim(ylim1)
+    else:
+        ax1.set_ylim(ylim2)
+        ax2.set_ylim(ylim2)
+
+
+
+    plt.savefig(save_path_name, dpi=600)
     plt.show()
 
 

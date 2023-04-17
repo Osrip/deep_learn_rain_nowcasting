@@ -131,7 +131,8 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     losses = []
     validation_losses = []
     relative_mses = []
-    presistence_target_mses = []
+    persistence_target_mses = []
+    zeros_target_mses = []
     model_target_mses = []
 
     if plot_average_preds_boo or plot_pixelwise_preds_boo:
@@ -145,7 +146,8 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
         inner_losses = []
         inner_relative_mses = []
-        inner_presistence_target_mses = []
+        inner_persistence_target_mses = []
+        inner_zeros_target_mses = []
         inner_model_target_mses = []
 
         # Iterate through batches
@@ -184,7 +186,6 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             ################################
 
             # Quality metrics
-            # TODO WHY ARE THERE NEGATIVE VALUES IN PRED MM??? --> CHECK NORMALIZATION
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
             pred_mm = torch.from_numpy(pred_mm).to(device).detach()
 
@@ -211,10 +212,15 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=width_height_target)(persistence)
             mse_persistence_target = mse_loss(persistence, target).item()
+            # TODO REMOVE THIS ONLY DEBUGGING:
+            mse_zeros_target = mse_loss(torch.zeros(target.shape).to(device), target).item()
+            # mse_persistence_target = mse_loss(mse_persistence_target, target).item()
+
             mse_model_target = mse_loss(pred_mm, target).item()
             relative_mse = 1 - mse_persistence_target / mse_model_target
             inner_relative_mses.append(relative_mse)
-            inner_presistence_target_mses.append(mse_persistence_target)
+            inner_persistence_target_mses.append(mse_persistence_target)
+            inner_zeros_target_mses.append(mse_zeros_target)
             inner_model_target_mses.append(mse_model_target)
 
 
@@ -224,16 +230,19 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                 inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
                                                             inverse_normalize=True)
 
+                # inv_norm = lambda x: x
+
                 plot_image(inv_norm(target[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
                            save_path_name='{}/ep{:04}_target'.format(dirs['plot_dir_images'], epoch),
-                           title='Target')
+                           title='Target, data log, not normalized')
 
                 plot_image(inv_norm(pred_mm[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
                            save_path_name='{}/ep{:04}_pred'.format(dirs['plot_dir_images'], epoch),
-                           title='Prediction')
+                           title='Prediction, data log, not normalized')
 
         relative_mses.append(inner_relative_mses)
-        presistence_target_mses.append(inner_presistence_target_mses)
+        persistence_target_mses.append(inner_persistence_target_mses)
+        zeros_target_mses.append(inner_zeros_target_mses)
         model_target_mses.append(inner_model_target_mses)
         losses.append(inner_losses)
 
@@ -248,10 +257,12 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, avg_inner_validation_loss),
               flush=True)
         plot_mse([relative_mses], label_list=['relative MSE'],
-                 save_path_name='{}/ep{:04}_relative_mse'.format(dirs['plot_dir'], epoch), title='Relative MSE')
-        plot_mse([presistence_target_mses, model_target_mses], label_list=['Persistence Target MSE', 'Model Target MSE'],
+                 save_path_name='{}/ep{:04}_relative_mse'.format(dirs['plot_dir'], epoch),
+                 title='Relative MSE on lognorm data')
+        plot_mse([persistence_target_mses, zeros_target_mses, model_target_mses],
+                 label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE'],
                  save_path_name='{}/ep{:04}_mse'.format(dirs['plot_dir'], epoch),
-                 title='MSE')
+                 title='MSE on lognorm data')
         plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(dirs['plot_dir'], sim_name))
         plot_img_histogram(pred_mm, '{}/ep{:04}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
                            linspace_binning_max, ignore_min_max=False, title='Prediciton', **settings)
@@ -261,7 +272,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                            linspace_binning_min, linspace_binning_max, ignore_min_max=False, title='Target', **settings)
 
         if plot_average_preds_boo:
-            plot_average_preds(all_pred_mm, all_target_mm, '{}/average_preds'.format(dirs['plot_dir']))
+            plot_average_preds(all_pred_mm, all_target_mm, len(train_data_loader)*batch_size, '{}/average_preds'.format(dirs['plot_dir']))
 
         if plot_pixelwise_preds_boo:
             plot_pixelwise_preds(all_pred_mm, all_target_mm, '{}/pixelwise_preds'.format(dirs['plot_dir']))
@@ -305,7 +316,7 @@ if __name__ == '__main__':
 
     local_machine_mode = True
 
-    sim_name_suffix = '_3_days'
+    sim_name_suffix = ''
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -352,7 +363,7 @@ if __name__ == '__main__':
             'learning_rate': 0.0001,  # Schedule this at some point??
             'num_epochs': 1000,
             'num_input_time_steps': 4, # The number of subsequent time steps that are used for one predicition
-            'num_lead_time_steps': 5, # The number of pictures that are skipped from last input time step to target, starts with 0
+            'num_lead_time_steps': 5, #5, # The number of pictures that are skipped from last input time step to target, starts with 0
             'optical_flow_input': False,  # Not yet working!
             'batch_size': 26,  # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
             'save_trained_model': True,
