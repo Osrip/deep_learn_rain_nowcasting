@@ -32,6 +32,7 @@ def plot_target_vs_pred(target_img, pred_img, save_path_name, vmin, vmax, max_ro
                 elif col == 1:
                     curr_ax.set_title('Predictions')
     # plt.colorbar(fig)
+    fig.suptitle(title)
     plt.savefig(save_path_name, dpi=600)
     plt.show()
 

@@ -48,8 +48,8 @@ def print_gpu_memory():
     print("Memory: Total: {}, Free: {}, Used:{}".format(size(info.total), size(info.free), size(info.used)))
 
 
-def validate(model, validation_data_loader, cropped_persistence, linspace_binning, linspace_binning_max,
-             width_height_target, device, **__):
+def validate(model, validation_data_loader, cropped_persistence, linspace_binning, linspace_binning_max, linspace_binning_min,
+             epoch , mean_filtered_data, std_filtered_data, width_height_target, device, **__):
 
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
@@ -75,20 +75,21 @@ def validate(model, validation_data_loader, cropped_persistence, linspace_binnin
 
             # Calculatatie verfification metrics
 
-
-            # target = target.detach().cpu()
-            # cropped_persistence = cropped_persistence.detach().cpu()
-            # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
-            # pred_mm = torch.from_numpy(pred_mm).to(device).detach()
-            #
-            # val_mse_persistence_target = mse_loss(cropped_persistence, target).item()
-            # val_mse_zeros_target = mse_loss(torch.zeros(target.shape).cpu(), target).item()
-            # val_mse_model_target = mse_loss(pred_mm, target).item()
-
             target = target.detach().to(device)
             cropped_persistence = cropped_persistence.detach()
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
             pred_mm = torch.from_numpy(pred_mm).to(device).detach()
+
+            if i == 0:
+                # Imshow plots
+                inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
+                                                            inverse_normalize=True)
+
+
+                plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
+                                    vmax=inv_norm(linspace_binning_max),
+                                    save_path_name='{}/ep{:04}_VAL_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
+                                    title='Validation data (log, not normalized)')
 
 
             val_mse_persistence_target = mse_loss(cropped_persistence, target).item()
@@ -281,7 +282,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                 plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
                                     vmax=inv_norm(linspace_binning_max),
                                     save_path_name='{}/ep{:04}_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
-                                    title='Target, data log, not normalized')
+                                    title='Training data (log, not normalized)')
 
         relative_mses.append(inner_relative_mses)
         persistence_target_mses.append(inner_persistence_target_mses)
@@ -295,7 +296,8 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         avg_inner_loss = np.mean(inner_losses)
 
         inner_validation_losses, inner_val_mse_persistence_target, inner_val_mse_zeros_target, inner_val_mse_model_target\
-            = validate(model, validation_data_loader, persistence, linspace_binning, linspace_binning_max, **settings)
+            = validate(model, validation_data_loader, persistence, linspace_binning, linspace_binning_max, linspace_binning_min,
+             epoch, mean_filtered_data, std_filtered_data, **settings)
 
         val_mses_persistence_target.append(inner_val_mse_persistence_target)
         val_mses_zeros_target.append(inner_val_mse_zeros_target)
