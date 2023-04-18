@@ -109,12 +109,13 @@ def save_whole_project(save_folder):
     for path, subdirs, files in os.walk(cwd):
         for name in files:
             if (isfile(join(cwd, name)) and (not 'venv' in path) and (not 'runs' in path) and (name.endswith('.py') or name.endswith('.txt')
-                                                                      or name.endswith('.ipynb'))):
+                                                                      or name.endswith('.ipynb') or name.endswith('.sh'))):
                 onlyfiles.append(os.path.relpath(os.path.join(path, name), cwd))
 
     # onlyfiles = [f for f in listdir(cwd) if (isfile(join(cwd, f)) and (f.endswith('.py') or f.endswith('.txt') or f.endswith('.ipynb')))]
     for file in onlyfiles:
         save_code(save_folder, file)
+
 
 def save_code(save_folder, filename):
     src = filename
@@ -123,7 +124,3 @@ def save_code(save_folder, filename):
         copyfile(src, dst)
     except FileNotFoundError:
         os.makedirs(dst[0:dst.rfind('/')])
-
-
-
-

@@ -3,11 +3,25 @@ import torch
 import matplotlib.pyplot as plt
 
 
-def plot_mse(mses_list, label_list, save_path_name, title=''):
+def plot_mse_light(mses_list, label_list, save_path_name, title=''):
     plt.figure()
     for mses, label in zip(mses_list, label_list):
         mean_mses = np.mean(mses, axis=-1)
         plt.plot(mean_mses, label=label)
+        plt.title(title)
+        plt.xlabel('Epoch')
+        plt.ylabel('MSE')
+    plt.yscale('log')
+    plt.legend()
+    plt.savefig(save_path_name, dpi=200)
+    plt.show()
+
+
+def plot_mse_heavy(mses_list, label_list, linestyle_list, color_list, save_path_name, title=''):
+    plt.figure()
+    for mses, label, linestyle, color in zip(mses_list, label_list, linestyle_list, color_list):
+        mean_mses = np.mean(mses, axis=-1)
+        plt.plot(mean_mses, label=label, linestyle=linestyle, color=color)
         plt.title(title)
         plt.xlabel('Epoch')
         plt.ylabel('MSE')

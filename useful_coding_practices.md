@@ -1,4 +1,11 @@
 
+#### Slurm
+scontrol show job $SLURM_JOB_ID
+scancel -jobid-
+
+SSD direktory to work on!
+/mnt/qb/work2/butz1/bst981
+
 #### Torch module dicts
 - They can be used 
 Example in https://github.com/jthuemmel/SpatioTemporalNetworks/blob/main/models/models.py
@@ -16,8 +23,7 @@ Old:
 
 rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc' -e ssh $(pwd)/* bst981@134.2.168.52:/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan
 
-SSD direktory to work on!
-/mnt/qb/work2/butz1/bst981
+
 
 
 

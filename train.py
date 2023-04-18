@@ -17,7 +17,7 @@ from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_
 import os
 from plotting.plot_img_histogram import plot_img_histogram
 from plotting.plot_images import plot_image, plot_target_vs_pred
-from plotting.plot_quality_metrics import plot_mse, plot_losses, plot_average_preds, plot_pixelwise_preds
+from plotting.plot_quality_metrics import plot_mse_light, plot_mse_heavy, plot_losses, plot_average_preds, plot_pixelwise_preds
 import warnings
 from tests.test_basic_functions import test_all
 from hurry.filesize import size
@@ -47,10 +47,18 @@ def print_gpu_memory():
     info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
     print("Memory: Total: {}, Free: {}, Used:{}".format(size(info.total), size(info.free), size(info.used)))
 
-def validate(model, validation_data_loader, width_height_target, **__):
+
+def validate(model, validation_data_loader, cropped_persistence, linspace_binning, linspace_binning_max,
+             width_height_target, device, **__):
+
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
         validation_losses = []
+        val_mse_persistence_target = []
+        val_mse_zeros_target = []
+        val_mse_model_target = []
+
+
         for i, (input_sequence, target_one_hot, target) in enumerate(validation_data_loader):
             input_sequence = input_sequence.float()
             input_sequence = input_sequence.to(device)
@@ -61,14 +69,39 @@ def validate(model, validation_data_loader, width_height_target, **__):
             pred = model(input_sequence)
             loss = criterion(pred, target_one_hot)
             loss = float(loss.detach().cpu().numpy())
+
+
             validation_losses.append(loss)
-    return validation_losses
+
+            # Calculatatie verfification metrics
+
+
+            # target = target.detach().cpu()
+            # cropped_persistence = cropped_persistence.detach().cpu()
+            # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+            # pred_mm = torch.from_numpy(pred_mm).to(device).detach()
+            #
+            # val_mse_persistence_target = mse_loss(cropped_persistence, target).item()
+            # val_mse_zeros_target = mse_loss(torch.zeros(target.shape).cpu(), target).item()
+            # val_mse_model_target = mse_loss(pred_mm, target).item()
+
+            target = target.detach().to(device)
+            cropped_persistence = cropped_persistence.detach()
+            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+            pred_mm = torch.from_numpy(pred_mm).to(device).detach()
+
+
+            val_mse_persistence_target = mse_loss(cropped_persistence, target).item()
+            val_mse_zeros_target = mse_loss(torch.zeros(target.shape).to(device), target).item()
+            val_mse_model_target = mse_loss(pred_mm, target).item()
+
+
+    return validation_losses, val_mse_persistence_target, val_mse_zeros_target, val_mse_model_target
 
 
 def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int, num_lead_time_steps,
           num_bins_crossentropy, width_height_target, batch_size, ratio_training_data,
           dirs, local_machine_mode, log_transform, normalize, plot_average_preds_boo, plot_pixelwise_preds_boo, settings, **__):
-
 
     if log_transform:
         transform_f = lambda x: np.log(x + 1)
@@ -129,7 +162,12 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
     print('{} batches'.format(len(train_data_loader)))
     losses = []
+
     validation_losses = []
+    val_mses_persistence_target = []
+    val_mses_zeros_target = []
+    val_mses_model_target = []
+
     relative_mses = []
     persistence_target_mses = []
     zeros_target_mses = []
@@ -240,9 +278,10 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                 #            save_path_name='{}/ep{:04}_pred'.format(dirs['plot_dir_images'], epoch),
                 #            title='Prediction, data log, not normalized')
 
-                plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
-                           save_path_name='{}/ep{:04}_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
-                           title='Target, data log, not normalized')
+                plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
+                                    vmax=inv_norm(linspace_binning_max),
+                                    save_path_name='{}/ep{:04}_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
+                                    title='Target, data log, not normalized')
 
         relative_mses.append(inner_relative_mses)
         persistence_target_mses.append(inner_persistence_target_mses)
@@ -255,18 +294,37 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
         avg_inner_loss = np.mean(inner_losses)
 
-        inner_validation_losses = validate(model, validation_data_loader, **settings)
+        inner_validation_losses, inner_val_mse_persistence_target, inner_val_mse_zeros_target, inner_val_mse_model_target\
+            = validate(model, validation_data_loader, persistence, linspace_binning, linspace_binning_max, **settings)
+
+        val_mses_persistence_target.append(inner_val_mse_persistence_target)
+        val_mses_zeros_target.append(inner_val_mse_zeros_target)
+        val_mses_model_target.append(inner_val_mse_model_target)
+
         validation_losses.append(inner_validation_losses)
+
         avg_inner_validation_loss = np.mean(inner_validation_losses)
+
         print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, avg_inner_validation_loss),
               flush=True)
-        plot_mse([relative_mses], label_list=['relative MSE'],
-                 save_path_name='{}/ep{:04}_relative_mse'.format(dirs['plot_dir'], epoch),
+
+        plot_mse_light([relative_mses], label_list=['relative MSE'],
+                 save_path_name='{}/relative_mse'.format(dirs['plot_dir'], epoch),
                  title='Relative MSE on lognorm data')
-        plot_mse([persistence_target_mses, zeros_target_mses, model_target_mses],
-                 label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE'],
-                 save_path_name='{}/ep{:04}_mse'.format(dirs['plot_dir'], epoch),
+
+        # plot_mse([persistence_target_mses, zeros_target_mses, model_target_mses],
+        #          label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE'],
+        #          save_path_name='{}/mse'.format(dirs['plot_dir'], epoch),
+        #          title='MSE on lognorm data')
+
+        plot_mse_heavy(mses_list=[persistence_target_mses, zeros_target_mses, model_target_mses, val_mses_persistence_target,
+                  val_mses_zeros_target, val_mses_model_target],
+                 label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE',
+                             'VAL Persistence Target MSE', 'VAL Zeros target MSEs', 'VAL Model Target MSE'],
+                       color_list=['g', 'y', 'b', 'g', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--', '--'],
+                 save_path_name='{}/mse_with_val'.format(dirs['plot_dir'], epoch),
                  title='MSE on lognorm data')
+
         plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(dirs['plot_dir'], sim_name))
         plot_img_histogram(pred_mm, '{}/ep{:04}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
                            linspace_binning_max, ignore_min_max=False, title='Prediciton', **settings)
