@@ -270,6 +270,8 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
 
 
 def filter(input_sequence, target, min_rain_ratio_target, percentage=0.5, min_amount_rain=0.05):
+# def filter(input_sequence, target, min_rain_ratio_target, percentage=0.1, min_amount_rain=0.05):
+
     '''
     Looks whether on what percentage on target there is more than min_amount_rain rain. If percentage exceeds min_rain_ratio_target return True
     , False otherwise

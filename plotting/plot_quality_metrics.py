@@ -61,8 +61,8 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples, save_pa
 
     # plt.vlines(num_training_samples, xlim2[0], xlim2[1] - 0.5, colors='grey', linestyles='--', alpha=0.5)
     vline_indecies = [num_training_samples * i for i in range(int(pred_mean.shape[0] / num_training_samples))]
-    plt.vlines(vline_indecies, xlim2[0], xlim2[1], colors='grey', linestyles='--', alpha=0.5)
-    plt.ylabel('Training sample #')
+    plt.vlines(vline_indecies, xlim2[0], xlim2[1], colors='grey', linestyles='--', alpha=0.5, linewidth=0.8)
+    plt.xlabel('Training sample #')
 
 
 
@@ -76,7 +76,7 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples, save_pa
 
     vline_indecies = [num_training_samples * i for i in range(int(target_mean.shape[0] / num_training_samples))]
 
-    plt.vlines(vline_indecies, xlim1[0], xlim1[1], colors='grey', linestyles='--', alpha=0.5)
+    plt.vlines(vline_indecies, xlim1[0], xlim1[1], colors='grey', linestyles='--', alpha=0.8, linewidth=0.5)
 
     plt.title('Targets')
     plt.yscale('symlog')

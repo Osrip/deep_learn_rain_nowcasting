@@ -48,13 +48,13 @@ def print_gpu_memory():
     print("Memory: Total: {}, Free: {}, Used:{}".format(size(info.total), size(info.free), size(info.used)))
 
 
-def validate(model, validation_data_loader, cropped_persistence, linspace_binning, linspace_binning_max, linspace_binning_min,
-             epoch , mean_filtered_data, std_filtered_data, width_height_target, device, **__):
+def validate(model, validation_data_loader, linspace_binning, linspace_binning_max, linspace_binning_min,
+             epoch, mean_filtered_data, std_filtered_data, width_height_target, device, **__):
 
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
         validation_losses = []
-        val_mse_persistence_target = []
+        # val_mse_persistence_target = []
         val_mse_zeros_target = []
         val_mse_model_target = []
 
@@ -76,7 +76,6 @@ def validate(model, validation_data_loader, cropped_persistence, linspace_binnin
             # Calculatatie verfification metrics
 
             target = target.detach().to(device)
-            cropped_persistence = cropped_persistence.detach()
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
             pred_mm = torch.from_numpy(pred_mm).to(device).detach()
 
@@ -92,12 +91,12 @@ def validate(model, validation_data_loader, cropped_persistence, linspace_binnin
                                     title='Validation data (log, not normalized)')
 
 
-            val_mse_persistence_target = mse_loss(cropped_persistence, target).item()
-            val_mse_zeros_target = mse_loss(torch.zeros(target.shape).to(device), target).item()
-            val_mse_model_target = mse_loss(pred_mm, target).item()
+            # val_mse_persistence_target.append(mse_loss(cropped_persistence, target).item())
+            val_mse_zeros_target.append(mse_loss(torch.zeros(target.shape).to(device), target).item())
+            val_mse_model_target.append(mse_loss(pred_mm, target).item())
 
 
-    return validation_losses, val_mse_persistence_target, val_mse_zeros_target, val_mse_model_target
+    return validation_losses, val_mse_zeros_target, val_mse_model_target
 
 
 def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int, num_lead_time_steps,
@@ -295,11 +294,10 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
         avg_inner_loss = np.mean(inner_losses)
 
-        inner_validation_losses, inner_val_mse_persistence_target, inner_val_mse_zeros_target, inner_val_mse_model_target\
-            = validate(model, validation_data_loader, persistence, linspace_binning, linspace_binning_max, linspace_binning_min,
+        inner_validation_losses, inner_val_mse_zeros_target, inner_val_mse_model_target\
+            = validate(model, validation_data_loader, linspace_binning, linspace_binning_max, linspace_binning_min,
              epoch, mean_filtered_data, std_filtered_data, **settings)
 
-        val_mses_persistence_target.append(inner_val_mse_persistence_target)
         val_mses_zeros_target.append(inner_val_mse_zeros_target)
         val_mses_model_target.append(inner_val_mse_model_target)
 
@@ -319,12 +317,21 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         #          save_path_name='{}/mse'.format(dirs['plot_dir'], epoch),
         #          title='MSE on lognorm data')
 
-        plot_mse_heavy(mses_list=[persistence_target_mses, zeros_target_mses, model_target_mses, val_mses_persistence_target,
+        # TODO: Why does zeros_target_mses differ that much from val_mses_model_target ???
+        plot_mse_heavy(mses_list=[persistence_target_mses, zeros_target_mses, model_target_mses,
                   val_mses_zeros_target, val_mses_model_target],
                  label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE',
-                             'VAL Persistence Target MSE', 'VAL Zeros target MSEs', 'VAL Model Target MSE'],
-                       color_list=['g', 'y', 'b', 'g', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--', '--'],
+                             'VAL Zeros target MSEs', 'VAL Model Target MSE'],
+                       color_list=['g', 'y', 'b', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--'],
                  save_path_name='{}/mse_with_val'.format(dirs['plot_dir'], epoch),
+                 title='MSE on lognorm data')
+
+        plot_mse_heavy(mses_list=[persistence_target_mses, zeros_target_mses, model_target_mses,
+                 val_mses_model_target],
+                 label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE',
+                             'VAL Model Target MSE'],
+                       color_list=['g', 'y', 'b', 'b'], linestyle_list=['-', '-', '-', '--'],
+                 save_path_name='{}/mse_with_val_training_baseline'.format(dirs['plot_dir'], epoch),
                  title='MSE on lognorm data')
 
         plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(dirs['plot_dir'], sim_name))
@@ -378,9 +385,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    local_machine_mode = True
+    local_machine_mode = False
 
-    sim_name_suffix = ''
+    sim_name_suffix = '_30_min_lead_time_1_month_prev_default'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -411,7 +418,7 @@ if __name__ == '__main__':
             'sim_same_suffix': sim_name_suffix,
 
             'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            'data_file_names': ['RV_recalc_data_2019-01.nc'],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
+            'data_file_names': ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
             'data_variable_name': 'RV_recalc',
             'choose_time_span': False,
             'time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
@@ -427,7 +434,7 @@ if __name__ == '__main__':
             'learning_rate': 0.0001,  # Schedule this at some point??
             'num_epochs': 1000,
             'num_input_time_steps': 4, # The number of subsequent time steps that are used for one predicition
-            'num_lead_time_steps': 5, #5, # The number of pictures that are skipped from last input time step to target, starts with 0
+            'num_lead_time_steps': 1, #5, # The number of pictures that are skipped from last input time step to target, starts with 0
             'optical_flow_input': False,  # Not yet working!
             'batch_size': 26,  # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
             'save_trained_model': True,
