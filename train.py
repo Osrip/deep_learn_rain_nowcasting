@@ -144,23 +144,24 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=num_bins_crossentropy,
                                    endpoint=False)  # num_indecies + 1 as the very last entry will never be used
 
+    # Defining and splitting into training and validation data set
     num_training_samples = int(len(filtered_indecies) * ratio_training_data)
-    train_filtered_indecies = filtered_indecies[0:num_training_samples]
-    validation_filtered_indecies = filtered_indecies[num_training_samples:]
-
-    train_data_set = PrecipitationFilteredDataset(train_filtered_indecies, mean_filtered_data, std_filtered_data,
+    num_validation_samples = len(filtered_indecies) - num_training_samples
+    full_data_set = PrecipitationFilteredDataset(filtered_indecies, mean_filtered_data, std_filtered_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning, transform_f, **settings)
+
+    train_data_set, validation_data_set = torch.utils.data.random_split(full_data_set,
+                                                                        [num_training_samples, num_validation_samples])
+
     train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     del train_data_set
 
-    validation_data_set = PrecipitationFilteredDataset(validation_filtered_indecies, mean_filtered_data,
-                                                       std_filtered_data, linspace_binning_min, linspace_binning_max,
-                                                       linspace_binning, transform_f, **settings)
-
     validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     del validation_data_set
-
-    print('{} batches'.format(len(train_data_loader)))
+    print('Size data set: {} \n of which training samples: {}  \n validation samples: {}'.format(len(filtered_indecies),
+                                                                                                 num_training_samples,
+                                                                                                 num_validation_samples))
+    print('Num batches: {} \n Batch size: {}'.format(len(train_data_loader), batch_size))
     losses = []
 
     validation_losses = []
@@ -207,8 +208,6 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             input_sequence = input_sequence.to(device=device, dtype=torch.float32)
             target_one_hot = target_one_hot.to(device)
 
-
-
             target = T.CenterCrop(size=width_height_target)(target)
             target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
             target_one_hot = target_one_hot.float()
@@ -226,7 +225,6 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             # Quality metrics
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
             pred_mm = torch.from_numpy(pred_mm).to(device).detach()
-
 
             if plot_average_preds_boo or plot_pixelwise_preds_boo:
                 for k in range(pred_mm.shape[0]):
@@ -261,14 +259,11 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             inner_zeros_target_mses.append(mse_zeros_target)
             inner_model_target_mses.append(mse_model_target)
 
-
             # TODO: Currently Target is baseline for test purposes. Change that for obvious reasons!!!
             if i == 0:
 
                 inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
                                                             inverse_normalize=True)
-
-                # inv_norm = lambda x: x
 
                 # plot_image(inv_norm(target[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
                 #            save_path_name='{}/ep{:04}_target'.format(dirs['plot_dir_images'], epoch),
@@ -288,9 +283,6 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         zeros_target_mses.append(inner_zeros_target_mses)
         model_target_mses.append(inner_model_target_mses)
         losses.append(inner_losses)
-
-
-
 
         avg_inner_loss = np.mean(inner_losses)
 
@@ -346,8 +338,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             plot_average_preds(all_pred_mm, all_target_mm, len(train_data_loader)*batch_size, '{}/average_preds'.format(dirs['plot_dir']))
 
         if plot_pixelwise_preds_boo:
-            plot_pixelwise_preds(all_pred_mm, all_target_mm, '{}/pixelwise_preds'.format(dirs['plot_dir']))
-
+            plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, '{}/pixelwise_preds'.format(dirs['plot_dir']))
 
     return model
 
@@ -369,7 +360,7 @@ def main(save_trained_model, load_model, num_input_time_steps, upscale_c_to, loa
     # optimized_model = check_backward(model, learning_rate=0.001, device='cpu')
 
 
-
+    print('Model has {} parameters'.format(sum(p.numel() for p in model.parameters() if p.requires_grad)))
     print('Training started on {}'.format(device), flush=True)
 
     trained_model = train(model=model, settings=settings, **settings)
@@ -387,7 +378,7 @@ if __name__ == '__main__':
 
     local_machine_mode = False
 
-    sim_name_suffix = '_30_min_lead_time_1_month_prev_default'
+    sim_name_suffix = '_10_min_lead_time_3_months_random_splitting_23_hrs'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -418,7 +409,7 @@ if __name__ == '__main__':
             'sim_same_suffix': sim_name_suffix,
 
             'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            'data_file_names': ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
+            'data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(3)], #['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
             'data_variable_name': 'RV_recalc',
             'choose_time_span': False,
             'time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
@@ -433,8 +424,8 @@ if __name__ == '__main__':
             'width_height_target': 32,
             'learning_rate': 0.0001,  # Schedule this at some point??
             'num_epochs': 1000,
-            'num_input_time_steps': 4, # The number of subsequent time steps that are used for one predicition
-            'num_lead_time_steps': 1, #5, # The number of pictures that are skipped from last input time step to target, starts with 0
+            'num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
+            'num_lead_time_steps': 1,  # 5, # The number of pictures that are skipped from last input time step to target, starts with 0
             'optical_flow_input': False,  # Not yet working!
             'batch_size': 26,  # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
             'save_trained_model': True,
@@ -457,12 +448,6 @@ if __name__ == '__main__':
             'plot_pixelwise_preds_boo': True
 
         }
-
-
-
-
-
-
 
     if settings['local_machine_mode']:
         # settings['data_variable_name'] = 'WN_forecast'

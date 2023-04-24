@@ -94,7 +94,7 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples, save_pa
     plt.show()
 
 
-def plot_pixelwise_preds(all_pred_mm, all_target_mm, save_path_name, swap_x_y=True):
+def plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, save_path_name, swap_x_y=True):
 
     all_pred_mm = np.array(all_pred_mm)
     all_target_mm = np.array(all_target_mm)
@@ -113,7 +113,7 @@ def plot_pixelwise_preds(all_pred_mm, all_target_mm, save_path_name, swap_x_y=Tr
         ylabel = xlabel
         xlabel = tmp
 
-    plt.figure(figsize=(10, 10))
+    plt.figure(figsize=(10, (epoch+1)*3))
     plt.subplot(211)
     plt.imshow(reshaped_target_mm)
     plt.xlabel(xlabel)

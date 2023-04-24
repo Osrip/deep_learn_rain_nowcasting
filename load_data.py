@@ -173,8 +173,6 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         curr_data_sequence = load_data_sequence_preliminary(folder_path, data_file_name, width_height, data_variable_name,
                                                        choose_time_span, time_span, local_machine_mode)
-        print('np.shape(curr_data_sequence)[0]:{} \n  target_rel_idx:{} \n np.shape(curr_data_sequence)[0] - target_rel_idx: {}'
-              ''.format(np.shape(curr_data_sequence)[0], target_rel_idx, np.shape(curr_data_sequence)[0] - target_rel_idx))
         for i in range(np.shape(curr_data_sequence)[0] - target_rel_idx):
             num_data_points_total += 1
             first_idx_input_sequence = i
