@@ -338,7 +338,10 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             plot_average_preds(all_pred_mm, all_target_mm, len(train_data_loader)*batch_size, '{}/average_preds'.format(dirs['plot_dir']))
 
         if plot_pixelwise_preds_boo:
-            plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, '{}/pixelwise_preds'.format(dirs['plot_dir']))
+            try:
+                plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, '{}/pixelwise_preds'.format(dirs['plot_dir']))
+            except ValueError:
+                warnings.warn('Could not plot pixel wise pres plot in epoch {}'.format(epoch))
 
     return model
 
