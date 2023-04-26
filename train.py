@@ -150,6 +150,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     full_data_set = PrecipitationFilteredDataset(filtered_indecies, mean_filtered_data, std_filtered_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning, transform_f, **settings)
 
+    # TODO: Build a function to randomly split into blocks of a certain size
     train_data_set, validation_data_set = torch.utils.data.random_split(full_data_set,
                                                                         [num_training_samples, num_validation_samples])
 
@@ -335,7 +336,8 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                            linspace_binning_min, linspace_binning_max, ignore_min_max=False, title='Target', **settings)
 
         if plot_average_preds_boo:
-            plot_average_preds(all_pred_mm, all_target_mm, len(train_data_loader)*batch_size, '{}/average_preds'.format(dirs['plot_dir']))
+            plot_average_preds(all_pred_mm, all_target_mm, len(train_data_loader)*batch_size, '{}/average_preds'.
+                               format(dirs['plot_dir']))
 
         if plot_pixelwise_preds_boo:
             try:
@@ -381,7 +383,7 @@ if __name__ == '__main__':
 
     local_machine_mode = False
 
-    sim_name_suffix = '_10_min_lead_time_3_months_random_splitting_23_hrs'
+    sim_name_suffix = '_10_min_lead_time_10_months_random_splitting_3_days'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -392,7 +394,7 @@ if __name__ == '__main__':
     if local_machine_mode:
         sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     else:
-        sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), int(os.environ['SLURM_JOB_ID'])) # SLURM_ARRAY_TASK_ID
+        sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), int(os.environ['SLURM_JOB_ID']))  # SLURM_ARRAY_TASK_ID
 
     dirs = {}
     dirs['save_dir'] = 'runs/{}{}'.format(sim_name, sim_name_suffix)
@@ -412,7 +414,7 @@ if __name__ == '__main__':
             'sim_same_suffix': sim_name_suffix,
 
             'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            'data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(3)], #['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
+            'data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(10)],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
             'data_variable_name': 'RV_recalc',
             'choose_time_span': False,
             'time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),

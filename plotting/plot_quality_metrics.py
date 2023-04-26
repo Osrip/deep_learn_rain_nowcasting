@@ -1,6 +1,28 @@
+import warnings
+
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+
+from scipy.signal import savgol_filter
+from scipy.interpolate import interp1d
+
+
+def interpolate_smooth(x, y, window_size_smooth=4, polynomial_order_smooth=3, smooth=True, interpolate=True):
+    '''
+    Interpolating and smoothing for line plots
+    For smoothing:
+    polyorder must be less than window_length
+    window_length must be less than or equal to the size of x
+
+    '''
+    if smooth:
+        y = savgol_filter(y, window_size_smooth, polynomial_order_smooth)  # window size, polynomial order
+    if interpolate:
+        f_interpolate = interp1d(x, y, kind='cubic')
+        x = np.linspace(np.min(x), np.max(x), num=len(x), endpoint=True)
+        y = f_interpolate(x)
+    return x, y
 
 
 def plot_mse_light(mses_list, label_list, save_path_name, title=''):
@@ -47,11 +69,20 @@ def plot_losses(losses, validation_losses, save_path_name):
     plt.show()
 
 
-def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples, save_path_name):
-    mean_arr_f = lambda x: np.mean(np.array(x), axis=(1,2))
+def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples_per_epoch, save_path_name):
+    mean_arr_f = lambda x: np.mean(np.array(x), axis=(1, 2))
 
     pred_mean = mean_arr_f(all_pred_mm)
     target_mean = mean_arr_f(all_target_mm)
+
+    num_epochs = int(pred_mean.shape[0] / num_training_samples_per_epoch)
+    mean_per_epoch_arr_f = lambda x: np.array(
+        [np.mean([np.array(x)[i + c * num_training_samples_per_epoch] for i in range(num_training_samples_per_epoch)])
+         for c in range(num_epochs)])
+
+    pred_mean_per_epoch = mean_per_epoch_arr_f(all_pred_mm)
+    target_mean_per_epoch = mean_per_epoch_arr_f(all_target_mm)
+    x_axis_mean_per_epoch = mean_per_epoch_arr_f(np.arange(len(all_pred_mm)))
 
     fig = plt.figure(figsize=(10, 7))
     ax2 = fig.add_subplot(212)
@@ -60,11 +91,21 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples, save_pa
     xlim2 = ax2.get_xlim()
 
     # plt.vlines(num_training_samples, xlim2[0], xlim2[1] - 0.5, colors='grey', linestyles='--', alpha=0.5)
-    vline_indecies = [num_training_samples * i for i in range(int(pred_mean.shape[0] / num_training_samples))]
-    plt.vlines(vline_indecies, xlim2[0], xlim2[1], colors='grey', linestyles='--', alpha=0.5, linewidth=0.8)
+    vline_indecies = [num_training_samples_per_epoch * i for i in range(num_epochs)]
+    plt.vlines(vline_indecies, xlim2[0], xlim2[1], colors='grey', linestyles='--', alpha=0.5, linewidth=0.5)
+
+
+    # Plot means
+    try:
+        x_mean_per_epoch, y_mean_per_epoch = interpolate_smooth(x_axis_mean_per_epoch, pred_mean_per_epoch,
+                                                                window_size_smooth=4,
+                                                                polynomial_order_smooth=3)
+        plt.plot(x_mean_per_epoch, y_mean_per_epoch, color='red', linewidth='3', alpha=0.5)
+    except ValueError:
+        warnings.warn('Can only plot smoothed means if window_length must be less than or equal to the size of x')
+
+
     plt.xlabel('Training sample #')
-
-
 
     plt.title('Predictions')
     plt.yscale('symlog')
@@ -74,9 +115,18 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples, save_pa
     ylim1 = ax1.get_ylim()
     xlim1 = ax1.get_xlim()
 
-    vline_indecies = [num_training_samples * i for i in range(int(target_mean.shape[0] / num_training_samples))]
+    vline_indecies = [num_training_samples_per_epoch * i for i in range(num_epochs)]
 
-    plt.vlines(vline_indecies, xlim1[0], xlim1[1], colors='grey', linestyles='--', alpha=0.8, linewidth=0.5)
+    plt.vlines(vline_indecies, xlim1[0], xlim1[1], colors='grey', linestyles='--', alpha=0.5, linewidth=0.5)
+
+    try:
+        x_mean_per_epoch, y_mean_per_epoch = interpolate_smooth(x_axis_mean_per_epoch, target_mean_per_epoch,
+                                                                window_size_smooth=4,
+                                                                polynomial_order_smooth=3)
+        plt.plot(x_mean_per_epoch, y_mean_per_epoch, color='red', linewidth='2', alpha=0.35)
+    except ValueError:
+        warnings.warn('Can only plot smoothed means if window_length must be less than or equal to the size of x')
+
 
     plt.title('Targets')
     plt.yscale('symlog')
@@ -87,8 +137,6 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples, save_pa
     else:
         ax1.set_ylim(ylim2)
         ax2.set_ylim(ylim2)
-
-
 
     plt.savefig(save_path_name, dpi=600)
     plt.show()
