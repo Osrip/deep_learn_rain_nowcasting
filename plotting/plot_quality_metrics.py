@@ -174,5 +174,3 @@ def plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, save_path_name, swap
     plt.title('Predictions')
     plt.savefig(save_path_name, dpi=300, bbox_inches='tight')
     plt.show()
-
-

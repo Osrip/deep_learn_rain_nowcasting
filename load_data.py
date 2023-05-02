@@ -158,11 +158,14 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
     time span only refers to a single file
     '''
     filtered_data_loader_indecies = []
-    num_x = 0
-    sum_x = 0
-    sum_x_squared = 0
 
-    num_data_points_total = 0
+    # num_x and sum_x as well as sum_x_squared are used to calculate the first and second momentum for data normalization
+    num_x = 0  # num_x is the number of data points, meaning the TOTAL NUMBER OF PIXELS, that have passed the filter
+    sum_x = 0     # sum_x and sum_x squared are the sums of all data points / the squres of all datapoints
+    sum_x_squared = 0
+    num_frames_passed_filter = 0
+
+    num_frames_total = 0
 
     linspace_binning_min_unnormalized = np.inf
     linspace_binning_max_unnormalized = -np.inf
@@ -174,7 +177,7 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
         curr_data_sequence = load_data_sequence_preliminary(folder_path, data_file_name, width_height, data_variable_name,
                                                        choose_time_span, time_span, local_machine_mode)
         for i in range(np.shape(curr_data_sequence)[0] - target_rel_idx):
-            num_data_points_total += 1
+            num_frames_total += 1
             first_idx_input_sequence = i
             last_idx_input_sequence = i + last_input_rel_idx
             target_idx_input_sequence = i + target_rel_idx
@@ -182,6 +185,7 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
             curr_target_cropped = np.array(T.CenterCrop(size=width_height_target)(torch.from_numpy(curr_data_sequence[target_idx_input_sequence])))
             curr_input_sequence = curr_data_sequence[first_idx_input_sequence:last_idx_input_sequence, :, :]
             if filter(curr_input_sequence, curr_target_cropped, min_rain_ratio_target):
+                num_frames_passed_filter += 1
                 filtered_data_loader_indecies_dict = {}
                 filtered_data_loader_indecies_dict['file'] = data_file_name
                 filtered_data_loader_indecies_dict['first_idx_input_sequence'] = first_idx_input_sequence
@@ -226,7 +230,7 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
         else:
             print('{} data points out of a total of {} scanned data points'
                   ' passed the filter condition of min_rain_ratio_target={}'.format(
-                num_x, num_data_points_total, min_rain_ratio_target))
+                num_frames_passed_filter, num_frames_total, min_rain_ratio_target))
         mean_filtered_data = sum_x / num_x
         std_filtered_data = np.sqrt((sum_x_squared / num_x) - mean_filtered_data ** 2)
     return filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\

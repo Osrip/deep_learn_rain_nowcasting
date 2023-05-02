@@ -38,6 +38,7 @@ class Network(nn.Module):
                              .format(c_curr, c_curr * 2, width_height_in / (2 ** (i-1)), width_height_in / (2 ** i)))
 
         self.conv1_1_downscale = nn.Conv2d(c_curr, num_bins_crossentropy, kernel_size=1, dilation=1, stride=1, padding=0)
+
     def forward(self, x: torch.Tensor):
         x = self.conv1_1_upscale(x)
         for module in self.net_modules:

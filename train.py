@@ -16,7 +16,7 @@ import numpy as np
 from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm, save_settings, save_whole_project
 import os
 from plotting.plot_img_histogram import plot_img_histogram
-from plotting.plot_images import plot_image, plot_target_vs_pred
+from plotting.plot_images import plot_image, plot_target_vs_pred, plot_target_vs_pred_with_likelihood
 from plotting.plot_quality_metrics import plot_mse_light, plot_mse_heavy, plot_losses, plot_average_preds, plot_pixelwise_preds
 import warnings
 from tests.test_basic_functions import test_all
@@ -84,12 +84,12 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
                 inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
                                                             inverse_normalize=True)
 
-
                 plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
                                     vmax=inv_norm(linspace_binning_max),
                                     save_path_name='{}/ep{:04}_VAL_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
                                     title='Validation data (log, not normalized)')
 
+                # plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred), inv_norm(linspace_binning))
 
             # val_mse_persistence_target.append(mse_loss(cropped_persistence, target).item())
             val_mse_zeros_target.append(mse_loss(torch.zeros(target.shape).to(device), target).item())
@@ -159,10 +159,12 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
     validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     del validation_data_set
-    print('Size data set: {} \n of which training samples: {}  \n validation samples: {}'.format(len(filtered_indecies),
+    print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
                                                                                                  num_training_samples,
                                                                                                  num_validation_samples))
-    print('Num batches: {} \n Batch size: {}'.format(len(train_data_loader), batch_size))
+    print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
+                                                                                       len(validation_data_loader),
+                                                                                       batch_size))
     losses = []
 
     validation_losses = []
@@ -381,7 +383,7 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    local_machine_mode = False
+    local_machine_mode = True
 
     sim_name_suffix = '_10_min_lead_time_10_months_random_splitting_3_days'
 
