@@ -144,7 +144,6 @@ class PrecipitationFilteredDataset(Dataset):
         # TODO: Returning linspace binning here every time is super ugly as this is a global constant!!!
 
 
-
 def lognormalize_data(data, mean_data, std_data, transform_f, normalize):
     data = transform_f(data)
     if normalize:

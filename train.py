@@ -89,7 +89,11 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
                                     save_path_name='{}/ep{:04}_VAL_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
                                     title='Validation data (log, not normalized)')
 
-                # plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred), inv_norm(linspace_binning))
+                plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred_mm), pred,
+                                    linspace_binning=inv_norm(linspace_binning), vmin=inv_norm(linspace_binning_min),
+                                    vmax=inv_norm(linspace_binning_max),
+                                    save_path_name='{}/ep{:04}_VAL_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
+                                    title='Validation data (log, not normalized)')
 
             # val_mse_persistence_target.append(mse_loss(cropped_persistence, target).item())
             val_mse_zeros_target.append(mse_loss(torch.zeros(target.shape).to(device), target).item())

@@ -124,3 +124,7 @@ def save_code(save_folder, filename):
         copyfile(src, dst)
     except FileNotFoundError:
         os.makedirs(dst[0:dst.rfind('/')])
+
+
+def convert_tensor_to_np(tensor):
+    return tensor.cpu().detach().numpy()
