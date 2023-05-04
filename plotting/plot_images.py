@@ -22,6 +22,7 @@ def plot_target_vs_pred(target_img, pred_img, save_path_name, vmin, vmax, max_ro
     num_rows = np.min((target_img.shape[0], max_row_num))
     num_cols = 2
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(5*num_cols, 5*num_rows))
+    plt.set_cmap('jet')
 
     for row in range(num_rows):
         for col in range(num_cols):
@@ -46,16 +47,27 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
     num_cols = 3
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(5*num_cols, 5*num_rows))
     likelihoods = calc_likelihood_target_vs_pred_man(target_img, pred_one_hot, linspace_binning)
+    # likelihoods = np.log(likelihoods)
+    plt.set_cmap('jet')
 
     for row in range(num_rows):
         for col in range(num_cols):
             curr_ax = axs[row, col]
             if col == 0:
-                curr_ax.imshow(target_img[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
+                im1 = curr_ax.imshow(target_img[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
+                cbar1 = plt.colorbar(im1)
             elif col == 1:
-                curr_ax.imshow(pred_mm[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
+                im2 = curr_ax.imshow(pred_mm[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
+                cbar2 = plt.colorbar(im2, cmap='jet')
             elif col == 2:
-                curr_ax.imshow(likelihoods[row, :, :], norm='linear')
+                # likelihoods = -np.log(likelihoods)
+
+                im3 = curr_ax.imshow(likelihoods[row, :, :], norm='linear')
+                cbar3 = plt.colorbar(im3, cmap='jet')
+                cbar_label = 'Precipitation forecast in mm'
+                cbar1.set_label(cbar_label, rotation=270, labelpad=2)
+                cbar2.set_label(cbar_label, rotation=270)
+
 
 
                 # curr_ax.imshow(target_img[row, :, :] if col == 0 pred_mm[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
@@ -65,7 +77,7 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
                 elif col == 1:
                     curr_ax.set_title('Predictions')
                 elif col == 2:
-                    curr_ax.set_title('Likelihood')
+                    curr_ax.set_title('Log Likelihood')
     # plt.colorbar(fig)
     fig.suptitle(title)
     plt.savefig(save_path_name, dpi=600)
