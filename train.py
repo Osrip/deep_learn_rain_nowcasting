@@ -360,6 +360,9 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             except ValueError:
                 warnings.warn('Could not plot pixel wise pres plot in epoch {}'.format(epoch))
 
+        if save_trained_model:
+            save_zipped_pickle('{}/model_epoch_{}'.format(dirs['model_dir'], epoch), trained_model)
+
     return model
 
 
@@ -384,8 +387,7 @@ def main(save_trained_model, load_model, num_input_time_steps, upscale_c_to, loa
     print('Training started on {}'.format(device), flush=True)
 
     trained_model = train(model=model, settings=settings, **settings)
-    if save_trained_model:
-        save_zipped_pickle('{}/trained_model'.format(dirs['model_dir']), trained_model)
+
 
 
 if __name__ == '__main__':
@@ -448,7 +450,7 @@ if __name__ == '__main__':
             'num_lead_time_steps': 1,  # 5, # The number of pictures that are skipped from last input time step to target, starts with 0
             'optical_flow_input': False,  # Not yet working!
             'batch_size': 26,  # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
-            'save_trained_model': True,
+            'save_trained_model': True, # saves model every epoch
             'load_model': False,
             'load_model_name': 'Run_·20230220-191041',
             'dirs': dirs,
