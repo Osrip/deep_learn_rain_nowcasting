@@ -40,11 +40,17 @@ def plot_target_vs_pred(target_img, pred_img, save_path_name, vmin, vmax, max_ro
 
 
 def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_path_name, vmin, vmax, linspace_binning,
-                                        max_row_num=5, title=''):
+                                        max_row_num=5, input_sequence=None ,title=''):
+    add_input_sequence = False if input_sequence is None else True
+
     target_img = convert_tensor_to_np(target_img)
     pred_mm = convert_tensor_to_np(pred_mm)
+    if add_input_sequence:
+        input_sequence = convert_tensor_to_np(input_sequence)
     num_rows = np.min((target_img.shape[0], max_row_num))
-    num_cols = 3
+    add_cols = 0 if input_sequence is None else input_sequence.shape[1]
+
+    num_cols = 3 + add_cols
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(5*num_cols, 5*num_rows))
     likelihoods = calc_likelihood_target_vs_pred_man(target_img, pred_one_hot, linspace_binning)
     # likelihoods = np.log(likelihoods)
@@ -53,30 +59,32 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
     for row in range(num_rows):
         for col in range(num_cols):
             curr_ax = axs[row, col]
-            if col == 0:
+            if add_input_sequence and col in range(add_cols):
+                curr_ax.imshow(input_sequence[row, col, :, :], vmin=vmin, vmax=vmax, norm='linear')
+            elif col == 0 + add_cols:
                 im1 = curr_ax.imshow(target_img[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
                 cbar1 = plt.colorbar(im1)
-            elif col == 1:
+            elif col == 1 + add_cols:
                 im2 = curr_ax.imshow(pred_mm[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
                 cbar2 = plt.colorbar(im2, cmap='jet')
-            elif col == 2:
+            elif col == 2 + add_cols:
                 # likelihoods = -np.log(likelihoods)
 
                 im3 = curr_ax.imshow(likelihoods[row, :, :], norm='linear')
                 cbar3 = plt.colorbar(im3, cmap='jet')
                 cbar_label = 'Precipitation forecast in mm'
-                cbar1.set_label(cbar_label, rotation=270, labelpad=2)
-                cbar2.set_label(cbar_label, rotation=270)
-
-
+                cbar1.set_label(cbar_label, rotation=270, labelpad=12)
+                cbar2.set_label(cbar_label, rotation=270, labelpad=12)
 
                 # curr_ax.imshow(target_img[row, :, :] if col == 0 pred_mm[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
             if row == 0:
-                if col == 0:
+                if add_input_sequence and col in range(add_cols):
+                    curr_ax.set_title('Input picture {}'.format(col))
+                if col == 0 + add_input_sequence:
                     curr_ax.set_title('Targets')
-                elif col == 1:
+                elif col == 1 + add_input_sequence:
                     curr_ax.set_title('Predictions')
-                elif col == 2:
+                elif col == 2 + add_input_sequence:
                     curr_ax.set_title('Log Likelihood')
     # plt.colorbar(fig)
     fig.suptitle(title)

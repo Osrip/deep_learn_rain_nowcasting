@@ -285,6 +285,15 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                                     save_path_name='{}/ep{:04}_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
                                     title='Training data (log, not normalized)')
 
+                plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred_mm), pred,
+                                                    linspace_binning=inv_norm(linspace_binning),
+                                                    vmin=inv_norm(linspace_binning_min),
+                                                    vmax=inv_norm(linspace_binning_max),
+                                                    save_path_name='{}/ep{:04}_VAL_target_vs_pred'.format(
+                                                        dirs['plot_dir_images'], epoch),
+                                                    input_sequence=input_sequence,
+                                                    title='Validation data (log, not normalized)')
+
         relative_mses.append(inner_relative_mses)
         persistence_target_mses.append(inner_persistence_target_mses)
         zeros_target_mses.append(inner_zeros_target_mses)
