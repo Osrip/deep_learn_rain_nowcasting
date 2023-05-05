@@ -105,7 +105,8 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
 
 def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int, num_lead_time_steps,
           num_bins_crossentropy, width_height_target, batch_size, ratio_training_data,
-          dirs, local_machine_mode, log_transform, normalize, plot_average_preds_boo, plot_pixelwise_preds_boo, settings, **__):
+          dirs, local_machine_mode, log_transform, normalize, plot_average_preds_boo, plot_pixelwise_preds_boo,
+          save_trained_model, settings, **__):
 
     if log_transform:
         transform_f = lambda x: np.log(x + 1)
@@ -361,7 +362,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                 warnings.warn('Could not plot pixel wise pres plot in epoch {}'.format(epoch))
 
         if save_trained_model:
-            save_zipped_pickle('{}/model_epoch_{}'.format(dirs['model_dir'], epoch), trained_model)
+            save_zipped_pickle('{}/model_epoch_{}'.format(dirs['model_dir'], epoch), model)
 
     return model
 
