@@ -128,3 +128,15 @@ def save_code(save_folder, filename):
 
 def convert_tensor_to_np(tensor):
     return tensor.cpu().detach().numpy()
+
+
+def chunk_list(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    return [lst[i:i + n] for i in range(0, len(lst), n)]
+
+
+def flatten_list(lst):
+    '''
+    Flattens list by one dimension
+    '''
+    return [item for sublist in lst for item in sublist]

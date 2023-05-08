@@ -9,7 +9,7 @@ from helper_functions import create_dilation_list
 from modules_blocks import Network
 import datetime
 from load_data import img_one_hot, PrecipitationFilteredDataset, load_data_sequence_preliminary, normalize_data,\
-    inverse_normalize_data, filtering_data_scraper, lognormalize_data
+    inverse_normalize_data, filtering_data_scraper, lognormalize_data, random_splitting_filtered_indecies
 from torch.utils.data import Dataset, DataLoader
 
 import numpy as np
@@ -106,7 +106,7 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
 def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int, num_lead_time_steps,
           num_bins_crossentropy, width_height_target, batch_size, ratio_training_data,
           dirs, local_machine_mode, log_transform, normalize, plot_average_preds_boo, plot_pixelwise_preds_boo,
-          save_trained_model, settings, **__):
+          save_trained_model, data_loader_chunk_size, settings, **__):
 
     if log_transform:
         transform_f = lambda x: np.log(x + 1)
@@ -152,12 +152,23 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     # Defining and splitting into training and validation data set
     num_training_samples = int(len(filtered_indecies) * ratio_training_data)
     num_validation_samples = len(filtered_indecies) - num_training_samples
-    full_data_set = PrecipitationFilteredDataset(filtered_indecies, mean_filtered_data, std_filtered_data,
+
+    filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
+        filtered_indecies, num_training_samples, num_validation_samples, data_loader_chunk_size)
+
+    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning, transform_f, **settings)
 
-    # TODO: Build a function to randomly split into blocks of a certain size
-    train_data_set, validation_data_set = torch.utils.data.random_split(full_data_set,
-                                                                        [num_training_samples, num_validation_samples])
+    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_data, std_filtered_data,
+                                                  linspace_binning_min, linspace_binning_max, linspace_binning, transform_f, **settings)
+
+
+    # full_data_set = PrecipitationFilteredDataset(filtered_indecies, mean_filtered_data, std_filtered_data,
+    #                                               linspace_binning_min, linspace_binning_max, linspace_binning, transform_f, **settings)
+    #
+
+    # train_data_set, validation_data_set = torch.utils.data.random_split(full_data_set,
+    #                                                                     [num_training_samples, num_validation_samples])
 
     train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
     del train_data_set
@@ -437,6 +448,7 @@ if __name__ == '__main__':
             'choose_time_span': False,
             'time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
             'ratio_training_data': 0.6,
+            'data_loader_chunk_size': 20,
 
             # Parameters that give the network architecture
             'upscale_c_to': 64, #128, # 512,
@@ -493,6 +505,7 @@ if __name__ == '__main__':
         settings['time_span'] = (67, 150)  # <-- now done according to index (isel instead of sel)
         settings['upscale_c_to'] = 32  # 8
         settings['batch_size'] = 2
+        settings['data_loader_chunk_size'] = 2
         settings['testing'] = True  # Runs tests at the beginning
         settings['min_rain_ratio_target'] = 0  # Deactivated # No Filter
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!

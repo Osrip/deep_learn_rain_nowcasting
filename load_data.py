@@ -7,7 +7,7 @@ import torch.nn as nn
 import torchvision.transforms as T
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
-from helper_functions import bin_to_one_hot_index_linear
+from helper_functions import bin_to_one_hot_index_linear, chunk_list, flatten_list
 import datetime
 from exceptions import CountException
 from torch.utils.data import Dataset, DataLoader
@@ -407,9 +407,6 @@ def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning):
     return data_hot
 
 
-
-
-
 def load_data_sequence_preliminary(folder_path, data_file_name, width_height, data_variable_name, choose_time_span,
                                    time_span, local_machine_mode, **__):
     '''
@@ -437,6 +434,18 @@ def load_data_sequence_preliminary(folder_path, data_file_name, width_height, da
     data_tensor = T.CenterCrop(size=width_height)(data_tensor)
     return data_tensor.numpy()
 
+
+def random_splitting_filtered_indecies(indecies, num_training_samples, num_validation_samples, chunk_size):
+    chunked_indecies = chunk_list(indecies, chunk_size)
+    num_chunks_training = int(num_training_samples / chunk_size)
+    num_chunks_validation = len(chunked_indecies) - num_chunks_training
+    chunk_idxs = np.arange(len(chunked_indecies))
+    np.random.shuffle(chunk_idxs)
+    training_chunks = [chunked_indecies[i] for i in chunk_idxs[0:num_chunks_training]]
+    vaildation_chunks = [chunked_indecies[i] for i in chunk_idxs[num_chunks_training:]]
+    training_indecies = flatten_list(training_chunks)
+    validation_indecies = flatten_list(vaildation_chunks)
+    return training_indecies, validation_indecies
 
 
 if __name__ == '__main__':

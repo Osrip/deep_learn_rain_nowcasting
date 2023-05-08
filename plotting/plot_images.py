@@ -27,7 +27,8 @@ def plot_target_vs_pred(target_img, pred_img, save_path_name, vmin, vmax, max_ro
     for row in range(num_rows):
         for col in range(num_cols):
             curr_ax = axs[row, col]
-            curr_ax.imshow(target_img[row, :, :] if col == 0 else pred_img[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
+            curr_ax.imshow(target_img[row, :, :] if col == 0 else pred_img[row, :, :], vmin=vmin, vmax=vmax,
+                           norm='linear')
             if row == 0:
                 if col == 0:
                     curr_ax.set_title('Targets')
