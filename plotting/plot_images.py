@@ -4,6 +4,10 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 from helper_functions import convert_tensor_to_np
 
+import gc
+import matplotlib
+matplotlib.use('agg')
+
 
 def plot_image(image, save_path_name, vmin, vmax, title=''):
     plt.figure()
@@ -12,7 +16,11 @@ def plot_image(image, save_path_name, vmin, vmax, title=''):
     im = plt.imshow(image, vmin=vmin, vmax=vmax, norm='linear')
     plt.colorbar(im)
     plt.savefig(save_path_name, dpi=200)
-    plt.show()
+    plt.show(block=False)
+
+    plt.close("all")
+    plt.close()
+    gc.collect()
 
 
 def plot_target_vs_pred(target_img, pred_img, save_path_name, vmin, vmax, max_row_num=5, title=''):
@@ -37,7 +45,11 @@ def plot_target_vs_pred(target_img, pred_img, save_path_name, vmin, vmax, max_ro
     # plt.colorbar(fig)
     fig.suptitle(title)
     plt.savefig(save_path_name, dpi=600)
-    plt.show()
+    plt.show(block=False)
+
+    plt.close("all")
+    plt.close()
+    gc.collect()
 
 
 def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_path_name, vmin, vmax, linspace_binning,
@@ -90,7 +102,11 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
     # plt.colorbar(fig)
     fig.suptitle(title)
     plt.savefig(save_path_name, dpi=600)
-    plt.show()
+    plt.show(block=False)
+
+    plt.close("all")
+    plt.close()
+    gc.collect()
 
 
 # def plot_image_log(image, save_path_name, vmin, vmax, title=''):

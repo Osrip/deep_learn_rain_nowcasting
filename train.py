@@ -16,7 +16,7 @@ import numpy as np
 from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm, save_settings, save_whole_project
 import os
 from plotting.plot_img_histogram import plot_img_histogram
-from plotting.plot_images import plot_image, plot_target_vs_pred, plot_target_vs_pred_with_likelihood
+from plotting.plot_images import plot_target_vs_pred, plot_target_vs_pred_with_likelihood
 from plotting.plot_quality_metrics import plot_mse_light, plot_mse_heavy, plot_losses, plot_average_preds, plot_pixelwise_preds
 import warnings
 from tests.test_basic_functions import test_all
@@ -49,7 +49,7 @@ def print_gpu_memory():
 
 
 def validate(model, validation_data_loader, linspace_binning, linspace_binning_max, linspace_binning_min,
-             epoch, mean_filtered_data, std_filtered_data, width_height_target, device, **__):
+             epoch, mean_filtered_data, std_filtered_data, width_height_target, device, plot_target_vs_pred_boo,**__):
 
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
@@ -81,19 +81,20 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
 
             if i == 0:
                 # Imshow plots
-                inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
-                                                            inverse_normalize=True)
+                if plot_target_vs_pred_boo:
+                    inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
+                                                                inverse_normalize=True)
 
-                plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
-                                    vmax=inv_norm(linspace_binning_max),
-                                    save_path_name='{}/ep{:04}_VAL_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
-                                    title='Validation data (log, not normalized)')
+                    plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
+                                        vmax=inv_norm(linspace_binning_max),
+                                        save_path_name='{}/ep{:04}_VAL_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
+                                        title='Validation data (log, not normalized)')
 
-                plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred_mm), pred,
-                                    linspace_binning=inv_norm(linspace_binning), vmin=inv_norm(linspace_binning_min),
-                                    vmax=inv_norm(linspace_binning_max),
-                                    save_path_name='{}/ep{:04}_VAL_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
-                                    title='Validation data (log, not normalized)')
+                    plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred_mm), pred,
+                                        linspace_binning=inv_norm(linspace_binning), vmin=inv_norm(linspace_binning_min),
+                                        vmax=inv_norm(linspace_binning_max),
+                                        save_path_name='{}/ep{:04}_VAL_target_vs_pred_likelihood'.format(dirs['plot_dir_images'], epoch),
+                                        title='Validation data (log, not normalized)')
 
             # val_mse_persistence_target.append(mse_loss(cropped_persistence, target).item())
             val_mse_zeros_target.append(mse_loss(torch.zeros(target.shape).to(device), target).item())
@@ -106,7 +107,8 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
 def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int, num_lead_time_steps,
           num_bins_crossentropy, width_height_target, batch_size, ratio_training_data,
           dirs, local_machine_mode, log_transform, normalize, plot_average_preds_boo, plot_pixelwise_preds_boo,
-          save_trained_model, data_loader_chunk_size, settings, **__):
+          save_trained_model, data_loader_chunk_size, plot_target_vs_pred_boo, plot_img_histogram_boo, plot_losses_boo,
+          plot_mse_boo, settings, **__):
 
     if log_transform:
         transform_f = lambda x: np.log(x + 1)
@@ -291,20 +293,20 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                 # plot_image(inv_norm(pred_mm[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
                 #            save_path_name='{}/ep{:04}_pred'.format(dirs['plot_dir_images'], epoch),
                 #            title='Prediction, data log, not normalized')
+                if plot_target_vs_pred_boo:
+                    plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
+                                        vmax=inv_norm(linspace_binning_max),
+                                        save_path_name='{}/ep{:04}_TRAIN_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
+                                        title='Training data (log, not normalized)')
 
-                plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
-                                    vmax=inv_norm(linspace_binning_max),
-                                    save_path_name='{}/ep{:04}_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
-                                    title='Training data (log, not normalized)')
-
-                plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred_mm), pred,
-                                                    linspace_binning=inv_norm(linspace_binning),
-                                                    vmin=inv_norm(linspace_binning_min),
-                                                    vmax=inv_norm(linspace_binning_max),
-                                                    save_path_name='{}/ep{:04}_VAL_target_vs_pred'.format(
-                                                        dirs['plot_dir_images'], epoch),
-                                                    input_sequence=input_sequence,
-                                                    title='Validation data (log, not normalized)')
+                    plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred_mm), pred,
+                                                        linspace_binning=inv_norm(linspace_binning),
+                                                        vmin=inv_norm(linspace_binning_min),
+                                                        vmax=inv_norm(linspace_binning_max),
+                                                        save_path_name='{}/ep{:04}_TRAIN_target_vs_pred_likelihood'.format(
+                                                            dirs['plot_dir_images'], epoch),
+                                                        input_sequence=input_sequence,
+                                                        title='Validation data (log, not normalized)')
 
         relative_mses.append(inner_relative_mses)
         persistence_target_mses.append(inner_persistence_target_mses)
@@ -327,40 +329,41 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
         print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, avg_inner_validation_loss),
               flush=True)
+        if plot_mse_boo:
+            plot_mse_light([relative_mses], label_list=['relative MSE'],
+                     save_path_name='{}/relative_mse'.format(dirs['plot_dir'], epoch),
+                     title='Relative MSE on lognorm data')
 
-        plot_mse_light([relative_mses], label_list=['relative MSE'],
-                 save_path_name='{}/relative_mse'.format(dirs['plot_dir'], epoch),
-                 title='Relative MSE on lognorm data')
+            # plot_mse([persistence_target_mses, zeros_target_mses, model_target_mses],
+            #          label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE'],
+            #          save_path_name='{}/mse'.format(dirs['plot_dir'], epoch),
+            #          title='MSE on lognorm data')
 
-        # plot_mse([persistence_target_mses, zeros_target_mses, model_target_mses],
-        #          label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE'],
-        #          save_path_name='{}/mse'.format(dirs['plot_dir'], epoch),
-        #          title='MSE on lognorm data')
+            # TODO: Why does zeros_target_mses differ that much from val_mses_model_target ???
+            plot_mse_heavy(mses_list=[persistence_target_mses, zeros_target_mses, model_target_mses,
+                      val_mses_zeros_target, val_mses_model_target],
+                     label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE',
+                                 'VAL Zeros target MSEs', 'VAL Model Target MSE'],
+                           color_list=['g', 'y', 'b', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--'],
+                     save_path_name='{}/mse_with_val'.format(dirs['plot_dir'], epoch),
+                     title='MSE on lognorm data')
 
-        # TODO: Why does zeros_target_mses differ that much from val_mses_model_target ???
-        plot_mse_heavy(mses_list=[persistence_target_mses, zeros_target_mses, model_target_mses,
-                  val_mses_zeros_target, val_mses_model_target],
-                 label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE',
-                             'VAL Zeros target MSEs', 'VAL Model Target MSE'],
-                       color_list=['g', 'y', 'b', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--'],
-                 save_path_name='{}/mse_with_val'.format(dirs['plot_dir'], epoch),
-                 title='MSE on lognorm data')
-
-        plot_mse_heavy(mses_list=[persistence_target_mses, zeros_target_mses, model_target_mses,
-                 val_mses_model_target],
-                 label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE',
-                             'VAL Model Target MSE'],
-                       color_list=['g', 'y', 'b', 'b'], linestyle_list=['-', '-', '-', '--'],
-                 save_path_name='{}/mse_with_val_training_baseline'.format(dirs['plot_dir'], epoch),
-                 title='MSE on lognorm data')
-
-        plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(dirs['plot_dir'], sim_name))
-        plot_img_histogram(pred_mm, '{}/ep{:04}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
-                           linspace_binning_max, ignore_min_max=False, title='Prediciton', **settings)
-        plot_img_histogram(input_sequence, '{}/ep{:04}_input_dist'.format(dirs['plot_dir'], epoch),
-                           linspace_binning_min, linspace_binning_max, title='Input', **settings)
-        plot_img_histogram(target, '{}/ep{:04}_target_dist'.format(dirs['plot_dir'], epoch),
-                           linspace_binning_min, linspace_binning_max, ignore_min_max=False, title='Target', **settings)
+            plot_mse_heavy(mses_list=[persistence_target_mses, zeros_target_mses, model_target_mses,
+                     val_mses_model_target],
+                     label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE',
+                                 'VAL Model Target MSE'],
+                           color_list=['g', 'y', 'b', 'b'], linestyle_list=['-', '-', '-', '--'],
+                     save_path_name='{}/mse_with_val_training_baseline'.format(dirs['plot_dir'], epoch),
+                     title='MSE on lognorm data')
+        if plot_losses_boo:
+            plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(dirs['plot_dir'], sim_name))
+        if plot_img_histogram_boo:
+            plot_img_histogram(pred_mm, '{}/ep{:04}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
+                               linspace_binning_max, ignore_min_max=False, title='Prediciton', **settings)
+            plot_img_histogram(input_sequence, '{}/ep{:04}_input_dist'.format(dirs['plot_dir'], epoch),
+                               linspace_binning_min, linspace_binning_max, title='Input', **settings)
+            plot_img_histogram(target, '{}/ep{:04}_target_dist'.format(dirs['plot_dir'], epoch),
+                               linspace_binning_min, linspace_binning_max, ignore_min_max=False, title='Target', **settings)
 
         if plot_average_preds_boo:
             plot_average_preds(all_pred_mm, all_target_mm, len(train_data_loader)*batch_size, '{}/average_preds'.
@@ -412,7 +415,7 @@ if __name__ == '__main__':
 
     local_machine_mode = True
 
-    sim_name_suffix = '_10_min_lead_time_10_months_random_splitting_3_days'
+    sim_name_suffix = '_chunked_splitting_6_months_c_to_32_bins_to_64'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -443,7 +446,7 @@ if __name__ == '__main__':
             'sim_same_suffix': sim_name_suffix,
 
             'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            'data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(10)],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
+            'data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(6)],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
             'data_variable_name': 'RV_recalc',
             'choose_time_span': False,
             'time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
@@ -451,8 +454,8 @@ if __name__ == '__main__':
             'data_loader_chunk_size': 20,
 
             # Parameters that give the network architecture
-            'upscale_c_to': 64, #128, # 512,
-            'num_bins_crossentropy': 32,
+            'upscale_c_to': 32, #64, #128, # 512,
+            'num_bins_crossentropy': 64,
 
             # 'minutes_per_iteration': 5,
             'width_height': 256,
@@ -479,10 +482,20 @@ if __name__ == '__main__':
             'testing': True,
 
             # Plotting stuff
+            'no_plotting': False, # This sets all plotting boos below to False
             'plot_average_preds_boo': True,
-            'plot_pixelwise_preds_boo': True
+            'plot_pixelwise_preds_boo': True,
+            'plot_target_vs_pred_boo': True,
+            'plot_mse_boo': True,
+            'plot_losses_boo': True,
+            'plot_img_histogram_boo': True,
 
         }
+
+    if settings['no_plotting']:
+        for en in ['plot_average_preds_boo', 'plot_pixelwise_preds_boo', 'plot_target_vs_pred_boo', 'plot_mse_boo',
+                   'plot_losses_boo', 'plot_img_histogram_boo']:
+            settings[en] = False
 
     if settings['local_machine_mode']:
         # settings['data_variable_name'] = 'WN_forecast'

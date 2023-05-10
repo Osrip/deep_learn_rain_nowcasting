@@ -1,6 +1,6 @@
 # pip3 install matplotlib torch einops tqdm h5py torchvision
 # create env conda create --name first_CNN_on_Radolan python=3.10
-mamba install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+mamba install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia -c conda-forge memory_profiler
 mamba install matplotlib einops tqdm h5py xarray dask netCDF4 bottleneck
 mamba install -c bioconda hurry.filesize
 pip3 install nvidia-ml-py3

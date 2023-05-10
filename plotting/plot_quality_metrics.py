@@ -6,6 +6,11 @@ import matplotlib.pyplot as plt
 
 from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
+import gc
+
+import matplotlib
+matplotlib.use('agg')
+
 
 
 def interpolate_smooth(x, y, window_size_smooth=4, polynomial_order_smooth=3, smooth=True, interpolate=True):
@@ -36,7 +41,11 @@ def plot_mse_light(mses_list, label_list, save_path_name, title=''):
     plt.yscale('log')
     plt.legend()
     plt.savefig(save_path_name, dpi=200)
-    plt.show()
+    plt.show(block=False)
+
+    plt.close("all")
+    plt.close()
+    gc.collect()
 
 
 def plot_mse_heavy(mses_list, label_list, linestyle_list, color_list, save_path_name, title=''):
@@ -50,7 +59,11 @@ def plot_mse_heavy(mses_list, label_list, linestyle_list, color_list, save_path_
     plt.yscale('log')
     plt.legend()
     plt.savefig(save_path_name, dpi=200)
-    plt.show()
+    plt.show(block=False)
+
+    plt.close("all")
+    plt.close()
+    gc.collect()
 
 
 def plot_losses(losses, validation_losses, save_path_name):
@@ -66,7 +79,11 @@ def plot_losses(losses, validation_losses, save_path_name):
     plt.yscale('log')
     plt.legend()
     plt.savefig(save_path_name, dpi=100)
-    plt.show()
+    plt.show(block=False)
+
+    plt.close("all")
+    plt.close()
+    gc.collect()
 
 
 def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples_per_epoch, save_path_name):
@@ -139,7 +156,11 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples_per_epoc
         ax2.set_ylim(ylim2)
 
     plt.savefig(save_path_name, dpi=600)
-    plt.show()
+    plt.show(block=False)
+
+    plt.close("all")
+    plt.close()
+    gc.collect()
 
 
 def plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, save_path_name, swap_x_y=True):
@@ -173,4 +194,8 @@ def plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, save_path_name, swap
     plt.ylabel(ylabel)
     plt.title('Predictions')
     plt.savefig(save_path_name, dpi=300, bbox_inches='tight')
-    plt.show()
+    plt.show(block=False)
+
+    plt.close("all")
+    plt.close()
+    gc.collect()

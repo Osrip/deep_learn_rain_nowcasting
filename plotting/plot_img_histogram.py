@@ -2,6 +2,11 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
+import gc
+import matplotlib
+matplotlib.use('agg')
+
+
 
 # def plot_img_histogram(img, save_path):
 #     flat_img = torch.flatten(img)
@@ -38,4 +43,8 @@ def plot_img_histogram(img, save_path_name, xmin, xmax, num_bins_crossentropy, i
     # plt.xscale('log')
 
     plt.savefig(save_path_name, dpi=100)
-    plt.show()
+    plt.show(block=False)
+
+    plt.close("all")
+    plt.close()
+    gc.collect()

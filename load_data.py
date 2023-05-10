@@ -114,6 +114,7 @@ class PrecipitationFilteredDataset(Dataset):
         target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
         data_dataset = xr.open_dataset('{}/{}'.format(self.folder_path, file))
         input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence, last_idx_input_sequence)) # last_idx_input_sequence + 1 like in np! Did I already do that prior?
+
         input_sequence = input_data_set[self.data_variable_name].values
         # Get rid of steps dimension
         input_sequence = input_sequence[:, 0, :, :]
@@ -126,6 +127,7 @@ class PrecipitationFilteredDataset(Dataset):
         input_sequence = lognormalize_data(input_sequence, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.normalize)
         target_data_set = data_dataset.isel(time=target_idx_input_sequence)
         target = target_data_set[self.data_variable_name].values
+        del data_dataset
         # Get rid of steps dimension as we only have one index anyways
         # TODO: Check what this does on Slurm with non-test data!
         target = target[0]
