@@ -8,8 +8,8 @@ from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
 import gc
 
-import matplotlib
-matplotlib.use('agg')
+# import matplotlib
+# matplotlib.use('agg')
 
 
 

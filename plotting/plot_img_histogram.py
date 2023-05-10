@@ -3,8 +3,8 @@ import torch
 import matplotlib.pyplot as plt
 
 import gc
-import matplotlib
-matplotlib.use('agg')
+# import matplotlib
+# matplotlib.use('agg')
 
 
 

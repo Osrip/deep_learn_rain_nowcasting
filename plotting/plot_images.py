@@ -5,8 +5,8 @@ from matplotlib import colors
 from helper_functions import convert_tensor_to_np
 
 import gc
-import matplotlib
-matplotlib.use('agg')
+# import matplotlib
+# matplotlib.use('agg')
 
 
 def plot_image(image, save_path_name, vmin, vmax, title=''):
