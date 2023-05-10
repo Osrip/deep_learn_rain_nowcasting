@@ -229,9 +229,11 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             input_sequence = input_sequence.to(device=device, dtype=torch.float32)
             target_one_hot = target_one_hot.to(device)
 
+            # todo --> into getitem
             target = T.CenterCrop(size=width_height_target)(target)
             target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
             target_one_hot = target_one_hot.float()
+
             target_one_hot = target_one_hot.to(device)
             target = target.to(device).detach()
 
