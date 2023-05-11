@@ -49,7 +49,7 @@ def print_gpu_memory():
 
 
 def validate(model, validation_data_loader, linspace_binning, linspace_binning_max, linspace_binning_min,
-             epoch, mean_filtered_data, std_filtered_data, s_width_height_target, device, plot_target_vs_pred_boo,**__):
+             epoch, mean_filtered_data, std_filtered_data, s_width_height_target, device, s_plot_target_vs_pred_boo,**__):
 
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
@@ -81,19 +81,19 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
 
             if i == 0:
                 # Imshow plots
-                if plot_target_vs_pred_boo:
+                if s_plot_target_vs_pred_boo:
                     inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
                                                                 inverse_normalize=True)
 
                     plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
                                         vmax=inv_norm(linspace_binning_max),
-                                        save_path_name='{}/ep{:04}_VAL_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
+                                        save_path_name='{}/ep{:04}_VAL_target_vs_pred'.format(s_dirs['plot_dir_images'], epoch),
                                         title='Validation data (log, not normalized)')
 
                     plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred_mm), pred,
                                         linspace_binning=inv_norm(linspace_binning), vmin=inv_norm(linspace_binning_min),
                                         vmax=inv_norm(linspace_binning_max),
-                                        save_path_name='{}/ep{:04}_VAL_target_vs_pred_likelihood'.format(dirs['plot_dir_images'], epoch),
+                                        save_path_name='{}/ep{:04}_VAL_target_vs_pred_likelihood'.format(s_dirs['plot_dir_images'], epoch),
                                         title='Validation data (log, not normalized)')
 
             # val_mse_persistence_target.append(mse_loss(cropped_persistence, target).item())
@@ -106,19 +106,19 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
 
 def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_num_input_time_steps: int, s_num_lead_time_steps,
           s_num_bins_crossentropy, s_width_height_target, s_batch_size, s_ratio_training_data,
-          dirs, s_local_machine_mode, s_log_transform, s_normalize, plot_average_preds_boo, plot_pixelwise_preds_boo,
-          s_save_trained_model, s_data_loader_chunk_size, plot_target_vs_pred_boo, plot_img_histogram_boo, plot_losses_boo,
-          plot_mse_boo, settings, **__):
+          s_dirs, s_local_machine_mode, s_log_transform, s_normalize, s_plot_average_preds_boo, s_plot_pixelwise_preds_boo,
+          s_save_trained_model, s_data_loader_chunk_size, s_plot_target_vs_pred_boo, s_plot_img_histogram_boo, s_plot_losses_boo,
+          s_plot_mse_boo, settings, **__):
 
     if s_log_transform:
         transform_f = lambda x: np.log(x + 1)
     else:
         transform_f = lambda x: x
 
-    save_settings(settings, dirs['save_dir'])
+    save_settings(settings, s_dirs['save_dir'])
 
     # try:
-    save_whole_project(dirs['code_dir'])
+    save_whole_project(s_dirs['code_dir'])
     # except Exception:
     #     print('Could not create backup copy of code')
     # num_pictures_loaded = s_num_input_time_steps + 1 + s_num_lead_time_steps
@@ -195,7 +195,7 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
     zeros_target_mses = []
     model_target_mses = []
 
-    if plot_average_preds_boo or plot_pixelwise_preds_boo:
+    if s_plot_average_preds_boo or s_plot_pixelwise_preds_boo:
         all_pred_mm = []
         all_target_mm = []
 
@@ -249,7 +249,7 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
             pred_mm = torch.from_numpy(pred_mm).to(device).detach()
 
-            if plot_average_preds_boo or plot_pixelwise_preds_boo:
+            if s_plot_average_preds_boo or s_plot_pixelwise_preds_boo:
                 for k in range(pred_mm.shape[0]):
 
                     pred_mm_arr = pred_mm.detach().cpu().numpy()
@@ -288,10 +288,10 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
                 inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
                                                             inverse_normalize=True)
 
-                if plot_target_vs_pred_boo:
+                if s_plot_target_vs_pred_boo:
                     plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
                                         vmax=inv_norm(linspace_binning_max),
-                                        save_path_name='{}/ep{:04}_TRAIN_target_vs_pred'.format(dirs['plot_dir_images'], epoch),
+                                        save_path_name='{}/ep{:04}_TRAIN_target_vs_pred'.format(s_dirs['plot_dir_images'], epoch),
                                         title='Training data (log, not normalized)')
 
                     plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred_mm), pred,
@@ -299,7 +299,7 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
                                                         vmin=inv_norm(linspace_binning_min),
                                                         vmax=inv_norm(linspace_binning_max),
                                                         save_path_name='{}/ep{:04}_TRAIN_target_vs_pred_likelihood'.format(
-                                                            dirs['plot_dir_images'], epoch),
+                                                            s_dirs['plot_dir_images'], epoch),
                                                         input_sequence=input_sequence,
                                                         title='Validation data (log, not normalized)')
 
@@ -324,14 +324,14 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
 
         print('Epoch: {} Training loss: {}, Validation loss: {}'.format(epoch, avg_inner_loss, avg_inner_validation_loss),
               flush=True)
-        if plot_mse_boo:
+        if s_plot_mse_boo:
             plot_mse_light([relative_mses], label_list=['relative MSE'],
-                     save_path_name='{}/relative_mse'.format(dirs['plot_dir'], epoch),
+                     save_path_name='{}/relative_mse'.format(s_dirs['plot_dir'], epoch),
                      title='Relative MSE on lognorm data')
 
             # plot_mse([persistence_target_mses, zeros_target_mses, model_target_mses],
             #          label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE'],
-            #          save_path_name='{}/mse'.format(dirs['plot_dir'], epoch),
+            #          save_path_name='{}/mse'.format(s_dirs['plot_dir'], epoch),
             #          title='MSE on lognorm data')
 
             # TODO: Why does zeros_target_mses differ that much from val_mses_model_target ???
@@ -340,7 +340,7 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
                      label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE',
                                  'VAL Zeros target MSEs', 'VAL Model Target MSE'],
                            color_list=['g', 'y', 'b', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--'],
-                     save_path_name='{}/mse_with_val'.format(dirs['plot_dir'], epoch),
+                     save_path_name='{}/mse_with_val'.format(s_dirs['plot_dir'], epoch),
                      title='MSE on lognorm data')
 
             plot_mse_heavy(mses_list=[persistence_target_mses, zeros_target_mses, model_target_mses,
@@ -348,37 +348,37 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
                      label_list=['Persistence Target MSE', 'Zeros target MSEs', 'Model Target MSE',
                                  'VAL Model Target MSE'],
                            color_list=['g', 'y', 'b', 'b'], linestyle_list=['-', '-', '-', '--'],
-                     save_path_name='{}/mse_with_val_training_baseline'.format(dirs['plot_dir'], epoch),
+                     save_path_name='{}/mse_with_val_training_baseline'.format(s_dirs['plot_dir'], epoch),
                      title='MSE on lognorm data')
-        if plot_losses_boo:
-            plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(dirs['plot_dir'], s_sim_name))
-        if plot_img_histogram_boo:
-            plot_img_histogram(pred_mm, '{}/ep{:04}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
+        if s_plot_losses_boo:
+            plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(s_dirs['plot_dir'], s_sim_name))
+        if s_plot_img_histogram_boo:
+            plot_img_histogram(pred_mm, '{}/ep{:04}_pred_dist'.format(s_dirs['plot_dir'], epoch), linspace_binning_min,
                                linspace_binning_max, ignore_min_max=False, title='Prediciton', **settings)
-            plot_img_histogram(input_sequence, '{}/ep{:04}_input_dist'.format(dirs['plot_dir'], epoch),
+            plot_img_histogram(input_sequence, '{}/ep{:04}_input_dist'.format(s_dirs['plot_dir'], epoch),
                                linspace_binning_min, linspace_binning_max, title='Input', **settings)
-            plot_img_histogram(target, '{}/ep{:04}_target_dist'.format(dirs['plot_dir'], epoch),
+            plot_img_histogram(target, '{}/ep{:04}_target_dist'.format(s_dirs['plot_dir'], epoch),
                                linspace_binning_min, linspace_binning_max, ignore_min_max=False, title='Target', **settings)
 
-        if plot_average_preds_boo:
+        if s_plot_average_preds_boo:
             plot_average_preds(all_pred_mm, all_target_mm, len(train_data_loader)*s_batch_size, '{}/average_preds'.
-                               format(dirs['plot_dir']))
+                               format(s_dirs['plot_dir']))
 
-        if plot_pixelwise_preds_boo:
+        if s_plot_pixelwise_preds_boo:
             try:
-                plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, '{}/pixelwise_preds'.format(dirs['plot_dir']))
+                plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, '{}/pixelwise_preds'.format(s_dirs['plot_dir']))
             except ValueError:
                 warnings.warn('Could not plot pixel wise pres plot in epoch {}'.format(epoch))
 
         if s_save_trained_model:
-            save_zipped_pickle('{}/model_epoch_{}'.format(dirs['model_dir'], epoch), model)
+            save_zipped_pickle('{}/model_epoch_{}'.format(s_dirs['model_dir'], epoch), model)
 
     return model
 
 
 def main(s_save_trained_model, s_load_model, s_num_input_time_steps, s_upscale_c_to, s_load_model_name, s_width_height,
-         s_num_bins_crossentropy, testing, settings, **_):
-    if testing:
+         s_num_bins_crossentropy, s_testing, settings, **_):
+    if s_testing:
         test_all()
 
     if s_load_model:
@@ -423,14 +423,14 @@ if __name__ == '__main__':
     else:
         s_sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), int(os.environ['SLURM_JOB_ID']))  # SLURM_ARRAY_TASK_ID
 
-    dirs = {}
-    dirs['save_dir'] = 'runs/{}{}'.format(s_sim_name, s_sim_name_suffix)
-    dirs['plot_dir'] = '{}/plots'.format(dirs['save_dir'])
-    dirs['plot_dir_images'] = '{}/images'.format(dirs['plot_dir'])
-    dirs['model_dir'] = '{}/model'.format(dirs['save_dir'])
-    dirs['code_dir'] = '{}/code'.format(dirs['save_dir'])
+    s_dirs = {}
+    s_dirs['save_dir'] = 'runs/{}{}'.format(s_sim_name, s_sim_name_suffix)
+    s_dirs['plot_dir'] = '{}/plots'.format(s_dirs['save_dir'])
+    s_dirs['plot_dir_images'] = '{}/images'.format(s_dirs['plot_dir'])
+    s_dirs['model_dir'] = '{}/model'.format(s_dirs['save_dir'])
+    s_dirs['code_dir'] = '{}/code'.format(s_dirs['save_dir'])
 
-    for _, make_dir in dirs.items():
+    for _, make_dir in s_dirs.items():
         if not os.path.exists(make_dir):
             os.makedirs(make_dir)
 
@@ -464,32 +464,32 @@ if __name__ == '__main__':
             's_save_trained_model': True, # saves model every epoch
             's_load_model': False,
             's_load_model_name': 'Run_·20230220-191041',
-            'dirs': dirs,
+            's_dirs': s_dirs,
             'device': device,
 
             # Log transform input/ validation data --> log binning --> log(x+1)
             's_log_transform': True,
             's_normalize': True,
 
-            'min_rain_ratio_target': 0.01, #Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its
+            's_min_rain_ratio_target': 0.01, #Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its
             # prior input sequence to make it through the filter into the training data
 
-            'testing': True,
+            's_testing': True,
 
             # Plotting stuff
-            'no_plotting': False, # This sets all plotting boos below to False
-            'plot_average_preds_boo': True,
-            'plot_pixelwise_preds_boo': True,
-            'plot_target_vs_pred_boo': True,
-            'plot_mse_boo': True,
-            'plot_losses_boo': True,
-            'plot_img_histogram_boo': True,
+            's_no_plotting': False, # This sets all plotting boos below to False
+            's_plot_average_preds_boo': True,
+            's_plot_pixelwise_preds_boo': True,
+            's_plot_target_vs_pred_boo': True,
+            's_plot_mse_boo': True,
+            's_plot_losses_boo': True,
+            's_plot_img_histogram_boo': True,
 
         }
 
-    if settings['no_plotting']:
-        for en in ['plot_average_preds_boo', 'plot_pixelwise_preds_boo', 'plot_target_vs_pred_boo', 'plot_mse_boo',
-                   'plot_losses_boo', 'plot_img_histogram_boo']:
+    if settings['s_no_plotting']:
+        for en in ['s_plot_average_preds_boo', 's_plot_pixelwise_preds_boo', 's_plot_target_vs_pred_boo', 's_plot_mse_boo',
+                   's_plot_losses_boo', 's_plot_img_histogram_boo']:
             settings[en] = False
 
     if settings['s_local_machine_mode']:
@@ -514,8 +514,8 @@ if __name__ == '__main__':
         settings['s_upscale_c_to'] = 32  # 8
         settings['s_batch_size'] = 2
         settings['s_data_loader_chunk_size'] = 2
-        settings['testing'] = True  # Runs tests at the beginning
-        settings['min_rain_ratio_target'] = 0  # Deactivated # No Filter
+        settings['s_testing'] = True  # Runs tests at the beginning
+        settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
     main(settings=settings, **settings)

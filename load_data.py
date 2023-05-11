@@ -154,7 +154,7 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
 
 
 def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_folder_path, s_data_file_names, s_width_height, s_data_variable_name,
-                           s_time_span, s_local_machine_mode, s_width_height_target, min_rain_ratio_target, s_choose_time_span=False, **__):
+                           s_time_span, s_local_machine_mode, s_width_height_target, s_min_rain_ratio_target, s_choose_time_span=False, **__):
     '''
     time span only refers to a single file
     '''
@@ -185,7 +185,7 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
             curr_target_cropped = np.array(T.CenterCrop(size=s_width_height_target)(torch.from_numpy(curr_data_sequence[target_idx_input_sequence])))
             curr_input_sequence = curr_data_sequence[first_idx_input_sequence:last_idx_input_sequence, :, :]
-            if filter(curr_input_sequence, curr_target_cropped, min_rain_ratio_target):
+            if filter(curr_input_sequence, curr_target_cropped, s_min_rain_ratio_target):
                 num_frames_passed_filter += 1
                 filtered_data_loader_indecies_dict = {}
                 filtered_data_loader_indecies_dict['file'] = data_file_name
@@ -226,21 +226,21 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
             # TODO: Write a test for this!!
             # TODO: When is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
         if num_x == 0:
-            raise Exception('No data passed the filter conditions of min_rain_ratio_target={}, such that there is no '
-                            'data for training and validation.'.format(min_rain_ratio_target))
+            raise Exception('No data passed the filter conditions of s_min_rain_ratio_target={}, such that there is no '
+                            'data for training and validation.'.format(s_min_rain_ratio_target))
         else:
             print('{} data points out of a total of {} scanned data points'
-                  ' passed the filter condition of min_rain_ratio_target={}'.format(
-                num_frames_passed_filter, num_frames_total, min_rain_ratio_target))
+                  ' passed the filter condition of s_min_rain_ratio_target={}'.format(
+                num_frames_passed_filter, num_frames_total, s_min_rain_ratio_target))
         mean_filtered_data = sum_x / num_x
         std_filtered_data = np.sqrt((sum_x_squared / num_x) - mean_filtered_data ** 2)
     return filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
         linspace_binning_max_unnormalized
 
 
-# def filter(input_sequence, target, min_rain_ratio_target):
+# def filter(input_sequence, target, s_min_rain_ratio_target):
 #     '''
-#     Looks whether on what percentage on target there is rain. If percentage exceeds min_rain_ratio_target return True
+#     Looks whether on what percentage on target there is rain. If percentage exceeds s_min_rain_ratio_target return True
 #     , False otherwise
 #     '''
 #     # Todo: Implement filter!
@@ -255,9 +255,9 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
 
 
-# def filter(input_sequence, target, min_rain_ratio_target, percentage=1):
+# def filter(input_sequence, target, s_min_rain_ratio_target, percentage=1):
 #     '''
-#     Looks whether on what percentage on target there is rain. If percentage exceeds min_rain_ratio_target return True
+#     Looks whether on what percentage on target there is rain. If percentage exceeds s_min_rain_ratio_target return True
 #     , False otherwise
 #     percentage 0.3 default
 #     '''
@@ -274,7 +274,7 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
 
 
-def filter(input_sequence, target, min_rain_ratio_target, percentage=0.5, min_amount_rain=0.05):
+def filter(input_sequence, target, s_min_rain_ratio_target, percentage=0.5, min_amount_rain=0.05):
 
     '''
     reasonable amount of data passes: percentage=0.5, min_amount_rain=0.05
