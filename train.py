@@ -30,9 +30,9 @@ import copy
 mse_loss = torch.nn.MSELoss()
 
 
-def check_backward(model, learning_rate, device):
+def check_backward(model, s_learning_rate, device):
     criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=s_learning_rate)
     input = torch.randn((4, 8, 256, 256), device=device)
     target = torch.randn((4, 64, 32, 32), device=device)
     pred = model(input)
@@ -49,7 +49,7 @@ def print_gpu_memory():
 
 
 def validate(model, validation_data_loader, linspace_binning, linspace_binning_max, linspace_binning_min,
-             epoch, mean_filtered_data, std_filtered_data, width_height_target, device, plot_target_vs_pred_boo,**__):
+             epoch, mean_filtered_data, std_filtered_data, s_width_height_target, device, plot_target_vs_pred_boo,**__):
 
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
@@ -62,7 +62,7 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
         for i, (input_sequence, target_one_hot, target) in enumerate(validation_data_loader):
             input_sequence = input_sequence.float()
             input_sequence = input_sequence.to(device)
-            target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
+            target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
             target_one_hot = target_one_hot.float()
             target_one_hot = target_one_hot.to(device)
 
@@ -104,13 +104,13 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
     return validation_losses, val_mse_zeros_target, val_mse_model_target
 
 
-def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_input_time_steps: int, num_lead_time_steps,
-          num_bins_crossentropy, width_height_target, batch_size, ratio_training_data,
-          dirs, local_machine_mode, log_transform, normalize, plot_average_preds_boo, plot_pixelwise_preds_boo,
-          save_trained_model, data_loader_chunk_size, plot_target_vs_pred_boo, plot_img_histogram_boo, plot_losses_boo,
+def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_num_input_time_steps: int, s_num_lead_time_steps,
+          s_num_bins_crossentropy, s_width_height_target, s_batch_size, s_ratio_training_data,
+          dirs, s_local_machine_mode, s_log_transform, s_normalize, plot_average_preds_boo, plot_pixelwise_preds_boo,
+          s_save_trained_model, s_data_loader_chunk_size, plot_target_vs_pred_boo, plot_img_histogram_boo, plot_losses_boo,
           plot_mse_boo, settings, **__):
 
-    if log_transform:
+    if s_log_transform:
         transform_f = lambda x: np.log(x + 1)
     else:
         transform_f = lambda x: x
@@ -121,16 +121,16 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     save_whole_project(dirs['code_dir'])
     # except Exception:
     #     print('Could not create backup copy of code')
-    # num_pictures_loaded = num_input_time_steps + 1 + num_lead_time_steps
+    # num_pictures_loaded = s_num_input_time_steps + 1 + s_num_lead_time_steps
 
     # relative index of last input picture (starting from first input picture as idx 1)
-    last_input_rel_idx = num_input_time_steps
+    last_input_rel_idx = s_num_input_time_steps
     #  relative index of target picture (starting from first input picture as idx 1)
-    target_rel_idx = num_input_time_steps + 1 + num_lead_time_steps
+    target_rel_idx = s_num_input_time_steps + 1 + s_num_lead_time_steps
     # Number of pictures
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=s_learning_rate)
     # TODO: Enable saving to pickle at some point
     print('Load Data', flush=True)
 
@@ -140,23 +140,23 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
 
     # Normalize linspace binning thresholds now that data is available
     linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized, mean_filtered_data, std_filtered_data,
-                                             transform_f, normalize) - 0.00001
+                                             transform_f, s_normalize) - 0.00001
     # Subtract a small number to account for rounding errors made in the normalization process
     linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_data, std_filtered_data,
-                                             transform_f, normalize)
+                                             transform_f, s_normalize)
 
     linspace_binning_min = linspace_binning_min - 0.1
     linspace_binning_max = linspace_binning_max + 0.1
 
-    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=num_bins_crossentropy,
+    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=s_num_bins_crossentropy,
                                    endpoint=False)  # num_indecies + 1 as the very last entry will never be used
 
     # Defining and splitting into training and validation data set
-    num_training_samples = int(len(filtered_indecies) * ratio_training_data)
+    num_training_samples = int(len(filtered_indecies) * s_ratio_training_data)
     num_validation_samples = len(filtered_indecies) - num_training_samples
 
     filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
-        filtered_indecies, num_training_samples, num_validation_samples, data_loader_chunk_size)
+        filtered_indecies, num_training_samples, num_validation_samples, s_data_loader_chunk_size)
 
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning, transform_f, **settings)
@@ -172,17 +172,17 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
     # train_data_set, validation_data_set = torch.utils.data.random_split(full_data_set,
     #                                                                     [num_training_samples, num_validation_samples])
 
-    train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
+    train_data_loader = DataLoader(train_data_set, batch_size=s_batch_size, shuffle=True, drop_last=True)
     del train_data_set
 
-    validation_data_loader = DataLoader(validation_data_set, batch_size=batch_size, shuffle=True, drop_last=True)
+    validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=True, drop_last=True)
     del validation_data_set
     print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
                                                                                                  num_training_samples,
                                                                                                  num_validation_samples))
     print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
                                                                                        len(validation_data_loader),
-                                                                                       batch_size))
+                                                                                       s_batch_size))
     losses = []
 
     validation_losses = []
@@ -200,7 +200,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
         all_target_mm = []
 
     # Iterate through epochs
-    for epoch in range(num_epochs):
+    for epoch in range(s_num_epochs):
         if device.type == 'cuda':
             print_gpu_memory()
 
@@ -230,8 +230,8 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             target_one_hot = target_one_hot.to(device)
 
             # todo --> into getitem
-            target = T.CenterCrop(size=width_height_target)(target)
-            target_one_hot = T.CenterCrop(size=width_height_target)(target_one_hot)
+            target = T.CenterCrop(size=s_width_height_target)(target)
+            target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
             target_one_hot = target_one_hot.float()
 
             target_one_hot = target_one_hot.to(device)
@@ -269,7 +269,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             inner_losses.append(inner_loss)
 
             persistence = input_sequence[:, -1, :, :]
-            persistence = T.CenterCrop(size=width_height_target)(persistence)
+            persistence = T.CenterCrop(size=s_width_height_target)(persistence)
             mse_persistence_target = mse_loss(persistence, target).item()
             # TODO REMOVE THIS ONLY DEBUGGING:
             mse_zeros_target = mse_loss(torch.zeros(target.shape).to(device), target).item()
@@ -351,7 +351,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                      save_path_name='{}/mse_with_val_training_baseline'.format(dirs['plot_dir'], epoch),
                      title='MSE on lognorm data')
         if plot_losses_boo:
-            plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(dirs['plot_dir'], sim_name))
+            plot_losses(losses, validation_losses, save_path_name='{}/{}_loss.png'.format(dirs['plot_dir'], s_sim_name))
         if plot_img_histogram_boo:
             plot_img_histogram(pred_mm, '{}/ep{:04}_pred_dist'.format(dirs['plot_dir'], epoch), linspace_binning_min,
                                linspace_binning_max, ignore_min_max=False, title='Prediciton', **settings)
@@ -361,7 +361,7 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                                linspace_binning_min, linspace_binning_max, ignore_min_max=False, title='Target', **settings)
 
         if plot_average_preds_boo:
-            plot_average_preds(all_pred_mm, all_target_mm, len(train_data_loader)*batch_size, '{}/average_preds'.
+            plot_average_preds(all_pred_mm, all_target_mm, len(train_data_loader)*s_batch_size, '{}/average_preds'.
                                format(dirs['plot_dir']))
 
         if plot_pixelwise_preds_boo:
@@ -370,27 +370,27 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
             except ValueError:
                 warnings.warn('Could not plot pixel wise pres plot in epoch {}'.format(epoch))
 
-        if save_trained_model:
+        if s_save_trained_model:
             save_zipped_pickle('{}/model_epoch_{}'.format(dirs['model_dir'], epoch), model)
 
     return model
 
 
-def main(save_trained_model, load_model, num_input_time_steps, upscale_c_to, load_model_name, width_height,
-         num_bins_crossentropy, testing, settings, **_):
+def main(s_save_trained_model, s_load_model, s_num_input_time_steps, s_upscale_c_to, s_load_model_name, s_width_height,
+         s_num_bins_crossentropy, testing, settings, **_):
     if testing:
         test_all()
 
-    if load_model:
-        model = load_zipped_pickle('runs/{}/model/trained_model'.format(load_model_name))
+    if s_load_model:
+        model = load_zipped_pickle('runs/{}/model/trained_model'.format(s_load_model_name))
     else:
-        model = Network(c_in=num_input_time_steps, upscale_c_to=upscale_c_to,
-                        num_bins_crossentropy=num_bins_crossentropy, width_height_in=width_height)
+        model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
+                        s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
     model = model.to(device)
     # NETWORK STILL NEEDS NUMBER OF OUTPUT CHANNELS num_channels_one_hot_output !!!
 
     # Throws an error on remote venv for some reason
-    # optimized_model = check_backward(model, learning_rate=0.001, device='cpu')
+    # optimized_model = check_backward(model, s_learning_rate=0.001, device='cpu')
 
 
     print('Model has {} parameters'.format(sum(p.numel() for p in model.parameters() if p.requires_grad)))
@@ -406,11 +406,11 @@ if __name__ == '__main__':
     # num_validation_samples = 20  # 600
 
     # train_start_date_time = datetime.datetime(2020, 12, 1)
-    # folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
+    # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    local_machine_mode = False
+    s_local_machine_mode = True
 
-    sim_name_suffix = '_6_months'
+    s_sim_name_suffix = '_12_months_filter_all_below_0'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -418,13 +418,13 @@ if __name__ == '__main__':
         nvidia_smi.nvmlInit()
     # device = 'cpu'
 
-    if local_machine_mode:
-        sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    if s_local_machine_mode:
+        s_sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     else:
-        sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), int(os.environ['SLURM_JOB_ID']))  # SLURM_ARRAY_TASK_ID
+        s_sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), int(os.environ['SLURM_JOB_ID']))  # SLURM_ARRAY_TASK_ID
 
     dirs = {}
-    dirs['save_dir'] = 'runs/{}{}'.format(sim_name, sim_name_suffix)
+    dirs['save_dir'] = 'runs/{}{}'.format(s_sim_name, s_sim_name_suffix)
     dirs['plot_dir'] = '{}/plots'.format(dirs['save_dir'])
     dirs['plot_dir_images'] = '{}/images'.format(dirs['plot_dir'])
     dirs['model_dir'] = '{}/model'.format(dirs['save_dir'])
@@ -436,40 +436,40 @@ if __name__ == '__main__':
 
     settings =\
         {
-            'local_machine_mode': local_machine_mode,
-            'sim_name': sim_name,
-            'sim_same_suffix': sim_name_suffix,
+            's_local_machine_mode': s_local_machine_mode,
+            's_sim_name': s_sim_name,
+            's_sim_same_suffix': s_sim_name_suffix,
 
-            'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            'data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(6)],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
-            'data_variable_name': 'RV_recalc',
-            'choose_time_span': False,
-            'time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
-            'ratio_training_data': 0.6,
-            'data_loader_chunk_size': 20,
+            's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
+            's_data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(12)],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
+            's_data_variable_name': 'RV_recalc',
+            's_choose_time_span': False,
+            's_time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
+            's_ratio_training_data': 0.6,
+            's_data_loader_chunk_size': 20,
 
             # Parameters that give the network architecture
-            'upscale_c_to': 32, #64, #128, # 512,
-            'num_bins_crossentropy': 64,
+            's_upscale_c_to': 32, #64, #128, # 512,
+            's_num_bins_crossentropy': 64,
 
             # 'minutes_per_iteration': 5,
-            'width_height': 256,
-            'width_height_target': 32,
-            'learning_rate': 0.0001,  # Schedule this at some point??
-            'num_epochs': 1000,
-            'num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
-            'num_lead_time_steps': 1,  # 5, # The number of pictures that are skipped from last input time step to target, starts with 0
-            'optical_flow_input': False,  # Not yet working!
-            'batch_size': 55,  # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
-            'save_trained_model': True, # saves model every epoch
-            'load_model': False,
-            'load_model_name': 'Run_·20230220-191041',
+            's_width_height': 256,
+            's_width_height_target': 32,
+            's_learning_rate': 0.0001,  # Schedule this at some point??
+            's_num_epochs': 1000,
+            's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
+            's_num_lead_time_steps': 1,  # 5, # The number of pictures that are skipped from last input time step to target, starts with 0
+            's_optical_flow_input': False,  # Not yet working!
+            's_batch_size': 55,  # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
+            's_save_trained_model': True, # saves model every epoch
+            's_load_model': False,
+            's_load_model_name': 'Run_·20230220-191041',
             'dirs': dirs,
             'device': device,
 
             # Log transform input/ validation data --> log binning --> log(x+1)
-            'log_transform': True,
-            'normalize': True,
+            's_log_transform': True,
+            's_normalize': True,
 
             'min_rain_ratio_target': 0.01, #Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its
             # prior input sequence to make it through the filter into the training data
@@ -492,28 +492,28 @@ if __name__ == '__main__':
                    'plot_losses_boo', 'plot_img_histogram_boo']:
             settings[en] = False
 
-    if settings['local_machine_mode']:
-        # settings['data_variable_name'] = 'WN_forecast'
-        settings['data_variable_name'] = 'RV_recalc'
+    if settings['s_local_machine_mode']:
+        # settings['s_data_variable_name'] = 'WN_forecast'
+        settings['s_data_variable_name'] = 'RV_recalc'
 
-        # settings['folder_path'] = 'dwd_nc/test_data'
-        # settings['folder_path'] = '/mnt/common/Jan/Programming/weather_data/dwd_nc/rv_recalc_months'
-        # settings['folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
-        # settings['folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
-        settings['folder_path'] = 'dwd_nc/own_test_data'
+        # settings['s_folder_path'] = 'dwd_nc/test_data'
+        # settings['s_folder_path'] = '/mnt/common/Jan/Programming/weather_data/dwd_nc/rv_recalc_months'
+        # settings['s_folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
+        # settings['s_folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
+        settings['s_folder_path'] = 'dwd_nc/own_test_data'
 
-        # settings['data_file_names'] = ['DE1200_RV_Recalc_20190101.nc']
-        # settings['data_file_names'] = ['RV_recalc_data_2019-01.nc']
-        settings['data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
-        # settings['data_file_names'] = ['RV_recalc_data_2019-01_subset_bigger.nc']
+        # settings['s_data_file_names'] = ['DE1200_RV_Recalc_20190101.nc']
+        # settings['s_data_file_names'] = ['RV_recalc_data_2019-01.nc']
+        settings['s_data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
+        # settings['s_data_file_names'] = ['RV_recalc_data_2019-01_subset_bigger.nc']
 
-        # settings['choose_time_span'] = True
-        settings['choose_time_span'] = False
-        # settings['time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
-        settings['time_span'] = (67, 150)  # <-- now done according to index (isel instead of sel)
-        settings['upscale_c_to'] = 32  # 8
-        settings['batch_size'] = 2
-        settings['data_loader_chunk_size'] = 2
+        # settings['s_choose_time_span'] = True
+        settings['s_choose_time_span'] = False
+        # settings['s_time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
+        settings['s_time_span'] = (67, 150)  # <-- now done according to index (isel instead of sel)
+        settings['s_upscale_c_to'] = 32  # 8
+        settings['s_batch_size'] = 2
+        settings['s_data_loader_chunk_size'] = 2
         settings['testing'] = True  # Runs tests at the beginning
         settings['min_rain_ratio_target'] = 0  # Deactivated # No Filter
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!

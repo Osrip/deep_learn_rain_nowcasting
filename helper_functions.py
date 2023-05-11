@@ -10,10 +10,10 @@ from shutil import copyfile
 import torch
 
 
-def create_dilation_list(width_height, inverse_ratio=4):
+def create_dilation_list(s_width_height, inverse_ratio=4):
     out = []
     en = 1
-    while en <= width_height / inverse_ratio:
+    while en <= s_width_height / inverse_ratio:
         out.append(en)
         en = en * 2
         if len(out) > 100:

@@ -73,7 +73,7 @@ def plot_losses(losses, validation_losses, save_path_name):
     plt.plot(mean_losses, label='Training Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    # plt.savefig('{}/{}_loss.png'.format(plot_dir, sim_name), dpi=100)
+    # plt.savefig('{}/{}_loss.png'.format(plot_dir, s_sim_name), dpi=100)
     # plt.show()
     plt.plot(mean_validation_losses, label='Validation Loss')
     plt.yscale('log')
@@ -92,10 +92,10 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples_per_epoc
     pred_mean = mean_arr_f(all_pred_mm)
     target_mean = mean_arr_f(all_target_mm)
 
-    num_epochs = int(pred_mean.shape[0] / num_training_samples_per_epoch)
+    s_num_epochs = int(pred_mean.shape[0] / num_training_samples_per_epoch)
     mean_per_epoch_arr_f = lambda x: np.array(
         [np.mean([np.array(x)[i + c * num_training_samples_per_epoch] for i in range(num_training_samples_per_epoch)])
-         for c in range(num_epochs)])
+         for c in range(s_num_epochs)])
 
     pred_mean_per_epoch = mean_per_epoch_arr_f(all_pred_mm)
     target_mean_per_epoch = mean_per_epoch_arr_f(all_target_mm)
@@ -108,7 +108,7 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples_per_epoc
     xlim2 = ax2.get_xlim()
 
     # plt.vlines(num_training_samples, xlim2[0], xlim2[1] - 0.5, colors='grey', linestyles='--', alpha=0.5)
-    vline_indecies = [num_training_samples_per_epoch * i for i in range(num_epochs)]
+    vline_indecies = [num_training_samples_per_epoch * i for i in range(s_num_epochs)]
     plt.vlines(vline_indecies, xlim2[0], xlim2[1], colors='grey', linestyles='--', alpha=0.5, linewidth=0.5)
 
 
@@ -132,7 +132,7 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples_per_epoc
     ylim1 = ax1.get_ylim()
     xlim1 = ax1.get_xlim()
 
-    vline_indecies = [num_training_samples_per_epoch * i for i in range(num_epochs)]
+    vline_indecies = [num_training_samples_per_epoch * i for i in range(s_num_epochs)]
 
     plt.vlines(vline_indecies, xlim1[0], xlim1[1], colors='grey', linestyles='--', alpha=0.5, linewidth=0.5)
 

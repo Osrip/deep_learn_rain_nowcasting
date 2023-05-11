@@ -15,7 +15,7 @@ def main():
     # test_tensor = torch.randn((3, 3, 32, 32), device=device)
     test_tensor = torch.randn((4, 8, 256, 256), device=device)
 
-    model = Network(c_in=8, width_height_in=256)
+    model = Network(c_in=8, s_width_height_in=256)
     x = model(test_tensor)
     pass
 

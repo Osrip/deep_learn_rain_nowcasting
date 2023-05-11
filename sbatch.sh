@@ -5,7 +5,7 @@
 #SBATCH --time=2-24:00            # Runtime in D-HH:MM
 #SBATCH --gres=gpu:1    # optionally type and number of gpus
 #SBATCH --partition=gpu-v100
-#SBATCH --mem=200G                # Memory pool for all cores (see also --mem-per-cpu) max 400 v-100
+#SBATCH --mem=199G                # Memory pool for all cores (see also --mem-per-cpu) max 400 v-100
 #SBATCH --output=out_%j.out  # File to which STDOUT will be written - make sure this is not on $HOME
 #SBATCH --error=err_%j.err   # File to which STDERR will be written - make sure this is not on $HOME
 #SBATCH --mail-type=END           # Type of email notification- BEGIN,END,FAIL,ALL

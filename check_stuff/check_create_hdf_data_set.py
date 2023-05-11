@@ -15,9 +15,9 @@ import einops
 
 
 def main(create_test_data, view_indecies_with_rain_cropped):
-    folder_path = '/mnt/common/Jan/Programming/weather_data/dwd_nc/rv_recalc_months/RV_recalc_data_2019-01.nc'
+    s_folder_path = '/mnt/common/Jan/Programming/weather_data/dwd_nc/rv_recalc_months/RV_recalc_data_2019-01.nc'
 
-    data_dataset = xr.open_dataset(folder_path)
+    data_dataset = xr.open_dataset(s_folder_path)
 
     interrupt = False
     i = 0

@@ -19,16 +19,16 @@ import gc
 
 
 
-def plot_img_histogram(img, save_path_name, xmin, xmax, num_bins_crossentropy, ignore_min_max=False, title='', **_):
+def plot_img_histogram(img, save_path_name, xmin, xmax, s_num_bins_crossentropy, ignore_min_max=False, title='', **_):
     plt.figure()
     flat_img = torch.flatten(img)
     flat_img = flat_img.detach().cpu().numpy()
     plt.subplot(111)
     plt.title(title)
     if not ignore_min_max:
-        hist, bins, _ = plt.hist(flat_img, bins=num_bins_crossentropy, range=(xmin, xmax))
+        hist, bins, _ = plt.hist(flat_img, bins=s_num_bins_crossentropy, range=(xmin, xmax))
     else:
-        hist, bins, _ = plt.hist(flat_img, bins=num_bins_crossentropy)
+        hist, bins, _ = plt.hist(flat_img, bins=s_num_bins_crossentropy)
 
     plt.xlabel('Log(x+1) normal data')
     plt.yscale('log')

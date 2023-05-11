@@ -63,8 +63,8 @@ from tqdm import tqdm
 
 class PrecipitationFilteredDataset(Dataset):
     def __init__(self, filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max, linspace_binning, transform_f,
-                 num_bins_crossentropy, folder_path, width_height, width_height_target, data_variable_name,
-                 local_machine_mode, normalize=True, **__):
+                 s_num_bins_crossentropy, s_folder_path, s_width_height, s_width_height_target, s_data_variable_name,
+                 s_local_machine_mode, s_normalize=True, **__):
         """
         Attributes:
         self.data_sequence --> log normalized data sequence
@@ -85,18 +85,18 @@ class PrecipitationFilteredDataset(Dataset):
 
         self.filtered_data_loader_indecies = filtered_data_loader_indecies
 
-        self.folder_path = folder_path
+        self.s_folder_path = s_folder_path
         self.transform_f = transform_f
-        self.width_height = width_height
-        self.width_height_target = width_height_target
-        self.normalize = normalize
-        self.num_bins_crossentropy = num_bins_crossentropy
+        self.s_width_height = s_width_height
+        self.s_width_height_target = s_width_height_target
+        self.s_normalize = s_normalize
+        self.s_num_bins_crossentropy = s_num_bins_crossentropy
         self.linspace_binning_min = linspace_binning_min
         self.linspace_binning_max = linspace_binning_max
         self.mean_filtered_data = mean_filtered_data
         self.std_filtered_data = std_filtered_data
-        self.data_variable_name = data_variable_name
-        self.local_machine_mode = local_machine_mode
+        self.s_data_variable_name = s_data_variable_name
+        self.s_local_machine_mode = s_local_machine_mode
 
         # log transform
         # Errors encountered!
@@ -112,32 +112,32 @@ class PrecipitationFilteredDataset(Dataset):
         first_idx_input_sequence = filtered_data_loader_indecies_dict['first_idx_input_sequence']
         last_idx_input_sequence = filtered_data_loader_indecies_dict['last_idx_input_sequence']
         target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
-        data_dataset = xr.open_dataset('{}/{}'.format(self.folder_path, file))
+        data_dataset = xr.open_dataset('{}/{}'.format(self.s_folder_path, file))
         input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence, last_idx_input_sequence)) # last_idx_input_sequence + 1 like in np! Did I already do that prior?
 
-        input_sequence = input_data_set[self.data_variable_name].values
+        input_sequence = input_data_set[self.s_data_variable_name].values
         # Get rid of steps dimension
         input_sequence = input_sequence[:, 0, :, :]
-        # if self.local_machine_mode:
+        # if self.s_local_machine_mode:
         #     input_sequence = input_sequence[:, 0, :, :]
         # else:
         #     input_sequence = input_sequence[0, :, :, :]
 
-        input_sequence = np.array(T.CenterCrop(size=self.width_height)(torch.from_numpy(input_sequence)))
-        input_sequence = lognormalize_data(input_sequence, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.normalize)
+        input_sequence = np.array(T.CenterCrop(size=self.s_width_height)(torch.from_numpy(input_sequence)))
+        input_sequence = lognormalize_data(input_sequence, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.s_normalize)
         target_data_set = data_dataset.isel(time=target_idx_input_sequence)
-        target = target_data_set[self.data_variable_name].values
+        target = target_data_set[self.s_data_variable_name].values
         del data_dataset
         # Get rid of steps dimension as we only have one index anyways
         # TODO: Check what this does on Slurm with non-test data!
         target = target[0]
-        target = np.array(T.CenterCrop(size=self.width_height_target)(torch.from_numpy(target)))
-        target = lognormalize_data(target, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.normalize)
+        target = np.array(T.CenterCrop(size=self.s_width_height_target)(torch.from_numpy(target)))
+        target = lognormalize_data(target, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.s_normalize)
 
         # TODO DEBUGGING REMOVE THIS:
 
 
-        target_one_hot = img_one_hot(target, self.num_bins_crossentropy, self.linspace_binning)
+        target_one_hot = img_one_hot(target, self.s_num_bins_crossentropy, self.linspace_binning)
 
         target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
 
@@ -146,15 +146,15 @@ class PrecipitationFilteredDataset(Dataset):
         # TODO: Returning linspace binning here every time is super ugly as this is a global constant!!!
 
 
-def lognormalize_data(data, mean_data, std_data, transform_f, normalize):
+def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
     data = transform_f(data)
-    if normalize:
+    if s_normalize:
         data, _, _ = normalize_data(data, mean_data=mean_data, std_data=std_data)
     return data
 
 
-def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, folder_path, data_file_names, width_height, data_variable_name,
-                           time_span, local_machine_mode, width_height_target, min_rain_ratio_target, choose_time_span=False, **__):
+def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_folder_path, s_data_file_names, s_width_height, s_data_variable_name,
+                           s_time_span, s_local_machine_mode, s_width_height_target, min_rain_ratio_target, s_choose_time_span=False, **__):
     '''
     time span only refers to a single file
     '''
@@ -171,19 +171,19 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
     linspace_binning_min_unnormalized = np.inf
     linspace_binning_max_unnormalized = -np.inf
 
-    for data_file_name in data_file_names:
+    for data_file_name in s_data_file_names:
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # TODO: DONT ALLOW TIME_SPAN CHOOSING, SCREWS UP INDECIES WHEN LOADING DATA
+        # TODO: DONT ALLOW s_time_span CHOOSING, SCREWS UP INDECIES WHEN LOADING DATA
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        curr_data_sequence = load_data_sequence_preliminary(folder_path, data_file_name, width_height, data_variable_name,
-                                                       choose_time_span, time_span, local_machine_mode)
+        curr_data_sequence = load_data_sequence_preliminary(s_folder_path, data_file_name, s_width_height, s_data_variable_name,
+                                                       s_choose_time_span, s_time_span, s_local_machine_mode)
         for i in range(np.shape(curr_data_sequence)[0] - target_rel_idx):
             num_frames_total += 1
             first_idx_input_sequence = i
             last_idx_input_sequence = i + last_input_rel_idx
             target_idx_input_sequence = i + target_rel_idx
 
-            curr_target_cropped = np.array(T.CenterCrop(size=width_height_target)(torch.from_numpy(curr_data_sequence[target_idx_input_sequence])))
+            curr_target_cropped = np.array(T.CenterCrop(size=s_width_height_target)(torch.from_numpy(curr_data_sequence[target_idx_input_sequence])))
             curr_input_sequence = curr_data_sequence[first_idx_input_sequence:last_idx_input_sequence, :, :]
             if filter(curr_input_sequence, curr_target_cropped, min_rain_ratio_target):
                 num_frames_passed_filter += 1
@@ -408,31 +408,31 @@ def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning):
     return data_hot
 
 
-def load_data_sequence_preliminary(folder_path, data_file_name, width_height, data_variable_name, choose_time_span,
-                                   time_span, local_machine_mode, **__):
+def load_data_sequence_preliminary(s_folder_path, data_file_name, s_width_height, s_data_variable_name, s_choose_time_span,
+                                   s_time_span, s_local_machine_mode, **__):
     '''
-    This function loads one file and has the option to load a subset of the file instead by setting choose_time_span to true
+    This function loads one file and has the option to load a subset of the file instead by setting s_choose_time_span to true
     '''
     # TODO: Continue here!
 
-    load_path = '{}/{}'.format(folder_path, data_file_name)
+    load_path = '{}/{}'.format(s_folder_path, data_file_name)
     print('Loading training/validation data from {}'.format(load_path))
     data_dataset = xr.open_dataset(load_path)
-    if choose_time_span:
+    if s_choose_time_span:
         # TODO Change this back, only for test purposes!!
-        data_dataset = data_dataset.isel(time=slice(time_span[0], time_span[1]))
-        # data_dataset = data_dataset.sel(time=slice(time_span[0], time_span[1]))
-    data_arr = data_dataset[data_variable_name].values
+        data_dataset = data_dataset.isel(time=slice(s_time_span[0], s_time_span[1]))
+        # data_dataset = data_dataset.sel(time=slice(s_time_span[0], s_time_span[1]))
+    data_arr = data_dataset[s_data_variable_name].values
     data_arr = data_arr[:, 0, :, :]
     # Get rid of steps dimension
-    # if local_machine_mode:
+    # if s_local_machine_mode:
     #     data_arr = data_arr[:, 0, :, :]
     # else:
     #     data_arr = data_arr[0, :, :, :]
     data_tensor = torch.from_numpy(data_arr)
 
     # Crop --> TODO: Implement this with x y variables of NetCDF in future!
-    data_tensor = T.CenterCrop(size=width_height)(data_tensor)
+    data_tensor = T.CenterCrop(size=s_width_height)(data_tensor)
     return data_tensor.numpy()
 
 
@@ -462,7 +462,7 @@ if __name__ == '__main__':
     start_date_time = datetime.datetime(2020, 12, 20)
     # iterate_through_data_names(start_date, future_iterations_from_start=3, minutes_per_iteration=5)
     data_sequence = load_data_sequence(start_date_time, input_folder, future_iterations_from_start=3,
-                                       minutes_per_iteration=5, width_height=256)
+                                       minutes_per_iteration=5, s_width_height=256)
 
     blub = img_one_hot(data_arr, 64)
     pass
