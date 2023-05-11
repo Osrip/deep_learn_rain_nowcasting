@@ -98,7 +98,7 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
                 elif col == 1 + add_input_sequence:
                     curr_ax.set_title('Predictions')
                 elif col == 2 + add_input_sequence:
-                    curr_ax.set_title('Log Likelihood')
+                    curr_ax.set_title('Likelihood')
     # plt.colorbar(fig)
     fig.suptitle(title)
     plt.savefig(save_path_name, dpi=600)

@@ -288,13 +288,6 @@ def train(model, sim_name, device, learning_rate: int, num_epochs: int, num_inpu
                 inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
                                                             inverse_normalize=True)
 
-                # plot_image(inv_norm(target[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
-                #            save_path_name='{}/ep{:04}_target'.format(dirs['plot_dir_images'], epoch),
-                #            title='Target, data log, not normalized')
-                #
-                # plot_image(inv_norm(pred_mm[0, :, :]), vmin=inv_norm(linspace_binning_min), vmax=inv_norm(linspace_binning_max),
-                #            save_path_name='{}/ep{:04}_pred'.format(dirs['plot_dir_images'], epoch),
-                #            title='Prediction, data log, not normalized')
                 if plot_target_vs_pred_boo:
                     plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
                                         vmax=inv_norm(linspace_binning_max),
@@ -417,7 +410,7 @@ if __name__ == '__main__':
 
     local_machine_mode = False
 
-    sim_name_suffix = '_test_run_gpu_mem_batch_size_50'
+    sim_name_suffix = '_6_months'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -448,7 +441,7 @@ if __name__ == '__main__':
             'sim_same_suffix': sim_name_suffix,
 
             'folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            'data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(1)],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
+            'data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(6)],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
             'data_variable_name': 'RV_recalc',
             'choose_time_span': False,
             'time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
