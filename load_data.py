@@ -272,20 +272,19 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, fold
 #         return False
 
 
+
+
 def filter(input_sequence, target, min_rain_ratio_target, percentage=0.5, min_amount_rain=0.05):
-# def filter(input_sequence, target, min_rain_ratio_target, percentage=0.1, min_amount_rain=0.05):
 
     '''
-    Looks whether on what percentage on target there is more than min_amount_rain rain. If percentage exceeds min_rain_ratio_target return True
-    , False otherwise
-    "reasonable amount of data passes: percentage=0.5, min_amount_rain=0.05"
+    reasonable amount of data passes: percentage=0.5, min_amount_rain=0.05
     '''
-    # Todo: Implement filter!
-    # rainy_data_points = target[target > 0]
-    # Only take frames, that have any pixels that are neither 0 nor NaN AND pixels that have no NaNs
+
+    # I used to check for not (target == -1000000000.0).any() and \ not (input_sequence == -1000000000.0).any() to throw out
+    # NaNs. However somewhere in data set there seem to be values that are < 0 and != 10000000000.0, TODO no idea what that is..
     if (target[target > min_amount_rain].size > percentage * target.size) and \
-            not (target == -1000000000.0).any() and \
-            not (input_sequence == -1000000000.0).any():
+            not (target < 0).any() and \
+            not (input_sequence < 0).any():
         return True
     else:
         return False
