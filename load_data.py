@@ -134,12 +134,18 @@ class PrecipitationFilteredDataset(Dataset):
         target = np.array(T.CenterCrop(size=self.s_width_height_target)(torch.from_numpy(target)))
         target = lognormalize_data(target, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.s_normalize)
 
+
+
         # TODO DEBUGGING REMOVE THIS:
 
 
         target_one_hot = img_one_hot(target, self.s_num_bins_crossentropy, self.linspace_binning)
 
         target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
+
+        # Added this .. necessary???
+        # target_one_hot = target_one_hot.float()
+        # input_sequence = input_sequence.float()
 
 
         return input_sequence, target_one_hot, target

@@ -22,6 +22,7 @@ import warnings
 from tests.test_basic_functions import test_all
 from hurry.filesize import size
 from tqdm import tqdm
+import psutil
 
 import copy
 # from pysteps import verification
@@ -30,22 +31,18 @@ import copy
 mse_loss = torch.nn.MSELoss()
 
 
-def check_backward(model, s_learning_rate, device):
-    criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=s_learning_rate)
-    input = torch.randn((4, 8, 256, 256), device=device)
-    target = torch.randn((4, 64, 32, 32), device=device)
-    pred = model(input)
-    loss = criterion(pred, target)
-    loss.backward()
-    optimizer.step()
-    return model
-
-
 def print_gpu_memory():
     handle = nvidia_smi.nvmlDeviceGetHandleByIndex(0)
     info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
-    print("Memory: Total: {}, Free: {}, Used:{}".format(size(info.total), size(info.free), size(info.used)))
+    print("GPU Memory: Total: {}, Free: {}, Used:{}".format(size(info.total), size(info.free), size(info.used)))
+
+
+def print_ram_usage():
+    # Getting % usage of virtual_memory ( 3rd field)
+    print('RAM memory % used:', psutil.virtual_memory()[2])
+    # Getting usage of virtual_memory in GB ( 4th field)
+    print('RAM Used:', size(psutil.virtual_memory()[3]))
+
 
 
 def validate(model, validation_data_loader, linspace_binning, linspace_binning_max, linspace_binning_min,
@@ -203,6 +200,7 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
     for epoch in range(s_num_epochs):
         if device.type == 'cuda':
             print_gpu_memory()
+        print_ram_usage()
 
         inner_losses = []
         inner_relative_mses = []
@@ -230,8 +228,9 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
             target_one_hot = target_one_hot.to(device)
 
             # todo --> into getitem
-            target = T.CenterCrop(size=s_width_height_target)(target)
-            target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
+            # Cropping is already done in data loader!
+            # target = T.CenterCrop(size=s_width_height_target)(target)
+            # target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
             target_one_hot = target_one_hot.float()
 
             target_one_hot = target_one_hot.to(device)
@@ -410,7 +409,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = '_12_months_filter_all_below_0'
+    s_sim_name_suffix = '_6_months_filter_all_below_0'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -441,7 +440,7 @@ if __name__ == '__main__':
             's_sim_same_suffix': s_sim_name_suffix,
 
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            's_data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(12)],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
+            's_data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(6)],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
             's_data_variable_name': 'RV_recalc',
             's_choose_time_span': False,
             's_time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),

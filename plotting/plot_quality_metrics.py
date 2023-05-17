@@ -13,19 +13,20 @@ import gc
 
 
 
-def interpolate_smooth(x, y, window_size_smooth=4, polynomial_order_smooth=3, smooth=True, interpolate=True):
+def interpolate_smooth(x, y, window_size_smooth=4, polynomial_order_smooth=3, num_data_points_interp=4000, smooth=True, interpolate=True):
     '''
     Interpolating and smoothing for line plots
     For smoothing:
     polyorder must be less than window_length
     window_length must be less than or equal to the size of x
+    Assumes linspace of x and accordingly ordered y
 
     '''
     if smooth:
         y = savgol_filter(y, window_size_smooth, polynomial_order_smooth)  # window size, polynomial order
     if interpolate:
         f_interpolate = interp1d(x, y, kind='cubic')
-        x = np.linspace(np.min(x), np.max(x), num=len(x), endpoint=True)
+        x = np.linspace(np.min(x), np.max(x), num=num_data_points_interp, endpoint=True)
         y = f_interpolate(x)
     return x, y
 
