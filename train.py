@@ -59,7 +59,8 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
         for i, (input_sequence, target_one_hot, target) in enumerate(validation_data_loader):
             input_sequence = input_sequence.float()
             input_sequence = input_sequence.to(device)
-            target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
+            # Cropping is already done in data loader
+            # target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
             target_one_hot = target_one_hot.float()
             target_one_hot = target_one_hot.to(device)
 
@@ -396,7 +397,6 @@ def main(s_save_trained_model, s_load_model, s_num_input_time_steps, s_upscale_c
     print('Training started on {}'.format(device), flush=True)
 
     trained_model = train(model=model, settings=settings, **settings)
-
 
 
 if __name__ == '__main__':

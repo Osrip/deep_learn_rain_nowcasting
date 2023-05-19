@@ -24,12 +24,13 @@ from hurry.filesize import size
 from tqdm import tqdm
 import psutil
 
-import lightning.pytorch as pl
+import pytorch_lightning as pl
 
 
-class CNN(pl.LightningModule):
-    def __init__(self, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy, s_width_height, s_learning_rate,
-                 device, s_width_height_target):
+class Network_l(pl.LightningModule):
+    def __init__(self, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy, s_width_height, s_learning_rate,
+                 s_width_height_target, **__):
+        super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
                 s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
         self.model.to(device)
@@ -65,11 +66,113 @@ class CNN(pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         input_sequence, target_one_hot, target = val_batch
-        loss = nn.CrossEntropyLoss()
+
+        input_sequence = input_sequence.float()
+        target_one_hot = target_one_hot.float()
+
+        pred = self.model(input_sequence)
+        loss = nn.CrossEntropyLoss(pred, target_one_hot)
+
+        self.log('val_loss', loss)
 
 
 
-if __name__ == '__main__':
+
+
+def data_loading(transform_f,  settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
+                s_num_bins_crossentropy, s_data_loader_chunk_size, s_batch_size, **__):
+    # relative index of last input picture (starting from first input picture as idx 1)
+    last_input_rel_idx = s_num_input_time_steps
+    #  relative index of target picture (starting from first input picture as idx 1)
+    target_rel_idx = s_num_input_time_steps + 1 + s_num_lead_time_steps
+
+    ###############
+    # FILTER
+    # Save all index chunks that pased filter in filtered_indecies together with normalization statistics and
+    # linspace_binning
+
+    filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized =\
+        filtering_data_scraper(transform_f=transform_f, last_input_rel_idx=last_input_rel_idx, target_rel_idx=target_rel_idx,
+                               **settings)
+
+    ###############
+    # LINSPACE BINNING
+    # Normalize linspace binning thresholds now that data is available
+    linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized, mean_filtered_data, std_filtered_data,
+                                             transform_f, s_normalize) - 0.00001
+    # Subtract a small number to account for rounding errors made in the normalization process
+    linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_data, std_filtered_data,
+                                             transform_f, s_normalize)
+
+    linspace_binning_min = linspace_binning_min - 0.1
+    linspace_binning_max = linspace_binning_max + 0.1
+
+    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=s_num_bins_crossentropy,
+                                   endpoint=False)  # num_indecies + 1 as the very last entry will never be used
+
+    ###############
+
+    # Defining and splitting into training and validation data set
+    num_training_samples = int(len(filtered_indecies) * s_ratio_training_data)
+    num_validation_samples = len(filtered_indecies) - num_training_samples
+
+    filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
+        filtered_indecies, num_training_samples, num_validation_samples, s_data_loader_chunk_size)
+
+    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
+                                                  linspace_binning_min, linspace_binning_max, linspace_binning,
+                                                  transform_f, **settings)
+
+    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_data,
+                                                       std_filtered_data,
+                                                       linspace_binning_min, linspace_binning_max, linspace_binning,
+                                                       transform_f, **settings)
+
+    train_data_loader = DataLoader(train_data_set, batch_size=s_batch_size, shuffle=True, drop_last=True)
+    del train_data_set
+
+    validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=True, drop_last=True)
+    del validation_data_set
+    print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
+                                                                                                 num_training_samples,
+                                                                                                 num_validation_samples))
+    print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
+                                                                                       len(validation_data_loader),
+                                                                                       s_batch_size))
+
+    return train_data_loader, validation_data_loader
+
+
+def train_wrapper(settings, s_log_transform, s_dirs, **__):
+    '''
+    All the junk surrounding train goes in here
+    '''
+
+    save_settings(settings, s_dirs['save_dir'])
+    save_whole_project(s_dirs['code_dir'])
+
+    if s_log_transform:
+        transform_f = lambda x: np.log(x + 1)
+    else:
+        transform_f = lambda x: x
+
+    train_data_loader, validation_data_loader = \
+        data_loading(transform_f, settings, **settings)
+
+    train_l(train_data_loader, validation_data_loader, settings)
+
+
+def train_l(train_data_loader, validation_data_loader, settings):
+    '''
+    Train loop, keep this clean!
+    '''
+
+    model_l = Network_l(**settings)
+    trainer = pl.Trainer()
+    trainer.fit(model_l, train_data_loader, validation_data_loader)
+
+
+def main():
     #  Training data
     # num_training_samples = 20  # 1000  # Number of loaded pictures (first pics not used for training but only input)
     # num_validation_samples = 20  # 600
@@ -77,7 +180,7 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_sim_name_suffix = '_6_months_filter_all_below_0'
 
@@ -90,7 +193,8 @@ if __name__ == '__main__':
     if s_local_machine_mode:
         s_sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     else:
-        s_sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), int(os.environ['SLURM_JOB_ID']))  # SLURM_ARRAY_TASK_ID
+        s_sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
+                                           int(os.environ['SLURM_JOB_ID']))  # SLURM_ARRAY_TASK_ID
 
     s_dirs = {}
     s_dirs['save_dir'] = 'runs/{}{}'.format(s_sim_name, s_sim_name_suffix)
@@ -103,14 +207,15 @@ if __name__ == '__main__':
         if not os.path.exists(make_dir):
             os.makedirs(make_dir)
 
-    settings =\
+    settings = \
         {
             's_local_machine_mode': s_local_machine_mode,
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            's_data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(6)],  # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
+            's_data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i + 1) for i in range(6)],
+            # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
             's_data_variable_name': 'RV_recalc',
             's_choose_time_span': False,
             's_time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
@@ -118,7 +223,7 @@ if __name__ == '__main__':
             's_data_loader_chunk_size': 20,
 
             # Parameters that give the network architecture
-            's_upscale_c_to': 32, #64, #128, # 512,
+            's_upscale_c_to': 32,  # 64, #128, # 512,
             's_num_bins_crossentropy': 64,
 
             # 'minutes_per_iteration': 5,
@@ -127,10 +232,12 @@ if __name__ == '__main__':
             's_learning_rate': 0.0001,  # Schedule this at some point??
             's_num_epochs': 1000,
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
-            's_num_lead_time_steps': 1,  # 5, # The number of pictures that are skipped from last input time step to target, starts with 0
+            's_num_lead_time_steps': 1,
+            # 5, # The number of pictures that are skipped from last input time step to target, starts with 0
             's_optical_flow_input': False,  # Not yet working!
-            's_batch_size': 55,  # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
-            's_save_trained_model': True, # saves model every epoch
+            's_batch_size': 55,
+            # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
+            's_save_trained_model': True,  # saves model every epoch
             's_load_model': False,
             's_load_model_name': 'Run_·20230220-191041',
             's_dirs': s_dirs,
@@ -140,13 +247,14 @@ if __name__ == '__main__':
             's_log_transform': True,
             's_normalize': True,
 
-            's_min_rain_ratio_target': 0.01, #Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its
+            's_min_rain_ratio_target': 0.01,
+            # Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its
             # prior input sequence to make it through the filter into the training data
 
             's_testing': True,
 
             # Plotting stuff
-            's_no_plotting': False, # This sets all plotting boos below to False
+            's_no_plotting': False,  # This sets all plotting boos below to False
             's_plot_average_preds_boo': True,
             's_plot_pixelwise_preds_boo': True,
             's_plot_target_vs_pred_boo': True,
@@ -157,7 +265,8 @@ if __name__ == '__main__':
         }
 
     if settings['s_no_plotting']:
-        for en in ['s_plot_average_preds_boo', 's_plot_pixelwise_preds_boo', 's_plot_target_vs_pred_boo', 's_plot_mse_boo',
+        for en in ['s_plot_average_preds_boo', 's_plot_pixelwise_preds_boo', 's_plot_target_vs_pred_boo',
+                   's_plot_mse_boo',
                    's_plot_losses_boo', 's_plot_img_histogram_boo']:
             settings[en] = False
 
@@ -187,4 +296,9 @@ if __name__ == '__main__':
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
-    main(settings=settings, **settings)
+    train_wrapper(settings, **settings)
+
+
+if __name__ == '__main__':
+    main()
+
