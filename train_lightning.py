@@ -25,6 +25,8 @@ from tqdm import tqdm
 import psutil
 
 import pytorch_lightning as pl
+from helper_functions import one_hot_to_mm
+import mlflow
 
 
 class Network_l(pl.LightningModule):
@@ -55,10 +57,18 @@ class Network_l(pl.LightningModule):
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
         self.log('train_loss', loss)
+        # MLFlow
+        mlflow.log_metric('train_loss', loss.item(), step=batch_idx)
         ### Additional quility metrics: ###
-        # MSE
 
-        # MSE persistence
+        # MSE
+        # mse_pred_target = torch.nn.MSELoss()(pred, target)
+        # self.log('train_mse_pred_target', mse_pred_target)
+
+        # MSE zeros
+        # mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape), target)
+        # self.log('train_mse_zeros_target', mse_zeros_target)
+
         # persistence = input_sequence[:, -1, :, :]
         # persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
 
@@ -74,6 +84,17 @@ class Network_l(pl.LightningModule):
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
 
         self.log('val_loss', loss)
+
+        # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+        # pred_mm = torch.from_numpy(pred_mm).detach()
+
+        # MSE
+        # mse_pred_target = torch.nn.MSELoss()(pred, target)
+        # self.log('val_mse_pred_target', mse_pred_target)
+
+        # MSE zeros
+        # mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape), target)
+        # self.log('val_mse_zeros_target', mse_zeros_target)
 
 
 
@@ -133,6 +154,8 @@ def data_loading(transform_f,  settings, s_ratio_training_data, s_num_input_time
 
     validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=False, drop_last=True)
     del validation_data_set
+
+
     print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
                                                                                                  num_training_samples,
                                                                                                  num_validation_samples))
@@ -147,6 +170,8 @@ def train_wrapper(settings, s_log_transform, s_dirs, **__):
     '''
     All the junk surrounding train goes in here
     '''
+
+
 
     save_settings(settings, s_dirs['save_dir'])
     save_whole_project(s_dirs['code_dir'])
@@ -300,5 +325,6 @@ def main():
 
 
 if __name__ == '__main__':
+    mlflow.pytorch.autolog()
     main()
 
