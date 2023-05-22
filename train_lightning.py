@@ -53,7 +53,7 @@ class Network_l(pl.LightningModule):
         target_one_hot = target_one_hot.float()
         # TODO targets already cropped??
         pred = self.model(input_sequence)
-        loss = nn.CrossEntropyLoss(pred, target_one_hot)
+        loss = nn.CrossEntropyLoss()(pred, target_one_hot)
         self.log('train_loss', loss)
         ### Additional quility metrics: ###
         # MSE
@@ -71,7 +71,7 @@ class Network_l(pl.LightningModule):
         target_one_hot = target_one_hot.float()
 
         pred = self.model(input_sequence)
-        loss = nn.CrossEntropyLoss(pred, target_one_hot)
+        loss = nn.CrossEntropyLoss()(pred, target_one_hot)
 
         self.log('val_loss', loss)
 
@@ -88,7 +88,7 @@ def data_loading(transform_f,  settings, s_ratio_training_data, s_num_input_time
 
     ###############
     # FILTER
-    # Save all index chunks that pased filter in filtered_indecies together with normalization statistics and
+    # Save all index chunks that passed filter in filtered_indecies together with normalization statistics and
     # linspace_binning
 
     filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized =\
@@ -131,7 +131,7 @@ def data_loading(transform_f,  settings, s_ratio_training_data, s_num_input_time
     train_data_loader = DataLoader(train_data_set, batch_size=s_batch_size, shuffle=True, drop_last=True)
     del train_data_set
 
-    validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=True, drop_last=True)
+    validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=False, drop_last=True)
     del validation_data_set
     print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
                                                                                                  num_training_samples,
