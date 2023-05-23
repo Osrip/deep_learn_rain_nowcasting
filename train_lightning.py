@@ -25,6 +25,7 @@ from tqdm import tqdm
 import psutil
 
 import pytorch_lightning as pl
+from pytorch_lightning.profilers import PyTorchProfiler
 from helper_functions import one_hot_to_mm
 import mlflow
 
@@ -97,8 +98,8 @@ class Network_l(pl.LightningModule):
         # self.log('val_mse_zeros_target', mse_zeros_target)
 
 
-def data_loading(transform_f,  settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
-                s_num_bins_crossentropy, s_data_loader_chunk_size, s_batch_size, **__):
+def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
+                s_num_bins_crossentropy, s_data_loader_chunk_size, s_batch_size, s_num_workers_data_loader, **__):
     # relative index of last input picture (starting from first input picture as idx 1)
     last_input_rel_idx = s_num_input_time_steps
     #  relative index of target picture (starting from first input picture as idx 1)
@@ -146,10 +147,12 @@ def data_loading(transform_f,  settings, s_ratio_training_data, s_num_input_time
                                                        linspace_binning_min, linspace_binning_max, linspace_binning,
                                                        transform_f, **settings)
 
-    train_data_loader = DataLoader(train_data_set, batch_size=s_batch_size, shuffle=True, drop_last=True)
+    train_data_loader = DataLoader(train_data_set, batch_size=s_batch_size, shuffle=True, drop_last=True,
+                                   num_workers=s_num_workers_data_loader)
     del train_data_set
 
-    validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=False, drop_last=True)
+    validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=False, drop_last=True,
+                                        num_workers=s_num_workers_data_loader)
     del validation_data_set
 
 
@@ -163,7 +166,7 @@ def data_loading(transform_f,  settings, s_ratio_training_data, s_num_input_time
     return train_data_loader, validation_data_loader
 
 
-def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, **__):
+def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, **__):
     '''
     All the junk surrounding train goes in here
     '''
@@ -175,6 +178,12 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, **__
                                                        filename='model_{epoch}_{val_loss:.2f}',
                                                        save_top_k=-1,
                                                        every_n_epochs=s_model_every_n_epoch)
+
+    if s_profiling:
+        profiler = PyTorchProfiler(dirpath=s_dirs['profile_dir'], export_to_chrome=True)
+    else:
+        profiler = None
+
     # save_top_k=-1, prevents callback from overwriting previous checkpoints
 
     if s_log_transform:
@@ -185,16 +194,17 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, **__
     train_data_loader, validation_data_loader = \
         data_loading(transform_f, settings, **settings)
 
-    train_l(train_data_loader, validation_data_loader, [checkpoint_callback], settings)
+    train_l(train_data_loader, validation_data_loader, profiler, [checkpoint_callback], s_max_epochs, settings)
 
 
-def train_l(train_data_loader, validation_data_loader, callback_list, settings):
+def train_l(train_data_loader, validation_data_loader, profiler, callback_list, max_epochs, settings):
     '''
     Train loop, keep this clean!
     '''
 
     model_l = Network_l(**settings)
-    trainer = pl.Trainer(callbacks=callback_list) #
+
+    trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs)
     trainer.fit(model_l, train_data_loader, validation_data_loader)
 
 
@@ -209,7 +219,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = '_6_months_filter_all_below_0'
+    s_sim_name_suffix = '_test_profiler'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -230,6 +240,9 @@ if __name__ == '__main__':
     s_dirs['plot_dir_images'] = '{}/images'.format(s_dirs['plot_dir'])
     s_dirs['model_dir'] = '{}/model'.format(s_dirs['save_dir'])
     s_dirs['code_dir'] = '{}/code'.format(s_dirs['save_dir'])
+    s_dirs['profile_dir'] = '{}/profile'.format(s_dirs['save_dir'])
+
+
 
     for _, make_dir in s_dirs.items():
         if not os.path.exists(make_dir):
@@ -241,6 +254,7 @@ if __name__ == '__main__':
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
+            's_max_epochs': None, # Max number of epochs, if None runs infenitely
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
             's_data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i + 1) for i in range(6)],
             # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
@@ -248,7 +262,8 @@ if __name__ == '__main__':
             's_choose_time_span': False,
             's_time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
             's_ratio_training_data': 0.6,
-            's_data_loader_chunk_size': 20,
+            's_data_loader_chunk_size': 20, #  Chunk size, that consecutive data is chunked in when performing random splitting
+            's_num_workers_data_loader': 4,
 
             # Parameters that give the network architecture
             's_upscale_c_to': 32,  # 64, #128, # 512,
@@ -279,7 +294,8 @@ if __name__ == '__main__':
             # Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its
             # prior input sequence to make it through the filter into the training data
 
-            's_testing': True,
+            's_testing': True, # Runs tests before starting training
+            's_profiling': False,  # Runs profiler
 
             # Plotting stuff
             's_no_plotting': False,  # This sets all plotting boos below to False
