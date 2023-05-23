@@ -31,7 +31,7 @@ import mlflow
 
 
 class Network_l(pl.LightningModule):
-    def __init__(self, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy, s_width_height, s_learning_rate,
+    def __init__(self, linspace_binning_params, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy, s_width_height, s_learning_rate,
                  s_width_height_target, **__):
         super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
@@ -40,6 +40,9 @@ class Network_l(pl.LightningModule):
 
         self.s_learning_rate = s_learning_rate
         self.s_width_height_target = s_width_height_target
+
+        self._linspace_binning_params = linspace_binning_params
+
 
     def forward(self, x):
         output = self.model(x)
@@ -62,16 +65,25 @@ class Network_l(pl.LightningModule):
         mlflow.log_metric('train_loss', loss.item(), step=batch_idx)
         ### Additional quility metrics: ###
 
-        # MSE
-        # mse_pred_target = torch.nn.MSELoss()(pred, target)
-        # self.log('train_mse_pred_target', mse_pred_target)
+        is_first_step = (batch_idx == 0)
+        if is_first_step:
+            linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
+            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                    mean_bin_vals=True)
+            pred_mm = torch.from_numpy(pred_mm)
 
-        # MSE zeros
-        # mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape), target)
-        # self.log('train_mse_zeros_target', mse_zeros_target)
+            # MSE
+            mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
+            self.log('train_mse_pred_target', mse_pred_target)
 
-        # persistence = input_sequence[:, -1, :, :]
-        # persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
+            # MSE zeros
+            mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape), target)
+            self.log('train_mse_zeros_target', mse_zeros_target)
+
+            persistence = input_sequence[:, -1, :, :]
+            persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
+            mse_persistence_target = torch.nn.MSELoss()(persistence, target)
+            self.log('train_mse_persistence_target', mse_persistence_target)
 
         return loss
 
@@ -162,8 +174,8 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
                                                                                        len(validation_data_loader),
                                                                                        s_batch_size))
-
-    return train_data_loader, validation_data_loader
+    linspace_binning_params = (linspace_binning_min, linspace_binning_max, linspace_binning)
+    return train_data_loader, validation_data_loader, linspace_binning_params
 
 
 def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, **__):
@@ -191,18 +203,21 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     else:
         transform_f = lambda x: x
 
-    train_data_loader, validation_data_loader = \
+    train_data_loader, validation_data_loader, linspace_binning_params = \
         data_loading(transform_f, settings, **settings)
 
-    train_l(train_data_loader, validation_data_loader, profiler, [checkpoint_callback], s_max_epochs, settings)
 
 
-def train_l(train_data_loader, validation_data_loader, profiler, callback_list, max_epochs, settings):
+    train_l(train_data_loader, validation_data_loader, profiler, [checkpoint_callback], s_max_epochs,
+            linspace_binning_params, settings)
+
+
+def train_l(train_data_loader, validation_data_loader, profiler, callback_list, max_epochs, linspace_binning_params, settings):
     '''
     Train loop, keep this clean!
     '''
 
-    model_l = Network_l(**settings)
+    model_l = Network_l(linspace_binning_params, **settings)
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs)
     trainer.fit(model_l, train_data_loader, validation_data_loader)
@@ -296,6 +311,7 @@ if __name__ == '__main__':
 
             's_testing': True, # Runs tests before starting training
             's_profiling': False,  # Runs profiler
+            's_calculate_quality_params': True, # Calculatiing quality params during training and validation
 
             # Plotting stuff
             's_no_plotting': False,  # This sets all plotting boos below to False
