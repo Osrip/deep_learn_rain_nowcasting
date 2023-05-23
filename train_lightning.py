@@ -97,9 +97,6 @@ class Network_l(pl.LightningModule):
         # self.log('val_mse_zeros_target', mse_zeros_target)
 
 
-
-
-
 def data_loading(transform_f,  settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
                 s_num_bins_crossentropy, s_data_loader_chunk_size, s_batch_size, **__):
     # relative index of last input picture (starting from first input picture as idx 1)
@@ -120,7 +117,7 @@ def data_loading(transform_f,  settings, s_ratio_training_data, s_num_input_time
     # LINSPACE BINNING
     # Normalize linspace binning thresholds now that data is available
     linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized, mean_filtered_data, std_filtered_data,
-                                             transform_f, s_normalize) - 0.00001
+                                             transform_f, s_normalize)
     # Subtract a small number to account for rounding errors made in the normalization process
     linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_data, std_filtered_data,
                                              transform_f, s_normalize)
@@ -166,15 +163,19 @@ def data_loading(transform_f,  settings, s_ratio_training_data, s_num_input_time
     return train_data_loader, validation_data_loader
 
 
-def train_wrapper(settings, s_log_transform, s_dirs, **__):
+def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, **__):
     '''
     All the junk surrounding train goes in here
     '''
 
-
-
     save_settings(settings, s_dirs['save_dir'])
     save_whole_project(s_dirs['code_dir'])
+
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(dirpath=s_dirs['model_dir'],
+                                                       filename='model_{epoch}_{val_loss:.2f}',
+                                                       save_top_k=-1,
+                                                       every_n_epochs=s_model_every_n_epoch)
+    # save_top_k=-1, prevents callback from overwriting previous checkpoints
 
     if s_log_transform:
         transform_f = lambda x: np.log(x + 1)
@@ -184,20 +185,21 @@ def train_wrapper(settings, s_log_transform, s_dirs, **__):
     train_data_loader, validation_data_loader = \
         data_loading(transform_f, settings, **settings)
 
-    train_l(train_data_loader, validation_data_loader, settings)
+    train_l(train_data_loader, validation_data_loader, [checkpoint_callback], settings)
 
 
-def train_l(train_data_loader, validation_data_loader, settings):
+def train_l(train_data_loader, validation_data_loader, callback_list, settings):
     '''
     Train loop, keep this clean!
     '''
 
     model_l = Network_l(**settings)
-    trainer = pl.Trainer()
+    trainer = pl.Trainer(callbacks=callback_list) #
     trainer.fit(model_l, train_data_loader, validation_data_loader)
 
 
-def main():
+if __name__ == '__main__':
+
     #  Training data
     # num_training_samples = 20  # 1000  # Number of loaded pictures (first pics not used for training but only input)
     # num_validation_samples = 20  # 600
@@ -212,6 +214,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
         import nvidia_smi
+
         nvidia_smi.nvmlInit()
     # device = 'cpu'
 
@@ -287,12 +290,14 @@ def main():
             's_plot_losses_boo': True,
             's_plot_img_histogram_boo': True,
 
+            # Logging Stuff
+            's_model_every_n_epoch': 1,
+
         }
 
     if settings['s_no_plotting']:
         for en in ['s_plot_average_preds_boo', 's_plot_pixelwise_preds_boo', 's_plot_target_vs_pred_boo',
-                   's_plot_mse_boo',
-                   's_plot_losses_boo', 's_plot_img_histogram_boo']:
+                   's_plot_mse_boo', 's_plot_losses_boo', 's_plot_img_histogram_boo']:
             settings[en] = False
 
     if settings['s_local_machine_mode']:
@@ -321,10 +326,10 @@ def main():
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
-    train_wrapper(settings, **settings)
-
-
-if __name__ == '__main__':
+    mlflow.create_experiment(settings['s_sim_name'])
     mlflow.pytorch.autolog()
-    main()
+    mlflow.log_models = False
+
+
+    train_wrapper(settings, **settings)
 
