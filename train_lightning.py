@@ -63,27 +63,33 @@ class Network_l(pl.LightningModule):
         self.log('train_loss', loss)
         # MLFlow
         mlflow.log_metric('train_loss', loss.item(), step=batch_idx)
-        ### Additional quility metrics: ###
+        ### Additional quality metrics: ###
 
         is_first_step = (batch_idx == 0)
         if is_first_step:
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                     mean_bin_vals=True)
-            pred_mm = torch.from_numpy(pred_mm)
+            pred_mm = torch.tensor(pred_mm, device=self.device)
 
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
             self.log('train_mse_pred_target', mse_pred_target)
+            # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item(), step=batch_idx)
 
             # MSE zeros
-            mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape), target)
+            mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
             self.log('train_mse_zeros_target', mse_zeros_target)
+            # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
+
 
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
             self.log('train_mse_persistence_target', mse_persistence_target)
+            # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
+
+
 
         return loss
 
