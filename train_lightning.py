@@ -26,6 +26,7 @@ import psutil
 
 import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
+from pytorch_lightning.loggers import CSVLogger
 from helper_functions import one_hot_to_mm
 import mlflow
 
@@ -60,7 +61,7 @@ class Network_l(pl.LightningModule):
         # TODO targets already cropped??
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, on_step=False, on_epoch=True)
         # MLFlow
         mlflow.log_metric('train_loss', loss.item(), step=batch_idx)
         ### Additional quality metrics: ###
@@ -99,7 +100,7 @@ class Network_l(pl.LightningModule):
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
 
-        self.log('val_loss', loss)
+        self.log('val_loss', loss, on_step=False, on_epoch=True)
 
         # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
         # pred_mm = torch.from_numpy(pred_mm).detach()
@@ -111,6 +112,49 @@ class Network_l(pl.LightningModule):
         # MSE zeros
         # mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape), target)
         # self.log('val_mse_zeros_target', mse_zeros_target)
+
+
+class TrainingLogsCallback(pl.Callback):
+    # Important info in:
+    # /home/jan/.cache/JetBrains/PyCharm2022.3/remote_sources/1316491302/-638459852/pytorch_lightning/callbacks/callback.py
+    # /home/jan/.cache/JetBrains/PyCharm2022.3/remote_sources/1316491302/-638459852/lightning_fabric/loggers/csv_logs.py
+    # /home/jan/.cache/JetBrains/PyCharm2022.3/remote_sources/1316491302/-638459852/pytorch_lightning/trainer/trainer.py
+    def __init__(self, train_logger):
+        super().__init__()
+        self.train_logger = train_logger
+
+    def on_train_epoch_end(self, trainer, pl_module):
+        all_logs = trainer.callback_metrics  # Alternatively: trainer.logged_metrics
+
+        # trainer.callback_metrics= {}
+        # There are both, trainer and validation metrics in callback_metrics (and logged_metrics as well )
+        train_logs = {key: value for key, value in all_logs.items() if 'train_' in key}
+        self.train_logger.log_metrics(train_logs) #, step=trainer.current_epoch)
+        self.train_logger.save()
+
+
+    def on_train_end(self, trainer, pl_module):
+        # self.train_logger.finalize()
+        self.train_logger.save()
+
+
+class ValidationLogsCallback(pl.Callback):
+    def __init__(self, val_logger):
+        super().__init__()
+        self.val_logger = val_logger
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        all_logs = trainer.callback_metrics
+        # trainer.callback_metrics = {}
+        val_logs = {key: value for key, value in all_logs.items() if 'val_' in key}
+        self.val_logger.log_metrics(val_logs)
+        self.val_logger.log_metrics(val_logs) #, step=trainer.current_epoch)
+        self.val_logger.save()
+
+    def on_validation_end(self, trainer, pl_module):
+        # self.train_logger.finalize()
+        self.val_logger.save()
+
 
 
 def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
@@ -209,21 +253,29 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     train_data_loader, validation_data_loader, linspace_binning_params = \
         data_loading(transform_f, settings, **settings)
 
+    train_logger = CSVLogger(s_dirs['logs'], name='train_log')
+    val_logger = CSVLogger(s_dirs['logs'], name='val_log')
+    logger = [train_logger, val_logger]
 
+    callback_list = [checkpoint_callback,
+                     TrainingLogsCallback(train_logger),
+                     ValidationLogsCallback(val_logger)]
 
-    train_l(train_data_loader, validation_data_loader, profiler, [checkpoint_callback], s_max_epochs,
-            linspace_binning_params, settings)
+    train_l(train_data_loader, validation_data_loader, profiler, callback_list, s_max_epochs,
+            linspace_binning_params, logger, settings)
 
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, max_epochs, linspace_binning_params,
-            settings):
+            logger, settings):
     '''
     Train loop, keep this clean!
     '''
 
     model_l = Network_l(linspace_binning_params, **settings)
 
-    trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1)
+    trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
+                         logger=False)
+    # trainer.logger = logger
     trainer.fit(model_l, train_data_loader, validation_data_loader)
 
 
@@ -260,7 +312,7 @@ if __name__ == '__main__':
     s_dirs['model_dir'] = '{}/model'.format(s_dirs['save_dir'])
     s_dirs['code_dir'] = '{}/code'.format(s_dirs['save_dir'])
     s_dirs['profile_dir'] = '{}/profile'.format(s_dirs['save_dir'])
-
+    s_dirs['logs'] = '{}/logs'.format(s_dirs['save_dir'])
 
 
     for _, make_dir in s_dirs.items():
