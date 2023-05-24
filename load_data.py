@@ -140,9 +140,7 @@ class PrecipitationFilteredDataset(Dataset):
 
         target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
 
-        # Added this .. necessary???
-        # target_one_hot = target_one_hot.float()
-        # input_sequence = input_sequence.float()
+        # Float conversion should
 
         return input_sequence, target_one_hot, target
         # TODO: Returning linspace binning here every time is super ugly as this is a global constant!!!

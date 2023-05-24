@@ -55,8 +55,8 @@ class Network_l(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         input_sequence, target_one_hot, target = batch
         # Todo: get rid of float conversion? do this in filter already?
-        # input_sequence = input_sequence.float()
-        # target_one_hot = target_one_hot.float()
+        input_sequence = input_sequence.float()
+        target_one_hot = target_one_hot.float()
         # TODO targets already cropped??
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
@@ -66,27 +66,27 @@ class Network_l(pl.LightningModule):
         ### Additional quality metrics: ###
 
         is_first_step = (batch_idx == 0)
-        if is_first_step:
-            linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
-            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-                                    mean_bin_vals=True)
-            pred_mm = torch.tensor(pred_mm, device=self.device)
-
-            # MSE
-            mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
-            self.log('train_mse_pred_target', mse_pred_target)
-            # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item(), step=batch_idx)
-
-            # MSE zeros
-            mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
-            self.log('train_mse_zeros_target', mse_zeros_target)
-            # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
-
-            persistence = input_sequence[:, -1, :, :]
-            persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
-            mse_persistence_target = torch.nn.MSELoss()(persistence, target)
-            self.log('train_mse_persistence_target', mse_persistence_target)
-            # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
+        # if True:
+        # linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
+        # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+        #                         mean_bin_vals=True)
+        # pred_mm = torch.tensor(pred_mm, device=self.device)
+        #
+        # # MSE
+        # mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
+        # self.log('train_mse_pred_target', mse_pred_target.item())
+        # # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item(), step=batch_idx)
+        #
+        # # MSE zeros
+        # mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
+        # self.log('train_mse_zeros_target', mse_zeros_target)
+        # # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
+        #
+        # persistence = input_sequence[:, -1, :, :]
+        # persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
+        # mse_persistence_target = torch.nn.MSELoss()(persistence, target)
+        # self.log('train_mse_persistence_target', mse_persistence_target)
+        # # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
 
         return loss
 
@@ -215,14 +215,15 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
             linspace_binning_params, settings)
 
 
-def train_l(train_data_loader, validation_data_loader, profiler, callback_list, max_epochs, linspace_binning_params, settings):
+def train_l(train_data_loader, validation_data_loader, profiler, callback_list, max_epochs, linspace_binning_params,
+            settings):
     '''
     Train loop, keep this clean!
     '''
 
     model_l = Network_l(linspace_binning_params, **settings)
 
-    trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs)
+    trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1)
     trainer.fit(model_l, train_data_loader, validation_data_loader)
 
 
@@ -314,7 +315,7 @@ if __name__ == '__main__':
 
             's_testing': True, # Runs tests before starting training
             's_profiling': False,  # Runs profiler
-            's_calculate_quality_params': True, # Calculatiing quality params during training and validation
+            # UNUSED!'s_calculate_quality_params': True, # Calculatiing quality params during training and validation
 
             # Plotting stuff
             's_no_plotting': False,  # This sets all plotting boos below to False
@@ -326,7 +327,8 @@ if __name__ == '__main__':
             's_plot_img_histogram_boo': True,
 
             # Logging Stuff
-            's_model_every_n_epoch': 1,
+            's_model_every_n_epoch': 1, # Save model every nth epoch
+            's_log_every_n_steps': 1, #Log argument that is passed to pl.Trainer. Trainer default is 50
 
         }
 
@@ -360,6 +362,7 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0 # Debugging only works with zero workers
+        settings['s_max_epochs'] = 2
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
     mlflow.create_experiment(settings['s_sim_name'])
