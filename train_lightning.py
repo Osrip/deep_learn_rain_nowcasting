@@ -55,8 +55,8 @@ class Network_l(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         input_sequence, target_one_hot, target = batch
         # Todo: get rid of float conversion? do this in filter already?
-        input_sequence = input_sequence.float()
-        target_one_hot = target_one_hot.float()
+        # input_sequence = input_sequence.float()
+        # target_one_hot = target_one_hot.float()
         # TODO targets already cropped??
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
@@ -82,14 +82,11 @@ class Network_l(pl.LightningModule):
             self.log('train_mse_zeros_target', mse_zeros_target)
             # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
 
-
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
             self.log('train_mse_persistence_target', mse_persistence_target)
             # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
-
-
 
         return loss
 
@@ -362,6 +359,7 @@ if __name__ == '__main__':
         settings['s_data_loader_chunk_size'] = 2
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
+        settings['s_num_workers_data_loader'] = 0 # Debugging only works with zero workers
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
     mlflow.create_experiment(settings['s_sim_name'])
