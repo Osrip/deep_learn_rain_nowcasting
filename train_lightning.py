@@ -148,7 +148,7 @@ class ValidationLogsCallback(pl.Callback):
         # trainer.callback_metrics = {}
         val_logs = {key: value for key, value in all_logs.items() if 'val_' in key}
         self.val_logger.log_metrics(val_logs)
-        self.val_logger.log_metrics(val_logs) #, step=trainer.current_epoch)
+        # self.val_logger.log_metrics(val_logs) #, step=trainer.current_epoch)
         self.val_logger.save()
 
     def on_validation_end(self, trainer, pl_module):
@@ -414,7 +414,7 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0 # Debugging only works with zero workers
-        settings['s_max_epochs'] = 2
+        settings['s_max_epochs'] = 20
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
     mlflow.create_experiment(settings['s_sim_name'])
