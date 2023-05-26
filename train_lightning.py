@@ -62,12 +62,13 @@ class Network_l(pl.LightningModule):
         # TODO targets already cropped??
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
-        self.log('train_loss', loss, on_step=False, on_epoch=True)
+        # self.log('train_loss', loss, on_step=False, on_epoch=True)
+        self.log('train_loss', loss, on_step=True)
         # MLFlow
         mlflow.log_metric('train_loss', loss.item(), step=batch_idx)
         ### Additional quality metrics: ###
 
-        is_first_step = (batch_idx == 0)
+
         if self.s_calculate_quality_params:
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
@@ -77,18 +78,18 @@ class Network_l(pl.LightningModule):
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
             self.log('train_mse_pred_target', mse_pred_target.item())
-            # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item(), step=batch_idx)
+            mlflow.log_metric('train_mse_pred_target', mse_pred_target.item(), step=batch_idx)
 
             # MSE zeros
             mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
             self.log('train_mse_zeros_target', mse_zeros_target)
-            # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
+            mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
 
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
             self.log('train_mse_persistence_target', mse_persistence_target)
-            # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
+            mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
 
         return loss
 
@@ -101,7 +102,29 @@ class Network_l(pl.LightningModule):
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
 
-        self.log('val_loss', loss, on_step=False, on_epoch=True)
+        self.log('val_loss', loss, on_step=True)
+
+        if self.s_calculate_quality_params:
+            linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
+            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                    mean_bin_vals=True)
+            pred_mm = torch.tensor(pred_mm, device=self.device)
+
+            # MSE
+            mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
+            self.log('val_mse_pred_target', mse_pred_target.item())
+            mlflow.log_metric('val_mse_pred_target', mse_pred_target.item(), step=batch_idx)
+
+            # MSE zeros
+            mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
+            self.log('val_mse_zeros_target', mse_zeros_target)
+            mlflow.log_metric('val_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
+
+            persistence = input_sequence[:, -1, :, :]
+            persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
+            mse_persistence_target = torch.nn.MSELoss()(persistence, target)
+            self.log('val_mse_persistence_target', mse_persistence_target)
+            mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
 
         # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
         # pred_mm = torch.from_numpy(pred_mm).detach()
@@ -134,6 +157,18 @@ class TrainingLogsCallback(pl.Callback):
         train_logs = {key: value for key, value in all_logs.items() if 'train_' in key}
         self.train_logger.log_metrics(train_logs) # , epoch=trainer.current_epoch) #, step=trainer.current_epoch)
         self.train_logger.save()
+
+    # def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+    #     # on_train_batch_end
+    #
+    #     all_logs = trainer.callback_metrics  # Alternatively: trainer.logged_metrics
+    #
+    #     # trainer.callback_metrics= {}
+    #     # There are both, trainer and validation metrics in callback_metrics (and logged_metrics as well )
+    #     train_logs = {key: value for key, value in all_logs.items() if 'train_' in key}
+    #     self.train_logger.log_metrics(train_logs) # , epoch=trainer.current_epoch) #, step=trainer.current_epoch)
+    #     self.train_logger.save()
+
 
 
     def on_train_end(self, trainer, pl_module):
@@ -420,7 +455,8 @@ if __name__ == '__main__':
         settings['s_max_epochs'] = 20
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
-    mlflow.create_experiment(settings['s_sim_name'])
+    # mlflow.create_experiment(settings['s_sim_name'])
+    mlflow.set_tag("mlflow.runName", settings['s_sim_name'])
     mlflow.pytorch.autolog()
     mlflow.log_models = False
 

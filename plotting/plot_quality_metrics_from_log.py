@@ -31,10 +31,9 @@ def interpolate_smooth(x, y, window_size_smooth=4, polynomial_order_smooth=3, nu
     return x, y
 
 
-def plot_mse_light(mses_list, label_list, save_path_name, title=''):
+def plot_mse_light(mean_mses, label_list, save_path_name, title=''):
     plt.figure()
-    for mses, label in zip(mses_list, label_list):
-        mean_mses = np.mean(mses, axis=-1)
+    for mean_mses, label in zip(mean_mses, label_list):
         plt.plot(mean_mses, label=label)
         plt.title(title)
         plt.xlabel('Epoch')
@@ -49,11 +48,10 @@ def plot_mse_light(mses_list, label_list, save_path_name, title=''):
     gc.collect()
 
 
-def plot_mse_heavy(mses_list, label_list, linestyle_list, color_list, save_path_name, title=''):
+def plot_mse_heavy(mean_mses, label_list, linestyle_list, color_list, save_path_name, title=''):
     plt.figure()
-    for mses, label, linestyle, color in zip(mses_list, label_list, linestyle_list, color_list):
-        mean_mses = np.mean(mses, axis=-1)
-        plt.plot(mean_mses, label=label, linestyle=linestyle, color=color)
+    for mses, label, linestyle, color in zip(mean_mses, label_list, linestyle_list, color_list):
+        plt.plot(mses, label=label, linestyle=linestyle, color=color)
         plt.title(title)
         plt.xlabel('Epoch')
         plt.ylabel('MSE')
@@ -204,19 +202,45 @@ def plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, save_path_name, swap
 def load_data(ps_run_path, **__):
     rel_path_train = 'logs/train_log/version_0/metrics.csv'
     rel_path_val = 'logs/val_log/version_0/metrics.csv'
-    print('tach')
 
     train_df = pd.read_csv('runs/{}/{}'.format(ps_run_path, rel_path_train))
     val_df = pd.read_csv('runs/{}/{}'.format(ps_run_path, rel_path_val))
+
+    return train_df, val_df
+
+
+def df_cols_to_list_of_lists(keys, df):
+    out_list = []
+    for key in keys:
+        out_list.append(df[key].to_list())
+    return out_list
+
+
+def main(plot_settings, ps_run_path, **__):
+    train_df, val_df = load_data(**plot_settings)
+    key_list_train = ['train_mse_pred_target', 'train_mse_zeros_target',
+       'train_mse_persistence_target']
+    train_mse_list = df_cols_to_list_of_lists(key_list_train, train_df)
+
+    key_list_val = ['val_mse_pred_target', 'val_mse_zeros_target',
+       'val_mse_persistence_target']
+
+    val_mse_list = df_cols_to_list_of_lists(key_list_val, val_df)
+
+    mse_list = train_mse_list+val_mse_list
+    key_list = key_list_train + key_list_val
+
+
+    plot_mse_heavy(mean_mses=mse_list,
+                   label_list=key_list,
+                   color_list=['g', 'y', 'b', 'g', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--', '--'],
+                   save_path_name='runs/{}/plots/mse_with_val'.format(ps_run_path),
+                   title='MSE on lognorm data')
     pass
 
 
-
-def main(plot_settings):
-    load_data(**plot_settings)
-
 if __name__ == '__main__':
     plot_settings = {
-        'ps_run_path': 'Run_20230525-111651_test_profiler',
+        'ps_run_path': 'Run_20230526-173124_test_profiler',
     }
-    main(plot_settings)
+    main(plot_settings, **plot_settings)
