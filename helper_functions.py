@@ -25,7 +25,8 @@ def create_dilation_list(s_width_height, inverse_ratio=4):
 
 def map_mm_to_one_hot_index(mm, num_indecies, mm_min, mm_max):
     '''
-    Older version --> Use bin_to_one_hot_index_linear
+    !!! OLD !!!
+    This is older version --> Use bin_to_one_hot_index_linear
     index starts counting at 0 and has max index at max_index --> length of indecies is max_index + 1 !!!
     '''
     # TODO: Use logarithmic binning to account for long tailed data distribution of precipitation???

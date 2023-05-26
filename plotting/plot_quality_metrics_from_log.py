@@ -216,31 +216,62 @@ def df_cols_to_list_of_lists(keys, df):
     return out_list
 
 
-def main(plot_settings, ps_run_path, **__):
-    train_df, val_df = load_data(**plot_settings)
+def plot_mse_manual(train_df, val_df, ps_run_path, **__):
     key_list_train = ['train_mse_pred_target', 'train_mse_zeros_target',
-       'train_mse_persistence_target']
+                      'train_mse_persistence_target']
     train_mse_list = df_cols_to_list_of_lists(key_list_train, train_df)
 
     key_list_val = ['val_mse_pred_target', 'val_mse_zeros_target',
-       'val_mse_persistence_target']
+                    'val_mse_persistence_target']
 
     val_mse_list = df_cols_to_list_of_lists(key_list_val, val_df)
 
-    mse_list = train_mse_list+val_mse_list
+    mse_list = train_mse_list + val_mse_list
     key_list = key_list_train + key_list_val
-
 
     plot_mse_heavy(mean_mses=mse_list,
                    label_list=key_list,
                    color_list=['g', 'y', 'b', 'g', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--', '--'],
                    save_path_name='runs/{}/plots/mse_with_val'.format(ps_run_path),
                    title='MSE on lognorm data')
-    pass
+
+
+def line_plot(train_df, val_df, key_list_train, key_list_val, save_name, ps_run_path, title='', color_list=[None for i in range(99)],
+              linestyle_list=[None for i in range(99)], **__):
+
+    train_mse_list = df_cols_to_list_of_lists(key_list_train, train_df)
+    val_mse_list = df_cols_to_list_of_lists(key_list_val, val_df)
+    mse_list = train_mse_list+val_mse_list
+    key_list = key_list_train + key_list_val
+
+    plot_mse_heavy(mean_mses=mse_list,
+                   label_list=key_list,
+                   color_list=color_list, linestyle_list=linestyle_list,
+                   save_path_name='runs/{}/plots/{}'.format(ps_run_path, save_name),
+                   title='MSE on lognorm data')
+
+
+def main(plot_settings, ps_run_path, **__):
+    train_df, val_df = load_data(**plot_settings)
+    key_list_train_mse = ['train_mse_pred_target', 'train_mse_zeros_target',
+                      'train_mse_persistence_target']
+    key_list_val_mse = ['val_mse_pred_target', 'val_mse_zeros_target',
+                    'val_mse_persistence_target']
+
+    line_plot(train_df, val_df, key_list_train_mse, key_list_val_mse, save_name='mse_with_val',
+              color_list=['g', 'y', 'b', 'g', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--', '--'],
+              title='MSE on lognorm data', **plot_settings,)
+
+    key_list_train_xentropy = ['train_loss']
+    key_list_val_xentropy = ['val_loss']
+
+    line_plot(train_df, val_df, key_list_train_xentropy, key_list_val_xentropy, save_name='xentropy_loss',
+              title='Xentropy on lognorm data', **plot_settings)
+
 
 
 if __name__ == '__main__':
     plot_settings = {
-        'ps_run_path': 'Run_20230526-173124_test_profiler',
+        'ps_run_path': 'Run_20230526-185300_test_profiler',
     }
     main(plot_settings, **plot_settings)
