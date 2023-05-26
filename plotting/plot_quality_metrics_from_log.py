@@ -248,7 +248,7 @@ def line_plot(train_df, val_df, key_list_train, key_list_val, save_name, ps_run_
                    label_list=key_list,
                    color_list=color_list, linestyle_list=linestyle_list,
                    save_path_name='runs/{}/plots/{}'.format(ps_run_path, save_name),
-                   title='MSE on lognorm data')
+                   title=title)
 
 
 def main(plot_settings, ps_run_path, **__):
