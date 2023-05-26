@@ -32,8 +32,8 @@ import mlflow
 
 
 class Network_l(pl.LightningModule):
-    def __init__(self, linspace_binning_params, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy, s_width_height, s_learning_rate,
-                 s_width_height_target, **__):
+    def __init__(self, linspace_binning_params, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
+                 s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, **__):
         super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
                 s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
@@ -41,6 +41,7 @@ class Network_l(pl.LightningModule):
 
         self.s_learning_rate = s_learning_rate
         self.s_width_height_target = s_width_height_target
+        self.s_calculate_quality_params = s_calculate_quality_params
 
         self._linspace_binning_params = linspace_binning_params
 
@@ -67,27 +68,27 @@ class Network_l(pl.LightningModule):
         ### Additional quality metrics: ###
 
         is_first_step = (batch_idx == 0)
-        # if True:
-        # linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
-        # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-        #                         mean_bin_vals=True)
-        # pred_mm = torch.tensor(pred_mm, device=self.device)
-        #
-        # # MSE
-        # mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
-        # self.log('train_mse_pred_target', mse_pred_target.item())
-        # # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item(), step=batch_idx)
-        #
-        # # MSE zeros
-        # mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
-        # self.log('train_mse_zeros_target', mse_zeros_target)
-        # # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
-        #
-        # persistence = input_sequence[:, -1, :, :]
-        # persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
-        # mse_persistence_target = torch.nn.MSELoss()(persistence, target)
-        # self.log('train_mse_persistence_target', mse_persistence_target)
-        # # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
+        if self.s_calculate_quality_params:
+            linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
+            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                    mean_bin_vals=True)
+            pred_mm = torch.tensor(pred_mm, device=self.device)
+
+            # MSE
+            mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
+            self.log('train_mse_pred_target', mse_pred_target.item())
+            # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item(), step=batch_idx)
+
+            # MSE zeros
+            mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
+            self.log('train_mse_zeros_target', mse_zeros_target)
+            # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
+
+            persistence = input_sequence[:, -1, :, :]
+            persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
+            mse_persistence_target = torch.nn.MSELoss()(persistence, target)
+            self.log('train_mse_persistence_target', mse_persistence_target)
+            # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
 
         return loss
 
@@ -124,12 +125,14 @@ class TrainingLogsCallback(pl.Callback):
         self.train_logger = train_logger
 
     def on_train_epoch_end(self, trainer, pl_module):
+        # on_train_batch_end
+
         all_logs = trainer.callback_metrics  # Alternatively: trainer.logged_metrics
 
         # trainer.callback_metrics= {}
         # There are both, trainer and validation metrics in callback_metrics (and logged_metrics as well )
         train_logs = {key: value for key, value in all_logs.items() if 'train_' in key}
-        self.train_logger.log_metrics(train_logs) #, step=trainer.current_epoch)
+        self.train_logger.log_metrics(train_logs) # , epoch=trainer.current_epoch) #, step=trainer.current_epoch)
         self.train_logger.save()
 
 
@@ -147,7 +150,7 @@ class ValidationLogsCallback(pl.Callback):
         all_logs = trainer.callback_metrics
         # trainer.callback_metrics = {}
         val_logs = {key: value for key, value in all_logs.items() if 'val_' in key}
-        self.val_logger.log_metrics(val_logs)
+        self.val_logger.log_metrics(val_logs) # , epoch=trainer.current_epoch)
         # self.val_logger.log_metrics(val_logs) #, step=trainer.current_epoch)
         self.val_logger.save()
 
@@ -367,7 +370,7 @@ if __name__ == '__main__':
 
             's_testing': True, # Runs tests before starting training
             's_profiling': False,  # Runs profiler
-            # UNUSED!'s_calculate_quality_params': True, # Calculatiing quality params during training and validation
+            's_calculate_quality_params': True, # Calculatiing quality params during training and validation
 
             # Plotting stuff
             's_no_plotting': False,  # This sets all plotting boos below to False
