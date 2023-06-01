@@ -1,8 +1,6 @@
 import numpy as np
-import torch
 import matplotlib.pyplot as plt
-from matplotlib import colors
-from helper_functions import convert_tensor_to_np
+from helper.helper_functions import convert_tensor_to_np
 
 import gc
 # import matplotlib

@@ -1,4 +1,4 @@
-from helper_functions import one_hot_to_mm
+from helper.helper_functions import one_hot_to_mm
 from load_data import img_one_hot, normalize_data, inverse_normalize_data
 import numpy as np
 import torch

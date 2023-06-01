@@ -1,17 +1,7 @@
-import h5py
 import xarray as xr
 import numpy as np
 import torch
-import torch.nn.functional as F
-import torch.nn as nn
 import torchvision.transforms as T
-from matplotlib.colors import LogNorm
-import matplotlib.pyplot as plt
-from helper_functions import bin_to_one_hot_index_linear
-import datetime
-from exceptions import CountException
-from torch.utils.data import Dataset, DataLoader
-import einops
 
 
 def main(create_test_data, view_indecies_with_rain_cropped):
