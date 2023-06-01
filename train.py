@@ -10,7 +10,7 @@ import numpy as np
 from helper.helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm, save_settings, save_whole_project
 import os
 from plotting_list_based.plot_img_histogram import plot_img_histogram
-from plotting_list_based.plot_images import plot_target_vs_pred, plot_target_vs_pred_with_likelihood
+from plotting.plot_images import plot_target_vs_pred, plot_target_vs_pred_with_likelihood
 from plotting_list_based.plot_quality_metrics import plot_mse_light, plot_mse_heavy, plot_losses, plot_average_preds, plot_pixelwise_preds
 import warnings
 from tests.test_basic_functions import test_all

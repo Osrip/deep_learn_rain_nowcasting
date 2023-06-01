@@ -183,7 +183,7 @@ class ValidationLogsCallback(pl.Callback):
 
 
 def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
-                s_num_bins_crossentropy, s_data_loader_chunk_size, s_batch_size, s_num_workers_data_loader, **__):
+                s_num_bins_crossentropy, s_data_loader_chunk_size, s_batch_size, s_num_workers_data_loader, s_dirs, **__):
     # relative index of last input picture (starting from first input picture as idx 1)
     last_input_rel_idx = s_num_input_time_steps
     #  relative index of target picture (starting from first input picture as idx 1)
@@ -197,6 +197,9 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized =\
         filtering_data_scraper(transform_f=transform_f, last_input_rel_idx=last_input_rel_idx, target_rel_idx=target_rel_idx,
                                **settings)
+
+    filter_and_normalization_params = filtered_indecies, mean_filtered_data, std_filtered_data,\
+        linspace_binning_min_unnormalized, linspace_binning_max_unnormalized
 
     ###############
     # LINSPACE BINNING
@@ -222,6 +225,7 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
         filtered_indecies, num_training_samples, num_validation_samples, s_data_loader_chunk_size)
 
+    # tODO: RETURN filtered indecies instead of data set
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning,
                                                   transform_f, **settings)
@@ -233,11 +237,10 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
 
     train_data_loader = DataLoader(train_data_set, batch_size=s_batch_size, shuffle=True, drop_last=True,
                                    num_workers=s_num_workers_data_loader)
-    del train_data_set
+
 
     validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=False, drop_last=True,
                                         num_workers=s_num_workers_data_loader)
-    del validation_data_set
 
 
     print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
@@ -247,7 +250,9 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
                                                                                        len(validation_data_loader),
                                                                                        s_batch_size))
     linspace_binning_params = (linspace_binning_min, linspace_binning_max, linspace_binning)
-    return train_data_loader, validation_data_loader, linspace_binning_params
+    # tODO: RETURN filtered indecies instead of data set
+    return train_data_loader, validation_data_loader, train_data_set, validation_data_set, linspace_binning_params,\
+        filter_and_normalization_params
 
 
 def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, **__):
@@ -255,7 +260,7 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     All the junk surrounding train goes in here
     '''
 
-    save_dict_pickle_csv(settings, s_dirs['save_dir'], 'settings')
+    save_dict_pickle_csv(settings, s_dirs['data_dir'], 'settings')
 
     save_whole_project(s_dirs['code_dir'])
 
@@ -276,11 +281,19 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     else:
         transform_f = lambda x: x
 
-    train_data_loader, validation_data_loader, linspace_binning_params = \
-        data_loading(transform_f, settings, **settings)
+    train_data_loader, validation_data_loader, train_data_set, validation_data_set, linspace_binning_params,\
+        filer_and_normalization_params = data_loading(transform_f, settings, **settings)
+
+    save_zipped_pickle(train_data_set, '{}/train_data_set'.format(s_dirs['data_dir']))
+
+    save_zipped_pickle(validation_data_set, '{}/validation_data_set'.format(s_dirs['data_dir']))
+    save_zipped_pickle(filer_and_normalization_params, '{}/filter_and_normalization_params'.format(s_dirs['data_dir']))
+
+    del train_data_set
+    del validation_data_set
 
     # Save linspace params
-    save_tuple_pickle_csv(linspace_binning_params, s_dirs['save_dir'], 'linspace_binning_params')
+    save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')
 
     train_logger = CSVLogger(s_dirs['logs'], name='train_log')
     val_logger = CSVLogger(s_dirs['logs'], name='val_log')
@@ -290,17 +303,17 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
                      ValidationLogsCallback(val_logger)]
 
     train_l(train_data_loader, validation_data_loader, profiler, callback_list, s_max_epochs,
-            linspace_binning_params, s_dirs['save_dir'], settings)
+            linspace_binning_params, s_dirs['data_dir'], settings)
 
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, max_epochs, linspace_binning_params,
-            save_dir, settings):
+            data_dir, settings):
     '''
     Train loop, keep this clean!
     '''
 
     model_l = Network_l(linspace_binning_params, **settings)
-    save_zipped_pickle('{}/Network_l_class'.format(save_dir), model_l)
+    save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
                          logger=False)
@@ -342,6 +355,7 @@ if __name__ == '__main__':
     s_dirs['code_dir'] = '{}/code'.format(s_dirs['save_dir'])
     s_dirs['profile_dir'] = '{}/profile'.format(s_dirs['save_dir'])
     s_dirs['logs'] = '{}/logs'.format(s_dirs['save_dir'])
+    s_dirs['data_dir'] = '{}/data'.format(s_dirs['save_dir'])
 
 
     for _, make_dir in s_dirs.items():
