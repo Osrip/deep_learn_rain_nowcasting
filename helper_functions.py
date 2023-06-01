@@ -93,17 +93,25 @@ def load_zipped_pickle(file):
     return data
 
 
-def save_settings(settings, folder):
-    with open(folder + '/settings.csv', 'w') as f:
-        for key in settings.keys():
-            f.write("%s,%s\n" % (key, settings[key]))
-    pickle_out = open('{}/settings.pickle'.format(folder), 'wb')
-    pickle.dump(settings, pickle_out)
-    pickle_out.close()
+def save_dict_pickle_csv(save_dict, folder, file_name):
+    with open('{}/{}.csv'. format(folder, file_name), 'w') as f:
+        for key in save_dict.keys():
+            f.write("%s,%s\n" % (key, save_dict[key]))
+    save_zipped_pickle('{}/{}'.format(folder, file_name), save_dict)
+
+
+def save_tuple_pickle_csv(save_dict, folder, file_name):
+    with open('{}/{}.csv'. format(folder, file_name), 'w') as f:
+        for en in save_dict:
+            f.write("%s\n" % (en))
+    save_zipped_pickle('{}/{}'.format(folder, file_name), save_dict)
 
 
 def save_whole_project(save_folder):
-    '''Copies complete code into simulation folder'''
+    '''
+    Copies complete code into simulation folder
+    Todo: does not copy subfolders for some reason!
+    '''
     cwd = os.getcwd()
 
     onlyfiles = []

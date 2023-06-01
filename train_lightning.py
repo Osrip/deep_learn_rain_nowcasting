@@ -13,7 +13,8 @@ from load_data import img_one_hot, PrecipitationFilteredDataset, load_data_seque
 from torch.utils.data import Dataset, DataLoader
 
 import numpy as np
-from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm, save_settings, save_whole_project
+from helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm, save_dict_pickle_csv,\
+    save_tuple_pickle_csv, save_whole_project
 import os
 from plotting.plot_img_histogram import plot_img_histogram
 from plotting.plot_images import plot_target_vs_pred, plot_target_vs_pred_with_likelihood
@@ -140,9 +141,9 @@ class Network_l(pl.LightningModule):
 
 class TrainingLogsCallback(pl.Callback):
     # Important info in:
-    # /home/jan/.cache/JetBrains/PyCharm2022.3/remote_sources/1316491302/-638459852/pytorch_lightning/callbacks/callback.py
-    # /home/jan/.cache/JetBrains/PyCharm2022.3/remote_sources/1316491302/-638459852/lightning_fabric/loggers/csv_logs.py
-    # /home/jan/.cache/JetBrains/PyCharm2022.3/remote_sources/1316491302/-638459852/pytorch_lightning/trainer/trainer.py
+    # pytorch_lightning/callbacks/callback.py
+    # lightning_fabric/loggers/csv_logs.py
+    # pytorch_lightning/trainer/trainer.py
     def __init__(self, train_logger):
         super().__init__()
         self.train_logger = train_logger
@@ -268,7 +269,8 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     All the junk surrounding train goes in here
     '''
 
-    save_settings(settings, s_dirs['save_dir'])
+    save_dict_pickle_csv(settings, s_dirs['save_dir'], 'settings')
+
     save_whole_project(s_dirs['code_dir'])
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(dirpath=s_dirs['model_dir'],
@@ -291,25 +293,28 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     train_data_loader, validation_data_loader, linspace_binning_params = \
         data_loading(transform_f, settings, **settings)
 
+    # Save linspace params
+    save_tuple_pickle_csv(linspace_binning_params, s_dirs['save_dir'], 'linspace_binning_params')
+
     train_logger = CSVLogger(s_dirs['logs'], name='train_log')
     val_logger = CSVLogger(s_dirs['logs'], name='val_log')
-    logger = [train_logger, val_logger]
 
     callback_list = [checkpoint_callback,
                      TrainingLogsCallback(train_logger),
                      ValidationLogsCallback(val_logger)]
 
     train_l(train_data_loader, validation_data_loader, profiler, callback_list, s_max_epochs,
-            linspace_binning_params, logger, settings)
+            linspace_binning_params, s_dirs['save_dir'], settings)
 
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, max_epochs, linspace_binning_params,
-            logger, settings):
+            save_dir, settings):
     '''
     Train loop, keep this clean!
     '''
 
     model_l = Network_l(linspace_binning_params, **settings)
+    save_zipped_pickle('{}/Network_l_class'.format(save_dir), model_l)
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
                          logger=False)
