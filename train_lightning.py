@@ -251,8 +251,8 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
                                                                                        s_batch_size))
     linspace_binning_params = (linspace_binning_min, linspace_binning_max, linspace_binning)
     # tODO: RETURN filtered indecies instead of data set
-    return train_data_loader, validation_data_loader, train_data_set, validation_data_set, linspace_binning_params,\
-        filter_and_normalization_params
+    return train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,\
+        linspace_binning_params, filter_and_normalization_params
 
 
 def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, **__):
@@ -281,16 +281,14 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     else:
         transform_f = lambda x: x
 
-    train_data_loader, validation_data_loader, train_data_set, validation_data_set, linspace_binning_params,\
+    train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation, linspace_binning_params, \
         filer_and_normalization_params = data_loading(transform_f, settings, **settings)
 
-    save_zipped_pickle(train_data_set, '{}/train_data_set'.format(s_dirs['data_dir']))
+    save_zipped_pickle('{}/filtered_indecies_training'.format(s_dirs['data_dir']), filtered_indecies_training)
+    save_zipped_pickle('{}/filtered_indecies_validation'.format(s_dirs['data_dir']), filtered_indecies_validation)
 
-    save_zipped_pickle(validation_data_set, '{}/validation_data_set'.format(s_dirs['data_dir']))
-    save_zipped_pickle(filer_and_normalization_params, '{}/filter_and_normalization_params'.format(s_dirs['data_dir']))
+    save_zipped_pickle('{}/filter_and_normalization_params'.format(s_dirs['data_dir']), filer_and_normalization_params)
 
-    del train_data_set
-    del validation_data_set
 
     # Save linspace params
     save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')

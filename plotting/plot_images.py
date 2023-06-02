@@ -55,7 +55,7 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
     add_input_sequence = False if input_sequence is None else True
 
     target_img = convert_tensor_to_np(target_img)
-    pred_mm = convert_tensor_to_np(pred_mm)
+    # pred_mm = convert_tensor_to_np(pred_mm)
     if add_input_sequence:
         input_sequence = convert_tensor_to_np(input_sequence)
     num_rows = np.min((target_img.shape[0], max_row_num))

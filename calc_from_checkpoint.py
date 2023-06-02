@@ -1,9 +1,10 @@
-from helper.checkpoint_handling import load_from_checkpoint, create_data_loaders
+from helper.checkpoint_handling import load_from_checkpoint, create_data_loaders, load_data_from_run
 from load_data import inverse_normalize_data
 from helper.helper_functions import one_hot_to_mm
 from train_lightning import data_loading
 from plotting.plot_images import plot_target_vs_pred_with_likelihood
 from helper.helper_functions import load_zipped_pickle
+import numpy as np
 
 
 def plot_images_inner(model, data_loader, filter_and_normalization_params, linspace_binning_params, ps_runs_path,
@@ -34,13 +35,20 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
 
 
 
+
 def plot_images_outer(plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_name, **__):
 
-    filter_and_normalization_params = load_zipped_pickle('{}/{}/data/filter_and_normalization_params'.format(ps_runs_path, ps_run_name))
-    linspace_binning_params = load_zipped_pickle('{}/{}/data/linspace_binning_params'.format(ps_runs_path, ps_run_name))
+    settings, filtered_indecies_training, filtered_indecies_validation, linspace_binning_params, filter_and_normalization_params \
+        = load_data_from_run(ps_runs_path, ps_run_name)
 
-    model = load_from_checkpoint(ps_runs_path, ps_run_name, ps_checkpoint_name)
-    train_data_loader, validation_data_loader = create_data_loaders(ps_runs_path, ps_run_name)
+    if settings['s_log_transform']:
+        transform_f = lambda x: np.log(x + 1)
+    else:
+        transform_f = lambda x: x
+
+    model = load_from_checkpoint(ps_runs_path, ps_run_name, ps_checkpoint_name, linspace_binning_params, settings)
+    train_data_loader, validation_data_loader = create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation,
+                        linspace_binning_params, filter_and_normalization_params, settings)
     plot_images_inner(model, train_data_loader, filter_and_normalization_params, linspace_binning_params, **plot_settings)
     plot_images_inner(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params, **plot_settings)
 
@@ -50,9 +58,11 @@ if __name__ == '__main__':
 
     plot_settings = {
         'ps_runs_path': '/home/jan/jan/programming/first_CNN_on_Radolan/runs',
-        'ps_run_name': 'Run_20230601-181344_test_profiler',
-        'ps_checkpoint_name': 'model_epoch=1_val_loss=3.94.ckpt',
+        'ps_run_name': 'Run_20230602-191416_test_profiler',
+        'ps_checkpoint_name': 'model_epoch=1_val_loss=3.92.ckpt',
     }
+
+
 
     plot_images_outer(plot_settings, **plot_settings)
 

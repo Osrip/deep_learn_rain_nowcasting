@@ -7,7 +7,7 @@ from load_data import PrecipitationFilteredDataset, inverse_normalize_data, filt
 from torch.utils.data import DataLoader
 
 import numpy as np
-from helper.helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm, save_settings, save_whole_project
+from helper.helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm, save_whole_project,
 import os
 from plotting_list_based.plot_img_histogram import plot_img_histogram
 from plotting.plot_images import plot_target_vs_pred, plot_target_vs_pred_with_likelihood
@@ -106,7 +106,7 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
     else:
         transform_f = lambda x: x
 
-    save_settings(settings, s_dirs['save_dir'])
+    # save_settings(settings, s_dirs['save_dir'])
 
     # try:
     save_whole_project(s_dirs['code_dir'])
