@@ -35,6 +35,7 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
                                                 title='Validation data (log, not normalized)',
                                                 input_sequence = input_sequence,
                                                 )
+        break
 
 
 

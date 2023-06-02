@@ -145,18 +145,6 @@ class TrainingLogsCallback(pl.Callback):
         self.train_logger.log_metrics(train_logs) # , epoch=trainer.current_epoch) #, step=trainer.current_epoch)
         self.train_logger.save()
 
-    # def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-    #     # on_train_batch_end
-    #
-    #     all_logs = trainer.callback_metrics  # Alternatively: trainer.logged_metrics
-    #
-    #     # trainer.callback_metrics= {}
-    #     # There are both, trainer and validation metrics in callback_metrics (and logged_metrics as well )
-    #     train_logs = {key: value for key, value in all_logs.items() if 'train_' in key}
-    #     self.train_logger.log_metrics(train_logs) # , epoch=trainer.current_epoch) #, step=trainer.current_epoch)
-    #     self.train_logger.save()
-
-
 
     def on_train_end(self, trainer, pl_module):
         # self.train_logger.finalize()
@@ -255,7 +243,7 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
         linspace_binning_params, filter_and_normalization_params
 
 
-def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, **__):
+def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus, **__):
     '''
     All the junk surrounding train goes in here
     '''
@@ -301,11 +289,11 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
                      ValidationLogsCallback(val_logger)]
 
     train_l(train_data_loader, validation_data_loader, profiler, callback_list, s_max_epochs,
-            linspace_binning_params, s_dirs['data_dir'], settings)
+            linspace_binning_params, s_dirs['data_dir'], s_num_gpus, settings)
 
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, max_epochs, linspace_binning_params,
-            data_dir, settings):
+            data_dir, num_gpus, settings):
     '''
     Train loop, keep this clean!
     '''
@@ -314,7 +302,7 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
     save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
-                         logger=False)
+                         logger=False, devices=num_gpus)
     # trainer.logger = logger
     trainer.fit(model_l, train_data_loader, validation_data_loader)
 
@@ -328,7 +316,7 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_sim_name_suffix = '_test_profiler'
 
@@ -366,7 +354,7 @@ if __name__ == '__main__':
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
-            's_max_epochs': None, # Max number of epochs, if None runs infenitely
+            's_max_epochs': None, # Max number of epochs, if None runs infinitely
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
             's_data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i + 1) for i in range(6)],
             # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
@@ -376,6 +364,9 @@ if __name__ == '__main__':
             's_ratio_training_data': 0.6,
             's_data_loader_chunk_size': 20, #  Chunk size, that consecutive data is chunked in when performing random splitting
             's_num_workers_data_loader': 4,
+
+            # Parameters related to lightning
+            's_num_gpus': 4,
 
             # Parameters that give the network architecture
             's_upscale_c_to': 32,  # 64, #128, # 512,
@@ -456,6 +447,7 @@ if __name__ == '__main__':
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0 # Debugging only works with zero workers
         settings['s_max_epochs'] = 20
+        settings['s_num_gpus'] = 1
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
     # mlflow.create_experiment(settings['s_sim_name'])
