@@ -20,7 +20,7 @@ import mlflow
 
 class Network_l(pl.LightningModule):
     def __init__(self, linspace_binning_params, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
-                 s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, **__):
+                 s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs, **__):
         super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
                 s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
@@ -29,17 +29,32 @@ class Network_l(pl.LightningModule):
         self.s_learning_rate = s_learning_rate
         self.s_width_height_target = s_width_height_target
         self.s_calculate_quality_params = s_calculate_quality_params
+        self.s_max_epochs = s_max_epochs
 
         self._linspace_binning_params = linspace_binning_params
+
 
 
     def forward(self, x):
         output = self.model(x)
         return output
 
+    # def configure_optimizers(self):
+    #     optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+    #     return optimizer
+
+
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
-        return optimizer
+        lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate, steps_per_epoch=20,
+                                                           epochs=self.s_max_epochs)
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': lr_scheduler,
+                # 'monitor': 'val_loss',  # The metric to monitor for scheduling
+                }
+        }
 
     def training_step(self, batch, batch_idx):
         input_sequence, target_one_hot, target = batch
@@ -284,6 +299,9 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     train_logger = CSVLogger(s_dirs['logs'], name='train_log')
     val_logger = CSVLogger(s_dirs['logs'], name='val_log')
 
+    # Todo: implement lr schedule! Problem needs optimizer, that is in Network_l class but scheduler is needed for callback list that is needed for init of trainer
+    # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR()
+
     callback_list = [checkpoint_callback,
                      TrainingLogsCallback(train_logger),
                      ValidationLogsCallback(val_logger)]
@@ -316,7 +334,7 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_sim_name_suffix = '_test_profiler'
 
@@ -354,7 +372,7 @@ if __name__ == '__main__':
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
-            's_max_epochs': None, # Max number of epochs, if None runs infinitely
+            's_max_epochs': 50, # Max number of epochs, affects scheduler (if None runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
             's_data_file_names': ['RV_recalc_data_2019-0{}.nc'.format(i + 1) for i in range(6)],
             # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
@@ -366,7 +384,7 @@ if __name__ == '__main__':
             's_num_workers_data_loader': 4,
 
             # Parameters related to lightning
-            's_num_gpus': 4,
+            's_num_gpus': 2,
 
             # Parameters that give the network architecture
             's_upscale_c_to': 32,  # 64, #128, # 512,
