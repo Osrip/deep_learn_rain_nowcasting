@@ -31,7 +31,9 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
                                                 save_path_name= '{}/{}/plots/VAL_target_vs_pred_likelihood_{}.png'.format(ps_runs_path
                                                                                                         , ps_run_name
                                                                                                         , ps_checkpoint_name),
-                                                title='Validation data (log, not normalized)')
+                                                title='Validation data (log, not normalized)',
+                                                input_sequence = input_sequence,
+                                                )
 
 
 
