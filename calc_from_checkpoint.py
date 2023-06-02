@@ -24,6 +24,7 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
         pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
 
         if i == 0:
+            # !!! Can also be plotted without input sequence by just leaving input_sequence=None !!!
             plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred_mm), pred,
                                                 linspace_binning=inv_norm(linspace_binning),
                                                 vmin=inv_norm(linspace_binning_min),
