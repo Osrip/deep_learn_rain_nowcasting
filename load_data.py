@@ -211,7 +211,7 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
                 #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
                 # TODO: previously min was taken from 256x256 target instead of 36x36. Is Bug now fixed?
                 min_input = np.min(curr_data_sequence[i:last_idx_input_sequence])
-                min_target = np.min(curr_data_sequence[target_idx_input_sequence])
+                min_target = np.min(curr_target_cropped)
                 min_curr_input_and_target = np.min([min_input, min_target])
 
                 if min_curr_input_and_target < 0:
