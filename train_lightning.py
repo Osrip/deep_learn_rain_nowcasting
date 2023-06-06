@@ -65,7 +65,7 @@ class Network_l(pl.LightningModule):
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
         # self.log('train_loss', loss, on_step=False, on_epoch=True)
-        self.log('train_loss', loss) # , on_step=True
+        self.log('train_loss', loss) ## , on_step=True
         # MLFlow
         mlflow.log_metric('train_loss', loss.item(), step=batch_idx)
         ### Additional quality metrics: ###
