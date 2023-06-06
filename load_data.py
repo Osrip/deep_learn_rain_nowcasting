@@ -207,10 +207,15 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
                 # linspace binning min and max have to be normalized later as the means and stds are available
 
-                min_curr_input_and_target = np.min(
-                        curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+                # min_curr_input_and_target = np.min(
+                #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+                # TODO: previously min was taken from 256x256 target instead of 36x36. Is Bug now fixed?
+                min_input = np.min(curr_data_sequence[i:last_idx_input_sequence])
+                min_target = np.min(curr_data_sequence[target_idx_input_sequence])
+                min_curr_input_and_target = np.min([min_input, min_target])
 
                 if min_curr_input_and_target < 0:
+                    # This should never occur as Filter should filter out all negative values
                     raise Exception('Values smaller than 0 within the test and validation dataset. Probably NaNs')
 
                 max_curr_input_and_target = np.max(
@@ -223,7 +228,7 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
                     linspace_binning_max_unnormalized = max_curr_input_and_target
 
             # TODO: Write a test for this!!
-            # TODO: When is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
+            # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
         if num_x == 0:
             raise Exception('No data passed the filter conditions of s_min_rain_ratio_target={}, such that there is no '
                             'data for training and validation.'.format(s_min_rain_ratio_target))
