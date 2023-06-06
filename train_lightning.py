@@ -320,7 +320,7 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
     save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
-                         logger=False, devices=num_gpus, precision=16)
+                         logger=False, devices=num_gpus) #, precision='16-mixed'
 
 
     # trainer.logger = logger
