@@ -39,22 +39,22 @@ class Network_l(pl.LightningModule):
         output = self.model(x)
         return output
 
-    # def configure_optimizers(self):
-    #     optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
-    #     return optimizer
-
-
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
-        lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate, steps_per_epoch=20,
-                                                           epochs=self.s_max_epochs)
-        return {
-            'optimizer': optimizer,
-            'lr_scheduler': {
-                'scheduler': lr_scheduler,
-                # 'monitor': 'val_loss',  # The metric to monitor for scheduling
-                }
-        }
+        return optimizer
+
+
+    # def configure_optimizers(self):
+    #     optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+    #     lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate, steps_per_epoch=20,
+    #                                                        epochs=self.s_max_epochs)
+    #     return {
+    #         'optimizer': optimizer,
+    #         'lr_scheduler': {
+    #             'scheduler': lr_scheduler,
+    #             # 'monitor': 'val_loss',  # The metric to monitor for scheduling
+    #             }
+    #     }
 
     def training_step(self, batch, batch_idx):
         input_sequence, target_one_hot, target = batch
@@ -65,7 +65,7 @@ class Network_l(pl.LightningModule):
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
         # self.log('train_loss', loss, on_step=False, on_epoch=True)
-        self.log('train_loss', loss, on_step=True)
+        self.log('train_loss', loss) # , on_step=True
         # MLFlow
         mlflow.log_metric('train_loss', loss.item(), step=batch_idx)
         ### Additional quality metrics: ###
@@ -104,7 +104,7 @@ class Network_l(pl.LightningModule):
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
 
-        self.log('val_loss', loss, on_step=True)
+        self.log('val_loss', loss) # , on_step=True
 
         if self.s_calculate_quality_params:
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params

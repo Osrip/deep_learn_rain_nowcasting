@@ -8,7 +8,7 @@ from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
 import gc
 import pandas as pd
-import _set_wdir
+# import _set_wdir
 
 # import matplotlib
 # matplotlib.use('agg')
@@ -272,6 +272,6 @@ def main(plot_settings, ps_run_path, **__):
 
 if __name__ == '__main__':
     plot_settings = {
-        'ps_run_path': 'Run_20230526-185300_test_profiler',
+        'ps_run_path': 'Run_20230602-211138_ID_3627607_test_profiler',
     }
     main(plot_settings, **plot_settings)
