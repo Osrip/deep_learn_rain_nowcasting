@@ -272,6 +272,6 @@ def main(plot_settings, ps_run_path, **__):
 
 if __name__ == '__main__':
     plot_settings = {
-        'ps_run_path': 'Run_20230607-145404_test_logging_2',
+        'ps_run_path': 'Run_20230607-154428_test_logging_2',
     }
     main(plot_settings, **plot_settings)
