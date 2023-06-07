@@ -13,7 +13,7 @@ import os
 
 import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
-from pytorch_lightning.loggers import CSVLogger
+from pytorch_lightning.loggers import CSVLogger, MLFlowLogger
 from helper.helper_functions import one_hot_to_mm
 import mlflow
 from plotting.plot_quality_metrics_from_log import plot_qualities_main
@@ -33,7 +33,6 @@ class Network_l(pl.LightningModule):
         self.s_max_epochs = s_max_epochs
 
         self._linspace_binning_params = linspace_binning_params
-
 
 
     def forward(self, x):
@@ -68,7 +67,7 @@ class Network_l(pl.LightningModule):
         # self.log('train_loss', loss, on_step=False, on_epoch=True)
         self.log('train_loss', loss, on_step=False, on_epoch=True) # on_step=False, on_epoch=True calculates averages over all steps for each epoch
         # MLFlow
-        mlflow.log_metric('train_loss', loss.item())
+        # mlflow.log_metric('train_loss', loss.item())
         ### Additional quality metrics: ###
 
 
@@ -81,18 +80,18 @@ class Network_l(pl.LightningModule):
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
             self.log('train_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True)
-            mlflow.log_metric('train_mse_pred_target', mse_pred_target.item())
+            # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item())
 
             # MSE zeros
             mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
             self.log('train_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
-            mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item())
+            # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item())
 
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
             self.log('train_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True)
-            mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
+            # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
 
         return loss
 
@@ -106,7 +105,11 @@ class Network_l(pl.LightningModule):
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
 
         self.log('val_loss', loss, on_step=False, on_epoch=True) # , on_step=True
-        mlflow.log_metric('val_loss', loss.item())
+
+        # mlflow logging without autolog
+        # self.logger.experiment.log_metric(self.logger.run_id, 'val_loss', loss.item())
+        
+        # mlflow.log_metric('val_loss', loss.item())
 
         if self.s_calculate_quality_params:
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
@@ -117,18 +120,18 @@ class Network_l(pl.LightningModule):
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
             self.log('val_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True)
-            mlflow.log_metric('val_mse_pred_target', mse_pred_target.item())
+            # mlflow.log_metric('val_mse_pred_target', mse_pred_target.item())
 
             # MSE zeros
             mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
             self.log('val_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
-            mlflow.log_metric('val_mse_zeros_target', mse_zeros_target.item())
+            # mlflow.log_metric('val_mse_zeros_target', mse_zeros_target.item())
 
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
             self.log('val_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True)
-            mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item())
+            # mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item())
 
         # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
         # pred_mm = torch.from_numpy(pred_mm).detach()
@@ -260,7 +263,7 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
         linspace_binning_params, filter_and_normalization_params
 
 
-def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus, **__):
+def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus, s_sim_name, **__):
     '''
     All the junk surrounding train goes in here
     '''
@@ -304,15 +307,19 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     # Todo: implement lr schedule! Problem needs optimizer, that is in Network_l class but scheduler is needed for callback list that is needed for init of trainer
     # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR()
 
+    logger = MLFlowLogger(experiment_name="Default", tracking_uri="file:./mlruns", run_name=s_sim_name, # tags={"mlflow.runName": settings['s_sim_name']},
+                          log_model=False)
+
+
     callback_list = [checkpoint_callback,
                      TrainingLogsCallback(train_logger),
                      ValidationLogsCallback(val_logger)]
 
-    train_l(train_data_loader, validation_data_loader, profiler, callback_list, s_max_epochs,
+    train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, s_max_epochs,
             linspace_binning_params, s_dirs['data_dir'], s_num_gpus, settings)
 
 
-def train_l(train_data_loader, validation_data_loader, profiler, callback_list, max_epochs, linspace_binning_params,
+def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, max_epochs, linspace_binning_params,
             data_dir, num_gpus, settings):
     '''
     Train loop, keep this clean!
@@ -322,7 +329,7 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
     save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
-                         logger=False, devices=num_gpus) #, precision='16-mixed'
+                         logger=logger, devices=num_gpus) #, precision='16-mixed'
 
 
     # trainer.logger = logger
@@ -340,7 +347,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = '_logging_mlflow_removed_step=x'
+    s_sim_name_suffix = '_one_year_training_fixed_csv_logging_mlflow_not_working_one_gpu'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -390,7 +397,7 @@ if __name__ == '__main__':
             's_num_workers_data_loader': 4,
 
             # Parameters related to lightning
-            's_num_gpus': 4,
+            's_num_gpus': 1,
 
             # Parameters that give the network architecture
             's_upscale_c_to': 32,  # 64, #128, # 512,
@@ -436,7 +443,6 @@ if __name__ == '__main__':
 
             # Logging Stuff
             's_model_every_n_epoch': 1, # Save model every nth epoch
-            's_log_every_n_steps': 1, #Log argument that is passed to pl.Trainer. Trainer default is 50
 
         }
 
@@ -470,7 +476,7 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0 # Debugging only works with zero workers
-        settings['s_max_epochs'] = 6
+        settings['s_max_epochs'] = 3
         settings['s_num_gpus'] = 1
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
@@ -481,9 +487,9 @@ if __name__ == '__main__':
 
 
     # mlflow.create_experiment(settings['s_sim_name'])
-    mlflow.set_tag("mlflow.runName", settings['s_sim_name'])
-    mlflow.pytorch.autolog()
-    mlflow.log_models = False
+    # mlflow.set_tag("mlflow.runName", settings['s_sim_name'])
+    # mlflow.pytorch.autolog()
+    # mlflow.log_models = False
 
 
     train_wrapper(settings, **settings)
