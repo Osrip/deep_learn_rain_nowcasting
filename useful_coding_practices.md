@@ -31,8 +31,14 @@ from https://github.com/jthuemmel/SpatioTemporalNetworks/blob/main/train_mixed.p
 
 ###
 mlflow
-start server with 
+
+activate conda env
+
+start server with, within mlruns folder
 mlflow ui --backend-store-uri ./mlruns
+
+go to localhost:5000/
+
 
 #######Print model parameters:
 

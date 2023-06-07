@@ -338,7 +338,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = '_12_months_4gpu_mixed_prec_scheduled_bugfix'
+    s_sim_name_suffix = '_test_logging_2'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
