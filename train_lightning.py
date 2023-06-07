@@ -16,6 +16,7 @@ from pytorch_lightning.profilers import PyTorchProfiler
 from pytorch_lightning.loggers import CSVLogger
 from helper.helper_functions import one_hot_to_mm
 import mlflow
+from plotting.plot_quality_metrics_from_log import plot_qualities_main
 
 
 class Network_l(pl.LightningModule):
@@ -65,9 +66,9 @@ class Network_l(pl.LightningModule):
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
         # self.log('train_loss', loss, on_step=False, on_epoch=True)
-        self.log('train_loss', loss, on_step=False, on_epoch=True) ## , on_step=True
+        self.log('train_loss', loss, on_step=False, on_epoch=True) # on_step=False, on_epoch=True calculates averages over all steps for each epoch
         # MLFlow
-        mlflow.log_metric('train_loss', loss.item(), step=batch_idx)
+        mlflow.log_metric('train_loss', loss.item())
         ### Additional quality metrics: ###
 
 
@@ -80,18 +81,18 @@ class Network_l(pl.LightningModule):
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
             self.log('train_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True)
-            mlflow.log_metric('train_mse_pred_target', mse_pred_target.item(), step=batch_idx)
+            mlflow.log_metric('train_mse_pred_target', mse_pred_target.item())
 
             # MSE zeros
             mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
             self.log('train_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
-            mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
+            mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item())
 
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
             self.log('train_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True)
-            mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
+            mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
 
         return loss
 
@@ -105,6 +106,7 @@ class Network_l(pl.LightningModule):
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
 
         self.log('val_loss', loss, on_step=False, on_epoch=True) # , on_step=True
+        mlflow.log_metric('val_loss', loss.item())
 
         if self.s_calculate_quality_params:
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
@@ -115,18 +117,18 @@ class Network_l(pl.LightningModule):
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
             self.log('val_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True)
-            mlflow.log_metric('val_mse_pred_target', mse_pred_target.item(), step=batch_idx)
+            mlflow.log_metric('val_mse_pred_target', mse_pred_target.item())
 
             # MSE zeros
             mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
             self.log('val_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
-            mlflow.log_metric('val_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
+            mlflow.log_metric('val_mse_zeros_target', mse_zeros_target.item())
 
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
             self.log('val_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True)
-            mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
+            mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item())
 
         # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
         # pred_mm = torch.from_numpy(pred_mm).detach()
@@ -338,7 +340,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = '_logging_changes_epoch_true_step_false_with_finalize'
+    s_sim_name_suffix = '_logging_mlflow_removed_step=x'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -353,8 +355,10 @@ if __name__ == '__main__':
         s_sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
                                            int(os.environ['SLURM_JOB_ID']))  # SLURM_ARRAY_TASK_ID
 
+    s_sim_name = s_sim_name + s_sim_name_suffix
+
     s_dirs = {}
-    s_dirs['save_dir'] = 'runs/{}{}'.format(s_sim_name, s_sim_name_suffix)
+    s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
     s_dirs['plot_dir'] = '{}/plots'.format(s_dirs['save_dir'])
     s_dirs['plot_dir_images'] = '{}/images'.format(s_dirs['plot_dir'])
     s_dirs['model_dir'] = '{}/model'.format(s_dirs['save_dir'])
@@ -470,6 +474,12 @@ if __name__ == '__main__':
         settings['s_num_gpus'] = 1
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
+
+    plot_metrics_settings = {
+        'ps_run_path': settings['s_sim_name'],
+    }
+
+
     # mlflow.create_experiment(settings['s_sim_name'])
     mlflow.set_tag("mlflow.runName", settings['s_sim_name'])
     mlflow.pytorch.autolog()
@@ -477,4 +487,8 @@ if __name__ == '__main__':
 
 
     train_wrapper(settings, **settings)
+
+
+    plot_qualities_main(plot_metrics_settings, **plot_metrics_settings)
+
 

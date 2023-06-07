@@ -251,7 +251,7 @@ def line_plot(train_df, val_df, key_list_train, key_list_val, save_name, ps_run_
                    title=title)
 
 
-def main(plot_settings, ps_run_path, **__):
+def plot_qualities_main(plot_settings, ps_run_path, **__):
     train_df, val_df = load_data(**plot_settings)
     key_list_train_mse = ['train_mse_pred_target', 'train_mse_zeros_target',
                       'train_mse_persistence_target']
@@ -274,4 +274,4 @@ if __name__ == '__main__':
     plot_settings = {
         'ps_run_path': 'Run_20230607-153457_logging_changes_epoch_true_step_false_no_finalize',
     }
-    main(plot_settings, **plot_settings)
+    plot_qualities_main(plot_settings, **plot_settings)
