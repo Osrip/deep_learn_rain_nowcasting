@@ -65,7 +65,7 @@ class Network_l(pl.LightningModule):
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
         # self.log('train_loss', loss, on_step=False, on_epoch=True)
-        self.log('train_loss', loss) ## , on_step=True
+        self.log('train_loss', loss, on_step=False, on_epoch=True) ## , on_step=True
         # MLFlow
         mlflow.log_metric('train_loss', loss.item(), step=batch_idx)
         ### Additional quality metrics: ###
@@ -79,18 +79,18 @@ class Network_l(pl.LightningModule):
 
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
-            self.log('train_mse_pred_target', mse_pred_target.item())
+            self.log('train_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True)
             mlflow.log_metric('train_mse_pred_target', mse_pred_target.item(), step=batch_idx)
 
             # MSE zeros
             mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
-            self.log('train_mse_zeros_target', mse_zeros_target)
+            self.log('train_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
             mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
 
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
-            self.log('train_mse_persistence_target', mse_persistence_target)
+            self.log('train_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True)
             mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
 
         return loss
@@ -104,7 +104,7 @@ class Network_l(pl.LightningModule):
         pred = self.model(input_sequence)
         loss = nn.CrossEntropyLoss()(pred, target_one_hot)
 
-        self.log('val_loss', loss) # , on_step=True
+        self.log('val_loss', loss, on_step=False, on_epoch=True) # , on_step=True
 
         if self.s_calculate_quality_params:
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
@@ -114,18 +114,18 @@ class Network_l(pl.LightningModule):
 
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
-            self.log('val_mse_pred_target', mse_pred_target.item())
+            self.log('val_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True)
             mlflow.log_metric('val_mse_pred_target', mse_pred_target.item(), step=batch_idx)
 
             # MSE zeros
             mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
-            self.log('val_mse_zeros_target', mse_zeros_target)
+            self.log('val_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
             mlflow.log_metric('val_mse_zeros_target', mse_zeros_target.item(), step=batch_idx)
 
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
-            self.log('val_mse_persistence_target', mse_persistence_target)
+            self.log('val_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True)
             mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item(), step=batch_idx)
 
         # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
@@ -180,7 +180,7 @@ class ValidationLogsCallback(pl.Callback):
         self.val_logger.save()
 
     def on_validation_end(self, trainer, pl_module):
-        # self.train_logger.finalize()
+        # self.val_logger.finalize()
         self.val_logger.save()
 
 
@@ -338,7 +338,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = '_test_logging_2'
+    s_sim_name_suffix = '_logging_changes_epoch_true_step_false_with_finalize'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -466,7 +466,7 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0 # Debugging only works with zero workers
-        settings['s_max_epochs'] = 20
+        settings['s_max_epochs'] = 6
         settings['s_num_gpus'] = 1
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
