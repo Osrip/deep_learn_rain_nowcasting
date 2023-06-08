@@ -212,6 +212,8 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
                 #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
                 # TODO: previously min was taken from 256x256 target instead of 36x36. Is Bug now fixed?
                 min_input = np.min(curr_data_sequence[i:last_idx_input_sequence])
+                # TODO: Could it be that bug with min is introduced because double center cropping as done here
+                # yields a different result from single center cropping to target (shift by a poixel or sth?)?
                 min_target = np.min(curr_target_cropped)
                 min_curr_input_and_target = np.min([min_input, min_target])
 
@@ -259,7 +261,6 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 #         return False
 
 
-
 # def filter(input_sequence, target, s_min_rain_ratio_target, percentage=1):
 #     '''
 #     Looks whether on what percentage on target there is rain. If percentage exceeds s_min_rain_ratio_target return True
@@ -275,8 +276,6 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 #         return True
 #     else:
 #         return False
-
-
 
 
 def filter(input_sequence, target, s_min_rain_ratio_target, percentage=0.5, min_amount_rain=0.05):

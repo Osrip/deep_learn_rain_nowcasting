@@ -345,9 +345,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
-    s_sim_name_suffix = '_6_months_training_fixed_csv_logging_mlflow_working_1_gpus'
+    s_sim_name_suffix = '_6_months_training_fixed_csv_logging_mlflow_working_4_gpus'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -397,7 +397,7 @@ if __name__ == '__main__':
             's_num_workers_data_loader': 4,
 
             # Parameters related to lightning
-            's_num_gpus': 1,
+            's_num_gpus': 4,
 
             # Parameters that give the network architecture
             's_upscale_c_to': 32,  # 64, #128, # 512,
