@@ -184,9 +184,13 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
             last_idx_input_sequence = i + last_input_rel_idx
             target_idx_input_sequence = i + target_rel_idx
 
-            curr_target_cropped = np.array(T.CenterCrop(size=s_width_height_target)(torch.from_numpy(curr_data_sequence[target_idx_input_sequence])))
+            curr_target = curr_data_sequence[target_idx_input_sequence]
+            curr_target_cropped = np.array(T.CenterCrop(size=s_width_height_target)(curr_target))
             curr_input_sequence = curr_data_sequence[first_idx_input_sequence:last_idx_input_sequence, :, :]
-            if filter(curr_input_sequence, curr_target_cropped, s_min_rain_ratio_target):
+            # Cropping here
+            curr_input_sequence_cropped = np.array(T.CenterCrop(size=s_width_height)(curr_input_sequence))
+
+            if filter(curr_input_sequence_cropped, curr_target_cropped, s_min_rain_ratio_target):
                 num_frames_passed_filter += 1
                 filtered_data_loader_indecies_dict = {}
                 filtered_data_loader_indecies_dict['file'] = data_file_name
@@ -201,28 +205,32 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
                 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 # We are iterating through all 256x256 target frames that have been accepted by the filter
-
-                num_x += np.shape(curr_data_sequence[target_idx_input_sequence].flatten())[0]
-                sum_x += np.sum(transform_f(curr_data_sequence[target_idx_input_sequence].flatten()))
-                sum_x_squared += np.sum(transform_f(curr_data_sequence[target_idx_input_sequence].flatten()) ** 2)
+                # TODO: !!!!! Only normalizing on target frames at the moment !!!!!!
+                num_x += np.shape(curr_input_sequence_cropped.flatten())[0]
+                sum_x += np.sum(transform_f(curr_input_sequence_cropped.flatten()))
+                sum_x_squared += np.sum(transform_f(curr_input_sequence_cropped.flatten()) ** 2)
 
                 # linspace binning min and max have to be normalized later as the means and stds are available
 
                 # min_curr_input_and_target = np.min(
                 #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
                 # TODO: previously min was taken from 256x256 target instead of 36x36. Is Bug now fixed?
-                min_input = np.min(curr_data_sequence[i:last_idx_input_sequence])
+                min_input = np.min(curr_input_sequence_cropped)
+                max_input = np.max(curr_input_sequence_cropped)
                 # TODO: Could it be that bug with min is introduced because double center cropping as done here
                 # yields a different result from single center cropping to target (shift by a poixel or sth?)?
                 min_target = np.min(curr_target_cropped)
+                max_target = np.max(curr_target_cropped)
+
                 min_curr_input_and_target = np.min([min_input, min_target])
+                max_curr_input_and_target = np.max([max_input, max_target])
 
                 if min_curr_input_and_target < 0:
                     # This should never occur as Filter should filter out all negative values
                     raise Exception('Values smaller than 0 within the test and validation dataset. Probably NaNs')
 
-                max_curr_input_and_target = np.max(
-                        curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+                # max_curr_input_and_target = np.max(
+                #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
 
                 if linspace_binning_min_unnormalized > min_curr_input_and_target:
                     linspace_binning_min_unnormalized = min_curr_input_and_target
@@ -454,8 +462,9 @@ def load_data_sequence_preliminary(s_folder_path, data_file_name, s_width_height
     data_tensor = torch.from_numpy(data_arr)
 
     # Crop --> TODO: Implement this with x y variables of NetCDF in future!
-    data_tensor = T.CenterCrop(size=s_width_height)(data_tensor)
-    return data_tensor.numpy()
+    # Doing cropping in filtering_data_scraper therefore commented out
+    # data_tensor = T.CenterCrop(size=s_width_height)(data_tensor)
+    return data_tensor
 
 
 def random_splitting_filtered_indecies(indecies, num_training_samples, num_validation_samples, chunk_size):
