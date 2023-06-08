@@ -1,3 +1,5 @@
+import warnings
+
 import h5py
 import xarray as xr
 import numpy as np
@@ -200,7 +202,6 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
                 # We are iterating through all 256x256 target frames that have been accepted by the filter
 
-                # !!!TODO: !!! num_x is zero when filter is never applied! Account for this !!!
                 num_x += np.shape(curr_data_sequence[target_idx_input_sequence].flatten())[0]
                 sum_x += np.sum(transform_f(curr_data_sequence[target_idx_input_sequence].flatten()))
                 sum_x_squared += np.sum(transform_f(curr_data_sequence[target_idx_input_sequence].flatten()) ** 2)
@@ -405,9 +406,27 @@ def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning):
     # data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=mm_min, mm_max=mm_max)
     data_arr_indexed = bin_to_one_hot_index_linear(data_arr, linspace_binning) # -0.00000001
     # data_arr_indexed = bin_to_one_hot_index_log(data_arr, num_c)
-    data_indexed = torch.from_numpy(data_arr_indexed)
+    # data_arr_indexed[0, 0] = -1
+    # TODO:Added for debugging, make sure to find bug and fix it!
+    if np.min(data_arr_indexed) < 0:
+        err_message = 'ERROR: ONE HOT ENCODING: data_arr_indexed had values below zero.' \
+                      ' Set all vlas < 0 to 0. data_arr < min_linspace_binning: {},' \
+                      ' min of linspace_binning: {}, (all vals lognormalized) data_arr_index <0: {}'\
+            .format(data_arr[data_arr<np.min(linspace_binning)], np.min(linspace_binning), data_arr_indexed[data_arr_indexed<0])
+        warnings.warn(err_message)
+        print(err_message)
+        data_arr_indexed[data_arr_indexed<0] = 0
+        try:
+            data_indexed = torch.from_numpy(data_arr_indexed)
 
-    data_hot = F.one_hot(data_indexed.long(), num_c)
+        except RuntimeError:
+            data_arr_indexed[data_arr_indexed < 0] = 0
+            data_indexed = torch.from_numpy(data_arr_indexed)
+    else:
+        data_indexed = torch.from_numpy(data_arr_indexed)
+
+        data_hot = F.one_hot(data_indexed.long(), num_c)
+
 
     return data_hot
 

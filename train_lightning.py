@@ -347,7 +347,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = '_one_year_training_fixed_csv_logging_mlflow_not_working_one_gpu'
+    s_sim_name_suffix = '_6_months_training_fixed_csv_logging_mlflow_working_1_gpus'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -387,7 +387,7 @@ if __name__ == '__main__':
 
             's_max_epochs': 200, # Max number of epochs, affects scheduler (if None runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            's_data_file_names': ['RV_recalc_data_2019-{:02d}.nc'.format(i + 1) for i in range(12)],
+            's_data_file_names': ['RV_recalc_data_2019-{:02d}.nc'.format(i + 1) for i in range(6)],
             # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
             's_data_variable_name': 'RV_recalc',
             's_choose_time_span': False,
