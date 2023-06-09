@@ -76,7 +76,7 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
                 im1 = curr_ax.imshow(target_img[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
                 cbar1 = plt.colorbar(im1)
             elif col == 1 + add_cols:
-                im2 = curr_ax.imshow(pred_mm[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
+                im2 = curr_ax.imshow(pred_mm[row, :, :].detach().cpu(), vmin=vmin, vmax=vmax, norm='linear')
                 cbar2 = plt.colorbar(im2, cmap='jet')
             elif col == 2 + add_cols:
                 # likelihoods = -np.log(likelihoods)
