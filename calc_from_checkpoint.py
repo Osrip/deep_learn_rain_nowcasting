@@ -8,7 +8,7 @@ import numpy as np
 
 
 def plot_images_inner(model, data_loader, filter_and_normalization_params, linspace_binning_params, ps_runs_path,
-                      ps_run_name, ps_checkpoint_name, **__):
+                      ps_run_name, ps_checkpoint_name, ps_device, **__):
 
     filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
         linspace_binning_max_unnormalized = filter_and_normalization_params
@@ -19,7 +19,8 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
                                                 inverse_normalize=True)
 
     for i, (input_sequence, target_one_hot, target) in enumerate(data_loader):
-        input_sequence.to
+        input_sequence.to(ps_device)
+        model.to(ps_device)
         pred = model(input_sequence)
 
         pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
@@ -69,7 +70,7 @@ if __name__ == '__main__':
         'ps_runs_path': '/home/jan/Programming/remote/first_CNN_on_radolan_remote/runs',
         'ps_run_name': 'Run_20230606-153932_12_months_4gpu_mixed_prec_scheduled_bugfix',
         'ps_checkpoint_name': 'model_epoch=6_val_loss=4.15.ckpt',
-        'device': '',
+        'ps_device': 'cpu',
     }
 
 
