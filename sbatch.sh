@@ -3,7 +3,7 @@
 #SBATCH --cpus-per-task=16         # Number of CPU cores per task
 #SBATCH --nodes=1                 # Ensure that all cores are on one machine
 #SBATCH --time=0-24:00            # Runtime in D-HH:MM
-#SBATCH --gres=gpu:4    # optionally type and number of gpus
+#SBATCH --gres=gpu:1    # optionally type and number of gpus
 #SBATCH --partition=gpu-v100
 #SBATCH --mem=200G                # Memory pool for all cores (see also --mem-per-cpu) max 400 v-100
 #SBATCH --output=out_%j.out  # File to which STDOUT will be written - make sure this is not on $HOME

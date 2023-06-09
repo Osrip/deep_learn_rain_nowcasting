@@ -272,6 +272,6 @@ def plot_qualities_main(plot_settings, ps_run_path, **__):
 
 if __name__ == '__main__':
     plot_settings = {
-        'ps_run_path': 'Run_20230607-153457_logging_changes_epoch_true_step_false_no_finalize',
+        'ps_run_path': 'Run_20230607-202441_ID_3641197_6_months_training_fixed_csv_logging_mlflow_working_1_gpus',
     }
     plot_qualities_main(plot_settings, **plot_settings)

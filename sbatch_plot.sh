@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --ntasks=1                # Number of tasks (see below)
-#SBATCH --cpus-per-task=16         # Number of CPU cores per task
+#SBATCH --cpus-per-task=64         # Number of CPU cores per task
 #SBATCH --nodes=1                 # Ensure that all cores are on one machine
-#SBATCH --time=0-00:30            # Runtime in D-HH:MM
+#SBATCH --time=0-01:30            # Runtime in D-HH:MM
 #SBATCH --gres=gpu:0    # optionally type and number of gpus
 #SBATCH --partition=cpu-short
 #SBATCH --mem=120G                # Memory pool for all cores (see also --mem-per-cpu) max 400 v-100

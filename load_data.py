@@ -422,16 +422,15 @@ def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning):
             .format(data_arr[data_arr<np.min(linspace_binning)], np.min(linspace_binning), data_arr_indexed[data_arr_indexed<0])
         warnings.warn(err_message)
         print(err_message)
-        data_arr_indexed[data_arr_indexed<0] = 0
-        try:
-            data_indexed = torch.from_numpy(data_arr_indexed)
 
-        except RuntimeError:
-            data_arr_indexed[data_arr_indexed < 0] = 0
-            data_indexed = torch.from_numpy(data_arr_indexed)
+        print('One hot conversion encountered error --> Set data_arr_indexed[data_arr_indexed < 0] = 0')
+        data_arr_indexed[data_arr_indexed < 0] = 0
+        data_indexed = torch.from_numpy(data_arr_indexed)
+        data_hot = F.one_hot(data_indexed.long(), num_c)
+
+
     else:
         data_indexed = torch.from_numpy(data_arr_indexed)
-
         data_hot = F.one_hot(data_indexed.long(), num_c)
 
 

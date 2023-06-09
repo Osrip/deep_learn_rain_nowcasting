@@ -345,9 +345,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
-    s_sim_name_suffix = '_6_months_training_fixed_csv_logging_mlflow_working_4_gpus'
+    s_sim_name_suffix = '_12_months_training_fixed_csv_logging_mlflow_working_1_gpus'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -387,7 +387,7 @@ if __name__ == '__main__':
 
             's_max_epochs': 200, # Max number of epochs, affects scheduler (if None runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            's_data_file_names': ['RV_recalc_data_2019-{:02d}.nc'.format(i + 1) for i in range(6)],
+            's_data_file_names': ['RV_recalc_data_2019-{:02d}.nc'.format(i + 1) for i in range(12)],
             # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
             's_data_variable_name': 'RV_recalc',
             's_choose_time_span': False,
@@ -397,7 +397,7 @@ if __name__ == '__main__':
             's_num_workers_data_loader': 4,
 
             # Parameters related to lightning
-            's_num_gpus': 4,
+            's_num_gpus': 1,
 
             # Parameters that give the network architecture
             's_upscale_c_to': 32,  # 64, #128, # 512,
