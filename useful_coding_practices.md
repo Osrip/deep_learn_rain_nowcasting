@@ -51,3 +51,22 @@ from torch.cuda.amp import GradScaler, autocast
 scaler = GradScaler()
 
 #generate predictions     with autocast():    if leadtime_mode:    leadtime = th.randint(horizon, (1,)).to(device, th.float32)    prediction = model(predictive[:, :, :context], prescribed, leadtime)    target = predictive[:, :, context + leadtime]    else:    prediction = model(predictive[:, :, :context], prescribed, horizon)    target = predictive[:, :, context:]    #calculate loss    loss = latMSE(prediction, target, w)    #backward pass        scaler.scale(loss).backward()    scaler.step(optimizer)           scaler.update()
+
+
+
+########Remote session Pycharm:
+
+run on slurm:
+srun --gres=gpu:1 --pty bash
+alternatively (???):
+salloc --no-shell --partition=gpu-v100 --time=0-12:00 --gres=gpu:1 --job-name=session1
+hostname
+
+
+run on pc:
+
+general:
+ssh -AtL $B_PORT:localhost:$B_PORT $YOURLOGIN@134.2.168.72 "ssh -AtL $B_PORT:localhost:$COMPUTE_PORT $YOURLOGIN@$NODE bash"
+
+custom:
+ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-bm-46 bash"

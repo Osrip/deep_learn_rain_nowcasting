@@ -273,7 +273,7 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     save_whole_project(s_dirs['code_dir'])
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(dirpath=s_dirs['model_dir'],
-                                                       filename='model_{epoch}_{val_loss:.2f}',
+                                                       filename='model_{epoch:04d}_{val_loss:.2f}',
                                                        save_top_k=-1,
                                                        every_n_epochs=s_model_every_n_epoch)
 
@@ -347,7 +347,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = False
 
-    s_sim_name_suffix = '_12_months_training_fixed_csv_logging_mlflow_working_1_gpus'
+    s_sim_name_suffix = '_12_months_training_fixed_csv_logging_mlflow_working_1_gpus_several_runs'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -385,7 +385,7 @@ if __name__ == '__main__':
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
-            's_max_epochs': 200, # Max number of epochs, affects scheduler (if None runs infinitely, does not work with scheduler)
+            's_max_epochs': 50, # Max number of epochs, affects scheduler (if None runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
             's_data_file_names': ['RV_recalc_data_2019-{:02d}.nc'.format(i + 1) for i in range(12)],
             # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],

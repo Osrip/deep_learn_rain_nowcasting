@@ -5,6 +5,7 @@ from train_lightning import data_loading
 from plotting.plot_images import plot_target_vs_pred_with_likelihood
 from helper.helper_functions import load_zipped_pickle
 import numpy as np
+import torch
 
 
 def plot_images_inner(model, data_loader, filter_and_normalization_params, linspace_binning_params, ps_runs_path,
@@ -19,8 +20,8 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
                                                 inverse_normalize=True)
 
     for i, (input_sequence, target_one_hot, target) in enumerate(data_loader):
-        input_sequence.to(ps_device)
-        model.to(ps_device)
+        input_sequence = input_sequence.to(ps_device)
+        model = model.to(ps_device)
         pred = model(input_sequence)
 
         pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
@@ -65,12 +66,12 @@ if __name__ == '__main__':
     #     'ps_run_name': 'Run_20230602-191416_test_profiler',
     #     'ps_checkpoint_name': 'model_epoch=1_val_loss=3.92.ckpt',
     # }
-
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     plot_settings = {
-        'ps_runs_path': '/home/jan/Programming/remote/first_CNN_on_radolan_remote/runs',
-        'ps_run_name': 'Run_20230606-153932_12_months_4gpu_mixed_prec_scheduled_bugfix',
-        'ps_checkpoint_name': 'model_epoch=6_val_loss=4.15.ckpt',
-        'ps_device': 'cpu',
+        'ps_runs_path': '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs',
+        'ps_run_name': 'Run_20230611-212949_ID_3646156_12_months_training_fixed_csv_logging_mlflow_working_1_gpus_several_runs',
+        'ps_checkpoint_name': 'model_epoch=0049_val_loss=3.95.ckpt',
+        'ps_device': device,
     }
 
 
