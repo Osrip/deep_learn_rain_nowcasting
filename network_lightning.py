@@ -1,0 +1,131 @@
+import torch
+import pytorch_lightning as pl
+from modules_blocks import Network
+import torch.nn as nn
+from helper.helper_functions import one_hot_to_mm
+import torchvision.transforms as T
+
+
+class Network_l(pl.LightningModule):
+    def __init__(self, linspace_binning_params, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
+                 s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
+                 **__):
+        super().__init__()
+        self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
+                             s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
+        self.model.to(device)
+
+        self.s_learning_rate = s_learning_rate
+        self.s_width_height_target = s_width_height_target
+        self.s_calculate_quality_params = s_calculate_quality_params
+        self.s_max_epochs = s_max_epochs
+
+        self._linspace_binning_params = linspace_binning_params
+
+    def forward(self, x):
+        output = self.model(x)
+        return output
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+        return optimizer
+
+    # def configure_optimizers(self):
+    #     optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+    #     lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate, steps_per_epoch=20,
+    #                                                        epochs=self.s_max_epochs)
+    #     return {
+    #         'optimizer': optimizer,
+    #         'lr_scheduler': {
+    #             'scheduler': lr_scheduler,
+    #             # 'monitor': 'val_loss',  # The metric to monitor for scheduling
+    #             }
+    #     }
+
+    def training_step(self, batch, batch_idx):
+        input_sequence, target_one_hot, target = batch
+        # Todo: get rid of float conversion? do this in filter already?
+        input_sequence = input_sequence.float()
+        target_one_hot = target_one_hot.float()
+        # TODO targets already cropped??
+        pred = self.model(input_sequence)
+        loss = nn.CrossEntropyLoss()(pred, target_one_hot)
+        # self.log('train_loss', loss, on_step=False, on_epoch=True)
+        self.log('train_loss', loss, on_step=False,
+                 on_epoch=True)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
+        # MLFlow
+        # mlflow.log_metric('train_loss', loss.item())
+        ### Additional quality metrics: ###
+
+        if self.s_calculate_quality_params:
+            linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
+            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                    mean_bin_vals=True)
+            pred_mm = torch.tensor(pred_mm, device=self.device)
+
+            # MSE
+            mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
+            self.log('train_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True)
+            # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item())
+
+            # MSE zeros
+            mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
+            self.log('train_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
+            # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item())
+
+            persistence = input_sequence[:, -1, :, :]
+            persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
+            mse_persistence_target = torch.nn.MSELoss()(persistence, target)
+            self.log('train_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True)
+            # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
+
+        return loss
+
+    def validation_step(self, val_batch, batch_idx):
+        input_sequence, target_one_hot, target = val_batch
+
+        input_sequence = input_sequence.float()
+        target_one_hot = target_one_hot.float()
+
+        pred = self.model(input_sequence)
+        loss = nn.CrossEntropyLoss()(pred, target_one_hot)
+
+        self.log('val_loss', loss, on_step=False, on_epoch=True)  # , on_step=True
+
+        # mlflow logging without autolog
+        # self.logger.experiment.log_metric(self.logger.run_id, 'val_loss', loss.item())
+
+        # mlflow.log_metric('val_loss', loss.item())
+
+        if self.s_calculate_quality_params:
+            linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
+            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                    mean_bin_vals=True)
+            pred_mm = torch.tensor(pred_mm, device=self.device)
+
+            # MSE
+            mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
+            self.log('val_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True)
+            # mlflow.log_metric('val_mse_pred_target', mse_pred_target.item())
+
+            # MSE zeros
+            mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
+            self.log('val_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
+            # mlflow.log_metric('val_mse_zeros_target', mse_zeros_target.item())
+
+            persistence = input_sequence[:, -1, :, :]
+            persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
+            mse_persistence_target = torch.nn.MSELoss()(persistence, target)
+            self.log('val_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True)
+            # mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item())
+
+        # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+        # pred_mm = torch.from_numpy(pred_mm).detach()
+
+        # MSE
+        # mse_pred_target = torch.nn.MSELoss()(pred, target)
+        # self.log('val_mse_pred_target', mse_pred_target)
+
+        # MSE zeros
+        # mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape), target)
+        # self.log('val_mse_zeros_target', mse_zeros_target)

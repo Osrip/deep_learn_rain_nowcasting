@@ -59,7 +59,7 @@ scaler = GradScaler()
 run on slurm:
 srun --gres=gpu:1 --pty bash
 alternatively (???):
-salloc --no-shell --partition=gpu-v100 --time=0-12:00 --gres=gpu:1 --job-name=session1
+srun --partition=gpu-v100 --time=0-12:00 --gres=gpu:1 --pty bash
 hostname
 
 
@@ -69,4 +69,4 @@ general:
 ssh -AtL $B_PORT:localhost:$B_PORT $YOURLOGIN@134.2.168.72 "ssh -AtL $B_PORT:localhost:$COMPUTE_PORT $YOURLOGIN@$NODE bash"
 
 custom:
-ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-bm-46 bash"
+ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-v100-3 bash"
