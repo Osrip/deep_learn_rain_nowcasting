@@ -224,7 +224,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = 'DEBUG' #'4_gpus_and_test_new_autoplot_feature'
+    s_sim_name_suffix = 'DEBUG'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':

@@ -69,4 +69,4 @@ general:
 ssh -AtL $B_PORT:localhost:$B_PORT $YOURLOGIN@134.2.168.72 "ssh -AtL $B_PORT:localhost:$COMPUTE_PORT $YOURLOGIN@$NODE bash"
 
 custom:
-ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-v100-3 bash"
+ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-v100-6 bash"
