@@ -4,7 +4,8 @@ import torchvision.transforms as T
 # from modules_blocks import Network
 from network_lightning import Network_l
 import datetime
-from load_data import PrecipitationFilteredDataset, filtering_data_scraper, lognormalize_data, random_splitting_filtered_indecies
+from load_data import PrecipitationFilteredDataset, filtering_data_scraper, lognormalize_data,\
+    random_splitting_filtered_indecies, calc_class_frequencies
 from torch.utils.data import DataLoader
 
 import numpy as np
@@ -66,7 +67,6 @@ class ValidationLogsCallback(pl.Callback):
         self.val_logger.save()
 
 
-
 def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
                 s_num_bins_crossentropy, s_data_loader_chunk_size, s_batch_size, s_num_workers_data_loader, s_dirs, **__):
     # relative index of last input picture (starting from first input picture as idx 1)
@@ -110,7 +110,10 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
         filtered_indecies, num_training_samples, num_validation_samples, s_data_loader_chunk_size)
 
-    # tODO: RETURN filtered indecies instead of data set
+    class_frequencies, class_count, sample_num = calc_class_frequencies(filtered_indecies_training, linspace_binning, mean_filtered_data, std_filtered_data,
+                                    transform_f, **settings)
+
+    # TODO: RETURN filtered indecies instead of data set
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning,
                                                   transform_f, **settings)

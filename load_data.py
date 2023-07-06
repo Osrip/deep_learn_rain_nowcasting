@@ -79,8 +79,6 @@ class PrecipitationFilteredDataset(Dataset):
         unnormalized data sequence --> target frame
         """
 
-
-
         self.linspace_binning = linspace_binning # Gets assigned in __getitem__
         # TODO pretty ugly due to evolutionary code history... Create linspace binning at the beginning in train.py at some point
 
@@ -154,11 +152,13 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
     return data
 
 
-def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_folder_path, s_data_file_names, s_width_height, s_data_variable_name,
-                           s_time_span, s_local_machine_mode, s_width_height_target, s_min_rain_ratio_target, s_choose_time_span=False, **__):
+def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_folder_path, s_data_file_names, s_width_height,
+                           s_data_variable_name, s_time_span, s_local_machine_mode, s_width_height_target, s_min_rain_ratio_target,
+                           s_choose_time_span=False, **__):
     '''
     time span only refers to a single file
     '''
+
     filtered_data_loader_indecies = []
 
     # num_x and sum_x as well as sum_x_squared are used to calculate the first and second momentum for data normalization
@@ -171,6 +171,8 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
     linspace_binning_min_unnormalized = np.inf
     linspace_binning_max_unnormalized = -np.inf
+
+
 
     for data_file_name in s_data_file_names:
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -218,7 +220,7 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
                 min_input = np.min(curr_input_sequence_cropped)
                 max_input = np.max(curr_input_sequence_cropped)
                 # TODO: Could it be that bug with min is introduced because double center cropping as done here
-                # yields a different result from single center cropping to target (shift by a poixel or sth?)?
+                # yields a different result from single center cropping to target (shift by a pixel or sth?)?
                 min_target = np.min(curr_target_cropped)
                 max_target = np.max(curr_target_cropped)
 
@@ -251,6 +253,43 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
         std_filtered_data = np.sqrt((sum_x_squared / num_x) - mean_filtered_data ** 2)
     return filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
         linspace_binning_max_unnormalized
+
+
+def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_data, std_filtered_data, transform_f, s_folder_path,
+                      s_width_height_target, s_normalize, s_data_variable_name, s_num_bins_crossentropy,
+                      normalize=True, **__):
+
+    class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64)
+
+    for idx in range(len(filtered_indecies)):
+        filtered_data_loader_indecies_dict = filtered_indecies[idx]
+
+        file = filtered_data_loader_indecies_dict['file']
+
+        target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
+
+        data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, file))
+        target_data_set = data_dataset.isel(time=target_idx_input_sequence)
+
+        target = target_data_set[s_data_variable_name].values
+
+        target = target[0]
+        target = np.array(T.CenterCrop(size=s_width_height_target)(torch.from_numpy(target)))
+        if normalize:
+            target = lognormalize_data(target, mean_filtered_data, std_filtered_data, transform_f, s_normalize)
+
+        target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
+
+        target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
+
+        class_count += torch.sum(target_one_hot, (1, 2)).type(torch.int64)
+
+    sample_num = torch.sum(class_count)
+
+    class_frequencies = sample_num / class_count
+    # Is this correct (from https://discuss.pytorch.org/t/how-to-handle-imbalanced-classes/11264/2 )
+
+    return class_frequencies, class_count, sample_num
 
 
 # def filter(input_sequence, target, s_min_rain_ratio_target):
