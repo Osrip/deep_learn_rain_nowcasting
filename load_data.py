@@ -17,51 +17,6 @@ import einops
 
 # Remember to install package netCDF4 !!
 
-
-# class PrecipitationDataset(Dataset):
-#     def __init__(self, data_sequence, last_input_rel_idx, target_rel_idx, num_c_output, linspace_binning_min,
-#                  linspace_binning_max, normalize=True):
-#         """
-#         Attributes:
-#         self.data_sequence --> log normalized data sequence
-#         self.data_sequence_one_hot --> log data sequence in one hot encoding
-#         self.num_pictures_loaded --> number of pictures loded
-#
-#         returns (tuple in subsequent order):
-#         log normalized data sequence --> training data frames,
-#         log one hot data sequence --> target data frame,
-#         unnormalized data sequence --> training frames
-#         unnormalized data sequence --> target frame
-#         """
-#         self.data_sequence = data_sequence
-#         self.normalize = normalize
-#         self.last_input_rel_idx = last_input_rel_idx
-#         self.target_rel_idx = target_rel_idx
-#         self.transform_f = transform_f
-#
-#         data_sequence_one_hot, linspace_binning = img_one_hot(data_sequence, num_c_output, linspace_binning_min, linspace_binning_max)
-#         self.data_sequence_one_hot = einops.rearrange(data_sequence_one_hot, 'i w h c -> i c w h')
-#         self.linspace_binning = linspace_binning
-#         # log transform
-#         # Errors encountered!
-#
-#     def __len__(self):
-#         return np.shape(self.data_sequence)[0] - self.target_rel_idx
-#
-#     def __getitem__(self, idx):
-#         # Returns the first pictures as input data and the last picture as training picture
-#         return self.data_sequence[idx:idx+self.last_input_rel_idx, :, :], \
-#             self.data_sequence_one_hot[idx+self.target_rel_idx, :, :, :], \
-#             self.data_sequence[idx + self.target_rel_idx, :, :], \
-#             # TODO Make sure Indexing does what it's supposed to do!
-#             # Output: Training sequence mm, target one hot, target mm
-#
-#             # self.data_sequence_not_normalized[idx:idx+self.num_pictures_loaded-1, :, :], \
-#             # self.data_sequence_not_normalized[idx:idx + self.num_pictures_loaded, :, :]
-#             #  [:idx+self.num_pictures_loaded-1] <-- For data_sequence training data (several frames)
-#             #  [idx+self.num_pictures_loaded, :, :, :] <-- for one_hot target (one frame)
-
-
 class PrecipitationFilteredDataset(Dataset):
     def __init__(self, filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max, linspace_binning, transform_f,
                  s_num_bins_crossentropy, s_folder_path, s_width_height, s_width_height_target, s_data_variable_name,
@@ -133,7 +88,6 @@ class PrecipitationFilteredDataset(Dataset):
         target = np.array(T.CenterCrop(size=self.s_width_height_target)(torch.from_numpy(target)))
         target = lognormalize_data(target, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.s_normalize)
 
-        # TODO DEBUGGING REMOVE THIS:
 
         target_one_hot = img_one_hot(target, self.s_num_bins_crossentropy, self.linspace_binning)
 
@@ -143,6 +97,9 @@ class PrecipitationFilteredDataset(Dataset):
 
         return input_sequence, target_one_hot, target
         # TODO: Returning linspace binning here every time is super ugly as this is a global constant!!!
+
+
+# def load_input_target_from_index
 
 
 def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
@@ -286,43 +243,15 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_da
 
     sample_num = torch.sum(class_count)
 
-    class_frequencies = sample_num / class_count
+    class_weight = sample_num / class_count
     # Is this correct (from https://discuss.pytorch.org/t/how-to-handle-imbalanced-classes/11264/2 )
 
-    return class_frequencies, class_count, sample_num
+    return class_weight, class_count, sample_num
 
 
-# def filter(input_sequence, target, s_min_rain_ratio_target):
-#     '''
-#     Looks whether on what percentage on target there is rain. If percentage exceeds s_min_rain_ratio_target return True
-#     , False otherwise
-#     '''
-#     # Todo: Implement filter!
-#     # rainy_data_points = target[target > 0]
-#     # Only take frames, that have any pixels that are neither 0 nor NaN AND pixels that have no NaNs
-#     if ((target != -1000000000.0) & (target != 0)).any() and \
-#             not (target == -1000000000.0).any() and \
-#             not (input_sequence == -1000000000.0).any():
-#         return True
-#     else:
-#         return False
+def frequency_weights_per_sample(filtered_indecies)
 
 
-# def filter(input_sequence, target, s_min_rain_ratio_target, percentage=1):
-#     '''
-#     Looks whether on what percentage on target there is rain. If percentage exceeds s_min_rain_ratio_target return True
-#     , False otherwise
-#     percentage 0.3 default
-#     '''
-#     # Todo: Implement filter!
-#     # rainy_data_points = target[target > 0]
-#     # Only take frames, that have any pixels that are neither 0 nor NaN AND pixels that have no NaNs
-#     if (target[target != 0].size > percentage * target.size) and \
-#             not (target == -1000000000.0).any() and \
-#             not (input_sequence == -1000000000.0).any():
-#         return True
-#     else:
-#         return False
 
 
 def filter(input_sequence, target, s_min_rain_ratio_target, percentage=0.5, min_amount_rain=0.05):
