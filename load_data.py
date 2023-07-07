@@ -61,37 +61,14 @@ class PrecipitationFilteredDataset(Dataset):
     def __getitem__(self, idx):
         # Loading everything directly from the disc
         # Returns the first pictures as input data and the last picture as training picture
-        filtered_data_loader_indecies_dict = self.filtered_data_loader_indecies[idx]
-        file = filtered_data_loader_indecies_dict['file']
-        first_idx_input_sequence = filtered_data_loader_indecies_dict['first_idx_input_sequence']
-        last_idx_input_sequence = filtered_data_loader_indecies_dict['last_idx_input_sequence']
-        target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
-        data_dataset = xr.open_dataset('{}/{}'.format(self.s_folder_path, file))
-        input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence, last_idx_input_sequence)) # last_idx_input_sequence + 1 like in np! Did I already do that prior?
+        input_sequence, target_one_hot, target = \
+            load_input_target_from_index(idx, self.filtered_data_loader_indecies, self.linspace_binning,
+                                     self.mean_filtered_data, self.std_filtered_data, self.transform_f,
+                                     self.s_width_height, self.s_width_height_target, self.s_data_variable_name,
+                                     self.s_normalize, self.s_num_bins_crossentropy, self.s_folder_path,
+                                     normalize=True, load_input_sequence=True, load_target=True
+                                     )
 
-        input_sequence = input_data_set[self.s_data_variable_name].values
-        # Get rid of steps dimension
-        input_sequence = input_sequence[:, 0, :, :]
-        # if self.s_local_machine_mode:
-        #     input_sequence = input_sequence[:, 0, :, :]
-        # else:
-        #     input_sequence = input_sequence[0, :, :, :]
-
-        input_sequence = np.array(T.CenterCrop(size=self.s_width_height)(torch.from_numpy(input_sequence)))
-        input_sequence = lognormalize_data(input_sequence, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.s_normalize)
-        target_data_set = data_dataset.isel(time=target_idx_input_sequence)
-        target = target_data_set[self.s_data_variable_name].values
-        del data_dataset
-        # Get rid of steps dimension as we only have one index anyways
-        # TODO: Check what this does on Slurm with non-test data!
-        target = target[0]
-        target = np.array(T.CenterCrop(size=self.s_width_height_target)(torch.from_numpy(target)))
-        target = lognormalize_data(target, self.mean_filtered_data, self.std_filtered_data, self.transform_f, self.s_normalize)
-
-
-        target_one_hot = img_one_hot(target, self.s_num_bins_crossentropy, self.linspace_binning)
-
-        target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
 
         # Float conversion should
 
@@ -99,7 +76,54 @@ class PrecipitationFilteredDataset(Dataset):
         # TODO: Returning linspace binning here every time is super ugly as this is a global constant!!!
 
 
-# def load_input_target_from_index
+def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_data, std_filtered_data,
+                                 transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
+                                 s_num_bins_crossentropy, s_folder_path,
+                                 normalize=True, load_input_sequence=True, load_target=True, **__
+                                 ):
+    filtered_data_loader_indecies_dict = filtered_data_loader_indecies[idx]
+    file = filtered_data_loader_indecies_dict['file']
+    first_idx_input_sequence = filtered_data_loader_indecies_dict['first_idx_input_sequence']
+    last_idx_input_sequence = filtered_data_loader_indecies_dict['last_idx_input_sequence']
+    target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
+    data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, file))
+
+    if load_input_sequence:
+        input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence,
+                                                      last_idx_input_sequence))  # last_idx_input_sequence + 1 like in np! Did I already do that prior?
+
+        input_sequence = input_data_set[s_data_variable_name].values
+        # Get rid of steps dimension
+        input_sequence = input_sequence[:, 0, :, :]
+
+
+        input_sequence = np.array(T.CenterCrop(size=s_width_height)(torch.from_numpy(input_sequence)))
+        if normalize:
+            input_sequence = lognormalize_data(input_sequence, mean_filtered_data, std_filtered_data,
+                                               transform_f, s_normalize)
+    else:
+        input_sequence = None
+
+    if load_target:
+        target_data_set = data_dataset.isel(time=target_idx_input_sequence)
+        target = target_data_set[s_data_variable_name].values
+        del data_dataset
+        # Get rid of steps dimension as we only have one index anyways
+        # TODO: Check what this does on Slurm with non-test data!
+        target = target[0]
+        target = np.array(T.CenterCrop(size=s_width_height_target)(torch.from_numpy(target)))
+
+        if normalize:
+            target = lognormalize_data(target, mean_filtered_data, std_filtered_data, transform_f,
+                                       s_normalize)
+
+        target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
+        target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
+    else:
+        target = None
+        target_one_hot = None
+
+    return input_sequence, target_one_hot, target
 
 
 def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
@@ -212,44 +236,50 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
         linspace_binning_max_unnormalized
 
 
-def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_data, std_filtered_data, transform_f, s_folder_path,
-                      s_width_height_target, s_normalize, s_data_variable_name, s_num_bins_crossentropy,
-                      normalize=True, **__):
+def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_data, std_filtered_data, transform_f,
+                           settings, s_num_bins_crossentropy, normalize=True, **__):
 
     class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64)
 
     for idx in range(len(filtered_indecies)):
-        filtered_data_loader_indecies_dict = filtered_indecies[idx]
-
-        file = filtered_data_loader_indecies_dict['file']
-
-        target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
-
-        data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, file))
-        target_data_set = data_dataset.isel(time=target_idx_input_sequence)
-
-        target = target_data_set[s_data_variable_name].values
-
-        target = target[0]
-        target = np.array(T.CenterCrop(size=s_width_height_target)(torch.from_numpy(target)))
-        if normalize:
-            target = lognormalize_data(target, mean_filtered_data, std_filtered_data, transform_f, s_normalize)
-
-        target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
-
-        target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
+        _, target_one_hot, target = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
+                                                                 mean_filtered_data, std_filtered_data,
+                                                                 transform_f,
+                                                                 normalize=normalize, load_input_sequence=False,
+                                                                 load_target=True, **settings)
 
         class_count += torch.sum(target_one_hot, (1, 2)).type(torch.int64)
 
     sample_num = torch.sum(class_count)
 
-    class_weight = sample_num / class_count
+    class_weights = sample_num / class_count
     # Is this correct (from https://discuss.pytorch.org/t/how-to-handle-imbalanced-classes/11264/2 )
 
-    return class_weight, class_count, sample_num
+    return class_weights, class_count, sample_num
 
 
-def frequency_weights_per_sample(filtered_indecies)
+def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning, mean_filtered_data, std_filtered_data,
+                                transform_f, settings, normalize=True):
+
+    target_mean_weights = []
+
+    for idx in range(len(filtered_indecies)):
+        _, target_one_hot, target = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
+                                                                 mean_filtered_data, std_filtered_data,
+                                                                 transform_f,
+                                                                 normalize=normalize, load_input_sequence=False,
+                                                                 load_target=True, **settings)
+
+        target_one_hot_indecies = torch.argmax(target_one_hot, dim=0)
+        target_class_weighted = class_weights[target_one_hot_indecies]
+
+        mean_weight = torch.mean(target_class_weighted).item()
+        target_mean_weights.append(mean_weight)
+    return target_mean_weights
+
+
+
+    pass
 
 
 

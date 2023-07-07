@@ -46,6 +46,8 @@ def test_one_hot_converting():
     # Put channel dimension where it belongs
     data_hot = einops.rearrange(data_hot, 'i w h c -> i c w h')
 
+    is_one_hot(data_hot, one_hot_dim=1)
+
     # ... then back with one_hot_to_mm assigning lower bin bound
     data_binned_lower_bound_mm = one_hot_to_mm(data_hot, linspace_binning, linspace_binning_max=linspace_binning_max,
                                                channel_dim=1, mean_bin_vals=False)
@@ -108,6 +110,8 @@ def test_normalize_inverse_normalize_log():
     reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=True)
     assert (np.round(reconstructed_test_data, 5) == np.round(test_data_set, 5)).all()
 
+def is_one_hot(tensor, one_hot_dim=0):
+    assert torch.all(torch.sum(tensor, dim=one_hot_dim) == 1)
 
 def test_all():
     '''

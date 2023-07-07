@@ -5,7 +5,7 @@ import torchvision.transforms as T
 from network_lightning import Network_l
 import datetime
 from load_data import PrecipitationFilteredDataset, filtering_data_scraper, lognormalize_data,\
-    random_splitting_filtered_indecies, calc_class_frequencies
+    random_splitting_filtered_indecies, calc_class_frequencies, class_weights_per_sample
 from torch.utils.data import DataLoader
 
 import numpy as np
@@ -110,8 +110,12 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
         filtered_indecies, num_training_samples, num_validation_samples, s_data_loader_chunk_size)
 
-    class_weights, class_count, sample_num = calc_class_frequencies(filtered_indecies_training, linspace_binning, mean_filtered_data, std_filtered_data,
-                                    transform_f, **settings)
+    class_weights, class_count, sample_num = calc_class_frequencies(filtered_indecies_training, linspace_binning,
+                                                                    mean_filtered_data, std_filtered_data,
+                                                                    transform_f, settings, normalize=True, **settings)
+
+    target_mean_weights = class_weights_per_sample(filtered_indecies, class_weights, linspace_binning, mean_filtered_data, std_filtered_data,
+                                transform_f, settings, normalize=True)
 
     # TODO: RETURN filtered indecies instead of data set
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
