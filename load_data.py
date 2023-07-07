@@ -238,6 +238,10 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
 def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_data, std_filtered_data, transform_f,
                            settings, s_num_bins_crossentropy, normalize=True, **__):
+    '''
+    The more often class occurs, the lower the weight value
+    TODO: However observed, that classes with lower mean and max precipitation have higher weight ??!!
+    '''
 
     class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64)
 
@@ -252,7 +256,12 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_da
 
     sample_num = torch.sum(class_count)
 
-    class_weights = sample_num / class_count
+    # class_weights = sample_num / class_count
+    class_weights = 1 / class_count
+
+    # TODO: How to handle class_count == 0 ? At the moment --> inf
+    # HHowever those classes that do not appear are never used, therefore it does not really matter what the
+    # Entries for those classes are.
     # Is this correct (from https://discuss.pytorch.org/t/how-to-handle-imbalanced-classes/11264/2 )
 
     return class_weights, class_count, sample_num
@@ -269,17 +278,13 @@ def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning,
                                                                  transform_f,
                                                                  normalize=normalize, load_input_sequence=False,
                                                                  load_target=True, **settings)
-
+        # Checked this: Seems to do what it is supposed to (high rain (rare class) corresponds to high weight)
         target_one_hot_indecies = torch.argmax(target_one_hot, dim=0)
         target_class_weighted = class_weights[target_one_hot_indecies]
 
         mean_weight = torch.mean(target_class_weighted).item()
         target_mean_weights.append(mean_weight)
     return target_mean_weights
-
-
-
-    pass
 
 
 

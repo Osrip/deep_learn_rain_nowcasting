@@ -6,7 +6,7 @@ from network_lightning import Network_l
 import datetime
 from load_data import PrecipitationFilteredDataset, filtering_data_scraper, lognormalize_data,\
     random_splitting_filtered_indecies, calc_class_frequencies, class_weights_per_sample
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 import numpy as np
 from helper.helper_functions import save_zipped_pickle, save_dict_pickle_csv,\
@@ -114,8 +114,11 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
                                                                     mean_filtered_data, std_filtered_data,
                                                                     transform_f, settings, normalize=True, **settings)
 
-    target_mean_weights = class_weights_per_sample(filtered_indecies, class_weights, linspace_binning, mean_filtered_data, std_filtered_data,
+
+    target_mean_weights = class_weights_per_sample(filtered_indecies_training, class_weights, linspace_binning, mean_filtered_data, std_filtered_data,
                                 transform_f, settings, normalize=True)
+
+
 
     # TODO: RETURN filtered indecies instead of data set
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
@@ -127,7 +130,12 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
                                                        linspace_binning_min, linspace_binning_max, linspace_binning,
                                                        transform_f, **settings)
 
-    train_data_loader = DataLoader(train_data_set, batch_size=s_batch_size, shuffle=True, drop_last=True,
+    sampler = WeightedRandomSampler(weights=target_mean_weights, num_samples=len(train_data_set), replacement=True)
+    # TODO: Does this assume same order in weights as in data_set??
+    # replacement=True allows for oversampling and in exchange not showing all samples each epoch
+    # num_samples gives number of samples per epoch. Setting to len data_set forces sampler to not show all samples each epoch
+
+    train_data_loader = DataLoader(train_data_set, sampler=sampler, batch_size=s_batch_size, drop_last=True,
                                    num_workers=s_num_workers_data_loader)
 
 
