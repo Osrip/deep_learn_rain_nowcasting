@@ -18,7 +18,9 @@ from pytorch_lightning.profilers import PyTorchProfiler
 from pytorch_lightning.loggers import CSVLogger, MLFlowLogger
 import mlflow
 from plotting.plot_quality_metrics_from_log import plot_qualities_main
+from plotting.plot_lr_scheduler import plot_lr_schedule
 from calc_from_checkpoint import plot_images_outer
+import copy
 
 
 
@@ -110,15 +112,13 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
         filtered_indecies, num_training_samples, num_validation_samples, s_data_loader_chunk_size)
 
-    class_weights, class_count, sample_num = calc_class_frequencies(filtered_indecies_training, linspace_binning,
-                                                                    mean_filtered_data, std_filtered_data,
-                                                                    transform_f, settings, normalize=True, **settings)
+    class_weights_target, class_count_target, sample_num_target = calc_class_frequencies(filtered_indecies_training, linspace_binning,
+                                                                                  mean_filtered_data, std_filtered_data,
+                                                                                  transform_f, settings, normalize=True, **settings)
 
-
-    target_mean_weights = class_weights_per_sample(filtered_indecies_training, class_weights, linspace_binning, mean_filtered_data, std_filtered_data,
-                                transform_f, settings, normalize=True)
-
-
+    target_mean_weights = class_weights_per_sample(filtered_indecies_training, class_weights_target, linspace_binning,
+                                                   mean_filtered_data, std_filtered_data, transform_f, settings,
+                                                   normalize=True)
 
     # TODO: RETURN filtered indecies instead of data set
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
@@ -130,8 +130,11 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
                                                        linspace_binning_min, linspace_binning_max, linspace_binning,
                                                        transform_f, **settings)
 
-    sampler = WeightedRandomSampler(weights=target_mean_weights, num_samples=len(train_data_set), replacement=True)
-    # TODO: Does this assume same order in weights as in data_set??
+    training_steps_per_epoch = len(train_data_set)
+
+    sampler = WeightedRandomSampler(weights=target_mean_weights, num_samples=training_steps_per_epoch, replacement=True)
+
+    # Does this assume same order in weights as in data_set?? --> Seems so!
     # replacement=True allows for oversampling and in exchange not showing all samples each epoch
     # num_samples gives number of samples per epoch. Setting to len data_set forces sampler to not show all samples each epoch
 
@@ -152,7 +155,8 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     linspace_binning_params = (linspace_binning_min, linspace_binning_max, linspace_binning)
     # tODO: RETURN filtered indecies instead of data set
     return train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,\
-        linspace_binning_params, filter_and_normalization_params
+        linspace_binning_params, filter_and_normalization_params, training_steps_per_epoch
+    # training_steps_per_epoch only needed for lr_schedule_plotting
 
 
 def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus, s_sim_name, **__):
@@ -182,7 +186,7 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
         transform_f = lambda x: x
 
     train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation, linspace_binning_params, \
-        filer_and_normalization_params = data_loading(transform_f, settings, **settings)
+        filer_and_normalization_params, training_steps_per_epoch = data_loading(transform_f, settings, **settings)
 
     save_zipped_pickle('{}/filtered_indecies_training'.format(s_dirs['data_dir']), filtered_indecies_training)
     save_zipped_pickle('{}/filtered_indecies_validation'.format(s_dirs['data_dir']), filtered_indecies_validation)
@@ -207,17 +211,20 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
                      TrainingLogsCallback(train_logger),
                      ValidationLogsCallback(val_logger)]
 
-    train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, s_max_epochs,
+    model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch, s_max_epochs,
             linspace_binning_params, s_dirs['data_dir'], s_num_gpus, settings)
 
+    # Network_l, training_steps_per_epoch is returned to be able to plot lr_scheduler
+    return model_l, training_steps_per_epoch
 
-def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, max_epochs, linspace_binning_params,
+
+def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch, max_epochs, linspace_binning_params,
             data_dir, num_gpus, settings):
     '''
     Train loop, keep this clean!
     '''
 
-    model_l = Network_l(linspace_binning_params, **settings)
+    model_l = Network_l(linspace_binning_params, training_steps_per_epoch = training_steps_per_epoch, **settings)
     save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
@@ -226,6 +233,9 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
 
     # trainer.logger = logger
     trainer.fit(model_l, train_data_loader, validation_data_loader)
+
+    # Network_l is returned to be able to plot lr_scheduler
+    return model_l
 
 
 if __name__ == '__main__':
@@ -237,9 +247,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
-    s_sim_name_suffix = 'Oversampling_4gpu_12_months'
+    s_sim_name_suffix = 'scheduler_OneCycleLR_max_lr=s_learning_rate_steps_per_epoch=training_steps_per_epoch_epochs=s_max_epochs'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -372,20 +382,17 @@ if __name__ == '__main__':
         settings['s_num_gpus'] = 1
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
-
-
-
-
     # mlflow.create_experiment(settings['s_sim_name'])
     # mlflow.set_tag("mlflow.runName", settings['s_sim_name'])
     # mlflow.pytorch.autolog()
     # mlflow.log_models = False
 
 
-    train_wrapper(settings, **settings)
+
+    model_l, training_steps_per_epoch = train_wrapper(settings, **settings)
 
     plot_metrics_settings = {
-        'ps_run_path': settings['s_sim_name'], # TODO: Solve conflicting name convention
+        'ps_sim_name': settings['s_sim_name'], # TODO: Solve conflicting name convention
     }
 
     plot_qualities_main(plot_metrics_settings, **plot_metrics_settings)
@@ -398,5 +405,15 @@ if __name__ == '__main__':
 
     }
 
+    plot_lr_schedule_settings = {
+        'ps_sim_name': settings['s_sim_name'], # TODO: Solve conflicting name convention
+    }
+
     plot_images_outer(plot_images_settings, **plot_images_settings)
+    # Deepcopy lr_scheduler to make sure steps in instance is not messed up
+    # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
+    plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
+                     **plot_lr_schedule_settings)
+
+
 

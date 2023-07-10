@@ -4,12 +4,14 @@ from modules_blocks import Network
 import torch.nn as nn
 from helper.helper_functions import one_hot_to_mm
 import torchvision.transforms as T
+import copy
+import warnings
 
 
 class Network_l(pl.LightningModule):
     def __init__(self, linspace_binning_params, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
-                 **__):
+                 training_steps_per_epoch=None, **__):
         super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
                              s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
@@ -21,26 +23,48 @@ class Network_l(pl.LightningModule):
         self.s_max_epochs = s_max_epochs
 
         self._linspace_binning_params = linspace_binning_params
+        self.training_steps_per_epoch = training_steps_per_epoch
+
+        # Get assigned later
+        self.lr_scheduler = None
+        self.optimizer = None
 
     def forward(self, x):
         output = self.model(x)
         return output
 
+    # Uncomment this for no lr_scheduler
+    # def configure_optimizers(self):
+    #     optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+    #     return optimizer
+
     def configure_optimizers(self):
+        if not self.training_steps_per_epoch is None:
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+            lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate,
+                                                               steps_per_epoch=self.training_steps_per_epoch,
+                                                               epochs=self.s_max_epochs)
+            # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
+            #                                 T_0 = self.training_steps_per_epoch * 10,# Number of iterations for the first restart
+            #                                 T_mult = 1, # A factor increases TiTi after a restart
+            #                                 eta_min = 1e-5) # Minimum learning rate
+
+            self.optimizer = optimizer
+            self.lr_scheduler = copy.deepcopy(lr_scheduler)
+
+            return {
+                'optimizer': optimizer,
+                'lr_scheduler': {
+                    'scheduler': lr_scheduler,
+                    # 'monitor': 'val_loss',  # The metric to monitor for scheduling
+                    }
+            }
+
+        else:
+            warnings.warn('No lr_scheduler as optional training_steps_per_epoch not initialized in Network_l object')
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
         return optimizer
 
-    # def configure_optimizers(self):
-    #     optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
-    #     lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate, steps_per_epoch=20,
-    #                                                        epochs=self.s_max_epochs)
-    #     return {
-    #         'optimizer': optimizer,
-    #         'lr_scheduler': {
-    #             'scheduler': lr_scheduler,
-    #             # 'monitor': 'val_loss',  # The metric to monitor for scheduling
-    #             }
-    #     }
 
     def training_step(self, batch, batch_idx):
         input_sequence, target_one_hot, target = batch

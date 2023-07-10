@@ -40,7 +40,7 @@ def plot_mse_light(mean_mses, label_list, save_path_name, title=''):
         plt.ylabel('MSE')
     plt.yscale('log')
     plt.legend()
-    plt.savefig(save_path_name, dpi=200)
+    plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
     plt.show(block=False)
 
     plt.close("all")
@@ -57,7 +57,7 @@ def plot_mse_heavy(mean_mses, label_list, linestyle_list, color_list, save_path_
         plt.ylabel('MSE')
     plt.yscale('log')
     plt.legend()
-    plt.savefig(save_path_name, dpi=200)
+    plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
     plt.show(block=False)
 
     plt.close("all")
@@ -77,7 +77,7 @@ def plot_losses(losses, validation_losses, save_path_name):
     plt.plot(mean_validation_losses, label='Validation Loss')
     plt.yscale('log')
     plt.legend()
-    plt.savefig(save_path_name, dpi=100)
+    plt.savefig(save_path_name, dpi=100, bbox_inches='tight')
     plt.show(block=False)
 
     plt.close("all")
@@ -154,7 +154,7 @@ def plot_average_preds(all_pred_mm, all_target_mm, num_training_samples_per_epoc
         ax1.set_ylim(ylim2)
         ax2.set_ylim(ylim2)
 
-    plt.savefig(save_path_name, dpi=600)
+    plt.savefig(save_path_name, dpi=600, bbox_inches='tight')
     plt.show(block=False)
 
     plt.close("all")
@@ -199,12 +199,12 @@ def plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, save_path_name, swap
     plt.close()
     gc.collect()
 
-def load_data(ps_run_path, **__):
+def load_data(ps_sim_name, **__):
     rel_path_train = 'logs/train_log/version_0/metrics.csv'
     rel_path_val = 'logs/val_log/version_0/metrics.csv'
 
-    train_df = pd.read_csv('runs/{}/{}'.format(ps_run_path, rel_path_train))
-    val_df = pd.read_csv('runs/{}/{}'.format(ps_run_path, rel_path_val))
+    train_df = pd.read_csv('runs/{}/{}'.format(ps_sim_name, rel_path_train))
+    val_df = pd.read_csv('runs/{}/{}'.format(ps_sim_name, rel_path_val))
 
     return train_df, val_df
 
@@ -216,7 +216,7 @@ def df_cols_to_list_of_lists(keys, df):
     return out_list
 
 
-def plot_mse_manual(train_df, val_df, ps_run_path, **__):
+def plot_mse_manual(train_df, val_df, ps_sim_name, **__):
     key_list_train = ['train_mse_pred_target', 'train_mse_zeros_target',
                       'train_mse_persistence_target']
     train_mse_list = df_cols_to_list_of_lists(key_list_train, train_df)
@@ -232,11 +232,11 @@ def plot_mse_manual(train_df, val_df, ps_run_path, **__):
     plot_mse_heavy(mean_mses=mse_list,
                    label_list=key_list,
                    color_list=['g', 'y', 'b', 'g', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--', '--'],
-                   save_path_name='runs/{}/plots/mse_with_val'.format(ps_run_path),
+                   save_path_name='runs/{}/plots/mse_with_val'.format(ps_sim_name),
                    title='MSE on lognorm data')
 
 
-def line_plot(train_df, val_df, key_list_train, key_list_val, save_name, ps_run_path, title='', color_list=[None for i in range(99)],
+def line_plot(train_df, val_df, key_list_train, key_list_val, save_name, ps_sim_name, title='', color_list=[None for i in range(99)],
               linestyle_list=[None for i in range(99)], **__):
 
     train_mse_list = df_cols_to_list_of_lists(key_list_train, train_df)
@@ -247,11 +247,11 @@ def line_plot(train_df, val_df, key_list_train, key_list_val, save_name, ps_run_
     plot_mse_heavy(mean_mses=mse_list,
                    label_list=key_list,
                    color_list=color_list, linestyle_list=linestyle_list,
-                   save_path_name='runs/{}/plots/{}'.format(ps_run_path, save_name),
+                   save_path_name='runs/{}/plots/{}'.format(ps_sim_name, save_name),
                    title=title)
 
 
-def plot_qualities_main(plot_settings, ps_run_path, **__):
+def plot_qualities_main(plot_settings, ps_sim_name, **__):
     train_df, val_df = load_data(**plot_settings)
     key_list_train_mse = ['train_mse_pred_target', 'train_mse_zeros_target',
                       'train_mse_persistence_target']
@@ -272,6 +272,6 @@ def plot_qualities_main(plot_settings, ps_run_path, **__):
 
 if __name__ == '__main__':
     plot_settings = {
-        'ps_run_path': 'Run_20230609-121955_ID_3644313_12_months_training_fixed_csv_logging_mlflow_working_1_gpus',
+        'ps_sim_name': 'Run_20230609-121955_ID_3644313_12_months_training_fixed_csv_logging_mlflow_working_1_gpus',
     }
     plot_qualities_main(plot_settings, **plot_settings)
