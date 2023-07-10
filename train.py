@@ -402,7 +402,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = False
 
-    s_sim_name_suffix = '_train_no_lightning_6_months'
+    s_sim_name_suffix = '_train_no_lightning_6_months_more_memory'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
