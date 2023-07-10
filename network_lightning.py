@@ -41,13 +41,13 @@ class Network_l(pl.LightningModule):
     def configure_optimizers(self):
         if not self.training_steps_per_epoch is None:
             optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
-            # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate,
-            #                                                    steps_per_epoch=self.training_steps_per_epoch,
-            #                                                    epochs=self.s_max_epochs)
-            lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
-                                            T_0 = self.training_steps_per_epoch * 10,# Number of iterations for the first restart
-                                            T_mult = 1, # A factor increases TiTi after a restart
-                                            eta_min = 1e-5) # Minimum learning rate
+            lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate,
+                                                               steps_per_epoch=self.training_steps_per_epoch,
+                                                               epochs=self.s_max_epochs)
+            # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
+            #                                 T_0 = self.training_steps_per_epoch * 10,# Number of iterations for the first restart
+            #                                 T_mult = 1, # A factor increases TiTi after a restart
+            #                                 eta_min = 1e-5) # Minimum learning rate
 
             self.optimizer = optimizer
             self.lr_scheduler = copy.deepcopy(lr_scheduler)
