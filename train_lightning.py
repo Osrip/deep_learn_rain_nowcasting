@@ -247,9 +247,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
-    s_sim_name_suffix = 'scheduler_OneCycleLR_max_lr=s_learning_rate_steps_per_epoch=training_steps_per_epoch_epochs=s_max_epochs'
+    s_sim_name_suffix = 'scheduler_Cosine_Annealing'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -395,7 +395,6 @@ if __name__ == '__main__':
         'ps_sim_name': settings['s_sim_name'], # TODO: Solve conflicting name convention
     }
 
-    plot_qualities_main(plot_metrics_settings, **plot_metrics_settings)
 
     plot_images_settings ={
         'ps_runs_path': '{}/runs'.format(os.getcwd()),
@@ -408,6 +407,8 @@ if __name__ == '__main__':
     plot_lr_schedule_settings = {
         'ps_sim_name': settings['s_sim_name'], # TODO: Solve conflicting name convention
     }
+
+    plot_qualities_main(plot_metrics_settings, **plot_metrics_settings)
 
     plot_images_outer(plot_images_settings, **plot_images_settings)
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
