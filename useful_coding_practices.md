@@ -21,8 +21,11 @@ For some reason has to be started without sudo!
 Old:
 % rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc' -e ssh $(pwd)/* bst981@134.2.168.52:/mnt/qb/butz/bst981/first_CNN_on_Radolan
 
+##### Upload code to remote
 rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc' --exclude 'mlruns' --exclude 'lightning_logs' -e ssh $(pwd)/* bst981@134.2.168.52:/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan
 
+##### Download images from remote to local
+sim_name="Run_20230707-195050_ID_3757043Oversampling_4gpu_12_months"; mkdir -p "/home/jan/Documents/results_nowcasting/$sim_name/plots" && rsync -avz -e "ssh" bst981@134.2.168.52:"/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/$sim_name/plots" "/home/jan/Documents/results_nowcasting/$sim_name"
 
 
 ### Torch Code
@@ -55,18 +58,25 @@ scaler = GradScaler()
 
 
 ########Remote session Pycharm:
+https://portal.mlcloud.uni-tuebingen.de/user-guide/tutorial/ 
 
 run on slurm:
-srun --gres=gpu:1 --pty bash
-alternatively (???):
 srun --partition=gpu-v100 --time=0-12:00 --gres=gpu:1 --pty bash
+officially:
+srun --gres=gpu:1 --pty bash
+
+
 hostname
 
 
-run on pc:
+run on local:
+
+custom:
+ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-v100-6 bash"
+
+improved
+num=1; ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-v100-$num bash"
 
 general:
 ssh -AtL $B_PORT:localhost:$B_PORT $YOURLOGIN@134.2.168.72 "ssh -AtL $B_PORT:localhost:$COMPUTE_PORT $YOURLOGIN@$NODE bash"
 
-custom:
-ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-v100-6 bash"

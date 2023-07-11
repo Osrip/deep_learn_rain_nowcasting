@@ -41,9 +41,10 @@ class Network_l(pl.LightningModule):
     def configure_optimizers(self):
         if not self.training_steps_per_epoch is None:
             optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
-            lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate,
-                                                               steps_per_epoch=self.training_steps_per_epoch,
-                                                               epochs=self.s_max_epochs)
+            lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
+            # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate,
+            #                                                    steps_per_epoch=self.training_steps_per_epoch,
+            #                                                    epochs=self.s_max_epochs)
             # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
             #                                 T_0 = self.training_steps_per_epoch * 10,# Number of iterations for the first restart
             #                                 T_mult = 1, # A factor increases TiTi after a restart
@@ -63,7 +64,10 @@ class Network_l(pl.LightningModule):
         else:
             warnings.warn('No lr_scheduler as optional training_steps_per_epoch not initialized in Network_l object')
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+
+
         return optimizer
+
 
 
     def training_step(self, batch, batch_idx):

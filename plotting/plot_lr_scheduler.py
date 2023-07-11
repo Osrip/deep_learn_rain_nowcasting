@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import torch
 import json
+import warnings
 
 
 class NullModule(torch.nn.Module):
@@ -8,7 +9,7 @@ class NullModule(torch.nn.Module):
         super().__init__()
         self.fc = torch.nn.Linear(1, 1)
 
-def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name, **__):
+def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name, save=True, **__):
     model = NullModule()
     optimizer = torch.optim.Adam(model.parameters())
 
@@ -26,14 +27,28 @@ def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name
     plt.ylabel('Learning Rate')
     plt.xlabel('Step (total corresponds to steps in training)')
     plt.title('LR scheduler: {}'.format(lr_scheduler.__class__.__name__))
-    plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
+    if save:
+        plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
+    # plt.yscale('log')
     plt.show()
 
     # Save hyperparams to txt
-    scheduler_state = lr_scheduler.state_dict()
-    scheduler_state_str = json.dumps(scheduler_state, indent=4)
+    if save:
+        try:
+            scheduler_state = lr_scheduler.state_dict()
+            scheduler_state_str = json.dumps(scheduler_state, indent=4)
 
-    save_name_txt = 'lr_scheduler_hyperparams.txt'
-    save_path_name_txt = 'runs/{}/plots/{}'.format(ps_sim_name, save_name_txt)
-    with open(save_path_name_txt, 'w') as file:
-        file.write(scheduler_state_str)
+            save_name_txt = 'lr_scheduler_hyperparams.txt'
+            save_path_name_txt = 'runs/{}/plots/{}'.format(ps_sim_name, save_name_txt)
+            with open(save_path_name_txt, 'w') as file:
+                file.write(scheduler_state_str)
+        except Exception:
+            warnings.warn('Failed to save hyperparameters of scheduler in plotting module')
+
+
+if __name__ == '__main__':
+    model = NullModule()
+    optimizer = torch.optim.Adam(model.parameters())
+    # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma = 1-2*10e-6)
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
+    plot_lr_schedule(lr_scheduler, training_steps_per_epoch=1000, epochs=300, ps_sim_name=None, save=False)
