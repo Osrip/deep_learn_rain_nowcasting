@@ -72,7 +72,7 @@ class PrecipitationFilteredDataset(Dataset):
 
         # Float conversion should
 
-        return input_sequence, target_one_hot, target
+        return input_sequence, target_one_hot, target, target_one_hot_extended
         # TODO: Returning linspace binning here every time is super ugly as this is a global constant!!!
 
 

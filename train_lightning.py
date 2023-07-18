@@ -321,6 +321,7 @@ if __name__ == '__main__':
             's_load_model_name': 'Run_·20230220-191041',
             's_dirs': s_dirs,
             'device': device,
+            's_gaussian_smoothing_target': True,
 
             # Log transform input/ validation data --> log binning --> log(x+1)
             's_log_transform': True,

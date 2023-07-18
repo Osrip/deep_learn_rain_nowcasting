@@ -3,7 +3,6 @@ import sys
 import pickle
 import gzip
 import os
-from os import listdir
 from os.path import isfile, join
 from shutil import copyfile
 
@@ -22,18 +21,6 @@ def create_dilation_list(s_width_height, inverse_ratio=4):
 
     return out
 
-
-def smoothing_one_hot_to_dist(one_hot_frame):
-    pass
-
-
-def convolution_no_channel_sum(input, kernel):
-    '''
-    This is an implementation of a convolution operation using a single filter (iterated only once per b dim), that skips
-    summing the results of all channels. This way the output is not a channel dim of size 1 but instead the channel dim is preserved
-    '''
-    pad = kernel
-    torch.nn.functional.pad(input)
 
 def map_mm_to_one_hot_index(mm, num_indecies, mm_min, mm_max):
     '''

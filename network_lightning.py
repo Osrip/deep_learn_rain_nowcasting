@@ -3,6 +3,7 @@ import pytorch_lightning as pl
 from modules_blocks import Network
 import torch.nn as nn
 from helper.helper_functions import one_hot_to_mm
+from helper.gaussian_smoothing_helper import gaussian_smoothing_target
 import torchvision.transforms as T
 import copy
 import warnings
@@ -12,7 +13,7 @@ import torchvision
 class Network_l(pl.LightningModule):
     def __init__(self, linspace_binning_params, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
-                 training_steps_per_epoch=None, **__):
+                 s_gaussian_smoothing_target, training_steps_per_epoch=None, **__):
         super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
                              s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
@@ -23,6 +24,7 @@ class Network_l(pl.LightningModule):
         self.s_width_height_target = s_width_height_target
         self.s_calculate_quality_params = s_calculate_quality_params
         self.s_max_epochs = s_max_epochs
+        self.s_gaussian_smoothing_target = s_gaussian_smoothing_target
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
@@ -73,8 +75,12 @@ class Network_l(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
-        input_sequence, target_one_hot, target = batch
+        input_sequence, target_one_hot, target, target_one_hot_extended = batch
         # Todo: get rid of float conversion? do this in filter already?
+
+        if self.s_gaussian_smoothing_target:
+            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, sigma=20, kernel_size=128)
+
         input_sequence = input_sequence.float()
         target_one_hot = target_one_hot.float()
         # TODO targets already cropped??
@@ -112,7 +118,7 @@ class Network_l(pl.LightningModule):
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        input_sequence, target_one_hot, target = val_batch
+        input_sequence, target_one_hot, target, target_one_hot_extended = val_batch
 
         input_sequence = input_sequence.float()
         target_one_hot = target_one_hot.float()
