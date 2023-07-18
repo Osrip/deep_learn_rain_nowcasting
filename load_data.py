@@ -73,9 +73,9 @@ class PrecipitationFilteredDataset(Dataset):
         # Float conversion should
 
         return input_sequence, target_one_hot, target, target_one_hot_extended
-        # TODO: Returning linspace binning here every time is super ugly as this is a global constant!!!
 
 
+# TODO: !!!! rewrite this such that it only loads extended target if we are really doing gausian soomthing! !!!
 def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_data, std_filtered_data,
                                  transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
                                  s_num_bins_crossentropy, s_folder_path,

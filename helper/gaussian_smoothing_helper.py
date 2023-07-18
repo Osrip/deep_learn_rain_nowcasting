@@ -19,6 +19,7 @@ def convolution_no_channel_sum(input, kernel, center_crop_size=32):
     start_height, start_width, end_height, end_width = get_center_crop_indices(input, center_crop_size)
     kernel_size = kernel.shape[-1]
 
+    # TODO: Speed this up with jit compiler (but then torch cannot be used)??!!
     output = torch.zeros(input.shape[0], input.shape[1], center_crop_size, center_crop_size)
     for h in  range(center_crop_size):
         h_extended = h + start_height

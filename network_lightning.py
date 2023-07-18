@@ -78,6 +78,7 @@ class Network_l(pl.LightningModule):
         input_sequence, target_one_hot, target, target_one_hot_extended = batch
         # Todo: get rid of float conversion? do this in filter already?
 
+        # TODO: Should this be done in data loading such that workers can distribute compute?
         if self.s_gaussian_smoothing_target:
             target_one_hot = gaussian_smoothing_target(target_one_hot_extended, sigma=20, kernel_size=128)
 
@@ -85,7 +86,12 @@ class Network_l(pl.LightningModule):
         target_one_hot = target_one_hot.float()
         # TODO targets already cropped??
         pred = self.model(input_sequence)
-        loss = nn.CrossEntropyLoss()(pred, target_one_hot)
+        if self.s_gaussian_smoothing_target:
+            loss = nn.KLDivLoss()(pred, target_one_hot)
+
+        else:
+            loss = nn.CrossEntropyLoss()(pred, target_one_hot)
+
         # self.log('train_loss', loss, on_step=False, on_epoch=True)
         self.log('train_loss', loss, on_step=False,
                  on_epoch=True)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
@@ -120,11 +126,19 @@ class Network_l(pl.LightningModule):
     def validation_step(self, val_batch, batch_idx):
         input_sequence, target_one_hot, target, target_one_hot_extended = val_batch
 
+        if self.s_gaussian_smoothing_target:
+            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, sigma=20, kernel_size=128)
+
         input_sequence = input_sequence.float()
         target_one_hot = target_one_hot.float()
 
         pred = self.model(input_sequence)
-        loss = nn.CrossEntropyLoss()(pred, target_one_hot)
+
+        if self.s_gaussian_smoothing_target:
+            loss = nn.KLDivLoss()(pred, target_one_hot)
+
+        else:
+            loss = nn.CrossEntropyLoss()(pred, target_one_hot)
 
         self.log('val_loss', loss, on_step=False, on_epoch=True)  # , on_step=True
 

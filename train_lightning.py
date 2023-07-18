@@ -247,9 +247,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
-    s_sim_name_suffix = 'ExponentialLR(gamma=1 - 3 * 10e-6) init_lr 0_001 instead of 0_0001'
+    s_sim_name_suffix = 'gaussian_smoothing_first_try'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -411,7 +411,12 @@ if __name__ == '__main__':
 
     plot_qualities_main(plot_metrics_settings, **plot_metrics_settings)
 
-    plot_images_outer(plot_images_settings, **plot_images_settings)
+    # Some weird error occurs here ever since
+    try:
+        plot_images_outer(plot_images_settings, **plot_images_settings)
+    except Exception:
+        warnings.warn('image plotting encountered error')
+
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
     # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
     plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
