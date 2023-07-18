@@ -247,7 +247,7 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_sim_name_suffix = 'ExponentialLR(gamma=1 - 3 * 10e-6) init_lr 0_001 instead of 0_0001'
 

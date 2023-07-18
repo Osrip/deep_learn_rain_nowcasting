@@ -6,6 +6,7 @@ from helper.helper_functions import one_hot_to_mm
 import torchvision.transforms as T
 import copy
 import warnings
+import torchvision
 
 
 class Network_l(pl.LightningModule):
@@ -15,6 +16,7 @@ class Network_l(pl.LightningModule):
         super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
                              s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
+
         self.model.to(device)
 
         self.s_learning_rate = s_learning_rate

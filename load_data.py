@@ -61,7 +61,7 @@ class PrecipitationFilteredDataset(Dataset):
     def __getitem__(self, idx):
         # Loading everything directly from the disc
         # Returns the first pictures as input data and the last picture as training picture
-        input_sequence, target_one_hot, target = \
+        input_sequence, target_one_hot, target, target_one_hot_extended = \
             load_input_target_from_index(idx, self.filtered_data_loader_indecies, self.linspace_binning,
                                      self.mean_filtered_data, self.std_filtered_data, self.transform_f,
                                      self.s_width_height, self.s_width_height_target, self.s_data_variable_name,
@@ -79,7 +79,7 @@ class PrecipitationFilteredDataset(Dataset):
 def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_data, std_filtered_data,
                                  transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
                                  s_num_bins_crossentropy, s_folder_path,
-                                 normalize=True, load_input_sequence=True, load_target=True, **__
+                                 normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
                                  ):
     filtered_data_loader_indecies_dict = filtered_data_loader_indecies[idx]
     file = filtered_data_loader_indecies_dict['file']
@@ -111,7 +111,8 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         # Get rid of steps dimension as we only have one index anyways
         # TODO: Check what this does on Slurm with non-test data!
         target = target[0]
-        target = np.array(T.CenterCrop(size=s_width_height_target)(torch.from_numpy(target)))
+        # target used to be converted to np array
+        target = T.CenterCrop(size=extended_target_size)(torch.from_numpy(target))
 
         if normalize:
             target = lognormalize_data(target, mean_filtered_data, std_filtered_data, transform_f,
@@ -119,11 +120,18 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
 
         target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
         target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
+
+        # This ugly bs added for the extended version of target_one_hot required for gaussian smoothing
+        target_one_hot_extended = target_one_hot
+
+        target = np.array(T.CenterCrop(size=s_width_height_target)(target))
+        target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
+
     else:
         target = None
         target_one_hot = None
 
-    return input_sequence, target_one_hot, target
+    return input_sequence, target_one_hot, target, target_one_hot_extended
 
 
 def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
@@ -246,7 +254,7 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_da
     class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64)
 
     for idx in range(len(filtered_indecies)):
-        _, target_one_hot, target = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
+        _, target_one_hot, target, _ = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
                                                                  mean_filtered_data, std_filtered_data,
                                                                  transform_f,
                                                                  normalize=normalize, load_input_sequence=False,
@@ -273,7 +281,7 @@ def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning,
     target_mean_weights = []
 
     for idx in range(len(filtered_indecies)):
-        _, target_one_hot, target = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
+        _, target_one_hot, target, _ = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
                                                                  mean_filtered_data, std_filtered_data,
                                                                  transform_f,
                                                                  normalize=normalize, load_input_sequence=False,
