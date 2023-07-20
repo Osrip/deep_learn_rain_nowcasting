@@ -11,14 +11,19 @@ import torchvision
 
 
 class Network_l(pl.LightningModule):
-    def __init__(self, linspace_binning_params, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
+    def __init__(self, linspace_binning_params, sigma_schedule_mapping, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
-                 s_gaussian_smoothing_target, training_steps_per_epoch=None, **__):
+                 s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing,
+                 training_steps_per_epoch=None, **__):
         super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
                              s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
 
         self.model.to(device)
+
+        self.sigma_schedule_mapping = sigma_schedule_mapping
+        self.s_schedule_sigma_smoothing = s_schedule_sigma_smoothing
+        self.s_sigma_target_smoothing = s_sigma_target_smoothing
 
         self.s_learning_rate = s_learning_rate
         self.s_width_height_target = s_width_height_target
@@ -33,6 +38,9 @@ class Network_l(pl.LightningModule):
         # Get assigned later
         self.lr_scheduler = None
         self.optimizer = None
+
+        self.train_step_num = 0
+        self.val_step_num = 0
 
     def forward(self, x):
         output = self.model(x)
@@ -76,12 +84,23 @@ class Network_l(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
+        # TODO: DOES THIS BS WORKAROUND WORK??
+        self.train_step_num += 1
         input_sequence, target_one_hot, target, target_one_hot_extended = batch
         # Todo: get rid of float conversion? do this in filter already?
 
         # TODO: Should this be done in data loading such that workers can distribute compute?
+        global_training_step = self.trainer.global_step  # Does this include validation steps??!!!! FCK LIGHTNIng!!!
+        #  SEE: https://github.com/Lightning-AI/lightning/discussions/8007
+
+
         if self.s_gaussian_smoothing_target:
-            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=2,
+            if self.s_schedule_sigma_smoothing:
+                curr_sigma = self.sigma_schedule_mapping[self.train_step_num]
+            else:
+                curr_sigma = self.s_sigma_target_smoothing
+
+            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
                                                        kernel_size=128)
 
         input_sequence = input_sequence.float()
@@ -126,10 +145,18 @@ class Network_l(pl.LightningModule):
         return loss
 
     def validation_step(self, val_batch, batch_idx):
+        # TODO: Does this work??
+        self.val_step_num += 1
         input_sequence, target_one_hot, target, target_one_hot_extended = val_batch
 
         if self.s_gaussian_smoothing_target:
-            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=2, kernel_size=128)
+            if self.s_schedule_sigma_smoothing:
+                curr_sigma = self.sigma_schedule_mapping[self.val_step_num]
+            else:
+                curr_sigma = self.s_sigma_target_smoothing
+
+            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
+                                                       kernel_size=128)
 
         input_sequence = input_sequence.float()
         target_one_hot = target_one_hot.float()

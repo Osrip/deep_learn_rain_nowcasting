@@ -19,6 +19,7 @@ from pytorch_lightning.loggers import CSVLogger, MLFlowLogger
 import mlflow
 from plotting.plot_quality_metrics_from_log import plot_qualities_main
 from plotting.plot_lr_scheduler import plot_lr_schedule
+from helper.sigma_scheduler_helper import create_scheduler_mapping
 from calc_from_checkpoint import plot_images_outer
 import copy
 import warnings
@@ -160,7 +161,8 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     # training_steps_per_epoch only needed for lr_schedule_plotting
 
 
-def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus, s_sim_name, **__):
+def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
+                  s_sim_name, s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing, **__):
     '''
     All the junk surrounding train goes in here
     '''
@@ -212,20 +214,26 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
                      TrainingLogsCallback(train_logger),
                      ValidationLogsCallback(val_logger)]
 
+    if s_gaussian_smoothing_target and s_schedule_sigma_smoothing:
+
+        sigma_schedule_mapping = create_scheduler_mapping(training_steps_per_epoch, s_max_epochs, s_sigma_target_smoothing)
+    else:
+        sigma_schedule_mapping = None
+
     model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch, s_max_epochs,
-            linspace_binning_params, s_dirs['data_dir'], s_num_gpus, settings)
+            linspace_binning_params, s_dirs['data_dir'], s_num_gpus, sigma_schedule_mapping, settings)
 
     # Network_l, training_steps_per_epoch is returned to be able to plot lr_scheduler
     return model_l, training_steps_per_epoch
 
 
-def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch, max_epochs, linspace_binning_params,
-            data_dir, num_gpus, settings):
+def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
+            max_epochs, linspace_binning_params, data_dir, num_gpus, sigma_schedule_mapping, settings):
     '''
     Train loop, keep this clean!
     '''
 
-    model_l = Network_l(linspace_binning_params, training_steps_per_epoch = training_steps_per_epoch, **settings)
+    model_l = Network_l(linspace_binning_params, sigma_schedule_mapping, training_steps_per_epoch = training_steps_per_epoch, **settings)
     save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
@@ -248,9 +256,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
-    s_sim_name_suffix = 'gaussian_blur_tried_fixing_device_stuff'
+    s_sim_name_suffix = 'DEBUG'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -322,7 +330,11 @@ if __name__ == '__main__':
             's_load_model_name': 'Run_·20230220-191041',
             's_dirs': s_dirs,
             'device': device,
+
+            # Gaussian smoothing
             's_gaussian_smoothing_target': True,
+            's_sigma_target_smoothing': 2,  # In case of scheduling this is the initial sigma
+            's_schedule_sigma_smoothing': True,
 
             # Log transform input/ validation data --> log binning --> log(x+1)
             's_log_transform': True,
@@ -415,7 +427,7 @@ if __name__ == '__main__':
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
     # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
     plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
-                     **plot_lr_schedule_settings)
+                     init_learning_rate=settings['s_learning_rate'], **plot_lr_schedule_settings)
 
     # Some weird error occurs here ever since
     try:

@@ -4,10 +4,10 @@ from torch.utils.data import DataLoader
 from load_data import PrecipitationFilteredDataset
 
 
-def load_from_checkpoint(runs_path, run_name, checkpoint_name, linspace_binning_params, settings):
+def load_from_checkpoint(runs_path, run_name, checkpoint_name, linspace_binning_params, settings, sigma_schedule_mapping=None):
     checkpoint_path = '{}/{}/model/{}'.format(runs_path, run_name, checkpoint_name)
     model = Network_l.load_from_checkpoint(checkpoint_path=checkpoint_path, linspace_binning_params=linspace_binning_params,
-                                           **settings)
+                                           sigma_schedule_mapping=sigma_schedule_mapping, **settings)
 
     return model
 
