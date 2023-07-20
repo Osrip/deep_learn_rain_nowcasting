@@ -9,7 +9,8 @@ class NullModule(torch.nn.Module):
         super().__init__()
         self.fc = torch.nn.Linear(1, 1)
 
-def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name, init_learning_rate, save=True, **__):
+def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name, init_learning_rate, save=True,
+                     save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler', ylog=False, **__):
     model = NullModule()
     optimizer = torch.optim.Adam(model.parameters(), lr=init_learning_rate)
 
@@ -22,14 +23,14 @@ def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name
         lr_scheduler.step()
 
     plt.plot(lrs)
-    save_name = 'lr_scheduler'
     save_path_name = 'runs/{}/plots/{}'.format(ps_sim_name, save_name)
-    plt.ylabel('Learning Rate')
+    plt.ylabel(y_label)
     plt.xlabel('Step (total corresponds to steps in training)')
-    plt.title('LR scheduler: {}'.format(lr_scheduler.__class__.__name__))
+    plt.title('{}: {}'.format(title, lr_scheduler.__class__.__name__))
     if save:
         plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
-    # plt.yscale('log')
+    if ylog:
+        plt.yscale('log')
     plt.show()
 
     # Save hyperparams to txt
@@ -44,6 +45,20 @@ def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name
                 file.write(scheduler_state_str)
         except Exception:
             warnings.warn('Failed to save hyperparameters of scheduler in plotting module')
+
+
+
+def plot_sigma_schedule(sigma_schedule_mapping, ps_sim_name, save_name='sigma_scheduler', save=True, **__):
+    save_path_name = 'runs/{}/plots/{}'.format(ps_sim_name, save_name)
+    plt.plot(sigma_schedule_mapping)
+    plt.ylabel('Sigma')
+    plt.xlabel('Step (total corresponds to steps in training)')
+    plt.title('Sigma schedule')
+
+    if save:
+        plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
+    plt.show()
+
 
 
 if __name__ == '__main__':

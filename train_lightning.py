@@ -18,7 +18,7 @@ from pytorch_lightning.profilers import PyTorchProfiler
 from pytorch_lightning.loggers import CSVLogger, MLFlowLogger
 import mlflow
 from plotting.plot_quality_metrics_from_log import plot_qualities_main
-from plotting.plot_lr_scheduler import plot_lr_schedule
+from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
 from helper.sigma_scheduler_helper import create_scheduler_mapping
 from calc_from_checkpoint import plot_images_outer
 import copy
@@ -203,8 +203,7 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     train_logger = CSVLogger(s_dirs['logs'], name='train_log')
     val_logger = CSVLogger(s_dirs['logs'], name='val_log')
 
-    # Todo: implement lr schedule! Problem needs optimizer, that is in Network_l class but scheduler is needed for callback list that is needed for init of trainer
-    # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR()
+
 
     logger = MLFlowLogger(experiment_name="Default", tracking_uri="file:./mlruns", run_name=s_sim_name, # tags={"mlflow.runName": settings['s_sim_name']},
                           log_model=False)
@@ -216,15 +215,15 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
 
     if s_gaussian_smoothing_target and s_schedule_sigma_smoothing:
 
-        sigma_schedule_mapping = create_scheduler_mapping(training_steps_per_epoch, s_max_epochs, s_sigma_target_smoothing)
+        sigma_schedule_mapping, sigma_scheduler = create_scheduler_mapping(training_steps_per_epoch, s_max_epochs, s_sigma_target_smoothing)
     else:
-        sigma_schedule_mapping = None
+        sigma_schedule_mapping, sigma_scheduler = (None, None)
 
     model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch, s_max_epochs,
             linspace_binning_params, s_dirs['data_dir'], s_num_gpus, sigma_schedule_mapping, settings)
 
     # Network_l, training_steps_per_epoch is returned to be able to plot lr_scheduler
-    return model_l, training_steps_per_epoch
+    return model_l, training_steps_per_epoch, sigma_schedule_mapping
 
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
@@ -333,7 +332,7 @@ if __name__ == '__main__':
 
             # Gaussian smoothing
             's_gaussian_smoothing_target': True,
-            's_sigma_target_smoothing': 2,  # In case of scheduling this is the initial sigma
+            's_sigma_target_smoothing': 20,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': True,
 
             # Log transform input/ validation data --> log binning --> log(x+1)
@@ -392,7 +391,7 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0 # Debugging only works with zero workers
-        settings['s_max_epochs'] = 3
+        settings['s_max_epochs'] = 1 # 3
         settings['s_num_gpus'] = 1
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
@@ -403,7 +402,7 @@ if __name__ == '__main__':
 
 
 
-    model_l, training_steps_per_epoch = train_wrapper(settings, **settings)
+    model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(settings, **settings)
 
     plot_metrics_settings = {
         'ps_sim_name': settings['s_sim_name'], # TODO: Solve conflicting name convention
@@ -427,7 +426,14 @@ if __name__ == '__main__':
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
     # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
     plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
-                     init_learning_rate=settings['s_learning_rate'], **plot_lr_schedule_settings)
+                     init_learning_rate=settings['s_learning_rate'], save_name='lr_scheduler',
+                     y_label='Learning Rate', title='LR scheduler', ylog=True, **plot_lr_schedule_settings)
+
+    plot_sigma_schedule(sigma_schedule_mapping, save_name='sigma_scheduler', save=True, **plot_lr_schedule_settings)
+
+    # plot_lr_schedule(sigma_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
+    #                  init_learning_rate=settings['s_learning_rate'], save_name='sigma_scheduler',
+    #                  y_label='Sigma', title='Sigma scheduler', ylog=False, **plot_lr_schedule_settings)
 
     # Some weird error occurs here ever since
     try:

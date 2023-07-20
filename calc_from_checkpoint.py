@@ -19,7 +19,7 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
     inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
                                                 inverse_normalize=True)
 
-    for i, (input_sequence, target_one_hot, target) in enumerate(data_loader):
+    for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
         input_sequence = input_sequence.to(ps_device)
         model = model.to(ps_device)
         pred = model(input_sequence)
