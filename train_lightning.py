@@ -255,9 +255,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
-    s_sim_name_suffix = 'DEBUG'
+    s_sim_name_suffix = 'scheduled_sigma_lr_init_0_001'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -316,7 +316,7 @@ if __name__ == '__main__':
             # 'minutes_per_iteration': 5,
             's_width_height': 256,
             's_width_height_target': 32,
-            's_learning_rate': 0.0001,  # 0.0001 Schedule this at some point??
+            's_learning_rate': 0.001,  # 0.0001
             's_num_epochs': 1000,
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
             's_num_lead_time_steps': 1,
