@@ -21,6 +21,7 @@ from plotting.plot_quality_metrics_from_log import plot_qualities_main
 from plotting.plot_lr_scheduler import plot_lr_schedule
 from calc_from_checkpoint import plot_images_outer
 import copy
+import warnings
 
 
 
@@ -249,7 +250,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = False
 
-    s_sim_name_suffix = 'gaussian_smoothing_first_try'
+    s_sim_name_suffix = 'gaussian_blur_tried_fixing_device_stuff'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -411,16 +412,18 @@ if __name__ == '__main__':
 
     plot_qualities_main(plot_metrics_settings, **plot_metrics_settings)
 
-    # Some weird error occurs here ever since
-    try:
-        plot_images_outer(plot_images_settings, **plot_images_settings)
-    except Exception:
-        warnings.warn('image plotting encountered error')
-
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
     # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
     plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
                      **plot_lr_schedule_settings)
+
+    # Some weird error occurs here ever since
+    try:
+        plot_images_outer(plot_images_settings, **plot_images_settings)
+    except Exception:
+        warnings.warn('Image plotting encountered error!')
+
+
 
 
 

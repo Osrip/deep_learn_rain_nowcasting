@@ -28,6 +28,7 @@ class Network_l(pl.LightningModule):
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
+        self.s_device = device
 
         # Get assigned later
         self.lr_scheduler = None
@@ -80,7 +81,8 @@ class Network_l(pl.LightningModule):
 
         # TODO: Should this be done in data loading such that workers can distribute compute?
         if self.s_gaussian_smoothing_target:
-            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, sigma=20, kernel_size=128)
+            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=2,
+                                                       kernel_size=128)
 
         input_sequence = input_sequence.float()
         target_one_hot = target_one_hot.float()
@@ -103,7 +105,7 @@ class Network_l(pl.LightningModule):
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                     mean_bin_vals=True)
-            pred_mm = torch.tensor(pred_mm, device=self.device)
+            pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
@@ -111,7 +113,7 @@ class Network_l(pl.LightningModule):
             # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item())
 
             # MSE zeros
-            mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
+            mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device), target)
             self.log('train_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
             # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item())
 
@@ -127,7 +129,7 @@ class Network_l(pl.LightningModule):
         input_sequence, target_one_hot, target, target_one_hot_extended = val_batch
 
         if self.s_gaussian_smoothing_target:
-            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, sigma=20, kernel_size=128)
+            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=2, kernel_size=128)
 
         input_sequence = input_sequence.float()
         target_one_hot = target_one_hot.float()
@@ -151,7 +153,7 @@ class Network_l(pl.LightningModule):
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                     mean_bin_vals=True)
-            pred_mm = torch.tensor(pred_mm, device=self.device)
+            pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
@@ -159,7 +161,7 @@ class Network_l(pl.LightningModule):
             # mlflow.log_metric('val_mse_pred_target', mse_pred_target.item())
 
             # MSE zeros
-            mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.device), target)
+            mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device), target)
             self.log('val_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
             # mlflow.log_metric('val_mse_zeros_target', mse_zeros_target.item())
 

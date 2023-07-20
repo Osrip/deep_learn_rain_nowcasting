@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import scipy
 
-def convolution_no_channel_sum(input, kernel, center_crop_size=32):
+def convolution_no_channel_sum(input, kernel, device, center_crop_size=32):
     '''
     This is an implementation of a convolution operation using a single filter (iterated only once per b dim), that skips
     summing the results of all channels. This way the output is not a channel dim of size 1 but instead the channel dim is preserved
@@ -20,7 +20,7 @@ def convolution_no_channel_sum(input, kernel, center_crop_size=32):
     kernel_size = kernel.shape[-1]
 
     # TODO: Speed this up with jit compiler (but then torch cannot be used)??!!
-    output = torch.zeros(input.shape[0], input.shape[1], center_crop_size, center_crop_size)
+    output = torch.zeros(input.shape[0], input.shape[1], center_crop_size, center_crop_size, device=device)
     for h in  range(center_crop_size):
         h_extended = h + start_height
         for w in range(center_crop_size):
@@ -39,15 +39,15 @@ def convolution_no_channel_sum(input, kernel, center_crop_size=32):
     return output
 
 
-def gaussian_smoothing_target(target_one_hot_extended, sigma, kernel_size, target_size=32):
+def gaussian_smoothing_target(target_one_hot_extended, sigma, kernel_size, device, target_size=32):
     kernel_shape = (target_one_hot_extended.shape[0], target_one_hot_extended.shape[1], kernel_size, kernel_size)
-    kernel = create_gaussian_kernel(kernel_shape, sigma)
+    kernel = create_gaussian_kernel(kernel_shape, sigma, device)
 
-    target_one_hot = convolution_no_channel_sum(target_one_hot_extended, kernel)
+    target_one_hot = convolution_no_channel_sum(target_one_hot_extended, kernel, device)
     return target_one_hot
 
 
-def create_gaussian_kernel(shape, sigma):
+def create_gaussian_kernel(shape, sigma, device):
     '''
     Create a gaussian kernel along w and h , with the same gaussian filter along the b and c dimensions
     '''
@@ -60,7 +60,7 @@ def create_gaussian_kernel(shape, sigma):
         for c_i in range(shape[1]):
             kernel[b_i, c_i, :, :] = gauss_2d
 
-    return torch.from_numpy(kernel)
+    return torch.from_numpy(kernel).to(device)
 
 
 def get_center_crop_indices(image, crop_size):
