@@ -141,11 +141,11 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     # num_samples gives number of samples per epoch. Setting to len data_set forces sampler to not show all samples each epoch
 
     train_data_loader = DataLoader(train_data_set, sampler=sampler, batch_size=s_batch_size, drop_last=True,
-                                   num_workers=s_num_workers_data_loader)
+                                   num_workers=s_num_workers_data_loader, pin_memory=True)
 
 
     validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=False, drop_last=True,
-                                        num_workers=s_num_workers_data_loader)
+                                        num_workers=s_num_workers_data_loader, pin_memory=True)
 
 
     print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
@@ -162,7 +162,8 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
 
 
 def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
-                  s_sim_name, s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing, **__):
+                  s_sim_name, s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
+                  s_check_val_every_n_epoch, **__):
     '''
     All the junk surrounding train goes in here
     '''
@@ -204,9 +205,10 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     val_logger = CSVLogger(s_dirs['logs'], name='val_log')
 
 
-
-    logger = MLFlowLogger(experiment_name="Default", tracking_uri="file:./mlruns", run_name=s_sim_name, # tags={"mlflow.runName": settings['s_sim_name']},
-                          log_model=False)
+    # eNABLE MLFLOW LOGGING HERE!
+    # logger = MLFlowLogger(experiment_name="Default", tracking_uri="file:./mlruns", run_name=s_sim_name, # tags={"mlflow.runName": settings['s_sim_name']},
+    #                       log_model=False)
+    logger = None
 
 
     callback_list = [checkpoint_callback,
@@ -220,14 +222,15 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
         sigma_schedule_mapping, sigma_scheduler = (None, None)
 
     model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch, s_max_epochs,
-            linspace_binning_params, s_dirs['data_dir'], s_num_gpus, sigma_schedule_mapping, settings)
+            linspace_binning_params, s_dirs['data_dir'], s_num_gpus, sigma_schedule_mapping, s_check_val_every_n_epoch,
+                      settings)
 
     # Network_l, training_steps_per_epoch is returned to be able to plot lr_scheduler
     return model_l, training_steps_per_epoch, sigma_schedule_mapping
 
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-            max_epochs, linspace_binning_params, data_dir, num_gpus, sigma_schedule_mapping, settings):
+            max_epochs, linspace_binning_params, data_dir, num_gpus, sigma_schedule_mapping, check_val_every_n_epoch, settings):
     '''
     Train loop, keep this clean!
     '''
@@ -236,7 +239,8 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
     save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
-                         logger=logger, devices=num_gpus) #, precision='16-mixed'
+                         logger=logger, devices=num_gpus, strategy="ddp", check_val_every_n_epoch=check_val_every_n_epoch) # precision='16-mixed'
+    # Speed up advice: https://pytorch-lightning.readthedocs.io/en/1.8.6/guides/speed.html
 
 
     # trainer.logger = logger
@@ -257,7 +261,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = False
 
-    s_sim_name_suffix = 'scheduled_sigma_lr_init_0_001'
+    s_sim_name_suffix = 'scheduled_sigma_lr_init_0_001_decreased_batch_size_to_45'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -304,7 +308,8 @@ if __name__ == '__main__':
             's_time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
             's_ratio_training_data': 0.6,
             's_data_loader_chunk_size': 20, #  Chunk size, that consecutive data is chunked in when performing random splitting
-            's_num_workers_data_loader': 4,
+            's_num_workers_data_loader': 8, # Should correspond to number of cpus, also increases cpu ram
+            's_check_val_every_n_epoch': 3, # Caluclate validation every nth epoch for speed up
 
             # Parameters related to lightning
             's_num_gpus': 4,
@@ -322,7 +327,7 @@ if __name__ == '__main__':
             's_num_lead_time_steps': 1,
             # 5, # The number of pictures that are skipped from last input time step to target, starts with 0
             's_optical_flow_input': False,  # Not yet working!
-            's_batch_size': 55,
+            's_batch_size': 45, # 55, downgraded to 45 after memory issue on v100 with soothing stuff
             # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
             's_save_trained_model': True,  # saves model every epoch
             's_load_model': False,
@@ -436,10 +441,10 @@ if __name__ == '__main__':
     #                  y_label='Sigma', title='Sigma scheduler', ylog=False, **plot_lr_schedule_settings)
 
     # Some weird error occurs here ever since
-    try:
-        plot_images_outer(plot_images_settings, **plot_images_settings)
-    except Exception:
-        warnings.warn('Image plotting encountered error!')
+    # try:
+    plot_images_outer(plot_images_settings, **plot_images_settings)
+    # except Exception:
+    #     warnings.warn('Image plotting encountered error!')
 
 
 

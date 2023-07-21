@@ -1,5 +1,7 @@
 import torch
 import pytorch_lightning as pl
+
+from helper.memory_logging import print_gpu_memory, print_ram_usage
 from modules_blocks import Network
 import torch.nn as nn
 from helper.helper_functions import one_hot_to_mm
@@ -7,7 +9,7 @@ from helper.gaussian_smoothing_helper import gaussian_smoothing_target
 import torchvision.transforms as T
 import copy
 import warnings
-import torchvision
+# Stuff for memory logging
 
 
 class Network_l(pl.LightningModule):
@@ -41,6 +43,8 @@ class Network_l(pl.LightningModule):
 
         self.train_step_num = 0
         self.val_step_num = 0
+
+
 
     def forward(self, x):
         output = self.model(x)
@@ -115,7 +119,11 @@ class Network_l(pl.LightningModule):
 
         # self.log('train_loss', loss, on_step=False, on_epoch=True)
         self.log('train_loss', loss, on_step=False,
-                 on_epoch=True)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
+                 on_epoch=True, sync_dist=True)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
+        # Added sync_dist=True because of:
+        # PossibleUserWarning: It is recommended to use `self.log('val_loss', ..., sync_dist=True)`
+        # when logging on epoch level in distributed setting to accumulate the metric across devices.
+
         # MLFlow
         # mlflow.log_metric('train_loss', loss.item())
         ### Additional quality metrics: ###
@@ -128,19 +136,24 @@ class Network_l(pl.LightningModule):
 
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
-            self.log('train_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True)
+            self.log('train_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True, sync_dist=True)
             # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item())
 
             # MSE zeros
             mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device), target)
-            self.log('train_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
+            self.log('train_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
             # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item())
 
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
-            self.log('train_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True)
+            self.log('train_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
             # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
+
+
+        if self.s_device.type == 'cuda':
+            print_gpu_memory()
+        print_ram_usage()
 
         return loss
 
@@ -169,7 +182,7 @@ class Network_l(pl.LightningModule):
         else:
             loss = nn.CrossEntropyLoss()(pred, target_one_hot)
 
-        self.log('val_loss', loss, on_step=False, on_epoch=True)  # , on_step=True
+        self.log('val_loss', loss, on_step=False, on_epoch=True, sync_dist=True)  # , on_step=True
 
         # mlflow logging without autolog
         # self.logger.experiment.log_metric(self.logger.run_id, 'val_loss', loss.item())
@@ -184,18 +197,18 @@ class Network_l(pl.LightningModule):
 
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
-            self.log('val_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True)
+            self.log('val_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True, sync_dist=True)
             # mlflow.log_metric('val_mse_pred_target', mse_pred_target.item())
 
             # MSE zeros
             mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device), target)
-            self.log('val_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True)
+            self.log('val_mse_zeros_target', mse_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
             # mlflow.log_metric('val_mse_zeros_target', mse_zeros_target.item())
 
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
-            self.log('val_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True)
+            self.log('val_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
             # mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item())
 
         # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
@@ -208,3 +221,5 @@ class Network_l(pl.LightningModule):
         # MSE zeros
         # mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape), target)
         # self.log('val_mse_zeros_target', mse_zeros_target)
+
+
