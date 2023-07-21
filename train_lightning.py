@@ -261,7 +261,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = False
 
-    s_sim_name_suffix = 'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'debug' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -337,7 +337,7 @@ if __name__ == '__main__':
 
             # Gaussian smoothing
             's_gaussian_smoothing_target': True,
-            's_sigma_target_smoothing': 20,  # In case of scheduling this is the initial sigma
+            's_sigma_target_smoothing': 1,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': True,
 
             # Log transform input/ validation data --> log binning --> log(x+1)
