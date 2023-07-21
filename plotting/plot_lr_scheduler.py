@@ -9,10 +9,11 @@ class NullModule(torch.nn.Module):
         super().__init__()
         self.fc = torch.nn.Linear(1, 1)
 
-def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name, init_learning_rate, save=True,
+def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name, save=True,
                      save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler', ylog=False, **__):
+    # TODO init learing rate seems to do nothing!, Init learning rate is adapted fropm the optimizer, that is fed in!
     model = NullModule()
-    optimizer = torch.optim.Adam(model.parameters(), lr=init_learning_rate)
+    optimizer = torch.optim.Adam(model.parameters())
 
 
 
@@ -63,8 +64,8 @@ def plot_sigma_schedule(sigma_schedule_mapping, ps_sim_name, save_name='sigma_sc
 
 if __name__ == '__main__':
     model = NullModule()
-    optimizer = torch.optim.Adam(model.parameters())
-    # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma = 1-2*10e-6)
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
+    optimizer = torch.optim.Adam(model.parameters(), lr=50)
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma = 1-2*10e-6)
+    # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
     plot_lr_schedule(lr_scheduler, training_steps_per_epoch=1000, epochs=300, ps_sim_name=None, save=False,
-                     init_learning_rate=0.001)
+                     ylog=True)

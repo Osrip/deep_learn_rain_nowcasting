@@ -259,9 +259,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
-    s_sim_name_suffix = 'DEBUG' #'scheduled_sigma_init_2_lr_init_0_001'
+    s_sim_name_suffix = 'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -309,7 +309,7 @@ if __name__ == '__main__':
             's_ratio_training_data': 0.6,
             's_data_loader_chunk_size': 20, #  Chunk size, that consecutive data is chunked in when performing random splitting
             's_num_workers_data_loader': 8, # Should correspond to number of cpus, also increases cpu ram
-            's_check_val_every_n_epoch': 3, # Caluclate validation every nth epoch for speed up
+            's_check_val_every_n_epoch': 1, # Caluclate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS!!
 
             # Parameters related to lightning
             's_num_gpus': 4,
@@ -337,7 +337,7 @@ if __name__ == '__main__':
 
             # Gaussian smoothing
             's_gaussian_smoothing_target': True,
-            's_sigma_target_smoothing': 2,  # In case of scheduling this is the initial sigma
+            's_sigma_target_smoothing': 20,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': True,
 
             # Log transform input/ validation data --> log binning --> log(x+1)
@@ -396,7 +396,7 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0 # Debugging only works with zero workers
-        settings['s_max_epochs'] = 2 # 3
+        settings['s_max_epochs'] = 1 # 3
         settings['s_num_gpus'] = 1
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
@@ -426,13 +426,13 @@ if __name__ == '__main__':
         'ps_sim_name': settings['s_sim_name'], # TODO: Solve conflicting name convention
     }
 
-    plot_qualities_main(plot_metrics_settings, **plot_metrics_settings)
+    plot_qualities_main(plot_metrics_settings, **plot_metrics_settings, **settings)
 
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
     # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
     plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
-                     init_learning_rate=settings['s_learning_rate'], save_name='lr_scheduler',
-                     y_label='Learning Rate', title='LR scheduler', ylog=True, **plot_lr_schedule_settings)
+                     save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler',
+                     ylog=True, **plot_lr_schedule_settings)
 
     plot_sigma_schedule(sigma_schedule_mapping, save_name='sigma_scheduler', save=True, **plot_lr_schedule_settings)
 
@@ -443,6 +443,9 @@ if __name__ == '__main__':
     # Some weird error occurs here ever since
     # try:
     plot_images_outer(plot_images_settings, **plot_images_settings)
+
+    if settings['s_max_epochs'] > 10:
+        plot_images_outer(plot_images_settings, epoch=10, **plot_images_settings)
     # except Exception:
     #     warnings.warn('Image plotting encountered error!')
 

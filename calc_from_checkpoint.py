@@ -36,7 +36,7 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
                                                                                                         , ps_run_name
                                                                                                         , prefix
                                                                                                         , ps_checkpoint_name),
-                                                title='Validation data (log, not normalized)',
+                                                title='{} (log, not normalized)'.format(prefix),
                                                 input_sequence = input_sequence,
                                                 )
         break
@@ -67,18 +67,21 @@ def get_checkpoint_name(ps_runs_path, ps_run_name, epoch=None, **__):
     else:
         arg_idx = corresponding_epochs.index(epoch)
 
-    return checkpoint_names[arg_idx]
+    return checkpoint_names[arg_idx], arg_idx
 
 
 
 
 
-def plot_images_outer(plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_name, **__):
+def plot_images_outer(plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_name, epoch=None, **__):
+    '''
+    Loads correspnding epoch
+    '''
 
     if ps_checkpoint_name == None:
-        checkpoint_name = get_checkpoint_name(**plot_settings)
+        checkpoint_name, epoch = get_checkpoint_name(epoch=epoch, **plot_settings)
     else:
-        checkpoint_name = ps_checkpoint_name
+        checkpoint_name, epoch = ps_checkpoint_name
 
 
     settings, filtered_indecies_training, filtered_indecies_validation, linspace_binning_params, filter_and_normalization_params \
@@ -92,9 +95,11 @@ def plot_images_outer(plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_na
     model = load_from_checkpoint(ps_runs_path, ps_run_name, checkpoint_name, linspace_binning_params, settings)
     train_data_loader, validation_data_loader = create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation,
                         linspace_binning_params, filter_and_normalization_params, settings)
-    plot_images_inner(model, train_data_loader, filter_and_normalization_params, linspace_binning_params, prefix='TRAIN',
+    plot_images_inner(model, train_data_loader, filter_and_normalization_params, linspace_binning_params,
+                      prefix='TRAIN_epoch_{}'.format(epoch),
                       **plot_settings)
-    plot_images_inner(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params, prefix='VAL',
+    plot_images_inner(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
+                      prefix='VAL_epoch_{}'.format(epoch),
                       **plot_settings)
 
 

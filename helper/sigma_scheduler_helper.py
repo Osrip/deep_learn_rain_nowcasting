@@ -8,12 +8,14 @@ def create_scheduler_mapping(training_steps_per_epoch, epochs, init_sigma):
     model = NullModule()
     optimizer = torch.optim.Adam(model.parameters(), lr=init_sigma)
     # sigma_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
+    # sigma_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma = 1-2*10e-6) # this spans ~ 3 orders of magnitude
+
     # sigma_scheduler = torch.optim.lr_scheduler.LinearLR(optimizer,
     #                                                      start_factor=0.5,  # The number we multiply learning rate in the first epoch
     #                                                      total_iters=training_steps_per_epoch * epochs)
     sigma_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,
                                         T_max=training_steps_per_epoch * epochs,  # Maximum number of iterations.
-                                        eta_min=0.2)  # Minimum learning rate.
+                                        eta_min=0.1)  # Minimum learning rate.
 
     scheduler_mapping = []
     for _ in range(epochs * training_steps_per_epoch):

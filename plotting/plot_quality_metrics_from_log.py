@@ -48,14 +48,15 @@ def plot_mse_light(mean_mses, label_list, save_path_name, title=''):
     gc.collect()
 
 
-def plot_mse_heavy(mean_mses, label_list, linestyle_list, color_list, save_path_name, title=''):
+def plot_mse_heavy(mean_mses, label_list, linestyle_list, color_list, save_path_name, ylabel='MSE', ylog=True, title=''):
     plt.figure()
     for mses, label, linestyle, color in zip(mean_mses, label_list, linestyle_list, color_list):
         plt.plot(mses, label=label, linestyle=linestyle, color=color)
         plt.title(title)
         plt.xlabel('Epoch')
-        plt.ylabel('MSE')
-    plt.yscale('log')
+        plt.ylabel(ylabel)
+    if ylog:
+        plt.yscale('log')
     plt.legend()
     plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
     plt.show(block=False)
@@ -236,7 +237,8 @@ def plot_mse_manual(train_df, val_df, ps_sim_name, **__):
                    title='MSE on lognorm data')
 
 
-def line_plot(train_df, val_df, key_list_train, key_list_val, save_name, ps_sim_name, title='', color_list=[None for i in range(99)],
+def line_plot(train_df, val_df, key_list_train, key_list_val, save_name, ps_sim_name, ylog=True, ylabel='MSE',
+              title='', color_list=[None for i in range(99)],
               linestyle_list=[None for i in range(99)], **__):
 
     train_mse_list = df_cols_to_list_of_lists(key_list_train, train_df)
@@ -248,10 +250,17 @@ def line_plot(train_df, val_df, key_list_train, key_list_val, save_name, ps_sim_
                    label_list=key_list,
                    color_list=color_list, linestyle_list=linestyle_list,
                    save_path_name='runs/{}/plots/{}'.format(ps_sim_name, save_name),
+                   ylabel=ylabel,
+                   ylog=ylog,
                    title=title)
 
 
-def plot_qualities_main(plot_settings, ps_sim_name, **__):
+def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target, **__):
+    '''
+    Plots both mse vals and loss. Adjust loss according to what is calculated
+    (xentropy or kl divergence dependong on whether s_gaussian_smoothing_target is active)
+    This requires both **plot_settings and **settings as input
+    '''
     train_df, val_df = load_data(**plot_settings)
     key_list_train_mse = ['train_mse_pred_target', 'train_mse_zeros_target',
                       'train_mse_persistence_target']
@@ -265,8 +274,15 @@ def plot_qualities_main(plot_settings, ps_sim_name, **__):
     key_list_train_xentropy = ['train_loss']
     key_list_val_xentropy = ['val_loss']
 
-    line_plot(train_df, val_df, key_list_train_xentropy, key_list_val_xentropy, save_name='xentropy_loss',
-              title='Xentropy on lognorm data', **plot_settings)
+    if s_gaussian_smoothing_target:
+        loss_ylog = False
+        loss_ylabel = 'KL Divergence'
+        loss_title = 'KL divergence on lognorm data'
+    else:
+        loss_title = 'Xentropy on lognorm data'
+
+    line_plot(train_df, val_df, key_list_train_xentropy, key_list_val_xentropy, ylabel=loss_ylabel, ylog=loss_ylog,
+              save_name='xentropy_loss', title=loss_title, **plot_settings)
 
 
 
@@ -274,4 +290,4 @@ if __name__ == '__main__':
     plot_settings = {
         'ps_sim_name': 'Run_20230609-121955_ID_3644313_12_months_training_fixed_csv_logging_mlflow_working_1_gpus',
     }
-    plot_qualities_main(plot_settings, **plot_settings)
+    plot_qualities_main(plot_settings, s_gaussian_smoothing_target=False, **plot_settings)
