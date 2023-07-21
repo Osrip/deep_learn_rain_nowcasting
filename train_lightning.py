@@ -259,9 +259,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
-    s_sim_name_suffix = 'scheduled_sigma_lr_init_0_001_decreased_batch_size_to_45'
+    s_sim_name_suffix = 'DEBUG' #'scheduled_sigma_init_2_lr_init_0_001'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -337,7 +337,7 @@ if __name__ == '__main__':
 
             # Gaussian smoothing
             's_gaussian_smoothing_target': True,
-            's_sigma_target_smoothing': 20,  # In case of scheduling this is the initial sigma
+            's_sigma_target_smoothing': 2,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': True,
 
             # Log transform input/ validation data --> log binning --> log(x+1)
@@ -396,7 +396,7 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0 # Debugging only works with zero workers
-        settings['s_max_epochs'] = 1 # 3
+        settings['s_max_epochs'] = 2 # 3
         settings['s_num_gpus'] = 1
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 

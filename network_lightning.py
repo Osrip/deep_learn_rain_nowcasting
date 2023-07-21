@@ -112,7 +112,10 @@ class Network_l(pl.LightningModule):
         # TODO targets already cropped??
         pred = self.model(input_sequence)
         if self.s_gaussian_smoothing_target:
-            loss = nn.KLDivLoss()(pred, target_one_hot)
+            loss = nn.KLDivLoss(reduction='batchmean')(pred, target_one_hot)
+            # Reduction= batchmean because:
+            # reduction= “mean” (default) doesn’t return the true KL divergence value, please use reduction= “batchmean”
+            # which aligns with the mathematical definition.
 
         else:
             loss = nn.CrossEntropyLoss()(pred, target_one_hot)
@@ -177,7 +180,7 @@ class Network_l(pl.LightningModule):
         pred = self.model(input_sequence)
 
         if self.s_gaussian_smoothing_target:
-            loss = nn.KLDivLoss()(pred, target_one_hot)
+            loss = nn.KLDivLoss(reduction='batchmean')(pred, target_one_hot)
 
         else:
             loss = nn.CrossEntropyLoss()(pred, target_one_hot)
