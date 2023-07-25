@@ -109,33 +109,56 @@ def save_tuple_pickle_csv(save_dict, folder, file_name):
     save_zipped_pickle('{}/{}'.format(folder, file_name), save_dict)
 
 
+# def save_whole_project(save_folder):
+#     '''
+#     Copies complete code into simulation folder
+#     Todo: does not copy subfolders for some reason!
+#     '''
+#     cwd = os.getcwd()
+#
+#     onlyfiles = []
+#     for path, subdirs, files in os.walk(cwd):
+#         for name in files:
+#             if (isfile(join(cwd, name)) and (not 'venv' in path) and (not 'runs' in path) and (name.endswith('.py') or name.endswith('.txt')
+#                                                                       or name.endswith('.ipynb') or name.endswith('.sh'))):
+#                 onlyfiles.append(os.path.relpath(os.path.join(path, name), cwd))
+#
+#     # onlyfiles = [f for f in listdir(cwd) if (isfile(join(cwd, f)) and (f.endswith('.py') or f.endswith('.txt') or f.endswith('.ipynb')))]
+#     for file in onlyfiles:
+#         save_code(save_folder, file)
+#
+#
+# def save_code(save_folder, filename):
+#     src = filename
+#     dst = save_folder + '/' + src
+#     try:
+#         copyfile(src, dst)
+#     except FileNotFoundError:
+#         os.makedirs(dst[0:dst.rfind('/')])
+
+
 def save_whole_project(save_folder):
-    '''
-    Copies complete code into simulation folder
-    Todo: does not copy subfolders for some reason!
-    '''
     cwd = os.getcwd()
 
     onlyfiles = []
     for path, subdirs, files in os.walk(cwd):
         for name in files:
-            if (isfile(join(cwd, name)) and (not 'venv' in path) and (not 'runs' in path) and (name.endswith('.py') or name.endswith('.txt')
-                                                                      or name.endswith('.ipynb') or name.endswith('.sh'))):
+            if (isfile(os.path.join(path, name)) and (not 'venv' in path) and (not 'runs' in path) and
+                    (name.endswith('.py') or name.endswith('.txt') or name.endswith('.ipynb') or name.endswith('.sh'))):
                 onlyfiles.append(os.path.relpath(os.path.join(path, name), cwd))
 
-    # onlyfiles = [f for f in listdir(cwd) if (isfile(join(cwd, f)) and (f.endswith('.py') or f.endswith('.txt') or f.endswith('.ipynb')))]
     for file in onlyfiles:
         save_code(save_folder, file)
 
 
 def save_code(save_folder, filename):
     src = filename
-    dst = save_folder + '/' + src
+    dst = os.path.join(save_folder, src)  # Properly join the folder and filename
     try:
+        os.makedirs(os.path.dirname(dst), exist_ok=True)  # Create intermediate directories if they don't exist
         copyfile(src, dst)
     except FileNotFoundError:
         os.makedirs(dst[0:dst.rfind('/')])
-
 
 def convert_tensor_to_np(tensor):
     return tensor.cpu().detach().numpy()
