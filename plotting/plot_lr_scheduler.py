@@ -22,16 +22,17 @@ def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name
         optimizer.step()
         lrs.append(lr_scheduler.get_lr())
         lr_scheduler.step()
-
+    plt.clf()
     plt.plot(lrs)
     save_path_name = 'runs/{}/plots/{}'.format(ps_sim_name, save_name)
     plt.ylabel(y_label)
     plt.xlabel('Step (total corresponds to steps in training)')
     plt.title('{}: {}'.format(title, lr_scheduler.__class__.__name__))
-    if save:
-        plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
     if ylog:
         plt.yscale('log')
+    if save:
+        plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
+
     plt.show()
 
     # Save hyperparams to txt
@@ -51,6 +52,8 @@ def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name
 
 def plot_sigma_schedule(sigma_schedule_mapping, ps_sim_name, save_name='sigma_scheduler', save=True, **__):
     save_path_name = 'runs/{}/plots/{}'.format(ps_sim_name, save_name)
+
+    plt.clf()
     plt.plot(sigma_schedule_mapping)
     plt.ylabel('Sigma')
     plt.xlabel('Step (total corresponds to steps in training)')
