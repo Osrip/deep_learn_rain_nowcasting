@@ -261,7 +261,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = False
 
-    s_sim_name_suffix = 'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'sigma_1_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -336,7 +336,7 @@ if __name__ == '__main__':
             'device': device,
 
             # Gaussian smoothing
-            's_gaussian_smoothing_target': False,
+            's_gaussian_smoothing_target': True,
             's_sigma_target_smoothing': 1,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
 
@@ -430,11 +430,13 @@ if __name__ == '__main__':
 
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
     # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
+
     plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
                      save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler',
                      ylog=True, **plot_lr_schedule_settings)
 
-    plot_sigma_schedule(sigma_schedule_mapping, save_name='sigma_scheduler', save=True, **plot_lr_schedule_settings)
+    if settings['s_schedule_sigma_smoothing']:
+        plot_sigma_schedule(sigma_schedule_mapping, save_name='sigma_scheduler', ylog=True, save=True, **plot_lr_schedule_settings)
 
     # plot_lr_schedule(sigma_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
     #                  init_learning_rate=settings['s_learning_rate'], save_name='sigma_scheduler',

@@ -50,7 +50,7 @@ def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name
 
 
 
-def plot_sigma_schedule(sigma_schedule_mapping, ps_sim_name, save_name='sigma_scheduler', save=True, **__):
+def plot_sigma_schedule(sigma_schedule_mapping, ps_sim_name, save_name='sigma_scheduler', ylog=False, save=True, **__):
     save_path_name = 'runs/{}/plots/{}'.format(ps_sim_name, save_name)
 
     plt.clf()
@@ -58,7 +58,8 @@ def plot_sigma_schedule(sigma_schedule_mapping, ps_sim_name, save_name='sigma_sc
     plt.ylabel('Sigma')
     plt.xlabel('Step (total corresponds to steps in training)')
     plt.title('Sigma schedule')
-
+    if ylog:
+        plt.yscale('log')
     if save:
         plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
     plt.show()
