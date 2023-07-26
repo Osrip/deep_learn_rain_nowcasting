@@ -105,7 +105,7 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
                     curr_ax.set_title('Likelihood')
     # plt.colorbar(fig)
     fig.suptitle(title)
-    plt.savefig(save_path_name, dpi=600)
+    plt.savefig(save_path_name, dpi=200)
     plt.show(block=False)
 
     plt.close("all")
