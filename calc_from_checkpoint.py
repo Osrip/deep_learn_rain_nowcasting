@@ -32,7 +32,7 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
                                                 linspace_binning=inv_norm(linspace_binning),
                                                 vmin=inv_norm(linspace_binning_min),
                                                 vmax=inv_norm(linspace_binning_max),
-                                                save_path_name= '{}/{}/plots/{}_target_vs_pred_likelihood_{}.png'.format(ps_runs_path
+                                                save_path_name= '{}/{}/plots/{}_target_vs_pred_likelihood_{}'.format(ps_runs_path
                                                                                                         , ps_run_name
                                                                                                         , prefix
                                                                                                         , ps_checkpoint_name),

@@ -259,9 +259,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
-    s_sim_name_suffix = 'sigma_1_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix ='debug' # 'sigma_50_no_sigma_schedule_WITH_lr_schedule'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -324,7 +324,7 @@ if __name__ == '__main__':
             's_learning_rate': 0.001,  # 0.0001
             's_num_epochs': 1000,
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
-            's_num_lead_time_steps': 1,
+            's_num_lead_time_steps': 1, #
             # 5, # The number of pictures that are skipped from last input time step to target, starts with 0
             's_optical_flow_input': False,  # Not yet working!
             's_batch_size': 45, # 55, downgraded to 45 after memory issue on v100 with soothing stuff
@@ -337,7 +337,7 @@ if __name__ == '__main__':
 
             # Gaussian smoothing
             's_gaussian_smoothing_target': True,
-            's_sigma_target_smoothing': 1,  # In case of scheduling this is the initial sigma
+            's_sigma_target_smoothing': 50,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
 
             # Log transform input/ validation data --> log binning --> log(x+1)
@@ -436,7 +436,8 @@ if __name__ == '__main__':
                      ylog=True, **plot_lr_schedule_settings)
 
     if settings['s_schedule_sigma_smoothing']:
-        plot_sigma_schedule(sigma_schedule_mapping, save_name='sigma_scheduler', ylog=True, save=True, **plot_lr_schedule_settings)
+        plot_sigma_schedule(sigma_schedule_mapping, save_name='sigma_scheduler', ylog=True, save=True,
+                            **plot_lr_schedule_settings)
 
     # plot_lr_schedule(sigma_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
     #                  init_learning_rate=settings['s_learning_rate'], save_name='sigma_scheduler',

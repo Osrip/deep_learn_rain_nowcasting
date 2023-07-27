@@ -55,6 +55,7 @@ class Network_l(pl.LightningModule):
     #     optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
     #     return optimizer
 
+
     def configure_optimizers(self):
         if not self.training_steps_per_epoch is None:
             optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
@@ -84,7 +85,6 @@ class Network_l(pl.LightningModule):
 
 
         return optimizer
-
 
 
     def training_step(self, batch, batch_idx):
