@@ -274,14 +274,14 @@ def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target,
     key_list_train_xentropy = ['train_loss']
     key_list_val_xentropy = ['val_loss']
 
-    if s_gaussian_smoothing_target:
-        loss_ylog = False
-        loss_ylabel = 'KL Divergence'
-        loss_title = 'KL divergence on lognorm data'
-    else:
-        loss_ylog = True
-        loss_title = 'Xentropy on lognorm data'
-        loss_ylabel = 'Xentropy'
+    # if s_gaussian_smoothing_target:
+    #     loss_ylog = False
+    #     loss_ylabel = 'KL Divergence'
+    #     loss_title = 'KL divergence on lognorm data'
+    # else:
+    loss_ylog = True
+    loss_title = 'Xentropy on lognorm data'
+    loss_ylabel = 'Xentropy'
 
     line_plot(train_df, val_df, key_list_train_xentropy, key_list_val_xentropy, ylabel=loss_ylabel, ylog=loss_ylog,
               save_name='xentropy_loss', title=loss_title, **plot_settings)

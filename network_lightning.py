@@ -90,7 +90,7 @@ class Network_l(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         # TODO: DOES THIS BS WORKAROUND WORK??
         self.train_step_num += 1
-        input_sequence, target_one_hot, target, target_one_hot_extended = batch
+        input_sequence, target_binned, target, target_one_hot_extended = batch
         # Todo: get rid of float conversion? do this in filter already?
 
         # TODO: Should this be done in data loading such that workers can distribute compute?
@@ -104,21 +104,21 @@ class Network_l(pl.LightningModule):
             else:
                 curr_sigma = self.s_sigma_target_smoothing
 
-            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
+            target_binned = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
                                                        kernel_size=128)
 
         input_sequence = input_sequence.float()
-        target_one_hot = target_one_hot.float()
+        target_binned = target_binned.float()
         # TODO targets already cropped??
         pred = self.model(input_sequence)
-        if self.s_gaussian_smoothing_target:
-            loss = nn.KLDivLoss(reduction='batchmean')(pred, target_one_hot)
-            # Reduction= batchmean because:
-            # reduction= “mean” (default) doesn’t return the true KL divergence value, please use reduction= “batchmean”
-            # which aligns with the mathematical definition.
 
-        else:
-            loss = nn.CrossEntropyLoss()(pred, target_one_hot)
+        # loss = nn.KLDivLoss(reduction='batchmean')(pred, target_binned)
+        # Reduction= batchmean because:
+        # reduction= “mean” (default) doesn’t return the true KL divergence value, please use reduction= “batchmean”
+        # which aligns with the mathematical definition.
+
+        # We use cross entropy loss, for both gaussian smoothed and normal one_hot target
+        loss = nn.CrossEntropyLoss()(pred, target_binned)
 
         # self.log('train_loss', loss, on_step=False, on_epoch=True)
         self.log('train_loss', loss, on_step=False,
@@ -163,7 +163,7 @@ class Network_l(pl.LightningModule):
     def validation_step(self, val_batch, batch_idx):
         # TODO: Does this work??
         self.val_step_num += 1
-        input_sequence, target_one_hot, target, target_one_hot_extended = val_batch
+        input_sequence, target_binned, target, target_one_hot_extended = val_batch
 
         if self.s_gaussian_smoothing_target:
             if self.s_schedule_sigma_smoothing:
@@ -171,19 +171,16 @@ class Network_l(pl.LightningModule):
             else:
                 curr_sigma = self.s_sigma_target_smoothing
 
-            target_one_hot = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
+            target_binned = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
                                                        kernel_size=128)
 
         input_sequence = input_sequence.float()
-        target_one_hot = target_one_hot.float()
+        target_binned = target_binned.float()
 
         pred = self.model(input_sequence)
 
-        if self.s_gaussian_smoothing_target:
-            loss = nn.KLDivLoss(reduction='batchmean')(pred, target_one_hot)
 
-        else:
-            loss = nn.CrossEntropyLoss()(pred, target_one_hot)
+        loss = nn.CrossEntropyLoss()(pred, target_binned)
 
         self.log('val_loss', loss, on_step=False, on_epoch=True, sync_dist=True)  # , on_step=True
 
