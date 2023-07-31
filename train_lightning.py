@@ -17,9 +17,10 @@ import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
 from pytorch_lightning.loggers import CSVLogger, MLFlowLogger
 import mlflow
-from plotting.plot_quality_metrics_from_log import plot_qualities_main
+from plotting.plot_quality_metrics_from_log import plot_qualities_main, plot_precipitation_diff
 from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
 from helper.sigma_scheduler_helper import create_scheduler_mapping
+from helper.helper_functions import no_special_characters
 from calc_from_checkpoint import plot_images_outer
 import copy
 import warnings
@@ -261,10 +262,10 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix ='sigma_init_5_exp_sigma_schedule_gamma_1-2*10e-6_WITH_lr_schedule_xentropy_loss'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix ='sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
-    # Getting rid of all special characters
-    s_sim_name_suffix = ''.join(e for e in s_sim_name_suffix if e.isalnum())
+    # Getting rid of all special characters except underscores
+    s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if device.type == 'cuda':
@@ -327,7 +328,7 @@ if __name__ == '__main__':
             's_learning_rate': 0.001,  # 0.0001
             's_num_epochs': 1000,
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
-            's_num_lead_time_steps': 1, #
+            's_num_lead_time_steps': 4, #
             # 5, # The number of pictures that are skipped from last input time step to target, starts with 0
             's_optical_flow_input': False,  # Not yet working!
             's_batch_size': 45, # 55, downgraded to 45 after memory issue on v100 with soothing stuff
@@ -343,6 +344,10 @@ if __name__ == '__main__':
             's_sigma_target_smoothing': 5,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': True,
 
+            # Logging
+            's_log_precipitation_difference': True,
+            's_calculate_quality_params': True, # Calculatiing quality params during training and validation
+
             # Log transform input/ validation data --> log binning --> log(x+1)
             's_log_transform': True,
             's_normalize': True,
@@ -353,7 +358,6 @@ if __name__ == '__main__':
 
             's_testing': True, # Runs tests before starting training
             's_profiling': False,  # Runs profiler
-            's_calculate_quality_params': True, # Calculatiing quality params during training and validation
 
             # Plotting stuff
             's_no_plotting': False,  # This sets all plotting boos below to False
@@ -431,6 +435,9 @@ if __name__ == '__main__':
 
     plot_qualities_main(plot_metrics_settings, **plot_metrics_settings, **settings)
 
+    if settings['s_log_precipitation_difference']:
+        plot_precipitation_diff(plot_metrics_settings, **plot_metrics_settings, **settings)
+
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
     # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
 
@@ -445,6 +452,7 @@ if __name__ == '__main__':
     # plot_lr_schedule(sigma_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
     #                  init_learning_rate=settings['s_learning_rate'], save_name='sigma_scheduler',
     #                  y_label='Sigma', title='Sigma scheduler', ylog=False, **plot_lr_schedule_settings)
+
 
 
     plot_images_outer(plot_images_settings, **plot_images_settings)

@@ -15,7 +15,7 @@ import warnings
 class Network_l(pl.LightningModule):
     def __init__(self, linspace_binning_params, sigma_schedule_mapping, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
-                 s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing,
+                 s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
                  training_steps_per_epoch=None, **__):
         super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
@@ -32,6 +32,7 @@ class Network_l(pl.LightningModule):
         self.s_calculate_quality_params = s_calculate_quality_params
         self.s_max_epochs = s_max_epochs
         self.s_gaussian_smoothing_target = s_gaussian_smoothing_target
+        self.s_log_precipitation_difference = s_log_precipitation_difference
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
@@ -137,6 +138,7 @@ class Network_l(pl.LightningModule):
                                     mean_bin_vals=True)
             pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
+        if self.s_calculate_quality_params or self.s_log_precipitation_difference:
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
             self.log('train_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True, sync_dist=True)
@@ -153,6 +155,17 @@ class Network_l(pl.LightningModule):
             self.log('train_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
             # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
 
+        if self.s_log_precipitation_difference:
+            with torch.no_grad():
+                mean_pred_diff = torch.mean(pred_mm - target).item()
+                mean_pred = torch.mean(pred_mm).item()
+                mean_target = torch.mean(target).item()
+
+            self.log('train_mean_diff_pred_target_mm', mean_pred_diff, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('train_mean_pred_mm', mean_pred, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('train_mean_target_mm', mean_target, on_step=False, on_epoch=True, sync_dist=True)
+
+            # self.log('') =
 
         if self.s_device.type == 'cuda':
             print_gpu_memory()
@@ -179,7 +192,6 @@ class Network_l(pl.LightningModule):
 
         pred = self.model(input_sequence)
 
-
         loss = nn.CrossEntropyLoss()(pred, target_binned)
 
         self.log('val_loss', loss, on_step=False, on_epoch=True, sync_dist=True)  # , on_step=True
@@ -189,12 +201,13 @@ class Network_l(pl.LightningModule):
 
         # mlflow.log_metric('val_loss', loss.item())
 
-        if self.s_calculate_quality_params:
+        if self.s_calculate_quality_params or self.s_log_precipitation_difference:
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                     mean_bin_vals=True)
             pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
+        if self.s_calculate_quality_params:
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
             self.log('val_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True, sync_dist=True)
@@ -210,6 +223,16 @@ class Network_l(pl.LightningModule):
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
             self.log('val_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
             # mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item())
+
+        if self.s_log_precipitation_difference:
+            with torch.no_grad():
+                mean_pred_diff = torch.mean(pred_mm - target).item()
+                mean_pred = torch.mean(pred_mm).item()
+                mean_target = torch.mean(target).item()
+
+            self.log('val_mean_diff_pred_target_mm', mean_pred_diff, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_mean_pred_mm', mean_pred, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_mean_target_mm', mean_target, on_step=False, on_epoch=True, sync_dist=True)
 
         # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
         # pred_mm = torch.from_numpy(pred_mm).detach()

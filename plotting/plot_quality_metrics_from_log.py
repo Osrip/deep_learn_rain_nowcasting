@@ -287,6 +287,29 @@ def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target,
               save_name='xentropy_loss', title=loss_title, **plot_settings)
 
 
+def plot_precipitation_diff(plot_settings, ps_sim_name, **__):
+    '''
+    Plots both mse vals and loss. Adjust loss according to what is calculated
+    (xentropy or kl divergence dependong on whether s_gaussian_smoothing_target is active)
+    This requires both **plot_settings and **settings as input
+    '''
+    train_df, val_df = load_data(**plot_settings)
+    key_list_train_diff = ['train_mean_diff_pred_target_mm']
+    key_list_val_diff = ['val_mean_diff_pred_target_mm']
+
+    line_plot(train_df, val_df, key_list_train_diff, key_list_val_diff, save_name='mean_diff_mm',
+              color_list=['b', 'y'], linestyle_list=['-', '--'],
+              title='Mean Precipitation difference prediciton - target', ylabel='Mean Difference [mm]', ylog=False,
+              **plot_settings,)
+
+    key_list_train_mm = ['train_mean_pred_mm', 'train_mean_target_mm']
+    key_list_val_mm = ['val_mean_pred_mm', 'val_mean_target_mm']
+
+    line_plot(train_df, val_df, key_list_train_mm, key_list_val_mm, save_name='mean_diff_mm',
+              color_list=['b', 'y', 'b', 'y'], linestyle_list=['-', '-', '--', '--'],
+              title='Total precipitation of Prediciton and target', ylabel='Mean Precipitation [mm]', ylog=False,
+              **plot_settings,)
+
 
 if __name__ == '__main__':
     plot_settings = {

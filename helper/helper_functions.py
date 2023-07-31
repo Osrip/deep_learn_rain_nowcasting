@@ -174,3 +174,13 @@ def flatten_list(lst):
     Flattens list by one dimension
     '''
     return [item for sublist in lst for item in sublist]
+
+def no_special_characters(str):
+    str_new = ''
+    for char in str:
+        if char.isalnum() or (char == '_'):
+            str_new += char
+        else:
+            str_new += '_'
+    return str_new
+
