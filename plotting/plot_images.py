@@ -1,8 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from helper.helper_functions import convert_tensor_to_np
-
+import torch
 import gc
+import torchvision.transforms as T
 # import matplotlib
 # matplotlib.use('agg')
 
@@ -51,13 +53,31 @@ def plot_target_vs_pred(target_img, pred_img, save_path_name, vmin, vmax, max_ro
 
 
 def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_path_name, vmin, vmax, linspace_binning,
-                                        max_row_num=5, input_sequence=None ,title=''):
+                                        ps_inv_normalize, max_row_num=5, input_sequence=None ,title='', **__):
+    '''
+    !!! Can also be plotted without input sequence by just leaving input_sequence=None !!!
+    '''
     add_input_sequence = False if input_sequence is None else True
 
     target_img = convert_tensor_to_np(target_img)
     # pred_mm = convert_tensor_to_np(pred_mm)
+
+    # input_sequence = T.CenterCrop(size=32)(input_sequence)
+
     if add_input_sequence:
+        _, _, h, w = input_sequence.shape
         input_sequence = convert_tensor_to_np(input_sequence)
+        center_h = h // 2
+        center_w = w // 2
+
+        # Calculate the top-left coordinates for the red rectangle
+        width_height_target = pred_mm.shape[-1]
+
+        rect_x = center_w - (width_height_target // 2)
+        rect_y = center_h - (width_height_target // 2)
+
+
+
     num_rows = np.min((target_img.shape[0], max_row_num))
     add_cols = 0 if input_sequence is None else input_sequence.shape[1]
 
@@ -72,11 +92,15 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
             curr_ax = axs[row, col]
             if add_input_sequence and col in range(add_cols):
                 curr_ax.imshow(input_sequence[row, col, :, :], vmin=vmin, vmax=vmax, norm='linear')
+
+                rect = patches.Rectangle((rect_x, rect_y), width_height_target, width_height_target, linewidth=3,
+                                         edgecolor='r', facecolor='none')
+                curr_ax.add_patch(rect)
             elif col == 0 + add_cols:
                 im1 = curr_ax.imshow(target_img[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
                 cbar1 = plt.colorbar(im1)
             elif col == 1 + add_cols:
-                # Make this work for both train.py and calc_from_chekpoint
+                # Make this work for both train.py and calc_from_checkpoint
                 try:
                     im2 = curr_ax.imshow(pred_mm[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
                 except TypeError:
@@ -89,7 +113,11 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
 
                 im3 = curr_ax.imshow(likelihoods[row, :, :], norm='linear')
                 cbar3 = plt.colorbar(im3, cmap='jet')
-                cbar_label = 'Precipitation forecast in mm'
+                if ps_inv_normalize:
+                    cbar_label = 'Precipitation forecast in (log?) mm, max 4xSTD'
+                else:
+                    cbar_label = 'Lognormalized data, max 4xSTD'
+
                 cbar1.set_label(cbar_label, rotation=270, labelpad=12)
                 cbar2.set_label(cbar_label, rotation=270, labelpad=12)
 
@@ -97,11 +125,11 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
             if row == 0:
                 if add_input_sequence and col in range(add_cols):
                     curr_ax.set_title('Input picture {}'.format(col))
-                if col == 0 + add_input_sequence:
+                if col == 0 + add_cols:
                     curr_ax.set_title('Targets')
-                elif col == 1 + add_input_sequence:
+                elif col == 1 + add_cols:
                     curr_ax.set_title('Predictions')
-                elif col == 2 + add_input_sequence:
+                elif col == 2 + add_cols:
                     curr_ax.set_title('Likelihood')
     # plt.colorbar(fig)
     fig.suptitle(title)

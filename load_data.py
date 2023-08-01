@@ -84,13 +84,17 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
     filtered_data_loader_indecies_dict = filtered_data_loader_indecies[idx]
     file = filtered_data_loader_indecies_dict['file']
     first_idx_input_sequence = filtered_data_loader_indecies_dict['first_idx_input_sequence']
+    # The last index is not included!!! (np.arange(1:5) = [1,2,3,4]
     last_idx_input_sequence = filtered_data_loader_indecies_dict['last_idx_input_sequence']
     target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
     data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, file))
 
     if load_input_sequence:
-        input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence,
-                                                      last_idx_input_sequence))  # last_idx_input_sequence + 1 like in np! Did I already do that prior?
+        # input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence,
+        #                                               last_idx_input_sequence))  # last_idx_input_sequence + 1 like in np! Did I already do that prior?
+
+        input_data_set = data_dataset.isel(time=np.arange(first_idx_input_sequence,last_idx_input_sequence))
+        # Using arange leads to same result as slice() (tested)
 
         input_sequence = input_data_set[s_data_variable_name].values
         # Get rid of steps dimension
@@ -112,8 +116,9 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         # TODO: Check what this does on Slurm with non-test data!
         target = target[0]
         # target used to be converted to np array
-        target = T.CenterCrop(size=extended_target_size)(torch.from_numpy(target))
 
+        target = T.CenterCrop(size=extended_target_size)(torch.from_numpy(target))
+        # target = torch.from_numpy(target)
         if normalize:
             target = lognormalize_data(target, mean_filtered_data, std_filtered_data, transform_f,
                                        s_normalize)

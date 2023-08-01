@@ -8,16 +8,19 @@ import torch
 import os
 
 
-def plot_images_inner(model, data_loader, filter_and_normalization_params, linspace_binning_params, ps_runs_path,
-                      ps_run_name, ps_checkpoint_name, ps_device, prefix='', **__):
+def plot_images_inner(model, data_loader, filter_and_normalization_params, linspace_binning_params, plot_settings,
+                      ps_runs_path, ps_run_name, ps_checkpoint_name, ps_device, ps_inv_normalize, prefix='', **__):
 
     filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
         linspace_binning_max_unnormalized = filter_and_normalization_params
 
     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
-    inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
-                                                inverse_normalize=True)
+    if ps_inv_normalize:
+        inv_norm_or_not = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=True,
+                                                    inverse_normalize=True)
+    else:
+        inv_norm_or_not = lambda x: x
 
     for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
         input_sequence = input_sequence.to(ps_device)
@@ -26,18 +29,27 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
 
         pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
 
+        # vmin = torch.mean(inv_norm_or_not(input_sequence)) - 3 * torch.std(inv_norm_or_not(input_sequence))
+        vmin = min(torch.min(inv_norm_or_not(target)).item(), torch.min(inv_norm_or_not(input_sequence)))
+        # vmin = inv_norm_or_not(linspace_binning_min)
+
+        vmax = torch.mean(inv_norm_or_not(input_sequence)) + 4 * torch.std(inv_norm_or_not(input_sequence))
+        # vmax = max(torch.max(inv_norm_or_not(target)).item(), torch.max(inv_norm_or_not(input_sequence)))
+        # vmax = inv_norm_or_not(linspace_binning_max)
+
         if i == 0:
             # !!! Can also be plotted without input sequence by just leaving input_sequence=None !!!
-            plot_target_vs_pred_with_likelihood(inv_norm(target), inv_norm(pred_mm), pred,
-                                                linspace_binning=inv_norm(linspace_binning),
-                                                vmin=inv_norm(linspace_binning_min),
-                                                vmax=inv_norm(linspace_binning_max),
+            plot_target_vs_pred_with_likelihood(inv_norm_or_not(target), inv_norm_or_not(pred_mm), pred,
+                                                linspace_binning=inv_norm_or_not(linspace_binning),
+                                                vmin=vmin,
+                                                vmax=vmax,
                                                 save_path_name= '{}/{}/plots/{}_target_vs_pred_likelihood_{}'.format(ps_runs_path
                                                                                                         , ps_run_name
                                                                                                         , prefix
                                                                                                         , ps_checkpoint_name),
-                                                title='{} (log, not normalized)'.format(prefix),
-                                                input_sequence = input_sequence,
+                                                title='{}'.format(prefix),
+                                                input_sequence = inv_norm_or_not(input_sequence),
+                                                **plot_settings
                                                 )
         break
 
@@ -70,12 +82,9 @@ def get_checkpoint_name(ps_runs_path, ps_run_name, epoch=None, **__):
     return checkpoint_names[arg_idx], arg_idx
 
 
-
-
-
 def plot_images_outer(plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_name, epoch=None, **__):
     '''
-    Loads correspnding epoch
+    Loads corresponding epoch
     '''
 
     if ps_checkpoint_name == None:
@@ -96,10 +105,10 @@ def plot_images_outer(plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_na
     train_data_loader, validation_data_loader = create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation,
                         linspace_binning_params, filter_and_normalization_params, settings)
     plot_images_inner(model, train_data_loader, filter_and_normalization_params, linspace_binning_params,
-                      prefix='TRAIN_epoch_{}'.format(epoch),
+                      plot_settings, prefix='TRAIN_epoch_{}'.format(epoch),
                       **plot_settings)
     plot_images_inner(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
-                      prefix='VAL_epoch_{}'.format(epoch),
+                      plot_settings, prefix='VAL_epoch_{}'.format(epoch),
                       **plot_settings)
 
 
@@ -122,10 +131,4 @@ if __name__ == '__main__':
     }
 
 
-
     plot_images_outer(plot_settings, **plot_settings)
-
-
-
-
-    #pass

@@ -262,7 +262,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix ='sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'debug' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -313,7 +313,7 @@ if __name__ == '__main__':
             's_ratio_training_data': 0.6,
             's_data_loader_chunk_size': 20, #  Chunk size, that consecutive data is chunked in when performing random splitting
             's_num_workers_data_loader': 8, # Should correspond to number of cpus, also increases cpu ram
-            's_check_val_every_n_epoch': 1, # Caluclate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS!!
+            's_check_val_every_n_epoch': 1, # Caluclate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
             's_num_gpus': 4,
@@ -328,8 +328,11 @@ if __name__ == '__main__':
             's_learning_rate': 0.001,  # 0.0001
             's_num_epochs': 1000,
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
-            's_num_lead_time_steps': 4, #
-            # 5, # The number of pictures that are skipped from last input time step to target, starts with 0
+            's_num_lead_time_steps': 3, # 0 --> 0 min prediction (target == last input) ; 1 --> 5 min predicition, 10 --> 15min etc
+            # This is substracted by 2: settings['s_num_lead_time_steps'] = 's_num_lead_time_steps' -2 for following reasons:
+            # 5, # The number of pictures that are skipped from last input time step to target, starts with -1
+            # (starts counting at filtered_data_loader_indecies_dict['last_idx_input_sequence'], where last index is excess
+            # for arange ((np.arange(1:5) = [1,2,3,4])
             's_optical_flow_input': False,  # Not yet working!
             's_batch_size': 45, # 55, downgraded to 45 after memory issue on v100 with soothing stuff
             # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
@@ -340,9 +343,9 @@ if __name__ == '__main__':
             'device': device,
 
             # Gaussian smoothing
-            's_gaussian_smoothing_target': True,
+            's_gaussian_smoothing_target': False,
             's_sigma_target_smoothing': 5,  # In case of scheduling this is the initial sigma
-            's_schedule_sigma_smoothing': True,
+            's_schedule_sigma_smoothing': False,
 
             # Logging
             's_log_precipitation_difference': True,
@@ -413,6 +416,7 @@ if __name__ == '__main__':
     # mlflow.log_models = False
 
 
+    settings['s_num_lead_time_steps'] = settings['s_num_lead_time_steps'] - 2
 
     model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(settings, **settings)
 
@@ -421,13 +425,7 @@ if __name__ == '__main__':
     }
 
 
-    plot_images_settings ={
-        'ps_runs_path': '{}/runs'.format(os.getcwd()),
-        'ps_run_name': settings['s_sim_name'],
-        'ps_device': settings['device'],
-        'ps_checkpoint_name': None,  # If none take checkpoint of last epoch
 
-    }
 
     plot_lr_schedule_settings = {
         'ps_sim_name': settings['s_sim_name'], # TODO: Solve conflicting name convention
@@ -453,7 +451,14 @@ if __name__ == '__main__':
     #                  init_learning_rate=settings['s_learning_rate'], save_name='sigma_scheduler',
     #                  y_label='Sigma', title='Sigma scheduler', ylog=False, **plot_lr_schedule_settings)
 
+    plot_images_settings ={
+        'ps_runs_path': '{}/runs'.format(os.getcwd()),
+        'ps_run_name': settings['s_sim_name'],
+        'ps_device': settings['device'],
+        'ps_checkpoint_name': None,  # If none take checkpoint of last epoch
+        'ps_inv_normalize': False,
 
+    }
 
     plot_images_outer(plot_images_settings, **plot_images_settings)
 

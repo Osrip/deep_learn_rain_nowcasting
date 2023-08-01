@@ -305,6 +305,7 @@ def plot_precipitation_diff(plot_settings, ps_sim_name, **__):
     key_list_train_mm = ['train_mean_pred_mm', 'train_mean_target_mm']
     key_list_val_mm = ['val_mean_pred_mm', 'val_mean_target_mm']
 
+    # TODO: Mark target and prediction!!!
     line_plot(train_df, val_df, key_list_train_mm, key_list_val_mm, save_name='mean_diff_mm',
               color_list=['b', 'y', 'b', 'y'], linestyle_list=['-', '-', '--', '--'],
               title='Total precipitation of Prediciton and target', ylabel='Mean Precipitation [mm]', ylog=False,
