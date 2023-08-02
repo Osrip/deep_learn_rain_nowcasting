@@ -24,7 +24,7 @@ def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name
         lr_scheduler.step()
     plt.clf()
     plt.plot(lrs)
-    save_path_name = 'runs/{}/plots/{}'.format(ps_sim_name, save_name)
+    save_path_name = '{}/plots/{}'.format(ps_sim_name, save_name)
     plt.ylabel(y_label)
     plt.xlabel('Step (total corresponds to steps in training)')
     plt.title('{}: {}'.format(title, lr_scheduler.__class__.__name__))
@@ -42,7 +42,7 @@ def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name
             scheduler_state_str = json.dumps(scheduler_state, indent=4)
 
             save_name_txt = 'lr_scheduler_hyperparams.txt'
-            save_path_name_txt = 'runs/{}/plots/{}'.format(ps_sim_name, save_name_txt)
+            save_path_name_txt = '{}/plots/{}'.format(ps_sim_name, save_name_txt)
             with open(save_path_name_txt, 'w') as file:
                 file.write(scheduler_state_str)
         except Exception:
@@ -51,7 +51,7 @@ def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name
 
 
 def plot_sigma_schedule(sigma_schedule_mapping, ps_sim_name, save_name='sigma_scheduler', ylog=False, save=True, **__):
-    save_path_name = 'runs/{}/plots/{}'.format(ps_sim_name, save_name)
+    save_path_name = '{}/plots/{}'.format(ps_sim_name, save_name)
 
     plt.clf()
     plt.plot(sigma_schedule_mapping)

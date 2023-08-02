@@ -43,8 +43,7 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
                                                 linspace_binning=inv_norm_or_not(linspace_binning),
                                                 vmin=vmin,
                                                 vmax=vmax,
-                                                save_path_name= '{}/{}/plots/{}_target_vs_pred_likelihood_{}'.format(ps_runs_path
-                                                                                                        , ps_run_name
+                                                save_path_name= '{}/plots/{}_target_vs_pred_likelihood_{}'.format(ps_runs_path
                                                                                                         , prefix
                                                                                                         , ps_checkpoint_name),
                                                 title='{}'.format(prefix),
@@ -54,8 +53,8 @@ def plot_images_inner(model, data_loader, filter_and_normalization_params, linsp
         break
 
 
-def get_checkpoint_name(ps_runs_path, ps_run_name, epoch=None, **__):
-    checkpoint_path = '{}/{}/model'.format(ps_runs_path, ps_run_name)
+def get_checkpoint_name(ps_runs_path, epoch=None, **__):
+    checkpoint_path = '{}/model'.format(ps_runs_path)
     checkpoint_names = []
     for file in os.listdir(checkpoint_path):
         # check only text files
@@ -128,6 +127,7 @@ if __name__ == '__main__':
         # TODO Implement list with epochs to be plotted with -1 being last epoch
         'ps_checkpoint_name': None, # If none take checkpoint of last epoch
         'ps_device': device,
+        'ps_inv_normalize': False,
     }
 
 

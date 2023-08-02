@@ -260,9 +260,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
-    s_sim_name_suffix = 'Gaussian_blurring_sigma_5_no_lr_schedule_with_lr_schedule_256_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'test_whole_local_mode_reallytmp2' #'Gaussian_blurring_sigma_init_5_with_sigma_schedule_with_lr_schedule_256_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -283,7 +283,12 @@ if __name__ == '__main__':
     s_sim_name = s_sim_name + s_sim_name_suffix
 
     s_dirs = {}
-    s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
+    if s_local_machine_mode:
+        s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
+    else:
+        s_dirs['save_dir'] = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/{}'.format(s_sim_name)
+
+    # s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
     s_dirs['plot_dir'] = '{}/plots'.format(s_dirs['save_dir'])
     s_dirs['plot_dir_images'] = '{}/images'.format(s_dirs['plot_dir'])
     s_dirs['model_dir'] = '{}/model'.format(s_dirs['save_dir'])
@@ -316,11 +321,11 @@ if __name__ == '__main__':
             's_check_val_every_n_epoch': 1, # Caluclate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
-            's_num_gpus': 4,
+            's_num_gpus': 1,
 
             # Parameters that give the network architecture
             's_upscale_c_to': 32,  # 64, #128, # 512,
-            's_num_bins_crossentropy': 256,
+            's_num_bins_crossentropy': 64, #256,
 
             # 'minutes_per_iteration': 5,
             's_width_height': 256,
@@ -345,7 +350,7 @@ if __name__ == '__main__':
             # Gaussian smoothing
             's_gaussian_smoothing_target': True,
             's_sigma_target_smoothing': 5,  # In case of scheduling this is the initial sigma
-            's_schedule_sigma_smoothing': False,
+            's_schedule_sigma_smoothing': True,
 
             # Logging
             's_log_precipitation_difference': True,
@@ -390,6 +395,7 @@ if __name__ == '__main__':
         # settings['s_folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
         # settings['s_folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
+        # settings['s_folder_path'] = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/dwd_nc/own_test_data' # activate this for cluster
 
         # settings['s_data_file_names'] = ['DE1200_RV_Recalc_20190101.nc']
         # settings['s_data_file_names'] = ['RV_recalc_data_2019-01.nc']
@@ -421,11 +427,11 @@ if __name__ == '__main__':
     model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(settings, **settings)
 
     plot_metrics_settings = {
-        'ps_sim_name': settings['s_sim_name'], # TODO: Solve conflicting name convention
+        'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name'], # TODO: Solve conflicting name convention
     }
 
     plot_lr_schedule_settings = {
-        'ps_sim_name': settings['s_sim_name'], # TODO: Solve conflicting name convention
+        'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name'], # TODO: Solve conflicting name convention
     }
 
     plot_qualities_main(plot_metrics_settings, **plot_metrics_settings, **settings)
@@ -449,7 +455,7 @@ if __name__ == '__main__':
     #                  y_label='Sigma', title='Sigma scheduler', ylog=False, **plot_lr_schedule_settings)
 
     plot_images_settings ={
-        'ps_runs_path': '{}/runs'.format(os.getcwd()),
+        'ps_runs_path': s_dirs['save_dir'], #'{}/runs'.format(os.getcwd()),
         'ps_run_name': settings['s_sim_name'],
         'ps_device': settings['device'],
         'ps_checkpoint_name': None,  # If none take checkpoint of last epoch

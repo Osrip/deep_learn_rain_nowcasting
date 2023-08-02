@@ -204,8 +204,8 @@ def load_data(ps_sim_name, **__):
     rel_path_train = 'logs/train_log/version_0/metrics.csv'
     rel_path_val = 'logs/val_log/version_0/metrics.csv'
 
-    train_df = pd.read_csv('runs/{}/{}'.format(ps_sim_name, rel_path_train))
-    val_df = pd.read_csv('runs/{}/{}'.format(ps_sim_name, rel_path_val))
+    train_df = pd.read_csv('{}/{}'.format(ps_sim_name, rel_path_train))
+    val_df = pd.read_csv('{}/{}'.format(ps_sim_name, rel_path_val))
 
     return train_df, val_df
 
@@ -233,7 +233,7 @@ def plot_mse_manual(train_df, val_df, ps_sim_name, **__):
     plot_mse_heavy(mean_mses=mse_list,
                    label_list=key_list,
                    color_list=['g', 'y', 'b', 'g', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--', '--'],
-                   save_path_name='runs/{}/plots/mse_with_val'.format(ps_sim_name),
+                   save_path_name='{}/plots/mse_with_val'.format(ps_sim_name),
                    title='MSE on lognorm data')
 
 
@@ -249,7 +249,7 @@ def line_plot(train_df, val_df, key_list_train, key_list_val, save_name, ps_sim_
     plot_mse_heavy(mean_mses=mse_list,
                    label_list=key_list,
                    color_list=color_list, linestyle_list=linestyle_list,
-                   save_path_name='runs/{}/plots/{}'.format(ps_sim_name, save_name),
+                   save_path_name='{}/plots/{}'.format(ps_sim_name, save_name),
                    ylabel=ylabel,
                    ylog=ylog,
                    title=title)
@@ -314,6 +314,6 @@ def plot_precipitation_diff(plot_settings, ps_sim_name, **__):
 
 if __name__ == '__main__':
     plot_settings = {
-        'ps_sim_name': 'Run_20230609-121955_ID_3644313_12_months_training_fixed_csv_logging_mlflow_working_1_gpus',
+        'ps_sim_name': None # Insert folder to run here,
     }
     plot_qualities_main(plot_settings, s_gaussian_smoothing_target=False, **plot_settings)
