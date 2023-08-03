@@ -134,7 +134,7 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
     # plt.colorbar(fig)
     fig.suptitle(title)
     plt.savefig('{}.png'.format(save_path_name), dpi=300)
-    plt.savefig('{}_bad_qual.png'.format(save_path_name), dpi=100)
+    plt.savefig('{}_bad_qual.png'.format(save_path_name), dpi=50)
     plt.show(block=False)
 
     plt.close("all")

@@ -299,7 +299,7 @@ def plot_precipitation_diff(plot_settings, ps_sim_name, **__):
 
     line_plot(train_df, val_df, key_list_train_diff, key_list_val_diff, save_name='mean_diff_mm',
               color_list=['b', 'y'], linestyle_list=['-', '--'],
-              title='Mean Precipitation difference prediciton - target', ylabel='Mean Difference [mm]', ylog=False,
+              title='Mean Precipitation difference prediciton - target', ylabel='Mean Difference (lognormalized data)', ylog=False,
               **plot_settings,)
 
     key_list_train_mm = ['train_mean_pred_mm', 'train_mean_target_mm']
