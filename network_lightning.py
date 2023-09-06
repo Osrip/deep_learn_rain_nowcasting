@@ -16,7 +16,7 @@ class Network_l(pl.LightningModule):
     def __init__(self, linspace_binning_params, sigma_schedule_mapping, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
-                 training_steps_per_epoch=None, **__):
+                 s_lr_schedule, training_steps_per_epoch=None, **__):
         super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
                              s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
@@ -28,11 +28,12 @@ class Network_l(pl.LightningModule):
         self.s_sigma_target_smoothing = s_sigma_target_smoothing
 
         self.s_learning_rate = s_learning_rate
-        self.s_width_height_target = s_width_height_target
+        self.s_width_height_tarlr_schedulerget = s_width_height_target
         self.s_calculate_quality_params = s_calculate_quality_params
         self.s_max_epochs = s_max_epochs
         self.s_gaussian_smoothing_target = s_gaussian_smoothing_target
         self.s_log_precipitation_difference = s_log_precipitation_difference
+        self.s_lr_schedule = s_lr_schedule
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
@@ -51,41 +52,42 @@ class Network_l(pl.LightningModule):
         output = self.model(x)
         return output
 
-    # Uncomment this for no lr_scheduler
-    # def configure_optimizers(self):
-    #     optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
-    #     return optimizer
-
-
     def configure_optimizers(self):
-        if not self.training_steps_per_epoch is None:
-            optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
-            lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
-            # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate,
-            #                                                    steps_per_epoch=self.training_steps_per_epoch,
-            #                                                    epochs=self.s_max_epochs)
-            # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
-            #                                 T_0 = self.training_steps_per_epoch * 10,# Number of iterations for the first restart
-            #                                 T_mult = 1, # A factor increases TiTi after a restart
-            #                                 eta_min = 1e-5) # Minimum learning rate
+        if self.s_lr_schedule:
+            # Configure optimizer WITH lr_schedule
+            if not self.training_steps_per_epoch is None:
+                optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+                lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
+                # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate,
+                #                                                    steps_per_epoch=self.training_steps_per_epoch,
+                #                                                    epochs=self.s_max_epochs)
+                # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
+                #                                 T_0 = self.training_steps_per_epoch * 10,# Number of iterations for the first restart
+                #                                 T_mult = 1, # A factor increases TiTi after a restart
+                #                                 eta_min = 1e-5) # Minimum learning rate
 
-            self.optimizer = optimizer
-            self.lr_scheduler = copy.deepcopy(lr_scheduler)
+                self.optimizer = optimizer
+                self.lr_scheduler = copy.deepcopy(lr_scheduler)
 
-            return {
-                'optimizer': optimizer,
-                'lr_scheduler': {
-                    'scheduler': lr_scheduler,
-                    # 'monitor': 'val_loss',  # The metric to monitor for scheduling
-                    }
-            }
+                return {
+                    'optimizer': optimizer,
+                    'lr_scheduler': {
+                        'scheduler': lr_scheduler,
+                        # 'monitor': 'val_loss',  # The metric to monitor for scheduling
+                        }
+                }
+
+            else:
+                raise ValueError('Optional training_steps_per_epoch not initialized in Network_l object. Cannot proceed without it.')
+                # optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+
+
+            return optimizer
 
         else:
-            warnings.warn('No lr_scheduler as optional training_steps_per_epoch not initialized in Network_l object')
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+            return optimizer
 
-
-        return optimizer
 
 
     def training_step(self, batch, batch_idx):
@@ -95,7 +97,7 @@ class Network_l(pl.LightningModule):
         # Todo: get rid of float conversion? do this in filter already?
 
         # TODO: Should this be done in data loading such that workers can distribute compute?
-        global_training_step = self.trainer.global_step  # Does this include validation steps??!!!! FCK LIGHTNIng!!!
+        global_training_step = self.trainer.global_step  # Does this include validation steps??!!!!
         #  SEE: https://github.com/Lightning-AI/lightning/discussions/8007
 
 

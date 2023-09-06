@@ -331,6 +331,7 @@ if __name__ == '__main__':
             's_width_height': 256,
             's_width_height_target': 32,
             's_learning_rate': 0.001,  # 0.0001
+            's_lr_schedule': True,  # enables lr scheduler, takes s_learning_rate as initial rate
             's_num_epochs': 1000,
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
             's_num_lead_time_steps': 3, # 0 --> 0 min prediction (target == last input) ; 1 --> 5 min predicition, 10 --> 15min etc
@@ -378,6 +379,8 @@ if __name__ == '__main__':
 
             # Logging Stuff
             's_model_every_n_epoch': 1, # Save model every nth epoch
+
+
 
         }
 
@@ -430,9 +433,7 @@ if __name__ == '__main__':
         'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name'], # TODO: Solve conflicting name convention
     }
 
-    plot_lr_schedule_settings = {
-        'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name'], # TODO: Solve conflicting name convention
-    }
+
 
     plot_qualities_main(plot_metrics_settings, **plot_metrics_settings, **settings)
 
@@ -442,9 +443,15 @@ if __name__ == '__main__':
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
     # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
 
-    plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
-                     save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler',
-                     ylog=True, **plot_lr_schedule_settings)
+    if settings['s_lr_schedule']:
+
+        plot_lr_schedule_settings = {
+            'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name'], # TODO: Solve conflicting name convention
+        }
+
+        plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
+                         save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler',
+                         ylog=True, **plot_lr_schedule_settings)
 
     if settings['s_schedule_sigma_smoothing']:
         plot_sigma_schedule(sigma_schedule_mapping, save_name='sigma_scheduler', ylog=True, save=True,
