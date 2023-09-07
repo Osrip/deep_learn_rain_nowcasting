@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import scipy
+from scipy import signal
 
 def convolution_no_channel_sum(input, kernel, device, center_crop_size=32):
     '''
@@ -41,19 +42,30 @@ def convolution_no_channel_sum(input, kernel, device, center_crop_size=32):
 
 def gaussian_smoothing_target(target_one_hot_extended, sigma, kernel_size, device, target_size=32):
     kernel_shape = (target_one_hot_extended.shape[0], target_one_hot_extended.shape[1], kernel_size, kernel_size)
-    kernel = create_gaussian_kernel(kernel_shape, sigma, device)
+    # Gaussian Kernel:
+    kernel = create_gaussian_kernel_4d(kernel_shape, sigma, device)
 
     target_one_hot = convolution_no_channel_sum(target_one_hot_extended, kernel, device)
     return target_one_hot
 
 
-def create_gaussian_kernel(shape, sigma, device):
+def create_gaussian_kernel_2d(size, sigma):
+    gauss_1d = signal.gaussian(size, std=sigma).reshape(size, 1)
+    gauss_2d = np.outer(gauss_1d, gauss_1d)
+    # Normalize such that all vals add up to one
+    gauss_2d = gauss_2d / np.sum(gauss_2d)
+    return gauss_2d
+
+def create_gaussian_kernel_4d(shape, sigma, device):
     '''
     Create a gaussian kernel along w and h , with the same gaussian filter along the b and c dimensions
     '''
-    n = np.zeros((shape[2], shape[3]))
-    n[int(shape[2]//2) , int(shape[3]//2)] = 1 # This selects center exactly (tested)
-    gauss_2d = scipy.ndimage.gaussian_filter(n, sigma=sigma)
+    # TODO: THIS HAS A BUG
+    # n = np.zeros((shape[2], shape[3]))
+    # n[int(shape[2]//2) , int(shape[3]//2)] = 1 # This selects center exactly (tested)
+    # gauss_2d = scipy.ndimage.gaussian_filter(n, sigma=sigma)
+    #
+    gauss_2d = create_gaussian_kernel_2d(shape[3], sigma)
 
     kernel = np.zeros(shape)
     for b_i in range(shape[0]):

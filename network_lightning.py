@@ -28,7 +28,7 @@ class Network_l(pl.LightningModule):
         self.s_sigma_target_smoothing = s_sigma_target_smoothing
 
         self.s_learning_rate = s_learning_rate
-        self.s_width_height_tarlr_schedulerget = s_width_height_target
+        self.s_width_height_target = s_width_height_target
         self.s_calculate_quality_params = s_calculate_quality_params
         self.s_max_epochs = s_max_epochs
         self.s_gaussian_smoothing_target = s_gaussian_smoothing_target

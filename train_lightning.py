@@ -318,7 +318,7 @@ if __name__ == '__main__':
             's_ratio_training_data': 0.6,
             's_data_loader_chunk_size': 20, #  Chunk size, that consecutive data is chunked in when performing random splitting
             's_num_workers_data_loader': 8, # Should correspond to number of cpus, also increases cpu ram
-            's_check_val_every_n_epoch': 1, # Caluclate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
+            's_check_val_every_n_epoch': 1, # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
             's_num_gpus': 4,
@@ -331,7 +331,7 @@ if __name__ == '__main__':
             's_width_height': 256,
             's_width_height_target': 32,
             's_learning_rate': 0.001,  # 0.0001
-            's_lr_schedule': True,  # enables lr scheduler, takes s_learning_rate as initial rate
+            's_lr_schedule': False,  # enables lr scheduler, takes s_learning_rate as initial rate
             's_num_epochs': 1000,
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
             's_num_lead_time_steps': 3, # 0 --> 0 min prediction (target == last input) ; 1 --> 5 min predicition, 10 --> 15min etc
@@ -340,7 +340,7 @@ if __name__ == '__main__':
             # (starts counting at filtered_data_loader_indecies_dict['last_idx_input_sequence'], where last index is excess
             # for arange ((np.arange(1:5) = [1,2,3,4])
             's_optical_flow_input': False,  # Not yet working!
-            's_batch_size': 45, # 55, downgraded to 45 after memory issue on v100 with soothing stuff
+            's_batch_size': 45, # 55, downgraded to 45 after memory issue on v100 with smoothing stuff
             # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
             's_save_trained_model': True,  # saves model every epoch
             's_load_model': False,
@@ -349,7 +349,7 @@ if __name__ == '__main__':
             'device': device,
 
             # Gaussian smoothing
-            's_gaussian_smoothing_target': False,
+            's_gaussian_smoothing_target': True,
             's_sigma_target_smoothing': 5,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
 
