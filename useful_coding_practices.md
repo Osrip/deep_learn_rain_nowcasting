@@ -33,8 +33,8 @@ copy_num=1; rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exc
 Upload to copy folder and create dir in case it does not exist:
 copy_num=1; remote_dir="/mnt/qb/work2/butz1/bst981/radolan_copies/copy_$copy_num"; ssh_command="ssh"; source_dir="/home/jan/jan/programming/first_CNN_on_Radolan/"; $ssh_command bst981@134.2.168.52 "mkdir -p $remote_dir"; rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc' --exclude 'mlruns' --exclude 'lightning_logs' -e $ssh_command "$source_dir"* "bst981@134.2.168.52:$remote_dir"
 
-Execute sbatch on according number:
-copy_num=1; /mnt/qb/work2/butz1/bst981/radolan_copies/copy_$copy_num/sbatch_train_lightning.sh
+Execute sbatch on server on according number:
+copy_num=1; sbatch /mnt/qb/work2/butz1/bst981/radolan_copies/copy_$copy_num/sbatch_train_lightning.sh
 
 ##### Download plots from remote to local
 sim_name="Run_20230707-195050_ID_3757043Oversampling_4gpu_12_months"; mkdir -p "/home/jan/Documents/results_nowcasting/$sim_name/plots" && rsync -avz -e "ssh" bst981@134.2.168.52:"/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/$sim_name/plots" "/home/jan/Documents/results_nowcasting/$sim_name"
