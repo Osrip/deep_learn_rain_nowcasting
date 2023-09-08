@@ -15,8 +15,9 @@ import os
 
 import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
-from pytorch_lightning.loggers import CSVLogger, MLFlowLogger
-from logger import ValidationLogsCallback, TrainingLogsCallback
+from logger import ValidationLogsCallback, TrainingLogsCallback, BaselineTrainingLogsCallback, BaselineValidationLogsCallback,\
+    create_loggers
+from baselines import LKBaseline
 import mlflow
 from plotting.plot_quality_metrics_from_log import plot_qualities_main, plot_precipitation_diff
 from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
@@ -119,13 +120,34 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
         linspace_binning_params, filter_and_normalization_params, training_steps_per_epoch
     # training_steps_per_epoch only needed for lr_schedule_plotting
 
+def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_type_list, settings, **__):
+    '''
+    Goes into train_wrapper
+    data_loader_list, logs_callback_list, logger_list, logging_type_list have to be in according order
+    logging_type depending on data loader either: 'train' or 'val'
+    '''
+
+
+    for data_loader, logs_callback, logger, logging_type in \
+            zip(data_loader_list, logs_callback_list, logger_list, logging_type_list):
+        # Create callback list in the form of [BaselineTrainingLogsCallback(base_train_logger)]
+        callback_list_base = [logs_callback(data_loader)]
+
+        lk_baseline = LKBaseline(logging_type, **settings)
+
+        trainer = pl.Trainer(callbacks=callback_list_base, max_epochs=1, log_every_n_steps=1, check_val_every_n_epoch=1)
+        trainer.validate(lk_baseline, data_loader)
+
+
+
 
 def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
                   s_sim_name, s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
-                  s_check_val_every_n_epoch, **__):
+                  s_check_val_every_n_epoch, s_calc_baseline, **__):
     '''
     All the junk surrounding train goes in here
     '''
+    train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)
 
     save_dict_pickle_csv(settings, s_dirs['data_dir'], 'settings')
 
@@ -160,8 +182,7 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     # Save linspace params
     save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')
 
-    train_logger = CSVLogger(s_dirs['logs'], name='train_log')
-    val_logger = CSVLogger(s_dirs['logs'], name='val_log')
+
 
 
     # eNABLE MLFLOW LOGGING HERE!
@@ -183,6 +204,13 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch, s_max_epochs,
             linspace_binning_params, s_dirs['data_dir'], s_num_gpus, sigma_schedule_mapping, s_check_val_every_n_epoch,
                       settings)
+
+    if s_calc_baseline:
+        calc_baselines(data_loader_list=[train_data_loader, validation_data_loader],
+                       logs_callback_list=[BaselineTrainingLogsCallback, BaselineValidationLogsCallback],
+                       logger_list=[train_logger, val_logger],
+                       logging_type_list=['train', 'val'],
+                       settings=settings)
 
     # Network_l, training_steps_per_epoch is returned to be able to plot lr_scheduler
     return model_l, training_steps_per_epoch, sigma_schedule_mapping
@@ -312,6 +340,7 @@ if __name__ == '__main__':
             's_schedule_sigma_smoothing': True,
 
             # Logging
+            's_calc_baseline': True, # Baselines are calculated and plotted (not yet finished)
             's_log_precipitation_difference': True,
             's_calculate_quality_params': True, # Calculatiing quality params during training and validation
 
