@@ -34,6 +34,7 @@ Upload to copy folder and create dir in case it does not exist:
 copy_num=1; remote_dir="/mnt/qb/work2/butz1/bst981/radolan_copies/copy_$copy_num"; ssh_command="ssh"; source_dir="/home/jan/jan/programming/first_CNN_on_Radolan/"; $ssh_command bst981@134.2.168.52 "mkdir -p $remote_dir"; rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc' --exclude 'mlruns' --exclude 'lightning_logs' -e $ssh_command "$source_dir"* "bst981@134.2.168.52:$remote_dir"
 
 Execute sbatch on server on according number:
+DOES NOT WORK FOR SOME REASON, start in folder!
 copy_num=1; sbatch /mnt/qb/work2/butz1/bst981/radolan_copies/copy_$copy_num/sbatch_train_lightning.sh
 
 ##### Download plots from remote to local

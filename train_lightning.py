@@ -16,6 +16,7 @@ import os
 import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
 from pytorch_lightning.loggers import CSVLogger, MLFlowLogger
+from logger import ValidationLogsCallback, TrainingLogsCallback
 import mlflow
 from plotting.plot_quality_metrics_from_log import plot_qualities_main, plot_precipitation_diff
 from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
@@ -27,49 +28,6 @@ import warnings
 
 
 
-
-class TrainingLogsCallback(pl.Callback):
-    # Important info in:
-    # pytorch_lightning/callbacks/callback.py
-    # lightning_fabric/loggers/csv_logs.py
-    # pytorch_lightning/trainer/trainer.py
-    def __init__(self, train_logger):
-        super().__init__()
-        self.train_logger = train_logger
-
-    def on_train_epoch_end(self, trainer, pl_module):
-        # on_train_batch_end
-
-        all_logs = trainer.callback_metrics  # Alternatively: trainer.logged_metrics
-
-        # trainer.callback_metrics= {}
-        # There are both, trainer and validation metrics in callback_metrics (and logged_metrics as well )
-        train_logs = {key: value for key, value in all_logs.items() if 'train_' in key}
-        self.train_logger.log_metrics(train_logs) # , epoch=trainer.current_epoch) #, step=trainer.current_epoch)
-        self.train_logger.save()
-
-
-    def on_train_end(self, trainer, pl_module):
-        # self.train_logger.finalize()
-        self.train_logger.save()
-
-
-class ValidationLogsCallback(pl.Callback):
-    def __init__(self, val_logger):
-        super().__init__()
-        self.val_logger = val_logger
-
-    def on_validation_epoch_end(self, trainer, pl_module):
-        all_logs = trainer.callback_metrics
-        # trainer.callback_metrics = {}
-        val_logs = {key: value for key, value in all_logs.items() if 'val_' in key}
-        self.val_logger.log_metrics(val_logs) # , epoch=trainer.current_epoch)
-        # self.val_logger.log_metrics(val_logs) #, step=trainer.current_epoch)
-        self.val_logger.save()
-
-    def on_validation_end(self, trainer, pl_module):
-        # self.val_logger.finalize()
-        self.val_logger.save()
 
 
 def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
@@ -260,9 +218,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
-    s_sim_name_suffix = 'exp_sigma_schedule_no_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'test' #'exp_sigma_schedule_no_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
