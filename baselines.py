@@ -2,11 +2,13 @@ import pytorch_lightning as pl
 import torch
 import pysteps.motion as motion
 from pysteps import nowcasts
+from helper.helper_functions import one_hot_to_mm
 
 class PyStepsBaseline(pl.LightningModule):
     def __init__(self, s_num_lead_time_steps):
         super().__init__()
         self.s_num_lead_time_steps = s_num_lead_time_steps
+
 
     def forward(self, frames, ):
         frames_np = frames.numpy()
@@ -25,11 +27,11 @@ class PyStepsBaseline(pl.LightningModule):
 
         return precip_forecast[-1, :, :], motion_field, precip_forecast
 
+
     def validation_step(self, val_batch):
         input_sequence, target_binned, target, target_one_hot_extended = val_batch
 
         mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
-
 
         self.log('train_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True, sync_dist=True)
 

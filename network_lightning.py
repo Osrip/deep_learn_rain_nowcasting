@@ -113,7 +113,7 @@ class Network_l(pl.LightningModule):
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
         # TODO targets already cropped??
-        pred = self.model(input_sequence)
+        pred = self(input_sequence)
 
         # loss = nn.KLDivLoss(reduction='batchmean')(pred, target_binned)
         # Reduction= batchmean because:
@@ -192,7 +192,7 @@ class Network_l(pl.LightningModule):
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
 
-        pred = self.model(input_sequence)
+        pred = self(input_sequence)
 
         loss = nn.CrossEntropyLoss()(pred, target_binned)
 
