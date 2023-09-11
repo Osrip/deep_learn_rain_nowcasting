@@ -30,8 +30,6 @@ class LKBaseline(pl.LightningModule):
             oflow_method = motion.get_method("LK")
             motion_field = oflow_method(frames_np[batch_idx, :, :, :])
 
-            # Convert the motion field back to a PyTorch tensor
-            motion_field = torch.from_numpy(motion_field)
 
             # Extrapolate the last radar observation
             extrapolate = nowcasts.get_method("extrapolation")
@@ -51,9 +49,6 @@ class LKBaseline(pl.LightningModule):
         pred, _, _ = self(input_sequence)
 
         mse_pred_target = torch.nn.MSELoss()(pred, target)
-
-
-
 
         self.log('base_{}_mse_pred_target'.format(self.logging_type), mse_pred_target.item(), on_step=False,
                  on_epoch=True, sync_dist=True)
