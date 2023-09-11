@@ -48,13 +48,20 @@ def plot_mse_light(mean_mses, label_list, save_path_name, title=''):
     gc.collect()
 
 
-def plot_mse_heavy(mean_mses, label_list, linestyle_list, color_list, save_path_name, ylabel='MSE', ylog=True, title=''):
+def plot_mse_heavy(mean_mses, base_mean_mses, label_list, base_label_list, linestyle_list, base_linestyle_list,
+                   color_list, base_color_list, save_path_name, ylabel='MSE', ylog=True, title=''):
     plt.figure()
     for mses, label, linestyle, color in zip(mean_mses, label_list, linestyle_list, color_list):
         plt.plot(mses, label=label, linestyle=linestyle, color=color)
-        plt.title(title)
-        plt.xlabel('Epoch')
-        plt.ylabel(ylabel)
+
+
+    for base_mean_mse, base_label, linestyle, color in zip(base_mean_mses, base_label_list, base_linestyle_list, base_color_list):
+        plt.axhline(y=base_mean_mse, label=base_label, linestyle=linestyle, color=color)
+
+    plt.title(title)
+    plt.xlabel('Epoch')
+    plt.ylabel(ylabel)
+
     if ylog:
         plt.yscale('log')
     plt.legend()
@@ -200,14 +207,22 @@ def plot_pixelwise_preds(all_pred_mm, all_target_mm, epoch, save_path_name, swap
     plt.close()
     gc.collect()
 
-def load_data(ps_sim_name, **__):
+def load_data(s_calc_baseline, ps_sim_name, **__):
     rel_path_train = 'logs/train_log/version_0/metrics.csv'
     rel_path_val = 'logs/val_log/version_0/metrics.csv'
+    rel_path_base_train = 'logs/base_train_log/version_0/metrics.csv'
+    rel_path_base_val = 'logs/base_val_log/version_0/metrics.csv'
 
     train_df = pd.read_csv('{}/{}'.format(ps_sim_name, rel_path_train))
     val_df = pd.read_csv('{}/{}'.format(ps_sim_name, rel_path_val))
+    if s_calc_baseline:
+        base_train_df = pd.read_csv('{}/{}'.format(ps_sim_name, rel_path_base_train))
+        base_val_df = pd.read_csv('{}/{}'.format(ps_sim_name, rel_path_base_val))
+    else:
+        base_train_df = None
+        base_val_df = None
 
-    return train_df, val_df
+    return train_df, val_df, base_train_df, base_val_df
 
 
 def df_cols_to_list_of_lists(keys, df):
@@ -237,38 +252,66 @@ def plot_mse_manual(train_df, val_df, ps_sim_name, **__):
                    title='MSE on lognorm data')
 
 
-def line_plot(train_df, val_df, key_list_train, key_list_val, save_name, ps_sim_name, ylog=True, ylabel='MSE',
-              title='', color_list=[None for i in range(99)],
-              linestyle_list=[None for i in range(99)], **__):
+def line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train, key_list_val, key_list_base_train, key_list_base_val,
+              save_name, ps_sim_name, ylog=True, ylabel='MSE',
+              title='', color_list=[None for i in range(99)], base_color_list=[None for i in range(99)],
+              linestyle_list=[None for i in range(99)], base_linestyle_list=[None for i in range(99)], **__):
 
     train_mse_list = df_cols_to_list_of_lists(key_list_train, train_df)
     val_mse_list = df_cols_to_list_of_lists(key_list_val, val_df)
     mse_list = train_mse_list+val_mse_list
     key_list = key_list_train + key_list_val
 
+    # baseline data
+    if base_train_df is not None:
+        base_train_mse_list = df_cols_to_list_of_lists(key_list_base_train, base_train_df)
+    else:
+        base_train_mse_list = []
+
+    if base_val_df is not None:
+        base_val_mse_list = df_cols_to_list_of_lists(key_list_base_val, base_val_df)
+    else:
+        base_val_mse_list = []
+
+    base_mse_list = base_train_mse_list + base_val_mse_list
+
+    if not (key_list_base_train is None or key_list_base_val is None):
+        base_key_list = key_list_base_train + key_list_base_val
+    else:
+        base_key_list = []
+
+
     plot_mse_heavy(mean_mses=mse_list,
+                   base_mean_mses=base_mse_list,
                    label_list=key_list,
+                   base_label_list=base_key_list,
                    color_list=color_list, linestyle_list=linestyle_list,
+                   base_color_list=base_color_list, base_linestyle_list=base_linestyle_list,
                    save_path_name='{}/plots/{}'.format(ps_sim_name, save_name),
                    ylabel=ylabel,
                    ylog=ylog,
                    title=title)
 
 
-def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target, **__):
+def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target, s_calc_baseline, **__):
     '''
     Plots both mse vals and loss. Adjust loss according to what is calculated
     (xentropy or kl divergence dependong on whether s_gaussian_smoothing_target is active)
     This requires both **plot_settings and **settings as input
     '''
-    train_df, val_df = load_data(**plot_settings)
+    train_df, val_df, base_train_df, base_val_df = load_data(s_calc_baseline, **plot_settings)
     key_list_train_mse = ['train_mse_pred_target', 'train_mse_zeros_target',
                       'train_mse_persistence_target']
     key_list_val_mse = ['val_mse_pred_target', 'val_mse_zeros_target',
                     'val_mse_persistence_target']
+    key_list_base_train_mse = ['base_train_mse_pred_target']
+    key_list_base_val_mse = ['base_val_mse_pred_target']
 
-    line_plot(train_df, val_df, key_list_train_mse, key_list_val_mse, save_name='mse_with_val',
-              color_list=['g', 'y', 'b', 'g', 'y', 'b'], linestyle_list=['-', '-', '-', '--', '--', '--'],
+    line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train_mse, key_list_val_mse, key_list_base_train_mse,
+              key_list_base_val_mse, save_name='mse_with_val',
+              color_list=['g', 'y', 'b', 'g', 'y', 'b'], base_color_list = ['red', 'red'],
+              linestyle_list=['-', '-', '-', '--', '--', '--'],
+              base_linestyle_list=['-', '--'],
               title='MSE on lognorm data', **plot_settings,)
 
     key_list_train_xentropy = ['train_loss']
@@ -283,8 +326,8 @@ def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target,
     loss_title = 'Xentropy on lognorm data'
     loss_ylabel = 'Xentropy'
 
-    line_plot(train_df, val_df, key_list_train_xentropy, key_list_val_xentropy, ylabel=loss_ylabel, ylog=loss_ylog,
-              save_name='xentropy_loss', title=loss_title, **plot_settings)
+    line_plot(train_df, val_df, None, None, key_list_train_xentropy, key_list_val_xentropy, None, None,
+              ylabel=loss_ylabel, ylog=loss_ylog, save_name='xentropy_loss', title=loss_title, **plot_settings)
 
 
 def plot_precipitation_diff(plot_settings, ps_sim_name, **__):
@@ -293,11 +336,11 @@ def plot_precipitation_diff(plot_settings, ps_sim_name, **__):
     (xentropy or kl divergence dependong on whether s_gaussian_smoothing_target is active)
     This requires both **plot_settings and **settings as input
     '''
-    train_df, val_df = load_data(**plot_settings)
+    train_df, val_df, _, _ = load_data(s_calc_baseline=False ,**plot_settings)
     key_list_train_diff = ['train_mean_diff_pred_target_mm']
     key_list_val_diff = ['val_mean_diff_pred_target_mm']
 
-    line_plot(train_df, val_df, key_list_train_diff, key_list_val_diff, save_name='mean_diff_mm',
+    line_plot(train_df, val_df, None, None, key_list_train_diff, key_list_val_diff, None, None, save_name='mean_diff_mm',
               color_list=['b', 'y'], linestyle_list=['-', '--'],
               title='Mean Precipitation difference prediciton - target', ylabel='Mean Difference (lognormalized data)', ylog=False,
               **plot_settings,)
@@ -306,7 +349,7 @@ def plot_precipitation_diff(plot_settings, ps_sim_name, **__):
     key_list_val_mm = ['val_mean_pred_mm', 'val_mean_target_mm']
 
     # TODO: Mark target and prediction!!!
-    line_plot(train_df, val_df, key_list_train_mm, key_list_val_mm, save_name='mean_mm',
+    line_plot(train_df, val_df, None, None, key_list_train_mm, key_list_val_mm, None, None, save_name='mean_mm',
               color_list=['b', 'y', 'b', 'y'], linestyle_list=['-', '-', '--', '--'],
               title='Total precipitation of Prediciton and target', ylabel='Mean Precipitation [mm]', ylog=False,
               **plot_settings,)

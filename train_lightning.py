@@ -407,20 +407,18 @@ if __name__ == '__main__':
         settings['s_num_gpus'] = 1
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
+    settings['s_num_lead_time_steps'] = settings['s_num_lead_time_steps'] - 2
+
     # mlflow.create_experiment(settings['s_sim_name'])
     # mlflow.set_tag("mlflow.runName", settings['s_sim_name'])
     # mlflow.pytorch.autolog()
     # mlflow.log_models = False
 
-
-    settings['s_num_lead_time_steps'] = settings['s_num_lead_time_steps'] - 2
-
     model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(settings, **settings)
 
     plot_metrics_settings = {
-        'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name'], # TODO: Solve conflicting name convention
+        'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name']
     }
-
 
 
     plot_qualities_main(plot_metrics_settings, **plot_metrics_settings, **settings)
