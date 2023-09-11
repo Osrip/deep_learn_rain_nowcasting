@@ -341,9 +341,12 @@ if __name__ == '__main__':
             's_schedule_sigma_smoothing': True,
 
             # Logging
-            's_calc_baseline': True, # Baselines are calculated and plotted (not yet finished)
+            's_calc_baseline': True, # Baselines are calculated and plotted
             's_log_precipitation_difference': True,
             's_calculate_quality_params': True, # Calculatiing quality params during training and validation
+            's_calculate_fss': True, # Calculating fractions skill score during training and validation
+            's_fss_scales': [2, 16, 32], # Scales for which fss is calculated as a list
+            's_fss_threshold': 1, # Threshold in mm/h for which fss is calculated
 
             # Log transform input/ validation data --> log binning --> log(x+1)
             's_log_transform': True,

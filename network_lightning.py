@@ -8,6 +8,10 @@ from helper.helper_functions import one_hot_to_mm
 from helper.gaussian_smoothing_helper import gaussian_smoothing_target
 import torchvision.transforms as T
 import copy
+from pysteps import verification
+import numpy as np
+
+
 import warnings
 # Stuff for memory logging
 
@@ -16,7 +20,7 @@ class Network_l(pl.LightningModule):
     def __init__(self, linspace_binning_params, sigma_schedule_mapping, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
-                 s_lr_schedule, training_steps_per_epoch=None, **__):
+                 s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, training_steps_per_epoch=None, **__):
         super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
                              s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
@@ -34,6 +38,9 @@ class Network_l(pl.LightningModule):
         self.s_gaussian_smoothing_target = s_gaussian_smoothing_target
         self.s_log_precipitation_difference = s_log_precipitation_difference
         self.s_lr_schedule = s_lr_schedule
+        self.s_calculate_fss = s_calculate_fss
+        self.s_fss_scales = s_fss_scales
+        self.s_fss_threshold = s_fss_threshold
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
@@ -134,13 +141,13 @@ class Network_l(pl.LightningModule):
         # mlflow.log_metric('train_loss', loss.item())
         ### Additional quality metrics: ###
 
-        if self.s_calculate_quality_params:
+        if self.s_calculate_quality_params or self.s_log_precipitation_difference or self.s_calculate_fss:
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                     mean_bin_vals=True)
             pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
-        if self.s_calculate_quality_params or self.s_log_precipitation_difference:
+        if self.s_calculate_quality_params or self.s_calculate_fss:
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
             self.log('train_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True, sync_dist=True)
@@ -156,6 +163,26 @@ class Network_l(pl.LightningModule):
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
             self.log('train_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
             # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
+
+        if self.s_calculate_fss:
+            fss = verification.get_method("FSS")
+            target_np = target.cpu().numpy()
+            pred_mm_np = pred_mm.cpu().numpy()
+
+            for fss_scale in self.s_fss_scales:
+
+                fss_pred_target = np.mean([fss(pred_mm_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                                           for batch_num in range(np.shape(target_np)[0])])
+                self.log('train_fss_scale_{:03d}_pred_target'.format(fss_scale), fss_pred_target, on_step=False, on_epoch=True, sync_dist=True)
+
+                fss_persistence_target = np.mean([fss(persistence[batch_num, :, :].cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                                                  for batch_num in range(np.shape(target_np)[0])])
+                self.log('train_fss_scale_{:03d}_persistence_target'.format(fss_scale), fss_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
+
+                fss_zeros_target = np.mean([fss(np.zeros(target_np[batch_num, :, :].shape), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                                            for batch_num in range(np.shape(target_np)[0])])
+                self.log('train_fss_scale_{:03d}_zeros_target'.format(fss_scale), fss_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
+
 
         if self.s_log_precipitation_difference:
             with torch.no_grad():
@@ -203,13 +230,13 @@ class Network_l(pl.LightningModule):
 
         # mlflow.log_metric('val_loss', loss.item())
 
-        if self.s_calculate_quality_params or self.s_log_precipitation_difference:
+        if self.s_calculate_quality_params or self.s_log_precipitation_difference or self.s_calculate_fss:
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                     mean_bin_vals=True)
             pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
-        if self.s_calculate_quality_params:
+        if self.s_calculate_quality_params or self.s_calculate_fss:
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
             self.log('val_mse_pred_target', mse_pred_target.item(), on_step=False, on_epoch=True, sync_dist=True)
@@ -225,6 +252,25 @@ class Network_l(pl.LightningModule):
             mse_persistence_target = torch.nn.MSELoss()(persistence, target)
             self.log('val_mse_persistence_target', mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
             # mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item())
+
+        if self.s_calculate_fss:
+            fss = verification.get_method("FSS")
+            target_np = target.cpu().numpy()
+            pred_mm_np = pred_mm.cpu().numpy()
+
+            for fss_scale in self.s_fss_scales:
+
+                fss_pred_target = np.mean([fss(pred_mm_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                                           for batch_num in range(np.shape(target_np)[0])])
+                self.log('val_fss_scale_{:03d}_pred_target'.format(fss_scale), fss_pred_target, on_step=False, on_epoch=True, sync_dist=True)
+
+                fss_persistence_target = np.mean([fss(persistence[batch_num, :, :].cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                                                  for batch_num in range(np.shape(target_np)[0])])
+                self.log('val_fss_scale_{:03d}_persistence_target'.format(fss_scale), fss_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
+
+                fss_zeros_target = np.mean([fss(np.zeros(target_np[batch_num, :, :].shape), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                                            for batch_num in range(np.shape(target_np)[0])])
+                self.log('val_fss_scale_{:03d}_zeros_target'.format(fss_scale), fss_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
 
         if self.s_log_precipitation_difference:
             with torch.no_grad():
