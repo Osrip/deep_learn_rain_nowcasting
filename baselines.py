@@ -1,7 +1,9 @@
 import pytorch_lightning as pl
 import torch
+import torchvision.transforms as T
 import pysteps.motion as motion
 from pysteps import nowcasts
+import numpy as np
 from helper.helper_functions import one_hot_to_mm
 
 class LKBaseline(pl.LightningModule):
@@ -36,7 +38,8 @@ class LKBaseline(pl.LightningModule):
             precip_forecast = extrapolate(frames_np[batch_idx, -1, :, :], motion_field, self.s_num_lead_time_steps)
             predictions.append(precip_forecast)
 
-        precip_forecast = torch.stack(predictions)
+        precip_forecast = torch.from_numpy(np.array(predictions))
+
 
         return precip_forecast[:, -1, :, :], motion_field, precip_forecast
 
@@ -47,6 +50,8 @@ class LKBaseline(pl.LightningModule):
         target_binned = target_binned.float()
 
         pred, _, _ = self(input_sequence)
+
+        pred = T.CenterCrop(size=32)(pred)
 
         mse_pred_target = torch.nn.MSELoss()(pred, target)
 

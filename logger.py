@@ -58,15 +58,19 @@ class ValidationLogsCallback(pl.Callback):
 class BaselineTrainingLogsCallback(pl.Callback):
     def __init__(self, base_train_logger):
         super().__init__()
-        self.logger = base_train_logger
+        self.base_train_logger = base_train_logger
 
     def on_validation_epoch_end(self, trainer, pl_module):
         all_logs = trainer.callback_metrics
         # trainer.callback_metrics = {}
         val_logs = {key: value for key, value in all_logs.items() if key.startswith('base_train_')}
-        self.logger.log_metrics(val_logs) # , epoch=trainer.current_epoch)
+        self.base_train_logger.log_metrics(val_logs) # , epoch=trainer.current_epoch)
         # self.val_logger.log_metrics(val_logs) #, step=trainer.current_epoch)
-        self.logger.save()
+        self.base_train_logger.save()
+
+    def on_validation_end(self, trainer, pl_module):
+        # self.val_logger.finalize()
+        self.base_train_logger.save()
 
 
 class BaselineValidationLogsCallback(pl.Callback):
@@ -89,8 +93,6 @@ class BaselineValidationLogsCallback(pl.Callback):
 
 
 
-    def on_validation_end(self, trainer, pl_module):
-        # self.val_logger.finalize()
-        self.logger.save()
+
 
 

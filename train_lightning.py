@@ -131,7 +131,8 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
     for data_loader, logs_callback, logger, logging_type in \
             zip(data_loader_list, logs_callback_list, logger_list, logging_type_list):
         # Create callback list in the form of [BaselineTrainingLogsCallback(base_train_logger)]
-        callback_list_base = [logs_callback(data_loader)]
+        callback_list_base = [logs_callback(logger)]
+
 
         lk_baseline = LKBaseline(logging_type, **settings)
 
@@ -208,7 +209,7 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     if s_calc_baseline:
         calc_baselines(data_loader_list=[train_data_loader, validation_data_loader],
                        logs_callback_list=[BaselineTrainingLogsCallback, BaselineValidationLogsCallback],
-                       logger_list=[train_logger, val_logger],
+                       logger_list=[base_train_logger, base_val_logger],
                        logging_type_list=['train', 'val'],
                        settings=settings)
 
