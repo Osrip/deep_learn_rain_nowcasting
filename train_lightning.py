@@ -334,6 +334,8 @@ if __name__ == '__main__':
             's_gaussian_smoothing_target': True,
             's_sigma_target_smoothing': 5,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': True,
+            's_gaussian_smoothing_multiple_sigmas': True, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing
+            's_multiple_sigmas': [2, 4, 8, 12], # List of sigmas; to create loss mean is taken of all losses that each single sigma would reate
 
             # Logging
             's_calc_baseline': True, # Baselines are calculated and plotted

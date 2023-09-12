@@ -20,7 +20,8 @@ class Network_l(pl.LightningModule):
     def __init__(self, linspace_binning_params, sigma_schedule_mapping, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
-                 s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, training_steps_per_epoch=None, **__):
+                 s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
+                 training_steps_per_epoch=None, **__):
         super().__init__()
         self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
                              s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
@@ -41,6 +42,8 @@ class Network_l(pl.LightningModule):
         self.s_calculate_fss = s_calculate_fss
         self.s_fss_scales = s_fss_scales
         self.s_fss_threshold = s_fss_threshold
+        self.s_gaussian_smoothing_multiple_sigmas = s_gaussian_smoothing_multiple_sigmas
+        self.s_multiple_sigmas = s_multiple_sigmas
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
@@ -107,8 +110,13 @@ class Network_l(pl.LightningModule):
         global_training_step = self.trainer.global_step  # Does this include validation steps??!!!!
         #  SEE: https://github.com/Lightning-AI/lightning/discussions/8007
 
-
-        if self.s_gaussian_smoothing_target:
+        if self.s_gaussian_smoothing_multiple_sigmas:
+            smoothed_targets = []
+            for sigma in self.s_multiple_sigmas:
+                smoothed_targets.append(gaussian_smoothing_target(target_one_hot_extended, device=self.s_device,
+                                                          sigma=sigma,
+                                                          kernel_size=128).float())
+        elif self.s_gaussian_smoothing_target:
             if self.s_schedule_sigma_smoothing:
                 curr_sigma = self.sigma_schedule_mapping[self.train_step_num]
             else:
@@ -116,6 +124,8 @@ class Network_l(pl.LightningModule):
 
             target_binned = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
                                                        kernel_size=128)
+
+
 
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
@@ -128,7 +138,11 @@ class Network_l(pl.LightningModule):
         # which aligns with the mathematical definition.
 
         # We use cross entropy loss, for both gaussian smoothed and normal one_hot target
-        loss = nn.CrossEntropyLoss()(pred, target_binned)
+        if not self.s_gaussian_smoothing_multiple_sigmas:
+            loss = nn.CrossEntropyLoss()(pred, target_binned)
+        else:
+            losses = [nn.CrossEntropyLoss()(pred, target_binned) for target_binned in smoothed_targets]
+            loss = torch.sum(torch.stack(losses))
 
         # self.log('train_loss', loss, on_step=False, on_epoch=True)
         self.log('train_loss', loss, on_step=False,
@@ -207,7 +221,14 @@ class Network_l(pl.LightningModule):
         self.val_step_num += 1
         input_sequence, target_binned, target, target_one_hot_extended = val_batch
 
-        if self.s_gaussian_smoothing_target:
+        if self.s_gaussian_smoothing_multiple_sigmas:
+            smoothed_targets = []
+            for sigma in self.s_multiple_sigmas:
+                smoothed_targets.append(gaussian_smoothing_target(target_one_hot_extended, device=self.s_device,
+                                                          sigma=sigma,
+                                                          kernel_size=128).float())
+
+        elif self.s_gaussian_smoothing_target:
             if self.s_schedule_sigma_smoothing:
                 curr_sigma = self.sigma_schedule_mapping[self.val_step_num]
             else:
@@ -216,12 +237,17 @@ class Network_l(pl.LightningModule):
             target_binned = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
                                                        kernel_size=128)
 
+
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
 
         pred = self(input_sequence)
 
-        loss = nn.CrossEntropyLoss()(pred, target_binned)
+        if not self.s_gaussian_smoothing_multiple_sigmas:
+            loss = nn.CrossEntropyLoss()(pred, target_binned)
+        else:
+            losses = [nn.CrossEntropyLoss()(pred, target_binned) for target_binned in smoothed_targets]
+            loss = torch.sum(torch.stack(losses))
 
         self.log('val_loss', loss, on_step=False, on_epoch=True, sync_dist=True)  # , on_step=True
 
