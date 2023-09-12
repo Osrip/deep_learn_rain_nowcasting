@@ -293,7 +293,7 @@ def line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train, key_
                    title=title)
 
 
-def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target, s_calc_baseline, **__):
+def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target, s_fss_scales, s_calc_baseline, **__):
     '''
     Plots both mse vals and loss. Adjust loss according to what is calculated
     (xentropy or kl divergence dependong on whether s_gaussian_smoothing_target is active)
@@ -313,6 +313,20 @@ def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target,
               linestyle_list=['-', '-', '-', '--', '--', '--'],
               base_linestyle_list=['-', '--'],
               title='MSE on lognorm data', **plot_settings,)
+
+    for scale in s_fss_scales:
+        key_list_train_fss = ['train_fss_scale_{:03d}_pred_target'.format(scale), 'train_fss_scale_{:03d}_zeros_target'.format(scale),
+                            'train_fss_scale_{:03d}_persistence_target'.format(scale)]
+        key_list_val_fss = ['val_fss_scale_{:03d}_pred_target'.format(scale), 'val_fss_scale_{:03d}_zeros_target'.format(scale),
+                            'val_fss_scale_{:03d}_persistence_target'.format(scale)]
+        key_list_base_train_fss = ['base_train_fss_scale_{:03d}_pred_target'.format(scale)]
+        key_list_base_val_fss = ['base_val_fss_scale_{:03d}_pred_target'.format(scale)]
+        line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train_fss, key_list_val_fss, key_list_base_train_fss,
+                  key_list_base_val_fss, save_name='fss_scale_{:03d}'.format(scale),
+                    color_list=['g', 'y', 'b', 'g', 'y', 'b'], base_color_list=['red', 'red'],
+                    linestyle_list=['-', '-', '-', '--', '--', '--'],
+                    base_linestyle_list=['-', '--'],
+                    title='FSS scale {:03d} on lognorm data'.format(scale), **plot_settings)
 
     key_list_train_xentropy = ['train_loss']
     key_list_val_xentropy = ['val_loss']

@@ -28,9 +28,6 @@ import copy
 import warnings
 
 
-
-
-
 def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
                 s_num_bins_crossentropy, s_data_loader_chunk_size, s_batch_size, s_num_workers_data_loader, s_dirs, **__):
     # relative index of last input picture (starting from first input picture as idx 1)
@@ -138,8 +135,6 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
 
         trainer = pl.Trainer(callbacks=callback_list_base, max_epochs=1, log_every_n_steps=1, check_val_every_n_epoch=1)
         trainer.validate(lk_baseline, data_loader)
-
-
 
 
 def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
