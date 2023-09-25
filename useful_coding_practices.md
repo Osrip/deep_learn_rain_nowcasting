@@ -30,7 +30,7 @@ rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc
 Upload to copy_folder
 copy_num=1; rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc' --exclude 'mlruns' --exclude 'lightning_logs' -e ssh /home/jan/jan/programming/first_CNN_on_Radolan/* bst981@134.2.168.52:/mnt/qb/work2/butz1/bst981/radolan_copies/copy_$copy_num
 
-Upload to copy folder and create dir in case it does not exist:
+BEST UPLOADTO REMOTE --> Upload to copy folder and create dir in case it does not exist:
 copy_num=1; remote_dir="/mnt/qb/work2/butz1/bst981/radolan_copies/copy_$copy_num"; ssh_command="ssh"; source_dir="/home/jan/jan/programming/first_CNN_on_Radolan/"; $ssh_command bst981@134.2.168.52 "mkdir -p $remote_dir"; rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc' --exclude 'mlruns' --exclude 'lightning_logs' -e $ssh_command "$source_dir"* "bst981@134.2.168.52:$remote_dir"
 
 Execute sbatch on server on according number:
@@ -78,8 +78,9 @@ srun --partition=gpu-v100 --time=0-12:00 --gres=gpu:1 --pty bash
 officially:
 srun --gres=gpu:1 --pty bash
 
-
+then run on slurm:
 hostname
+this wil give you the value for num
 
 
 run on local:

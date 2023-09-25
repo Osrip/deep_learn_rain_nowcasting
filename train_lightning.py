@@ -244,17 +244,18 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = 'test' #'exp_sigma_schedule_no_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'test_conda_with_gaussian_blurring_with_exp_gauss_schedule_gauss_init_5_NO_exp_lr_schedule' #'exp_sigma_schedule_no_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    if device.type == 'cuda':
-        import nvidia_smi
 
-        nvidia_smi.nvmlInit()
-    # device = 'cpu'
+    # if device.type == 'cuda':
+    #     import nvidia_smi
+    #
+    #     nvidia_smi.nvmlInit()
+
 
     if s_local_machine_mode:
         s_sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
@@ -313,7 +314,7 @@ if __name__ == '__main__':
             's_width_height': 256,
             's_width_height_target': 32,
             's_learning_rate': 0.001,  # 0.0001
-            's_lr_schedule': False,  # enables lr scheduler, takes s_learning_rate as initial rate
+            's_lr_schedule': True,  # enables lr scheduler, takes s_learning_rate as initial rate
             's_num_epochs': 1000,
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
             's_num_lead_time_steps': 3, # 0 --> 0 min prediction (target == last input) ; 1 --> 5 min predicition, 10 --> 15min etc
@@ -334,7 +335,7 @@ if __name__ == '__main__':
             's_gaussian_smoothing_target': True,
             's_sigma_target_smoothing': 5,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': True,
-            's_gaussian_smoothing_multiple_sigmas': True, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing
+            's_gaussian_smoothing_multiple_sigmas': False, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing
             's_multiple_sigmas': [2, 4, 8, 12], # List of sigmas; to create loss mean is taken of all losses that each single sigma would reate
 
             # Logging
@@ -342,7 +343,7 @@ if __name__ == '__main__':
             's_log_precipitation_difference': True,
             's_calculate_quality_params': True, # Calculatiing quality params during training and validation
             's_calculate_fss': True, # Calculating fractions skill score during training and validation
-            's_fss_scales': [2, 16, 32], # Scales for which fss is calculated as a list
+            's_fss_scales': [2, 4, 8, 12], #[2, 16, 32], # Scales for which fss is calculated as a list
             's_fss_threshold': 1, # Threshold in mm/h for which fss is calculated
 
             # Log transform input/ validation data --> log binning --> log(x+1)

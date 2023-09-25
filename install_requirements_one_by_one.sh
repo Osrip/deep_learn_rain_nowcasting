@@ -5,17 +5,35 @@
 #conda config --add channels conda-forge
 #conda config --show channels
 
-# install pytorch:
-conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia -y
-conda install memory_profiler pytorch-lightning  mlflow ffmpeg matplotlib tqdm h5py xarray dask netCDF4 bottleneck -y
+# Does this help??
+#conda config --add channels pytorch
+#conda config --set channel_priority strict
 
-conda install einops pysteps -y
+# install pytorch (from website):
+conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia -y #+
+conda install memory_profiler -y #+
+conda install pytorch-lightning -y #+
+conda install ffmpeg -y #+
+conda install matplotlib -y ##+
+conda install tqdm -y #+
+conda install h5py -y #+
+conda install xarray -y #+
+conda install dask -y #+
+conda install netCDF4 -y #+
+conda install bottleneck -y #+
+conda install einops -y #+
+conda install pysteps -y #+
 # conda install -c pytorch torchaudio
-conda install -c bioconda hurry.filesize -y
-conda install -c anaconda scipy -y
+#conda install -c bioconda hurry.filesize -y # Fehler!
+conda install -c bioconda hurry.filesize=0.9 # + Funktionniert
+conda install -c anaconda scipy -y #+
+
+
+#conda install -c conda-forge gputil ??? --> auf env 3 installiert
+
 
 # I forgot thhe following in the previous installs!
-# pip3 install nvidia-ml-py3
+# !!!!!!!!!! pip3 install nvidia-ml-py3 -y !!!!!!!!!!
 
 
 # Installing by hand did not work too well, however copying virtual env with this worked:

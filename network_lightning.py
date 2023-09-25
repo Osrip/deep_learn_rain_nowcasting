@@ -211,7 +211,8 @@ class Network_l(pl.LightningModule):
             # self.log('') =
 
         if self.s_device.type == 'cuda':
-            print_gpu_memory()
+            pass
+            # print_gpu_memory()
         print_ram_usage()
 
         return loss
