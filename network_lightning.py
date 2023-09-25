@@ -180,8 +180,8 @@ class Network_l(pl.LightningModule):
 
         if self.s_calculate_fss:
             fss = verification.get_method("FSS")
-            target_np = target.cpu().numpy()
-            pred_mm_np = pred_mm.cpu().numpy()
+            target_np = target.detach().cpu().numpy()
+            pred_mm_np = pred_mm.detach().cpu().numpy()
 
             for fss_scale in self.s_fss_scales:
 
@@ -189,7 +189,7 @@ class Network_l(pl.LightningModule):
                                            for batch_num in range(np.shape(target_np)[0])])
                 self.log('train_fss_scale_{:03d}_pred_target'.format(fss_scale), fss_pred_target, on_step=False, on_epoch=True, sync_dist=True)
 
-                fss_persistence_target = np.mean([fss(persistence[batch_num, :, :].cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                fss_persistence_target = np.mean([fss(persistence[batch_num, :, :].detach().cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
                                                   for batch_num in range(np.shape(target_np)[0])])
                 self.log('train_fss_scale_{:03d}_persistence_target'.format(fss_scale), fss_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
 
@@ -282,8 +282,8 @@ class Network_l(pl.LightningModule):
 
         if self.s_calculate_fss:
             fss = verification.get_method("FSS")
-            target_np = target.cpu().numpy()
-            pred_mm_np = pred_mm.cpu().numpy()
+            target_np = target.detach().cpu().numpy()
+            pred_mm_np = pred_mm.detach().cpu().numpy()
 
             for fss_scale in self.s_fss_scales:
 

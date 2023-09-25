@@ -11,7 +11,7 @@ class LKBaseline(pl.LightningModule):
     '''
     Optical Flow baseline (PySteps)
     '''
-    def __init__(self, logging_type, s_num_lead_time_steps, s_calculate_fss, s_fss_scales, s_fss_threshold, **__):
+    def __init__(self, logging_type, s_num_lead_time_steps, s_calculate_fss, s_fss_scales, s_fss_threshold, device, **__):
         '''
         logging_type depending on data loader either: 'train' or 'val'
         '''
@@ -21,11 +21,12 @@ class LKBaseline(pl.LightningModule):
         self.s_calculate_fss = s_calculate_fss
         self.s_fss_scales = s_fss_scales
         self.s_fss_threshold = s_fss_threshold
+        self.s_device = device
 
 
     def forward(self, frames):
 
-        frames_np = frames.numpy()
+        frames_np = frames.detach().cpu().numpy()
 
         predictions = []
         for batch_idx in range(frames_np.shape[0]):
@@ -42,7 +43,7 @@ class LKBaseline(pl.LightningModule):
             precip_forecast = extrapolate(frames_np[batch_idx, -1, :, :], motion_field, self.s_num_lead_time_steps)
             predictions.append(precip_forecast)
 
-        precip_forecast = torch.from_numpy(np.array(predictions))
+        precip_forecast = torch.from_numpy(np.array(predictions)).to(self.s_device)
 
 
         return precip_forecast[:, -1, :, :], motion_field, precip_forecast
@@ -66,7 +67,7 @@ class LKBaseline(pl.LightningModule):
 
         if self.s_calculate_fss:
             fss = verification.get_method("FSS")
-            pred_np = pred.cpu().numpy()
+            pred_np = pred.detach().cpu().numpy()
             target_np = target.cpu().numpy()
 
             for fss_scale in self.s_fss_scales:
