@@ -71,7 +71,7 @@ class LKBaseline(pl.LightningModule):
             target_np = target.cpu().numpy()
 
             for fss_scale in self.s_fss_scales:
-                fss_pred_target = np.mean(
+                fss_pred_target = np.nanmean(
                     [fss(pred_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
                      for batch_num in range(np.shape(target_np)[0])]
                 )

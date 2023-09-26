@@ -88,7 +88,7 @@ run on local:
 custom:
 ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-v100-6 bash"
 
-improved
+BEST improved
 num=1; ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-v100-$num bash"
 
 general:

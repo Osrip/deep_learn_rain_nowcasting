@@ -185,15 +185,15 @@ class Network_l(pl.LightningModule):
 
             for fss_scale in self.s_fss_scales:
 
-                fss_pred_target = np.mean([fss(pred_mm_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                fss_pred_target = np.nanmean([fss(pred_mm_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
                                            for batch_num in range(np.shape(target_np)[0])])
                 self.log('train_fss_scale_{:03d}_pred_target'.format(fss_scale), fss_pred_target, on_step=False, on_epoch=True, sync_dist=True)
 
-                fss_persistence_target = np.mean([fss(persistence[batch_num, :, :].detach().cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                fss_persistence_target = np.nanmean([fss(persistence[batch_num, :, :].detach().cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
                                                   for batch_num in range(np.shape(target_np)[0])])
                 self.log('train_fss_scale_{:03d}_persistence_target'.format(fss_scale), fss_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
 
-                fss_zeros_target = np.mean([fss(np.zeros(target_np[batch_num, :, :].shape), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                fss_zeros_target = np.nanmean([fss(np.zeros(target_np[batch_num, :, :].shape), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
                                             for batch_num in range(np.shape(target_np)[0])])
                 self.log('train_fss_scale_{:03d}_zeros_target'.format(fss_scale), fss_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
 
@@ -287,15 +287,15 @@ class Network_l(pl.LightningModule):
 
             for fss_scale in self.s_fss_scales:
 
-                fss_pred_target = np.mean([fss(pred_mm_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                fss_pred_target = np.nanmean([fss(pred_mm_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
                                            for batch_num in range(np.shape(target_np)[0])])
                 self.log('val_fss_scale_{:03d}_pred_target'.format(fss_scale), fss_pred_target, on_step=False, on_epoch=True, sync_dist=True)
 
-                fss_persistence_target = np.mean([fss(persistence[batch_num, :, :].cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                fss_persistence_target = np.nanmean([fss(persistence[batch_num, :, :].cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
                                                   for batch_num in range(np.shape(target_np)[0])])
                 self.log('val_fss_scale_{:03d}_persistence_target'.format(fss_scale), fss_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
 
-                fss_zeros_target = np.mean([fss(np.zeros(target_np[batch_num, :, :].shape), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                fss_zeros_target = np.nanmean([fss(np.zeros(target_np[batch_num, :, :].shape), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
                                             for batch_num in range(np.shape(target_np)[0])])
                 self.log('val_fss_scale_{:03d}_zeros_target'.format(fss_scale), fss_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
 
