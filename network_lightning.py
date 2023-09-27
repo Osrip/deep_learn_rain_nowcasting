@@ -17,14 +17,15 @@ import warnings
 
 
 class Network_l(pl.LightningModule):
-    def __init__(self, linspace_binning_params, sigma_schedule_mapping, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
+    def __init__(self, linspace_binning_params, sigma_schedule_mapping, settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
                  s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
                  training_steps_per_epoch=None, **__):
         super().__init__()
-        self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
-                             s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
+        # self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
+        #                      s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
+        self.model = Network(c_in=s_num_input_time_steps, **settings)
 
         self.model.to(device)
 

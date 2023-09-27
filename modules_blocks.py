@@ -6,11 +6,14 @@ from helper.helper_functions import create_dilation_list
 
 
 class Network(nn.Module):
-    def __init__(self, c_in: int, s_upscale_c_to, s_num_bins_crossentropy, s_width_height_in: int):
+    def __init__(self, c_in: int, s_upscale_c_to, s_num_bins_crossentropy, s_width_height: int,
+                 s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas, **__):
         """
         s_upscale_c_to: the number of channels, that the first convolution scales up to
         """
         super().__init__()
+        s_width_height_in = s_width_height
+
         # TODO No doubling of channels in conv 2d???!!!
         self.conv1_1_upscale = nn.Conv2d(c_in, s_upscale_c_to, kernel_size=1, dilation=1, stride=1, padding=0)
         self.net_modules = nn.ModuleList()
@@ -37,7 +40,14 @@ class Network(nn.Module):
             test_list.append('c_in: {} c_out: {} curr_height: {} out_height: {}'
                              .format(c_curr, c_curr * 2, s_width_height_in / (2 ** (i-1)), s_width_height_in / (2 ** i)))
 
-        self.conv1_1_downscale = nn.Conv2d(c_curr, s_num_bins_crossentropy, kernel_size=1, dilation=1, stride=1, padding=0)
+        if not s_gaussian_smoothing_multiple_sigmas:
+            downscale_c_to = s_num_bins_crossentropy
+        else:
+            downscale_c_to = s_num_bins_crossentropy * len(s_multiple_sigmas)
+
+        self.conv1_1_downscale = nn.Conv2d(c_curr, downscale_c_to, kernel_size=1, dilation=1, stride=1, padding=0)
+
+
 
     def forward(self, x: torch.Tensor):
         x = self.conv1_1_upscale(x)
