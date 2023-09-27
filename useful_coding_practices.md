@@ -100,5 +100,14 @@ ssh -AtL $B_PORT:localhost:$B_PORT $YOURLOGIN@134.2.168.72 "ssh -AtL $B_PORT:loc
 
 
 
+###### Instead of merging git branch, overwrite old branch
+
+$ git checkout new_branch
+$ git merge -s ours old_branch # Merge branches, but use our (=staging) branch head
+$ git checkout old_branch
+$ git merge new_branch
+
+https://stackoverflow.com/questions/4624357/how-do-i-overwrite-rather-than-merge-a-branch-on-another-branch-in-git 
+
 
 
