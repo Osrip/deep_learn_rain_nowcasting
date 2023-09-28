@@ -1,0 +1,25 @@
+name: first_CNN_on_Radolan_3
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.7
+  - memory_profiler
+  - pytorch-lightning
+  - mlflow
+  - matplotlib
+  - h5py
+  - xarray
+  - dask
+  - netcdf4
+  - bottleneck
+  - einops
+  - pysteps
+  - hurry.filesize=0.9
+  - scipy
+prefix: /mnt/qb/work/butz/bst981/conda_outsourced/envs/first_CNN_on_Radolan_3

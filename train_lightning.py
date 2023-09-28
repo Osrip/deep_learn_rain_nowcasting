@@ -19,7 +19,7 @@ from logger import ValidationLogsCallback, TrainingLogsCallback, BaselineTrainin
     create_loggers
 from baselines import LKBaseline
 import mlflow
-from plotting.plot_quality_metrics_from_log import plot_qualities_main, plot_precipitation_diff
+from plotting.plot_quality_metrics_from_log import plot_qualities_main, plot_qualities_main_several_sigmas, plot_precipitation_diff
 from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
 from helper.sigma_scheduler_helper import create_scheduler_mapping
 from helper.helper_functions import no_special_characters
@@ -335,7 +335,7 @@ if __name__ == '__main__':
             's_gaussian_smoothing_target': True,
             's_sigma_target_smoothing': 5,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
-            's_gaussian_smoothing_multiple_sigmas': False, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing
+            's_gaussian_smoothing_multiple_sigmas': True, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing
             's_multiple_sigmas': [2, 4, 8, 12], # List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
 
             # Logging
@@ -421,8 +421,10 @@ if __name__ == '__main__':
         'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name']
     }
 
-
-    plot_qualities_main(plot_metrics_settings, **plot_metrics_settings, **settings)
+    if not settings['s_multiple_sigmas']:
+        plot_qualities_main(plot_metrics_settings, **plot_metrics_settings, **settings)
+    else:
+        plot_qualities_main_several_sigmas(plot_metrics_settings, **plot_metrics_settings, **settings)
 
     if settings['s_log_precipitation_difference']:
         plot_precipitation_diff(plot_metrics_settings, **plot_metrics_settings, **settings)

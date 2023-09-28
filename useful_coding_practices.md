@@ -110,4 +110,27 @@ $ git merge new_branch
 https://stackoverflow.com/questions/4624357/how-do-i-overwrite-rather-than-merge-a-branch-on-another-branch-in-git 
 
 
+###### Jakob's conda / mamba tipps:
+
+Einfach mamba direkt in $WORK installieren (bash.rc updaten) 
+
+(Conda per default zum mamba solver mit wohl fehleranfällig
+conda update -n base conda
+conda install -n base conda-libmamba-solver
+conda config --set solver libmamba
+NICHT EMPFOHLEN!
+)
+
+Regelmäßig environments in yml schreiben mit
+
+conda env export --from-history > filename.yml
+
+--from_history stellt sicher, dass nur die manuell installierten Packete drinstehen
+
+Um environment von .yml wiederherzustellen ERST environment erstellen und dann von .yml reininstallieren
+
+mamba create -n phdenv
+mamba env update -n phdenv -f phdenv.yml
+
+--> Diese Befehle direkt auf GPU node mit srun (conda unterstütz GPU parallelisierung)
 
