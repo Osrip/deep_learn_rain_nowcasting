@@ -40,7 +40,6 @@ copy_num=1; sbatch /mnt/qb/work2/butz1/bst981/radolan_copies/copy_$copy_num/sbat
 ##### Download plots from remote to local
 sim_name="Run_20230707-195050_ID_3757043Oversampling_4gpu_12_months"; mkdir -p "/home/jan/Documents/results_nowcasting/$sim_name/plots" && rsync -avz -e "ssh" bst981@134.2.168.52:"/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/$sim_name/plots" "/home/jan/Documents/results_nowcasting/$sim_name"
 
-
 ### Torch Code
 
 from https://github.com/jthuemmel/SpatioTemporalNetworks/blob/main/train_mixed.py

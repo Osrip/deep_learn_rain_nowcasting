@@ -305,6 +305,16 @@ def plot_qualities_main_several_sigmas(plot_settings, ps_sim_name, s_gaussian_sm
     key_list_val_mse = ['val_sigma_{}_mse_pred_target'.format(en) for en in s_multiple_sigmas]
 
     linestyle_list = ['-' if key.startswith('train') else '--' for key in key_list_train_mse + key_list_val_mse]
+
+    non_red_colors = [
+        "#008000",  # Green
+        "#0000FF",  # Blue
+        "#FFA500",  # Orange
+        "#800080",  # Purple
+        "#00FFFF",  # Cyan
+        "#FFFF00"  # Yellow
+    ]
+
     green_shades = [
         "#006400",  # Dark Green
         "#008000",  # Green
@@ -313,6 +323,7 @@ def plot_qualities_main_several_sigmas(plot_settings, ps_sim_name, s_gaussian_sm
         "#00e000",  # Light Green
         "#00ff00"  # Lime Green
     ]
+    green_shades = green_shades[::-1] #invert
     color_list = [green_shades[i] for i in range(len(key_list_train_mse))]
     color_list = color_list + color_list
 

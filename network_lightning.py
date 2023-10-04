@@ -158,7 +158,7 @@ class Network_l(pl.LightningModule):
             # losses = [nn.CrossEntropyLoss()(pred, target_binned) for target_binned in smoothed_targets] #  Old implementation with only one target
             loss = torch.sum(torch.stack(losses))
 
-            log_prefixes = ['sigma_' + str(i) + '_' for i in self.s_fss_scales]
+            log_prefixes = ['sigma_' + str(i) + '_' for i in self.s_multiple_sigmas]
 
         for pred, log_prefix in zip(preds, log_prefixes):  # Iterating through predictions and log prefixes for the case of multiple sigmas, which correspinds to multiple predictions
 
@@ -276,7 +276,7 @@ class Network_l(pl.LightningModule):
 
             # losses = [nn.CrossEntropyLoss()(pred, target_binned) for target_binned in smoothed_targets]
             loss = torch.sum(torch.stack(losses))
-            log_prefixes = ['sigma_' + str(i) + '_' for i in self.s_fss_scales]
+            log_prefixes = ['sigma_' + str(i) + '_' for i in self.s_multiple_sigmas]
 
 
         for pred, log_prefix in zip(preds, log_prefixes):  # Iterating through predictions and log prefixes for the case of multiple sigmas
