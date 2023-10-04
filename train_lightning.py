@@ -19,11 +19,9 @@ from logger import ValidationLogsCallback, TrainingLogsCallback, BaselineTrainin
     create_loggers
 from baselines import LKBaseline
 import mlflow
-from plotting.plot_quality_metrics_from_log import plot_qualities_main, plot_qualities_main_several_sigmas, plot_precipitation_diff
-from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
+from plotting.plotting_pipeline import plotting_pipeline
 from helper.sigma_scheduler_helper import create_scheduler_mapping
 from helper.helper_functions import no_special_characters
-from calc_from_checkpoint import plot_images_outer
 import copy
 import warnings
 
@@ -244,7 +242,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = 'TEST_Several_sigmas_2_4_8_16_with_different_prediction_with_exp_lr_schedule' #'exp_sigma_schedule_no_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'TEST_no_gaussian_smoothing' #'exp_sigma_schedule_no_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -332,10 +330,10 @@ if __name__ == '__main__':
             's_lr_schedule': True  ,  # enables lr scheduler, takes s_learning_rate as initial rate
 
             # Gaussian smoothing
-            's_gaussian_smoothing_target': True,
+            's_gaussian_smoothing_target': False,
             's_sigma_target_smoothing': 5,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
-            's_gaussian_smoothing_multiple_sigmas': True, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing
+            's_gaussian_smoothing_multiple_sigmas': False, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing
             's_multiple_sigmas': [2, 4, 8, 16], # List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
 
             # Logging
@@ -417,54 +415,8 @@ if __name__ == '__main__':
 
     model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(settings, **settings)
 
-    plot_metrics_settings = {
-        'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name']
-    }
+    plotting_pipeline(model_l, sigma_schedule_mapping, training_steps_per_epoch, s_dirs, settings)
 
-    if not settings['s_multiple_sigmas']:
-        plot_qualities_main(plot_metrics_settings, **plot_metrics_settings, **settings)
-    else:
-        plot_qualities_main_several_sigmas(plot_metrics_settings, **plot_metrics_settings, **settings)
-
-    if settings['s_log_precipitation_difference']:
-        plot_precipitation_diff(plot_metrics_settings, **plot_metrics_settings, **settings)
-
-    # Deepcopy lr_scheduler to make sure steps in instance is not messed up
-    # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
-
-    plot_lr_schedule_settings = {
-        'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name'], # TODO: Solve conflicting name convention
-    }
-
-
-    if settings['s_lr_schedule']:
-
-        plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
-                         save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler',
-                         ylog=True, **plot_lr_schedule_settings)
-
-    if settings['s_schedule_sigma_smoothing']:
-        plot_sigma_schedule(sigma_schedule_mapping, save_name='sigma_scheduler', ylog=True, save=True,
-                            **plot_lr_schedule_settings)
-
-    # plot_lr_schedule(sigma_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
-    #                  init_learning_rate=settings['s_learning_rate'], save_name='sigma_scheduler',
-    #                  y_label='Sigma', title='Sigma scheduler', ylog=False, **plot_lr_schedule_settings)
-
-    plot_images_settings ={
-        'ps_runs_path': s_dirs['save_dir'], #'{}/runs'.format(os.getcwd()),
-        'ps_run_name': settings['s_sim_name'],
-        'ps_device': settings['device'],
-        'ps_checkpoint_name': None,  # If none take checkpoint of last epoch
-        'ps_inv_normalize': False,
-    }
-
-    plot_images_outer(plot_images_settings, **plot_images_settings)
-
-    if settings['s_max_epochs'] > 10:
-        plot_images_outer(plot_images_settings, epoch=10, **plot_images_settings)
-    # except Exception:
-    #     warnings.warn('Image plotting encountered error!')
 
 
 
