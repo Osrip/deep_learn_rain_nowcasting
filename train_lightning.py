@@ -205,7 +205,9 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
                        logger_list=[base_train_logger, base_val_logger],
                        logging_type_list=['train', 'val'],
                        settings=settings)
-
+    # Save sigma scheduler and training steps per epoch for s_only_plotting
+    save_zipped_pickle('{}/training_steps_per_epoch'.format(s_dirs['model_dir']), training_steps_per_epoch)
+    save_zipped_pickle('{}/sigma_schedule_mapping'.format(s_dirs['model_dir']), sigma_schedule_mapping)
     # Network_l, training_steps_per_epoch is returned to be able to plot lr_scheduler
     return model_l, training_steps_per_epoch, sigma_schedule_mapping
 
@@ -288,6 +290,10 @@ if __name__ == '__main__':
             's_local_machine_mode': s_local_machine_mode,
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
+
+            # TODO: Implement!!
+            # 's_plotting_only': False, # If active loads sim s_plot_sim_name and runs plotting pipeline
+            # 's_plot_sim_name': '',
 
             's_max_epochs': 50, # Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
@@ -404,6 +410,8 @@ if __name__ == '__main__':
         settings['s_num_workers_data_loader'] = 0 # Debugging only works with zero workers
         settings['s_max_epochs'] = 1 # 3
         settings['s_num_gpus'] = 1
+
+        settings['s_multiple_sigmas'] = [2, 16]
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
     settings['s_num_lead_time_steps'] = settings['s_num_lead_time_steps'] - 2

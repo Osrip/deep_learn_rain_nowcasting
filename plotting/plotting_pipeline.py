@@ -53,3 +53,6 @@ def plotting_pipeline(model_l, sigma_schedule_mapping, training_steps_per_epoch,
         plot_images_outer(plot_images_settings, epoch=10, **plot_images_settings)
     # except Exception:
     #     warnings.warn('Image plotting encountered error!')
+
+
+
