@@ -4,7 +4,7 @@ from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
 from calc_from_checkpoint import plot_images_outer
 
 
-def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, settings, model_l, plot_lr_schedule=True,
+def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, settings, model_l, plot_lr_schedule_boo=True,
                       **__):
     '''
     Pipeline for automatic plotting of several figures
@@ -20,7 +20,8 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
     else:
         plot_qualities_main_several_sigmas(plot_metrics_settings, **plot_metrics_settings, **settings)
 
-    if settings['s_log_precipitation_difference']:
+    if settings['s_log_precipitation_difference'] and not settings['s_gaussian_smoothing_multiple_sigmas']:
+        # This does not yet work with s_gaussian_smoothing_multiple_sigmas
         plot_precipitation_diff(plot_metrics_settings, **plot_metrics_settings, **settings)
 
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
@@ -33,7 +34,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
 
     if settings['s_lr_schedule'] and plot_lr_schedule==True:
 
-        plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
+        plot_lr_schedule_boo(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
                          save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler',
                          ylog=True, **plot_lr_schedule_settings)
 
