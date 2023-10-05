@@ -4,7 +4,13 @@ from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
 from calc_from_checkpoint import plot_images_outer
 
 
-def plotting_pipeline(model_l, sigma_schedule_mapping, training_steps_per_epoch, s_dirs, settings, **__):
+def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, settings, model_l, plot_lr_schedule=True,
+                      **__):
+    '''
+    Pipeline for automatic plotting of several figures
+    For plot_lr_schedule=True, model_l is required, otherwise None can be passed for model_l
+    '''
+
     plot_metrics_settings = {
         'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name']
     }
@@ -25,7 +31,7 @@ def plotting_pipeline(model_l, sigma_schedule_mapping, training_steps_per_epoch,
     }
 
 
-    if settings['s_lr_schedule']:
+    if settings['s_lr_schedule'] and plot_lr_schedule==True:
 
         plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
                          save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler',

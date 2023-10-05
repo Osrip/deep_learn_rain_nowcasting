@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 
 import numpy as np
 from helper.helper_functions import save_zipped_pickle, save_dict_pickle_csv,\
-    save_tuple_pickle_csv, save_whole_project
+    save_tuple_pickle_csv, save_whole_project, load_zipped_pickle
 import os
 
 import pytorch_lightning as pl
@@ -206,8 +206,8 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
                        logging_type_list=['train', 'val'],
                        settings=settings)
     # Save sigma scheduler and training steps per epoch for s_only_plotting
-    save_zipped_pickle('{}/training_steps_per_epoch'.format(s_dirs['model_dir']), training_steps_per_epoch)
-    save_zipped_pickle('{}/sigma_schedule_mapping'.format(s_dirs['model_dir']), sigma_schedule_mapping)
+    save_zipped_pickle('{}/training_steps_per_epoch'.format(s_dirs['data_dir']), training_steps_per_epoch)
+    save_zipped_pickle('{}/sigma_schedule_mapping'.format(s_dirs['data_dir']), sigma_schedule_mapping)
     # Network_l, training_steps_per_epoch is returned to be able to plot lr_scheduler
     return model_l, training_steps_per_epoch, sigma_schedule_mapping
 
@@ -232,6 +232,25 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
     # Network_l is returned to be able to plot lr_scheduler
     return model_l
 
+def create_s_dirs(sim_name, s_local_machine_mode):
+
+    s_dirs = {}
+    if s_local_machine_mode:
+        s_dirs['save_dir'] = 'runs/{}'.format(sim_name)
+    else:
+        s_dirs['save_dir'] = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/{}'.format(sim_name)
+
+    # s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
+    s_dirs['plot_dir'] = '{}/plots'.format(s_dirs['save_dir'])
+    s_dirs['plot_dir_images'] = '{}/images'.format(s_dirs['plot_dir'])
+    s_dirs['model_dir'] = '{}/model'.format(s_dirs['save_dir'])
+    s_dirs['code_dir'] = '{}/code'.format(s_dirs['save_dir'])
+    s_dirs['profile_dir'] = '{}/profile'.format(s_dirs['save_dir'])
+    s_dirs['logs'] = '{}/logs'.format(s_dirs['save_dir'])
+    s_dirs['data_dir'] = '{}/data'.format(s_dirs['save_dir'])
+
+    return s_dirs
+
 
 if __name__ == '__main__':
 
@@ -244,7 +263,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = '' #'exp_sigma_schedule_no_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting' #'exp_sigma_schedule_no_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -265,25 +284,7 @@ if __name__ == '__main__':
 
     s_sim_name = s_sim_name + s_sim_name_suffix
 
-    s_dirs = {}
-    if s_local_machine_mode:
-        s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
-    else:
-        s_dirs['save_dir'] = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/{}'.format(s_sim_name)
-
-    # s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
-    s_dirs['plot_dir'] = '{}/plots'.format(s_dirs['save_dir'])
-    s_dirs['plot_dir_images'] = '{}/images'.format(s_dirs['plot_dir'])
-    s_dirs['model_dir'] = '{}/model'.format(s_dirs['save_dir'])
-    s_dirs['code_dir'] = '{}/code'.format(s_dirs['save_dir'])
-    s_dirs['profile_dir'] = '{}/profile'.format(s_dirs['save_dir'])
-    s_dirs['logs'] = '{}/logs'.format(s_dirs['save_dir'])
-    s_dirs['data_dir'] = '{}/data'.format(s_dirs['save_dir'])
-
-
-    for _, make_dir in s_dirs.items():
-        if not os.path.exists(make_dir):
-            os.makedirs(make_dir)
+    s_dirs = create_s_dirs(s_sim_name, s_local_machine_mode)
 
     settings = \
         {
@@ -292,8 +293,8 @@ if __name__ == '__main__':
             's_sim_same_suffix': s_sim_name_suffix,
 
             # TODO: Implement!!
-            # 's_plotting_only': False, # If active loads sim s_plot_sim_name and runs plotting pipeline
-            # 's_plot_sim_name': '',
+            's_plotting_only': True, # If active loads sim s_plot_sim_name and runs plotting pipeline
+            's_plot_sim_name': 'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
             's_max_epochs': 50, # Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
@@ -372,10 +373,12 @@ if __name__ == '__main__':
 
             # Logging Stuff
             's_model_every_n_epoch': 1, # Save model every nth epoch
-
-
-
         }
+
+    if not settings['s_plotting_only']:
+        for _, make_dir in s_dirs.items():
+            if not os.path.exists(make_dir):
+                os.makedirs(make_dir)
 
     if settings['s_no_plotting']:
         for en in ['s_plot_average_preds_boo', 's_plot_pixelwise_preds_boo', 's_plot_target_vs_pred_boo',
@@ -421,9 +424,18 @@ if __name__ == '__main__':
     # mlflow.pytorch.autolog()
     # mlflow.log_models = False
 
-    model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(settings, **settings)
+    if not settings['s_plotting_only']:
+        model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(settings, **settings)
+        plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, settings, model_l)
+    else:
+        load_dirs = create_s_dirs(settings['s_plot_sim_name'], settings['s_local_machine_mode'])
+        training_steps_per_epoch = load_zipped_pickle('{}/training_steps_per_epoch'.format(load_dirs['data_dir']))
+        sigma_schedule_mapping = load_zipped_pickle('{}/sigma_schedule_mapping'.format(load_dirs['data_dir']))
+        plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, load_dirs, settings, model_l=None,
+                          plot_lr_schedule=False)
 
-    plotting_pipeline(model_l, sigma_schedule_mapping, training_steps_per_epoch, s_dirs, settings)
+
+
 
 
 
