@@ -103,7 +103,7 @@ class MetResModule(nn.Module):
 class MetDilBlock(nn.Module):
     """
     The Dilation Block. Similar to MetNet2's Dilation Block
-    height, width reimain conserved, chanell number remains conserved
+    height, width reimain conserved, channel number remains conserved
     """
     def __init__(self, c_num: int, s_width_height: int, dilation: int, kernel_size: int, stride: int = 1):
         super().__init__()

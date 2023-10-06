@@ -3,6 +3,7 @@ import pytorch_lightning as pl
 
 from helper.memory_logging import print_gpu_memory, print_ram_usage
 from modules_blocks import Network
+from modules_blocks_ResNet import ResNet
 import torch.nn as nn
 from helper.helper_functions import one_hot_to_mm
 from helper.gaussian_smoothing_helper import gaussian_smoothing_target
@@ -21,11 +22,15 @@ class Network_l(pl.LightningModule):
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
                  s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
+                 s_resnet,
                  training_steps_per_epoch=None, **__):
         super().__init__()
         # self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
         #                      s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
-        self.model = Network(c_in=s_num_input_time_steps, **settings)
+        if not s_resnet:
+            self.model = Network(c_in=s_num_input_time_steps, **settings)
+        else:
+            self.model = ResNet(c_in=s_num_input_time_steps, **settings)
 
         self.model.to(device)
 
@@ -56,8 +61,6 @@ class Network_l(pl.LightningModule):
 
         self.train_step_num = 0
         self.val_step_num = 0
-
-
 
     def forward(self, x):
         output = self.model(x)
@@ -160,6 +163,7 @@ class Network_l(pl.LightningModule):
 
             log_prefixes = ['sigma_' + str(i) + '_' for i in self.s_multiple_sigmas]
 
+        # lognormalisierte preds!!
         for pred, log_prefix in zip(preds, log_prefixes):  # Iterating through predictions and log prefixes for the case of multiple sigmas, which correspinds to multiple predictions
 
             # self.log('train_loss', loss, on_step=False, on_epoch=True)

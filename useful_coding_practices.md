@@ -133,3 +133,7 @@ mamba env update -n phdenv -f phdenv.yml
 
 --> Diese Befehle direkt auf GPU node mit srun (conda unterstütz GPU parallelisierung)
 
+
+###### Conda env
+Currently working conda env on Cluster:
+first_CNN_on_Radolan_3

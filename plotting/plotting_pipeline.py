@@ -31,7 +31,6 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
         'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name'], # TODO: Solve conflicting name convention
     }
 
-
     if settings['s_lr_schedule'] and plot_lr_schedule==True:
 
         plot_lr_schedule_boo(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
@@ -52,6 +51,8 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
         'ps_device': settings['device'],
         'ps_checkpoint_name': None,  # If none take checkpoint of last epoch
         'ps_inv_normalize': False,
+        'ps_gaussian_smoothing_multiple_sigmas': settings['s_gaussian_smoothing_multiple_sigmas'],
+        'ps_multiple_sigmas': settings['s_multiple_sigmas'],
     }
 
     plot_images_outer(plot_images_settings, **plot_images_settings)

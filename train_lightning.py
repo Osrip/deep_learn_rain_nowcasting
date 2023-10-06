@@ -221,8 +221,15 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
     model_l = Network_l(linspace_binning_params, sigma_schedule_mapping, settings, training_steps_per_epoch = training_steps_per_epoch, **settings)
     save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
+    if settings['s_resnet']:
+        # Used due to bug
+        strategy = 'ddp_find_unused_parameters_true'
+    else:
+        strategy = 'ddp'
+    
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
-                         logger=logger, devices=num_gpus, strategy="ddp", check_val_every_n_epoch=check_val_every_n_epoch) # precision='16-mixed'
+                         logger=logger, devices=num_gpus, check_val_every_n_epoch=check_val_every_n_epoch,
+                         strategy=strategy)# strategy="ddp", # precision='16-mixed'
     # Speed up advice: https://pytorch-lightning.readthedocs.io/en/1.8.6/guides/speed.html
 
 
@@ -263,7 +270,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = 'TEST_PLOTTING_no_gaussian_blurring_2_4_8_16_with_plotting_fixed_plotting' #'exp_sigma_schedule_no_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'Test_ResNet' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -292,9 +299,11 @@ if __name__ == '__main__':
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
+            's_resnet': True, # Use ResNet instead of ours
+
             # TODO: Implement!!
-            's_plotting_only': True, # If active loads sim s_plot_sim_name and runs plotting pipeline
-            's_plot_sim_name': 'Run_20231005-151558TEST_no_gaussian_blurring_2_4_8_16_with_plotting_fixed_plotting', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            's_plotting_only': False, # If active loads sim s_plot_sim_name and runs plotting pipeline
+            's_plot_sim_name': 'Run_20231004-201104_ID_4339283several_sigmas_2_4_8_16_with_plotting_fixed_plotting', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
             's_max_epochs': 50, # Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
@@ -334,10 +343,10 @@ if __name__ == '__main__':
             's_dirs': s_dirs,
             'device': device,
             's_learning_rate': 0.001,  # 0.0001
-            's_lr_schedule': True  ,  # enables lr scheduler, takes s_learning_rate as initial rate
+            's_lr_schedule': False  ,  # enables lr scheduler, takes s_learning_rate as initial rate
 
             # Gaussian smoothing
-            's_gaussian_smoothing_target': True,
+            's_gaussian_smoothing_target': False,
             's_sigma_target_smoothing': 5,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
             's_gaussian_smoothing_multiple_sigmas': False, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing
