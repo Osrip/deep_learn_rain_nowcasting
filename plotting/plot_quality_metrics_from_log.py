@@ -353,20 +353,20 @@ def plot_qualities_main_several_sigmas(plot_settings, ps_sim_name, s_gaussian_sm
                         base_linestyle_list=['-', '--'],
                         title='FSS scale {:03d} on lognorm data'.format(scale), **plot_settings)
 
-        key_list_train_xentropy = ['train_loss']
-        key_list_val_xentropy = ['val_loss']
+    key_list_train_xentropy = ['train_loss']
+    key_list_val_xentropy = ['val_loss']
 
-        # if s_gaussian_smoothing_target:
-        #     loss_ylog = False
-        #     loss_ylabel = 'KL Divergence'
-        #     loss_title = 'KL divergence on lognorm data'
-        # else:
-        loss_ylog = True
-        loss_title = 'Xentropy on lognorm data'
-        loss_ylabel = 'Xentropy'
+    # if s_gaussian_smoothing_target:
+    #     loss_ylog = False
+    #     loss_ylabel = 'KL Divergence'
+    #     loss_title = 'KL divergence on lognorm data'
+    # else:
+    loss_ylog = True
+    loss_title = 'Xentropy on lognorm data'
+    loss_ylabel = 'Xentropy'
 
-        line_plot(train_df, val_df, None, None, key_list_train_xentropy, key_list_val_xentropy, None, None,
-                  ylabel=loss_ylabel, ylog=loss_ylog, save_name='xentropy_loss', title=loss_title, **plot_settings)
+    line_plot(train_df, val_df, None, None, key_list_train_xentropy, key_list_val_xentropy, None, None,
+              ylabel=loss_ylabel, ylog=loss_ylog, save_name='xentropy_loss', title=loss_title, **plot_settings)
 
 
 def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target, s_fss_scales, s_calc_baseline, s_calculate_fss,
@@ -406,20 +406,20 @@ def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target,
                         base_linestyle_list=['-', '--'],
                         title='FSS scale {:03d} on lognorm data'.format(scale), **plot_settings)
 
-        key_list_train_xentropy = ['train_loss']
-        key_list_val_xentropy = ['val_loss']
+    key_list_train_xentropy = ['train_loss']
+    key_list_val_xentropy = ['val_loss']
 
-        # if s_gaussian_smoothing_target:
-        #     loss_ylog = False
-        #     loss_ylabel = 'KL Divergence'
-        #     loss_title = 'KL divergence on lognorm data'
-        # else:
-        loss_ylog = True
-        loss_title = 'Xentropy on lognorm data'
-        loss_ylabel = 'Xentropy'
+    # if s_gaussian_smoothing_target:
+    #     loss_ylog = False
+    #     loss_ylabel = 'KL Divergence'
+    #     loss_title = 'KL divergence on lognorm data'
+    # else:
+    loss_ylog = True
+    loss_title = 'Xentropy on lognorm data'
+    loss_ylabel = 'Xentropy'
 
-        line_plot(train_df, val_df, None, None, key_list_train_xentropy, key_list_val_xentropy, None, None,
-                  ylabel=loss_ylabel, ylog=loss_ylog, save_name='xentropy_loss', title=loss_title, **plot_settings)
+    line_plot(train_df, val_df, None, None, key_list_train_xentropy, key_list_val_xentropy, None, None,
+              ylabel=loss_ylabel, ylog=loss_ylog, save_name='xentropy_loss', title=loss_title, **plot_settings)
 
 
 def plot_precipitation_diff(plot_settings, ps_sim_name, **__):

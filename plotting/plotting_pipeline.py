@@ -31,9 +31,9 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
         'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name'], # TODO: Solve conflicting name convention
     }
 
-    if settings['s_lr_schedule'] and plot_lr_schedule==True:
+    if settings['s_lr_schedule'] and plot_lr_schedule_boo:
 
-        plot_lr_schedule_boo(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
+        plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
                          save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler',
                          ylog=True, **plot_lr_schedule_settings)
 
