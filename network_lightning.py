@@ -236,9 +236,9 @@ class Network_l(pl.LightningModule):
                 # Only calculate FSS for the prediction with the smallest sigma
                 pred = preds[np.argmin(self.s_multiple_sigmas)]
 
-                pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-                                        mean_bin_vals=True)
-                pred_mm = torch.tensor(pred_mm, device=self.s_device)
+            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                    mean_bin_vals=True)
+            pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
             fss = verification.get_method("FSS")
             target_np = target.detach().cpu().numpy()
@@ -387,35 +387,42 @@ class Network_l(pl.LightningModule):
                     self.log('val_{}mse_persistence_target'.format(log_prefix), mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
                     # mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item())
 
-            if self.s_calculate_fss:
-                if self.s_gaussian_smoothing_multiple_sigmas:
-                    fss = verification.get_method("FSS")
-                    target_np = target.detach().cpu().numpy()
-                    pred_mm_np = pred_mm.detach().cpu().numpy()
+        if self.s_calculate_fss:
+            if self.s_gaussian_smoothing_multiple_sigmas:
+                # Only calculate FSS for the prediction with the smallest sigma
+                pred = preds[np.argmin(self.s_multiple_sigmas)]
 
-                    for fss_scale in self.s_fss_scales:
+            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                    mean_bin_vals=True)
+            pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
-                        fss_pred_target = np.nanmean([fss(pred_mm_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
-                                                   for batch_num in range(np.shape(target_np)[0])])
-                        self.log('val_{}fss_scale_{:03d}_pred_target'.format(log_prefix, fss_scale), fss_pred_target, on_step=False, on_epoch=True, sync_dist=True)
+            fss = verification.get_method("FSS")
+            target_np = target.detach().cpu().numpy()
+            pred_mm_np = pred_mm.detach().cpu().numpy()
 
-                        fss_persistence_target = np.nanmean([fss(persistence[batch_num, :, :].cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
-                                                          for batch_num in range(np.shape(target_np)[0])])
-                        self.log('val_{}fss_scale_{:03d}_persistence_target'.format(log_prefix, fss_scale), fss_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
+            for fss_scale in self.s_fss_scales:
 
-                        fss_zeros_target = np.nanmean([fss(np.zeros(target_np[batch_num, :, :].shape), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
-                                                    for batch_num in range(np.shape(target_np)[0])])
-                        self.log('val_{}fss_scale_{:03d}_zeros_target'.format(log_prefix, fss_scale), fss_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
+                fss_pred_target = np.nanmean([fss(pred_mm_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                                           for batch_num in range(np.shape(target_np)[0])])
+                self.log('val_{}fss_scale_{:03d}_pred_target'.format(log_prefix, fss_scale), fss_pred_target, on_step=False, on_epoch=True, sync_dist=True)
 
-            if self.s_log_precipitation_difference:
-                with torch.no_grad():
-                    mean_pred_diff = torch.mean(pred_mm - target).item()
-                    mean_pred = torch.mean(pred_mm).item()
-                    mean_target = torch.mean(target).item()
+                fss_persistence_target = np.nanmean([fss(persistence[batch_num, :, :].cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                                                  for batch_num in range(np.shape(target_np)[0])])
+                self.log('val_{}fss_scale_{:03d}_persistence_target'.format(log_prefix, fss_scale), fss_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
 
-                self.log('val_{}mean_diff_pred_target_mm'.format(log_prefix), mean_pred_diff, on_step=False, on_epoch=True, sync_dist=True)
-                self.log('val_{}mean_pred_mm'.format(log_prefix), mean_pred, on_step=False, on_epoch=True, sync_dist=True)
-                self.log('val_{}mean_target_mm'.format(log_prefix), mean_target, on_step=False, on_epoch=True, sync_dist=True)
+                fss_zeros_target = np.nanmean([fss(np.zeros(target_np[batch_num, :, :].shape), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                                            for batch_num in range(np.shape(target_np)[0])])
+                self.log('val_{}fss_scale_{:03d}_zeros_target'.format(log_prefix, fss_scale), fss_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
+
+        if self.s_log_precipitation_difference:
+            with torch.no_grad():
+                mean_pred_diff = torch.mean(pred_mm - target).item()
+                mean_pred = torch.mean(pred_mm).item()
+                mean_target = torch.mean(target).item()
+
+            self.log('val_{}mean_diff_pred_target_mm'.format(log_prefix), mean_pred_diff, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_{}mean_pred_mm'.format(log_prefix), mean_pred, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_{}mean_target_mm'.format(log_prefix), mean_target, on_step=False, on_epoch=True, sync_dist=True)
 
         # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
         # pred_mm = torch.from_numpy(pred_mm).detach()

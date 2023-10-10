@@ -337,7 +337,7 @@ def plot_qualities_main_several_sigmas(plot_settings, ps_sim_name, s_gaussian_sm
               base_linestyle_list=['-', '--'],
               title='MSE on lognorm data', **plot_settings,)
 
-    if s_calculate_fss and False:
+    if s_calculate_fss:
         # This does not yet work with s_gaussian_smoothing_multiple_sigmas
         for scale in s_fss_scales:
             key_list_train_fss = ['train_fss_scale_{:03d}_pred_target'.format(scale), 'train_fss_scale_{:03d}_zeros_target'.format(scale),
