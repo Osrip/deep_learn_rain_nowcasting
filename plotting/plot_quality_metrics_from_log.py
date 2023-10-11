@@ -51,12 +51,13 @@ def plot_mse_light(mean_mses, label_list, save_path_name, title=''):
 def plot_mse_heavy(mean_mses, base_mean_mses, label_list, base_label_list, linestyle_list, base_linestyle_list,
                    color_list, base_color_list, save_path_name, ylabel='MSE', ylog=True, title=''):
     plt.figure()
+    ax = plt.subplot(111)
     for mses, label, linestyle, color in zip(mean_mses, label_list, linestyle_list, color_list):
-        plt.plot(mses, label=label, linestyle=linestyle, color=color)
+        ax.plot(mses, label=label, linestyle=linestyle, color=color)
 
 
     for base_mean_mse, base_label, linestyle, color in zip(base_mean_mses, base_label_list, base_linestyle_list, base_color_list):
-        plt.axhline(y=base_mean_mse, label=base_label, linestyle=linestyle, color=color)
+        ax.axhline(y=base_mean_mse, label=base_label, linestyle=linestyle, color=color)
 
     plt.title(title)
     plt.xlabel('Epoch')
@@ -64,13 +65,37 @@ def plot_mse_heavy(mean_mses, base_mean_mses, label_list, base_label_list, lines
 
     if ylog:
         plt.yscale('log')
-    plt.legend()
+
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
     plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
     plt.show(block=False)
 
     plt.close("all")
     plt.close()
     gc.collect()
+
+    # plt.figure()
+    # for mses, label, linestyle, color in zip(mean_mses, label_list, linestyle_list, color_list):
+    #     plt.plot(mses, label=label, linestyle=linestyle, color=color)
+    #
+    #
+    # for base_mean_mse, base_label, linestyle, color in zip(base_mean_mses, base_label_list, base_linestyle_list, base_color_list):
+    #     plt.axhline(y=base_mean_mse, label=base_label, linestyle=linestyle, color=color)
+    #
+    # plt.title(title)
+    # plt.xlabel('Epoch')
+    # plt.ylabel(ylabel)
+    #
+    # if ylog:
+    #     plt.yscale('log')
+    # plt.legend()
+    # plt.savefig(save_path_name, dpi=200, bbox_inches='tight')
+    # plt.show(block=False)
+    #
+    # plt.close("all")
+    # plt.close()
+    # gc.collect()
 
 
 def plot_losses(losses, validation_losses, save_path_name):
@@ -347,7 +372,7 @@ def plot_qualities_main_several_sigmas(plot_settings, ps_sim_name, s_gaussian_sm
             key_list_base_train_fss = ['base_train_fss_scale_{:03d}_pred_target'.format(scale)]
             key_list_base_val_fss = ['base_val_fss_scale_{:03d}_pred_target'.format(scale)]
             line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train_fss, key_list_val_fss, key_list_base_train_fss,
-                      key_list_base_val_fss, save_name='fss_scale_{:03d}'.format(scale),
+                      key_list_base_val_fss, save_name='fss_scale_{:03d}'.format(scale), ylog=False, ylabel='FSS',
                         color_list=['g', 'y', 'b', 'g', 'y', 'b'], base_color_list=['red', 'red'],
                         linestyle_list=['-', '-', '-', '--', '--', '--'],
                         base_linestyle_list=['-', '--'],
@@ -400,7 +425,7 @@ def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target,
             key_list_base_train_fss = ['base_train_fss_scale_{:03d}_pred_target'.format(scale)]
             key_list_base_val_fss = ['base_val_fss_scale_{:03d}_pred_target'.format(scale)]
             line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train_fss, key_list_val_fss, key_list_base_train_fss,
-                      key_list_base_val_fss, save_name='fss_scale_{:03d}'.format(scale),
+                      key_list_base_val_fss, save_name='fss_scale_{:03d}'.format(scale), ylog=False, ylabel='FSS',
                         color_list=['g', 'y', 'b', 'g', 'y', 'b'], base_color_list=['red', 'red'],
                         linestyle_list=['-', '-', '-', '--', '--', '--'],
                         base_linestyle_list=['-', '--'],
