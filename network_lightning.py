@@ -7,6 +7,7 @@ from modules_blocks_ResNet import ResNet
 import torch.nn as nn
 from helper.helper_functions import one_hot_to_mm
 from helper.gaussian_smoothing_helper import gaussian_smoothing_target
+from helper.sigma_scheduler_helper import bernstein_polynomial, linear_schedule_0_to_1
 import torchvision.transforms as T
 import copy
 from pysteps import verification
@@ -124,6 +125,7 @@ class Network_l(pl.LightningModule):
                 smoothed_targets.append(gaussian_smoothing_target(target_one_hot_extended, device=self.s_device,
                                                           sigma=sigma,
                                                           kernel_size=128).float())
+
         elif self.s_gaussian_smoothing_target:
             if self.s_schedule_sigma_smoothing:
                 curr_sigma = self.sigma_schedule_mapping[self.train_step_num]
@@ -157,9 +159,17 @@ class Network_l(pl.LightningModule):
 
             preds = self(input_sequence)
             losses = []
-            for pred_sig, target_binned_sig, log_prefix in zip(preds, smoothed_targets, log_prefixes):
+            for i, (pred_sig, target_binned_sig, log_prefix) in enumerate(zip(preds, smoothed_targets, log_prefixes)):
+                # Invert i to start with large value in schedule of the largest sigma
+                inverted_i = len(self.s_multiple_sigmas) - i - 1
+                if self.s_schedule_sigma_smoothing:
+                    loss = nn.CrossEntropyLoss()(pred_sig, target_binned_sig)
+                    x = linear_schedule_0_to_1(self.current_epoch, self.s_max_epochs)
+                    weight_curr_sigma = bernstein_polynomial(inverted_i, len(self.s_multiple_sigmas), x)
+                    losses.append(loss * weight_curr_sigma)
+                else:
+                    losses.append(nn.CrossEntropyLoss()(pred_sig, target_binned_sig))
 
-                losses.append(nn.CrossEntropyLoss()(pred_sig, target_binned_sig))
 
                 linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
 
@@ -191,7 +201,6 @@ class Network_l(pl.LightningModule):
         log_prefix = ''
         self.log('train_{}loss'.format(log_prefix), loss, on_step=False,
                 on_epoch=True, sync_dist=True)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
-
 
 
         # lognormalisierte preds!!
@@ -315,8 +324,17 @@ class Network_l(pl.LightningModule):
 
             preds = self(input_sequence)
             losses = []
-            for pred_sig, target_binned_sig, log_prefix in zip(preds, smoothed_targets, log_prefixes):
-                losses.append(nn.CrossEntropyLoss()(pred_sig, target_binned_sig))
+            for i, (pred_sig, target_binned_sig, log_prefix) in enumerate(zip(preds, smoothed_targets, log_prefixes)):
+                # Invert i to start with large value in schedule of the largest sigma
+                inverted_i = len(self.s_multiple_sigmas) - i - 1
+                if self.s_schedule_sigma_smoothing:
+                    loss = nn.CrossEntropyLoss()(pred_sig, target_binned_sig)
+                    x = linear_schedule_0_to_1(self.current_epoch, self.s_max_epochs)
+                    weight_curr_sigma = bernstein_polynomial(inverted_i, len(self.s_multiple_sigmas), x)
+                    losses.append(loss * weight_curr_sigma)
+                else:
+                    losses.append(nn.CrossEntropyLoss()(pred_sig, target_binned_sig))
+
 
                 linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
 

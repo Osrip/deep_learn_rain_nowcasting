@@ -191,7 +191,8 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
 
     if s_gaussian_smoothing_target and s_schedule_sigma_smoothing:
 
-        sigma_schedule_mapping, sigma_scheduler = create_scheduler_mapping(training_steps_per_epoch, s_max_epochs, s_sigma_target_smoothing)
+        sigma_schedule_mapping, sigma_scheduler = create_scheduler_mapping(training_steps_per_epoch, s_max_epochs,
+                                                                           s_sigma_target_smoothing, **settings)
     else:
         sigma_schedule_mapping, sigma_scheduler = (None, None)
 
@@ -232,7 +233,6 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
                          strategy=strategy)# strategy="ddp", # precision='16-mixed'
     # Speed up advice: https://pytorch-lightning.readthedocs.io/en/1.8.6/guides/speed.html
 
-
     # trainer.logger = logger
     trainer.fit(model_l, train_data_loader, validation_data_loader)
 
@@ -270,7 +270,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = False
 
-    s_sim_name_suffix = 'Several_seperate_sigmas_rerun_no_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'Several_seperate_sigmas_bernstein_schedule_no_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -346,11 +346,12 @@ if __name__ == '__main__':
             's_lr_schedule': False  ,  # enables lr scheduler, takes s_learning_rate as initial rate
 
             # Gaussian smoothing
-            's_gaussian_smoothing_target': True,
+            's_gaussian_smoothing_target': False,
             's_sigma_target_smoothing': 16,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
             's_gaussian_smoothing_multiple_sigmas': True, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing
             's_multiple_sigmas': [2, 4, 8, 16], # List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
+            's_schedule_multiple_sigmas': True, # Schedule multiple sigmas with bernstein polynomial
 
             # Logging
             's_calc_baseline': True, # Baselines are calculated and plotted
