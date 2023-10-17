@@ -116,7 +116,7 @@ class Network_l(pl.LightningModule):
         # Todo: get rid of float conversion? do this in filter already?
 
         # TODO: Should this be done in data loading such that workers can distribute compute?
-        global_training_step = self.trainer.global_step  # Does this include validation steps??!!!!
+        global_training_step = self.trainer.global_step  # Does this include validation steps?
         #  SEE: https://github.com/Lightning-AI/lightning/discussions/8007
 
         if self.s_gaussian_smoothing_multiple_sigmas:
@@ -244,6 +244,9 @@ class Network_l(pl.LightningModule):
             if self.s_gaussian_smoothing_multiple_sigmas:
                 # Only calculate FSS for the prediction with the smallest sigma
                 pred = preds[np.argmin(self.s_multiple_sigmas)]
+
+            # TODO: UNNORMALIZE THIS BEFORE CALCULATING QUALITY METRICS!!! NOT IMPORTANT FOR MSE BUT FOR FSS (--> Threshold)!!!!!!
+            # TODO ALTERRNATIVELY USE LOGNORMALIZED FSS!!!
 
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                     mean_bin_vals=True)
