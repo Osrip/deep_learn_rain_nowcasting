@@ -1,6 +1,7 @@
 import torch
 import pytorch_lightning as pl
 
+from load_data import inverse_normalize_data
 from helper.memory_logging import print_gpu_memory, print_ram_usage
 from modules_blocks import Network
 from modules_blocks_ResNet import ResNet
@@ -19,12 +20,16 @@ import warnings
 
 
 class Network_l(pl.LightningModule):
-    def __init__(self, linspace_binning_params, sigma_schedule_mapping, settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
+    def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict, settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
                  s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
                  s_resnet,
                  training_steps_per_epoch=None, **__):
+        '''
+        Both data_set_statistics_dict and  sigma_schedule_mapping can be None if no training, but only forward pass is performed (for checkpoint loading)
+        '''
+
         super().__init__()
         # self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
         #                      s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
@@ -38,6 +43,18 @@ class Network_l(pl.LightningModule):
         self.sigma_schedule_mapping = sigma_schedule_mapping
         self.s_schedule_sigma_smoothing = s_schedule_sigma_smoothing
         self.s_sigma_target_smoothing = s_sigma_target_smoothing
+
+        # data_set_statistics_dict can be None if no training, but only forward pass is performed (for checkpoint loading)
+        if data_set_statistics_dict is None:
+            self.mean_train_data_set = None
+            self.std_train_data_set = None
+            self.mean_val_data_set = None
+            self.std_val_data_set = None
+        else:
+            self.mean_train_data_set = data_set_statistics_dict['mean_train_data_set']
+            self.std_train_data_set = data_set_statistics_dict['std_train_data_set']
+            self.mean_val_data_set = data_set_statistics_dict['mean_val_data_set']
+            self.std_val_data_set = data_set_statistics_dict['std_val_data_set']
 
         self.s_learning_rate = s_learning_rate
         self.s_width_height_target = s_width_height_target
@@ -175,6 +192,10 @@ class Network_l(pl.LightningModule):
 
                 pred_mm = one_hot_to_mm(pred_sig, linspace_binning, linspace_binning_max, channel_dim=1,
                                         mean_bin_vals=True)
+
+                # Inverse normalize data
+                pred_mm = inverse_normalize_data(pred_mm, self.mean_train_data_set, self.std_train_data_set)
+
                 pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
                 target_mm_sig = one_hot_to_mm(target_binned_sig, linspace_binning, linspace_binning_max, channel_dim=1,
@@ -343,7 +364,12 @@ class Network_l(pl.LightningModule):
 
                 pred_mm = one_hot_to_mm(pred_sig, linspace_binning, linspace_binning_max, channel_dim=1,
                                         mean_bin_vals=True)
+
+                # Inverse normalize data
+                pred_mm = inverse_normalize_data(pred_mm, self.mean_val_data_set, self.std_val_data_set)
+
                 pred_mm = torch.tensor(pred_mm, device=self.s_device)
+
 
 
                 target_mm_sig = one_hot_to_mm(target_binned_sig, linspace_binning, linspace_binning_max, channel_dim=1,

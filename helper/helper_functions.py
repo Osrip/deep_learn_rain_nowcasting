@@ -78,9 +78,6 @@ def one_hot_to_mm(one_hot_tensor, linspace_binning, linspace_binning_max, channe
     return mm_data
 
 
-
-
-
 def save_zipped_pickle(title, data):
     '''
     Compresses data and saves it
@@ -95,11 +92,11 @@ def load_zipped_pickle(file):
     return data
 
 
-def save_dict_pickle_csv(save_dict, folder, file_name):
-    with open('{}/{}.csv'. format(folder, file_name), 'w') as f:
+def save_dict_pickle_csv(title, save_dict):
+    with open('{}.csv'. format(title), 'w') as f:
         for key in save_dict.keys():
             f.write("%s,%s\n" % (key, save_dict[key]))
-    save_zipped_pickle('{}/{}'.format(folder, file_name), save_dict)
+    save_zipped_pickle('{}'.format(title), save_dict)
 
 
 def save_tuple_pickle_csv(save_dict, folder, file_name):

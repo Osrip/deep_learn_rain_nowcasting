@@ -66,6 +66,8 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     num_training_samples = int(len(filtered_indecies) * s_ratio_training_data)
     num_validation_samples = len(filtered_indecies) - num_training_samples
 
+    # Randomly split indecies into training and validation indecies, conserving a chunk size of s_data_loader_chunk_size
+    # to prevent that validation data can be solved by overfitting / learning by heart
     filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
         filtered_indecies, num_training_samples, num_validation_samples, s_data_loader_chunk_size)
 
@@ -87,6 +89,17 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
                                                        linspace_binning_min, linspace_binning_max, linspace_binning,
                                                        transform_f, **settings)
 
+    mean_train_data_set = train_data_set.mean_filtered_data
+    std_train_data_set = train_data_set.std_filtered_data
+
+    mean_val_data_set = validation_data_set.mean_filtered_data
+    std_val_data_set = validation_data_set.std_filtered_data
+
+    data_set_statistcis_dict = {'mean_train_data_set': mean_train_data_set,
+                                'std_train_data_set': std_train_data_set,
+                                'mean_val_data_set': mean_val_data_set,
+                                'std_val_data_set': std_val_data_set}
+
     training_steps_per_epoch = len(train_data_set)
 
     sampler = WeightedRandomSampler(weights=target_mean_weights, num_samples=training_steps_per_epoch, replacement=True)
@@ -98,10 +111,8 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     train_data_loader = DataLoader(train_data_set, sampler=sampler, batch_size=s_batch_size, drop_last=True,
                                    num_workers=s_num_workers_data_loader, pin_memory=True)
 
-
     validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=False, drop_last=True,
                                         num_workers=s_num_workers_data_loader, pin_memory=True)
-
 
     print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
                                                                                                  num_training_samples,
@@ -112,8 +123,10 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     linspace_binning_params = (linspace_binning_min, linspace_binning_max, linspace_binning)
     # tODO: RETURN filtered indecies instead of data set
     return train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,\
-        linspace_binning_params, filter_and_normalization_params, training_steps_per_epoch
+        linspace_binning_params, filter_and_normalization_params, training_steps_per_epoch,\
+        data_set_statistcis_dict
     # training_steps_per_epoch only needed for lr_schedule_plotting
+
 
 def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_type_list, settings, **__):
     '''
@@ -143,7 +156,7 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     '''
     train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)
 
-    save_dict_pickle_csv(settings, s_dirs['data_dir'], 'settings')
+    save_dict_pickle_csv('{}/settings'.format(s_dirs['data_dir']), settings)
 
     save_whole_project(s_dirs['code_dir'])
 
@@ -165,7 +178,11 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
         transform_f = lambda x: x
 
     train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation, linspace_binning_params, \
-        filer_and_normalization_params, training_steps_per_epoch = data_loading(transform_f, settings, **settings)
+        filer_and_normalization_params, training_steps_per_epoch,\
+        data_set_statistics_dict,\
+        = data_loading(transform_f, settings, **settings)
+
+    save_dict_pickle_csv('{}/data_set_statistcis_dict'.format(s_dirs['data_dir']), data_set_statistics_dict)
 
     save_zipped_pickle('{}/filtered_indecies_training'.format(s_dirs['data_dir']), filtered_indecies_training)
     save_zipped_pickle('{}/filtered_indecies_validation'.format(s_dirs['data_dir']), filtered_indecies_validation)
@@ -175,9 +192,6 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
 
     # Save linspace params
     save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')
-
-
-
 
     # eNABLE MLFLOW LOGGING HERE!
     # logger = MLFlowLogger(experiment_name="Default", tracking_uri="file:./mlruns", run_name=s_sim_name, # tags={"mlflow.runName": settings['s_sim_name']},
@@ -196,9 +210,9 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     else:
         sigma_schedule_mapping, sigma_scheduler = (None, None)
 
-    model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch, s_max_epochs,
-            linspace_binning_params, s_dirs['data_dir'], s_num_gpus, sigma_schedule_mapping, s_check_val_every_n_epoch,
-                      settings)
+    model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
+                      data_set_statistics_dict ,s_max_epochs, linspace_binning_params, s_dirs['data_dir'], s_num_gpus,
+                      sigma_schedule_mapping, s_check_val_every_n_epoch, settings)
 
     if s_calc_baseline:
         calc_baselines(data_loader_list=[train_data_loader, validation_data_loader],
@@ -214,12 +228,13 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
 
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-            max_epochs, linspace_binning_params, data_dir, num_gpus, sigma_schedule_mapping, check_val_every_n_epoch, settings):
+            data_set_statistics_dict, max_epochs, linspace_binning_params, data_dir, num_gpus, sigma_schedule_mapping, check_val_every_n_epoch, settings):
     '''
     Train loop, keep this clean!
     '''
 
-    model_l = Network_l(linspace_binning_params, sigma_schedule_mapping, settings, training_steps_per_epoch = training_steps_per_epoch, **settings)
+    model_l = Network_l(linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict, settings,
+                        training_steps_per_epoch = training_steps_per_epoch, **settings)
     save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
     if settings['s_resnet']:
@@ -268,9 +283,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
-    s_sim_name_suffix = 'ResNet_run_no_gaussian_blurring_with_exp_lr_schedule' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'TEST' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)

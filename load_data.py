@@ -319,6 +319,9 @@ def filter(input_sequence, target, s_min_rain_ratio_target, percentage=0.5, min_
 
 
 def normalize_data(data_sequence, mean_data=None, std_data=None):
+    '''
+    Normalizing data, NO LOG TRANSFORMATION
+    '''
     flattened_data = data_sequence.flatten()
     if mean_data is None:
         mean_data = np.mean(flattened_data)
@@ -330,14 +333,29 @@ def normalize_data(data_sequence, mean_data=None, std_data=None):
 def inverse_normalize_data(data_sequence, mean_orig_data, std_orig_data, inverse_log=True, inverse_normalize=True):
     '''
     Assumes that the original data has been logtransformed first and subsequently normalized to standard normal
+    Works for torch tensors and numpy arrays
     '''
 
-    if inverse_normalize:
-        data_sequence = data_sequence * std_orig_data + mean_orig_data
-    if inverse_log:
-        data_sequence = np.exp(data_sequence) - 1
+    if isinstance(data_sequence, torch.Tensor):
+        # If input is a torch tensor
+        if inverse_normalize:
+            data_sequence = data_sequence * std_orig_data + mean_orig_data
+        if inverse_log:
+            data_sequence = torch.exp(data_sequence) - 1
+
+    elif isinstance(data_sequence, np.ndarray):
+        # If input is a numpy array
+        if inverse_normalize:
+            data_sequence = data_sequence * std_orig_data + mean_orig_data
+        if inverse_log:
+            data_sequence = np.exp(data_sequence) - 1
+
+    else:
+        raise ValueError("Unsupported data type. Please provide a torch tensor or a numpy array.")
 
     return data_sequence
+
+
 
     # if inverse_log:
     #     inverse_normalized = data_sequence * std_orig_data + mean_orig_data
