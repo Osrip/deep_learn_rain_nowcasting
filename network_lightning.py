@@ -246,7 +246,7 @@ class Network_l(pl.LightningModule):
                 pred = preds[np.argmin(self.s_multiple_sigmas)]
 
             # TODO: UNNORMALIZE THIS BEFORE CALCULATING QUALITY METRICS!!! NOT IMPORTANT FOR MSE BUT FOR FSS (--> Threshold)!!!!!!
-            # TODO ALTERRNATIVELY USE LOGNORMALIZED FSS!!!
+            # TODO ALTERRNATIVELY USE LOGNORMALIZED THRESHOLD!!!
 
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                     mean_bin_vals=True)
