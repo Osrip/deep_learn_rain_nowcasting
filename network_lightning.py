@@ -130,6 +130,10 @@ class Network_l(pl.LightningModule):
         # TODO: DOES THIS BS WORKAROUND WORK??
         self.train_step_num += 1
         input_sequence, target_binned, target, target_one_hot_extended = batch
+
+        input_sequence = inverse_normalize_data(input_sequence, self.mean_train_data_set, self.std_train_data_set)
+        target = inverse_normalize_data(target, self.mean_train_data_set, self.std_train_data_set)
+
         # Todo: get rid of float conversion? do this in filter already?
 
         # TODO: Should this be done in data loading such that workers can distribute compute?
@@ -200,6 +204,7 @@ class Network_l(pl.LightningModule):
 
                 target_mm_sig = one_hot_to_mm(target_binned_sig, linspace_binning, linspace_binning_max, channel_dim=1,
                                         mean_bin_vals=True)
+                target_mm_sig = inverse_normalize_data(target_mm_sig, self.mean_train_data_set, self.std_train_data_set)
 
                 target_mm_sig = torch.tensor(target_mm_sig, device=self.s_device)
                 # Calculate MSE for each blurred target
@@ -322,6 +327,9 @@ class Network_l(pl.LightningModule):
         self.val_step_num += 1
         input_sequence, target_binned, target, target_one_hot_extended = val_batch
 
+        input_sequence = inverse_normalize_data(input_sequence, self.mean_val_data_set, self.std_val_data_set)
+        target = inverse_normalize_data(target, self.mean_val_data_set, self.std_val_data_set)
+
         if self.s_gaussian_smoothing_multiple_sigmas:
             smoothed_targets = []
             for sigma in self.s_multiple_sigmas:
@@ -380,6 +388,7 @@ class Network_l(pl.LightningModule):
 
                 target_mm_sig = one_hot_to_mm(target_binned_sig, linspace_binning, linspace_binning_max, channel_dim=1,
                                         mean_bin_vals=True)
+                target_mm_sig = inverse_normalize_data(target_mm_sig, self.mean_val_data_set, self.std_val_data_set)
                 target_mm_sig = torch.tensor(target_mm_sig, device=self.s_device)
 
                 # MSE

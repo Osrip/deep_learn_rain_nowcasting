@@ -5,23 +5,30 @@ import pysteps.motion as motion
 from pysteps import nowcasts
 from pysteps import verification
 import numpy as np
+from load_data import inverse_normalize_data
 from helper.helper_functions import one_hot_to_mm
 
 class LKBaseline(pl.LightningModule):
     '''
     Optical Flow baseline (PySteps)
     '''
-    def __init__(self, logging_type, s_num_lead_time_steps, s_calculate_fss, s_fss_scales, s_fss_threshold, device, **__):
+    def __init__(self, logging_type, mean_filtered_data, std_filtered_data, s_num_lead_time_steps, s_calculate_fss,
+                 s_fss_scales, s_fss_threshold, device, **__):
         '''
         logging_type depending on data loader either: 'train' or 'val'
         '''
         super().__init__()
         self.logging_type = logging_type
+        self.mean_filtered_data = mean_filtered_data
+        self.std_filtered_data = std_filtered_data
+
+        # Settings
         self.s_num_lead_time_steps = s_num_lead_time_steps
         self.s_calculate_fss = s_calculate_fss
         self.s_fss_scales = s_fss_scales
         self.s_fss_threshold = s_fss_threshold
         self.s_device = device
+
 
 
     def forward(self, frames):
@@ -53,6 +60,11 @@ class LKBaseline(pl.LightningModule):
         input_sequence, target_binned, target, target_one_hot_extended = val_batch
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
+
+        # TODO: Coneverting to numpy, as torch inverse normalization does not work
+        target_np = target.detach().cpu().numpy()
+        target_np = inverse_normalize_data(target_np, self.mean_filtered_data, self.std_filtered_data)
+        target = torch.from_numpy(target_np).to(self.s_device)
 
         pred, _, _ = self(input_sequence)
 

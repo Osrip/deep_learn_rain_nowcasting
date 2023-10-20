@@ -95,7 +95,7 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     mean_val_data_set = validation_data_set.mean_filtered_data
     std_val_data_set = validation_data_set.std_filtered_data
 
-    data_set_statistcis_dict = {'mean_train_data_set': mean_train_data_set,
+    data_set_statistics_dict = {'mean_train_data_set': mean_train_data_set,
                                 'std_train_data_set': std_train_data_set,
                                 'mean_val_data_set': mean_val_data_set,
                                 'std_val_data_set': std_val_data_set}
@@ -124,11 +124,12 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     # tODO: RETURN filtered indecies instead of data set
     return train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,\
         linspace_binning_params, filter_and_normalization_params, training_steps_per_epoch,\
-        data_set_statistcis_dict
+        data_set_statistics_dict
     # training_steps_per_epoch only needed for lr_schedule_plotting
 
 
-def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_type_list, settings, **__):
+def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_type_list, mean_filtered_data_list,
+                   std_filtered_data_list, settings, **__):
     '''
     Goes into train_wrapper
     data_loader_list, logs_callback_list, logger_list, logging_type_list have to be in according order
@@ -136,13 +137,13 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
     '''
 
 
-    for data_loader, logs_callback, logger, logging_type in \
-            zip(data_loader_list, logs_callback_list, logger_list, logging_type_list):
+    for data_loader, logs_callback, logger, logging_type, mean_filtered_data, std_filtered_data in \
+            zip(data_loader_list, logs_callback_list, logger_list, logging_type_list, mean_filtered_data_list, std_filtered_data_list):
         # Create callback list in the form of [BaselineTrainingLogsCallback(base_train_logger)]
         callback_list_base = [logs_callback(logger)]
 
 
-        lk_baseline = LKBaseline(logging_type, **settings)
+        lk_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
 
         trainer = pl.Trainer(callbacks=callback_list_base, max_epochs=1, log_every_n_steps=1, check_val_every_n_epoch=1)
         trainer.validate(lk_baseline, data_loader)
@@ -219,7 +220,12 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
                        logs_callback_list=[BaselineTrainingLogsCallback, BaselineValidationLogsCallback],
                        logger_list=[base_train_logger, base_val_logger],
                        logging_type_list=['train', 'val'],
+                       mean_filtered_data_list=[data_set_statistics_dict['mean_train_data_set'],
+                                                data_set_statistics_dict['mean_val_data_set']],
+                       std_filtered_data_list=[data_set_statistics_dict['std_train_data_set'],
+                                                  data_set_statistics_dict['std_val_data_set']],
                        settings=settings)
+
     # Save sigma scheduler and training steps per epoch for s_only_plotting
     save_zipped_pickle('{}/training_steps_per_epoch'.format(s_dirs['data_dir']), training_steps_per_epoch)
     save_zipped_pickle('{}/sigma_schedule_mapping'.format(s_dirs['data_dir']), sigma_schedule_mapping)
@@ -283,9 +289,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
-    s_sim_name_suffix = 'no_gaussian_blurring_lr_schedule_invnormalized_metrics' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'no_gaussian_blurring_lr_schedule_invnormalized_metrics_corrected_baseline' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -320,7 +326,7 @@ if __name__ == '__main__':
             's_plotting_only': False, # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20231013-042552_ID_4383849Several_seperate_sigmas_rerun_no_lr_schedule', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
-            's_max_epochs': 50, # Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 50, # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
             's_data_file_names': ['RV_recalc_data_2019-{:02d}.nc'.format(i + 1) for i in range(12)],
             # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
