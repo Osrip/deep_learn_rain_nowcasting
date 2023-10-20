@@ -285,7 +285,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = 'TEST' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'no_gaussian_blurring_lr_schedule_invnormalized_metrics' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -314,7 +314,7 @@ if __name__ == '__main__':
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
-            's_resnet': True, # Use ResNet instead of ours
+            's_resnet': False, # Use ResNet instead of ours
 
             # TODO: Implement!!
             's_plotting_only': False, # If active loads sim s_plot_sim_name and runs plotting pipeline
@@ -358,18 +358,18 @@ if __name__ == '__main__':
             's_dirs': s_dirs,
             'device': device,
             's_learning_rate': 0.001,  # 0.0001
-            's_lr_schedule': True  ,  # enables lr scheduler, takes s_learning_rate as initial rate
+            's_lr_schedule': False  ,  # enables lr scheduler, takes s_learning_rate as initial rate
 
             # Gaussian smoothing
             's_gaussian_smoothing_target': False,
             's_sigma_target_smoothing': 16,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
             's_gaussian_smoothing_multiple_sigmas': False, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing, s_schedule_multiple_sigmas activates scheduling for multiple sigmas
-            's_multiple_sigmas': [2, 4, 8, 16], # List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
+            's_multiple_sigmas': [0.001, 1, 2, 4], # List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
             's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial
 
             # Logging
-            's_calc_baseline': True, # Baselines are calculated and plotted
+            's_calc_baseline': True, # Baselines are calculated and plotted --> Optical flow baseline
             's_log_precipitation_difference': True,
             's_calculate_quality_params': True, # Calculating quality params during training and validation
             's_calculate_fss': True, # Calculating fractions skill score during training and validation

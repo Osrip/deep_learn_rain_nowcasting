@@ -242,6 +242,9 @@ class Network_l(pl.LightningModule):
                     linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
                     pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                             mean_bin_vals=True)
+
+                    pred_mm = inverse_normalize_data(pred_mm, self.mean_train_data_set, self.std_train_data_set)
+
                     pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
                 if self.s_calculate_quality_params or self.s_calculate_fss:
@@ -271,6 +274,9 @@ class Network_l(pl.LightningModule):
 
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                     mean_bin_vals=True)
+
+            pred_mm = inverse_normalize_data(pred_mm, self.mean_train_data_set, self.std_train_data_set)
+
             pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
             fss = verification.get_method("FSS")
@@ -415,6 +421,7 @@ class Network_l(pl.LightningModule):
                     linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
                     pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                             mean_bin_vals=True)
+                    pred_mm = inverse_normalize_data(pred_mm, self.mean_val_data_set, self.std_val_data_set)
                     pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
                 if self.s_calculate_quality_params or self.s_calculate_fss:
@@ -441,6 +448,7 @@ class Network_l(pl.LightningModule):
 
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                     mean_bin_vals=True)
+            pred_mm = inverse_normalize_data(pred_mm, self.mean_val_data_set, self.std_val_data_set)
             pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
             fss = verification.get_method("FSS")
