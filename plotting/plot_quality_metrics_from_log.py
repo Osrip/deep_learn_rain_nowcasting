@@ -1,13 +1,16 @@
 import warnings
 
 import numpy as np
-import torch
 import matplotlib.pyplot as plt
 
 from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
 import gc
 import pandas as pd
+
+from helper.helper_functions import df_cols_to_list_of_lists, convert_list_of_lists_to_lists_of_lists_with_means
+
+
 # import _set_wdir
 
 # import matplotlib
@@ -250,13 +253,6 @@ def load_data(s_calc_baseline, ps_sim_name, **__):
     return train_df, val_df, base_train_df, base_val_df
 
 
-def df_cols_to_list_of_lists(keys, df):
-    out_list = []
-    for key in keys:
-        out_list.append(df[key].to_list())
-    return out_list
-
-
 def plot_mse_manual(train_df, val_df, ps_sim_name, **__):
     key_list_train = ['train_mse_pred_target', 'train_mse_zeros_target',
                       'train_mse_persistence_target']
@@ -290,11 +286,16 @@ def line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train, key_
     # baseline data
     if base_train_df is not None:
         base_train_mse_list = df_cols_to_list_of_lists(key_list_base_train, base_train_df)
+        # Take means over all "epochs" of baseline
+        base_train_mse_list = convert_list_of_lists_to_lists_of_lists_with_means(base_train_mse_list)
     else:
         base_train_mse_list = []
 
     if base_val_df is not None:
         base_val_mse_list = df_cols_to_list_of_lists(key_list_base_val, base_val_df)
+        # Take means over all "epochs" of baseline
+        base_val_mse_list = convert_list_of_lists_to_lists_of_lists_with_means(base_val_mse_list)
+
     else:
         base_val_mse_list = []
 

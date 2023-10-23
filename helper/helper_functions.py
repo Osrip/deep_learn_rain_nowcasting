@@ -181,3 +181,14 @@ def no_special_characters(str):
             str_new += '_'
     return str_new
 
+
+def df_cols_to_list_of_lists(keys, df):
+    out_list = []
+    for key in keys:
+        out_list.append(df[key].to_list())
+    return out_list
+
+
+def convert_list_of_lists_to_lists_of_lists_with_means(list_of_lists):
+    mean_f = lambda x: np.mean(x)
+    return [[mean_f(l)] for l in list_of_lists]

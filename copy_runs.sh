@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#Usage: ./copy_runs.sh <sim_name1> [<sim_name2> ... <sim_nameN>]
+
 # Check if at least one argument (sim name) is provided
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <sim_name1> [<sim_name2> ... <sim_nameN>]"
@@ -21,6 +23,10 @@ done
 
 echo "Done."
 
+# --include='*/' --include='*' --exclude='*' ensures that all directories and files in the specified source directory
+# (in this case, /mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/$sim_name/logs/ and /mnt/qb/work2/butz1/bst981/
+# first_CNN_on_Radolan/runs/$sim_name/code/) are included during the synchronization process, while excluding anything
+# else that might be present in those directories.
 
 
 
