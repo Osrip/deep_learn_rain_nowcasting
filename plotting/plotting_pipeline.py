@@ -1,8 +1,7 @@
 from plotting.plot_quality_metrics_from_log import plot_qualities_main, plot_qualities_main_several_sigmas, plot_precipitation_diff
 from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
-import warnings
 
-from calc_from_checkpoint import plot_images_outer
+from plotting.calc_and_plot_from_checkpoint import plot_from_checkpoint
 
 
 def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, settings, model_l, plot_lr_schedule_boo=True,
@@ -59,10 +58,10 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
     }
 
-    plot_images_outer(plot_images_settings, **plot_images_settings)
+    plot_from_checkpoint(plot_images_settings, **plot_images_settings)
 
     if settings['s_max_epochs'] > 10:
-        plot_images_outer(plot_images_settings, epoch=10, **plot_images_settings)
+        plot_from_checkpoint(plot_images_settings, epoch=10, **plot_images_settings)
     # except Exception:
     #     warnings.warn('Image plotting encountered error!')
 

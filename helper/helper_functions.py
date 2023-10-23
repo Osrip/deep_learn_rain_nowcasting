@@ -62,7 +62,7 @@ def one_hot_to_mm(one_hot_tensor, linspace_binning, linspace_binning_max, channe
     THIS IS NOT UNDOING LOGNORMALIZATION
     Converts one hot data back to precipitation mm data based upon argmax (highest bin wins)
     mean_bin_vals==False --> bin value is lower bin bound (given by bin index in linspace_binning)
-    mean_bin_vals==True --> bin value is mean of lower and upper bin bound
+    mean_bin_vals==True --> bin value is mean of lower and upper bin bound TODO: something better for logspace that binnning is in?
     channel dim: Channel dimension, that represents binning (num channels --> num bins)
     '''
 
