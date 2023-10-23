@@ -1,5 +1,6 @@
 from plotting.plot_quality_metrics_from_log import plot_qualities_main, plot_qualities_main_several_sigmas, plot_precipitation_diff
 from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
+import warnings
 
 from calc_from_checkpoint import plot_images_outer
 
@@ -22,7 +23,10 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
 
     if settings['s_log_precipitation_difference']:
         # This does not yet work with s_gaussian_smoothing_multiple_sigmas
-        plot_precipitation_diff(plot_metrics_settings, **plot_metrics_settings, **settings)
+        try:
+            plot_precipitation_diff(plot_metrics_settings, **plot_metrics_settings, **settings)
+        except Exception:
+            print('Precipitation difference plotting encountered error!')
 
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
     # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)

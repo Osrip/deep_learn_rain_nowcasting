@@ -291,8 +291,8 @@ if __name__ == '__main__':
 
     s_local_machine_mode = False
 
-    s_sim_name_suffix = 'no_gaussian_blurring_lr_schedule_invnormalized_metrics_corrected_baseline' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
-
+    s_sim_name_suffix = 'one_sigma_1_init_WITH_sigma_schedule_NO_lr_schedule_invnormalized' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
 
@@ -367,9 +367,9 @@ if __name__ == '__main__':
             's_lr_schedule': False  ,  # enables lr scheduler, takes s_learning_rate as initial rate
 
             # Gaussian smoothing
-            's_gaussian_smoothing_target': False,
-            's_sigma_target_smoothing': 16,  # In case of scheduling this is the initial sigma
-            's_schedule_sigma_smoothing': False,
+            's_gaussian_smoothing_target': True,
+            's_sigma_target_smoothing': 1,  # In case of scheduling this is the initial sigma
+            's_schedule_sigma_smoothing': True,
             's_gaussian_smoothing_multiple_sigmas': False, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing, s_schedule_multiple_sigmas activates scheduling for multiple sigmas
             's_multiple_sigmas': [0.001, 1, 2, 4], # List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
             's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial
