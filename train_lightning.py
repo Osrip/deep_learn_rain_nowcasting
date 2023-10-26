@@ -293,7 +293,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = False
 
-    s_sim_name_suffix = 'several_seperate_sigmas_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'Bernstein_scheduling_sigmas_0_1_0_5_1_2_several_seperate_sigmas' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -326,9 +326,9 @@ if __name__ == '__main__':
 
             # TODO: Implement!!
             's_plotting_only': False, # If active loads sim s_plot_sim_name and runs plotting pipeline
-            's_plot_sim_name': 'Run_20231021-021757_ID_4471242no_gaussian_blurring_with_lr_schedule_invnormalized_', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            's_plot_sim_name': 'Run_20231005-160651_ID_4341086gauss_blurring_several_sigmas_2_4_8_16_NO_lr_schedule', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
-            's_max_epochs': 2, # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 50, # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
             's_data_file_names': ['RV_recalc_data_2019-{:02d}.nc'.format(i + 1) for i in range(12)],
             # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
@@ -366,15 +366,15 @@ if __name__ == '__main__':
             's_dirs': s_dirs,
             'device': device,
             's_learning_rate': 0.001,  # 0.0001
-            's_lr_schedule': True  ,  # enables lr scheduler, takes s_learning_rate as initial rate
+            's_lr_schedule': False  ,  # enables lr scheduler, takes s_learning_rate as initial rate
 
             # Gaussian smoothing
             's_gaussian_smoothing_target': False,
             's_sigma_target_smoothing': 1,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
             's_gaussian_smoothing_multiple_sigmas': True, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing, s_schedule_multiple_sigmas activates scheduling for multiple sigmas
-            's_multiple_sigmas': [1, 2], # List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
-            's_schedule_multiple_sigmas': True, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial
+            's_multiple_sigmas': [0.1, 0.5, 1, 2], # FOR SCHEDULING MAKE SURE LARGEST SIGMA IS LAST, List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
+            's_schedule_multiple_sigmas': True, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
 
             # Logging
             's_calc_baseline': True, # Baselines are calculated and plotted --> Optical flow baseline
