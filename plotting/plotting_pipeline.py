@@ -48,7 +48,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
     #                  init_learning_rate=settings['s_learning_rate'], save_name='sigma_scheduler',
     #                  y_label='Sigma', title='Sigma scheduler', ylog=False, **plot_lr_schedule_settings)
 
-    plot_images_settings ={
+    plot_checkpoint_settings ={
         'ps_runs_path': s_dirs['save_dir'], #'{}/runs'.format(os.getcwd()),
         'ps_run_name': settings['s_sim_name'],
         'ps_device': settings['device'],
@@ -58,10 +58,10 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
     }
 
-    plot_from_checkpoint(plot_images_settings, **plot_images_settings)
+    plot_from_checkpoint(settings, plot_checkpoint_settings, **plot_checkpoint_settings)
 
     if settings['s_max_epochs'] > 10:
-        plot_from_checkpoint(plot_images_settings, epoch=10, **plot_images_settings)
+        plot_from_checkpoint(plot_checkpoint_settings, epoch=10, **plot_checkpoint_settings)
     # except Exception:
     #     warnings.warn('Image plotting encountered error!')
 

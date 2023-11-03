@@ -138,14 +138,16 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
 
 
     for data_loader, logs_callback, logger, logging_type, mean_filtered_data, std_filtered_data in \
-            zip(data_loader_list, logs_callback_list, logger_list, logging_type_list, mean_filtered_data_list, std_filtered_data_list):
+            zip(data_loader_list, logs_callback_list, logger_list, logging_type_list, mean_filtered_data_list,
+                std_filtered_data_list):
         # Create callback list in the form of [BaselineTrainingLogsCallback(base_train_logger)]
         callback_list_base = [logs_callback(logger)]
 
 
         lk_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
 
-        trainer = pl.Trainer(callbacks=callback_list_base, max_epochs=s_epoch_repetitions_baseline, log_every_n_steps=1, check_val_every_n_epoch=1)
+        trainer = pl.Trainer(callbacks=callback_list_base, max_epochs=s_epoch_repetitions_baseline, log_every_n_steps=1,
+                             check_val_every_n_epoch=1)
         trainer.validate(lk_baseline, data_loader)
 
 
@@ -178,9 +180,8 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
     else:
         transform_f = lambda x: x
 
-    train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation, linspace_binning_params, \
-        filer_and_normalization_params, training_steps_per_epoch,\
-        data_set_statistics_dict,\
+    train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,\
+        linspace_binning_params, filer_and_normalization_params, training_steps_per_epoch, data_set_statistics_dict,\
         = data_loading(transform_f, settings, **settings)
 
     save_dict_pickle_csv('{}/data_set_statistcis_dict'.format(s_dirs['data_dir']), data_set_statistics_dict)
@@ -291,9 +292,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
-    s_sim_name_suffix = 'Bernstein_scheduling_sigmas_0_1_0_5_1_2_several_seperate_sigmas' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'no_gaussian_blurring_with_exp_lr_schedule' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -352,7 +353,7 @@ if __name__ == '__main__':
             's_width_height_target': 32,
             's_num_epochs': 1000,
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
-            's_num_lead_time_steps': 3, # 0 --> 0 min prediction (target == last input) ; 1 --> 5 min predicition, 10 --> 15min etc
+            's_num_lead_time_steps': 3, # 0 --> 0 min prediction (target == last input) ; 1 --> 5 min predicition, 3 --> 15min etc
             # This is substracted by 2: settings['s_num_lead_time_steps'] = 's_num_lead_time_steps' -2 for following reasons:
             # 5, # The number of pictures that are skipped from last input time step to target, starts with -1
             # (starts counting at filtered_data_loader_indecies_dict['last_idx_input_sequence'], where last index is excess
@@ -366,15 +367,15 @@ if __name__ == '__main__':
             's_dirs': s_dirs,
             'device': device,
             's_learning_rate': 0.001,  # 0.0001
-            's_lr_schedule': False  ,  # enables lr scheduler, takes s_learning_rate as initial rate
+            's_lr_schedule': True  ,  # enables lr scheduler, takes s_learning_rate as initial rate
 
             # Gaussian smoothing
             's_gaussian_smoothing_target': False,
-            's_sigma_target_smoothing': 1,  # In case of scheduling this is the initial sigma
+            's_sigma_target_smoothing': 0.1,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
-            's_gaussian_smoothing_multiple_sigmas': True, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing, s_schedule_multiple_sigmas activates scheduling for multiple sigmas
+            's_gaussian_smoothing_multiple_sigmas': False, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing, s_schedule_multiple_sigmas activates scheduling for multiple sigmas
             's_multiple_sigmas': [0.1, 0.5, 1, 2], # FOR SCHEDULING MAKE SURE LARGEST SIGMA IS LAST, List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
-            's_schedule_multiple_sigmas': True, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
+            's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
 
             # Logging
             's_calc_baseline': True, # Baselines are calculated and plotted --> Optical flow baseline
@@ -393,7 +394,7 @@ if __name__ == '__main__':
             # Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its
             # prior input sequence to make it through the filter into the training data
 
-            's_testing': True, # Runs tests before starting training
+    's_testing': True, # Runs tests before starting training
             's_profiling': False,  # Runs profiler
 
             # Plotting stuff

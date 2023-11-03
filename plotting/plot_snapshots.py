@@ -25,7 +25,7 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
         model = model.to(ps_device)
         pred = model(input_sequence)
 
-        # When s_gaussian_smoothing_multiple_sigmas we get several predictions, which we iterate through
+
         if not ps_gaussian_smoothing_multiple_sigmas:
             preds = [pred]
             sigma_strs = ['']
@@ -33,6 +33,7 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
             preds = pred
             sigma_strs = ['_sigma_{}'.format(sigma) for sigma in ps_multiple_sigmas]
 
+        # When s_gaussian_smoothing_multiple_sigmas we get several predictions, which we iterate through
         for pred, sigma_str in zip(preds, sigma_strs):
             pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
 

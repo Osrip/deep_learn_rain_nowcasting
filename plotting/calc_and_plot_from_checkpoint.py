@@ -6,6 +6,7 @@ import os
 
 from plotting.plot_snapshots import plot_snapshots
 from plotting.plot_eval_one_epoch import plot_CRPS
+from plotting.plot_eval_one_epoch import plot_FSS
 
 
 def get_checkpoint_name(ps_runs_path, epoch=None, **__):
@@ -36,7 +37,7 @@ def get_checkpoint_name(ps_runs_path, epoch=None, **__):
     return checkpoint_names[arg_idx], arg_idx
 
 
-def plot_from_checkpoint(plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_name, epoch=None, **__):
+def plot_from_checkpoint(settings, plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_name, epoch=None, **__):
     '''
     Loads corresponding epoch
     '''
@@ -64,6 +65,10 @@ def plot_from_checkpoint(plot_settings, ps_runs_path, ps_run_name, ps_checkpoint
     plot_snapshots(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
                    plot_settings, prefix='VAL_epoch_{}'.format(epoch),
                    **plot_settings)
+
+    plot_FSS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params, settings, plot_settings,
+             ps_runs_path, ps_run_name, ps_checkpoint_name, **__)
+
     # plot_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
     #           plot_settings, prefix='VAL_epoch_{}'.format(epoch),
     #           **plot_settings)

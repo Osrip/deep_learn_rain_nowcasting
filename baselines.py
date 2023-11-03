@@ -15,7 +15,8 @@ class LKBaseline(pl.LightningModule):
     def __init__(self, logging_type, mean_filtered_data, std_filtered_data, s_num_lead_time_steps, s_calculate_fss,
                  s_fss_scales, s_fss_threshold, device, **__):
         '''
-        logging_type depending on data loader either: 'train' or 'val'
+        logging_type depending on data loader either: 'train' or 'val' or None if no logging is desired
+        This is used by both,
         '''
         super().__init__()
         self.logging_type = logging_type
@@ -29,6 +30,8 @@ class LKBaseline(pl.LightningModule):
         self.s_fss_threshold = s_fss_threshold
         self.s_device = device
 
+        self.baseline_method = motion.get_method("LK")
+
 
 
     def forward(self, frames):
@@ -41,8 +44,8 @@ class LKBaseline(pl.LightningModule):
 
             # Calculate optical flow using PySTEPS
             # Motion vectors only become feasible for lognormalized data!
-            oflow_method = motion.get_method("LK")
-            motion_field = oflow_method(frames_np[batch_idx, :, :, :])
+
+            motion_field = self.baseline_method(frames_np[batch_idx, :, :, :])
 
 
             # Extrapolate the last radar observation
@@ -61,7 +64,7 @@ class LKBaseline(pl.LightningModule):
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
 
-        # TODO: Coneverting to numpy, as torch inverse normalization does not work
+        # TODO: Converting to numpy, as torch inverse normalization does not work
         target_np = target.detach().cpu().numpy()
         target_np = inverse_normalize_data(target_np, self.mean_filtered_data, self.std_filtered_data)
         target = torch.from_numpy(target_np).to(self.s_device)
@@ -72,8 +75,9 @@ class LKBaseline(pl.LightningModule):
 
         mse_pred_target = torch.nn.MSELoss()(pred, target)
 
-        self.log('base_{}_mse_pred_target'.format(self.logging_type), mse_pred_target.item(), on_step=False,
-                 on_epoch=True, sync_dist=True)
+        if self.logging_type is not None:
+            self.log('base_{}_mse_pred_target'.format(self.logging_type), mse_pred_target.item(), on_step=False,
+                     on_epoch=True, sync_dist=True)
 
 
 
@@ -87,8 +91,9 @@ class LKBaseline(pl.LightningModule):
                     [fss(pred_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
                      for batch_num in range(np.shape(target_np)[0])]
                 )
-                self.log('base_{}_fss_scale_{:03d}_pred_target'.format(self.logging_type, fss_scale), fss_pred_target, on_step=False, on_epoch=True,
-                         sync_dist=True)
+                if self.logging_type is not None:
+                    self.log('base_{}_fss_scale_{:03d}_pred_target'.format(self.logging_type, fss_scale), fss_pred_target,
+                             on_step=False, on_epoch=True, sync_dist=True)
 
 #
 # class PyStepsBaseline_l(pl.LightningModule):
