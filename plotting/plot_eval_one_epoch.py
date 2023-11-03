@@ -2,8 +2,6 @@ from helper.helper_functions import one_hot_to_mm
 from load_data import inverse_normalize_data
 from baselines import LKBaseline
 import torchvision.transforms as T
-import torch
-
 
 
 def plot_CRPS(model, data_loader, filter_and_normalization_params, linspace_binning_params, plot_settings,
@@ -67,6 +65,10 @@ def plot_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
         pred_mm_baseline, _, _ = lk_baseline(input_sequence_inv_normed)
         pred_mm_baseline = T.CenterCrop(size=32)(pred_mm_baseline)
         pred_mm_baseline = pred_mm_baseline.detach().numpy()
+
+        # Works up until here! predictions of baseline and model have been calculated
+        # TODO: Calculate FSS: Write loop that iterates over different thersholds (x-axis) and different scales (several plots or differently colored lines? Or movie?)
+        pass
 
 
 

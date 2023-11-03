@@ -52,8 +52,9 @@ def plot_target_vs_pred(target_img, pred_img, save_path_name, vmin, vmax, max_ro
     gc.collect()
 
 
-def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_path_name, vmin, vmax, linspace_binning,
-                                        ps_inv_normalize, max_row_num=5, input_sequence=None ,title='', **__):
+def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, pred_mm_baseline, save_path_name, vmin, vmax, linspace_binning,
+                                        plot_baseline,
+                                        ps_inv_normalize, max_row_num=5, input_sequence=None, crop_inputs=True ,title='', **__):
     '''
     !!! Can also be plotted without input sequence by just leaving input_sequence=None !!!
     '''
@@ -63,7 +64,8 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
     # pred_mm = convert_tensor_to_np(pred_mm)
 
     # input_sequence = T.CenterCrop(size=32)(input_sequence)
-
+    if crop_inputs:
+        input_sequence = T.CenterCrop(size=32)(input_sequence)
     if add_input_sequence:
         _, _, h, w = input_sequence.shape
         input_sequence = convert_tensor_to_np(input_sequence)
@@ -80,8 +82,11 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
 
     num_rows = np.min((target_img.shape[0], max_row_num))
     add_cols = 0 if input_sequence is None else input_sequence.shape[1]
-
-    num_cols = 3 + add_cols
+    if plot_baseline:
+        add_baseline = 1
+    else:
+        add_baseline = 0
+    num_cols = 3 + add_cols + add_baseline
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(5*num_cols, 5*num_rows))
     likelihoods = calc_likelihood_target_vs_pred_man(target_img, pred_one_hot, linspace_binning)
     # likelihoods = np.log(likelihoods)
@@ -108,11 +113,13 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
                     im2 = curr_ax.imshow(pred_mm[row, :, :].detach().cpu(), vmin=vmin, vmax=vmax, norm='linear')
 
                 cbar2 = plt.colorbar(im2, cmap='jet')
+
             elif col == 2 + add_cols:
                 # likelihoods = -np.log(likelihoods)
 
                 im3 = curr_ax.imshow(likelihoods[row, :, :], norm='linear')
                 cbar3 = plt.colorbar(im3, cmap='jet')
+
                 if ps_inv_normalize:
                     cbar_label = 'Precipitation forecast in (log?) mm, max 4xSTD'
                 else:
@@ -120,8 +127,16 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
 
                 cbar1.set_label(cbar_label, rotation=270, labelpad=12)
                 cbar2.set_label(cbar_label, rotation=270, labelpad=12)
-
                 # curr_ax.imshow(target_img[row, :, :] if col == 0 pred_mm[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
+
+            elif (col == 3 + add_cols) and plot_baseline:
+                im4 = curr_ax.imshow(pred_mm_baseline[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
+                cbar4 = plt.colorbar(im4, cmap='jet')
+
+                cbar4.set_label(cbar_label, rotation=270, labelpad=12)
+
+
+
             if row == 0:
                 if add_input_sequence and col in range(add_cols):
                     curr_ax.set_title('Input picture {}'.format(col))
@@ -131,6 +146,8 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, save_
                     curr_ax.set_title('Predictions')
                 elif col == 2 + add_cols:
                     curr_ax.set_title('Likelihood')
+                elif (col == 3 + add_cols) and plot_baseline:
+                    curr_ax.set_title('Baseline')
     # plt.colorbar(fig)
     fig.suptitle(title)
     plt.savefig('{}.png'.format(save_path_name), dpi=300)

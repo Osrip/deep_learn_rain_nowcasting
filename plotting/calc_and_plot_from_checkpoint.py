@@ -59,10 +59,10 @@ def plot_from_checkpoint(settings, plot_settings, ps_runs_path, ps_run_name, ps_
     model = load_from_checkpoint(ps_runs_path, ps_run_name, checkpoint_name, linspace_binning_params, settings)
     train_data_loader, validation_data_loader = create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation,
                         linspace_binning_params, filter_and_normalization_params, settings)
-    plot_snapshots(model, train_data_loader, filter_and_normalization_params, linspace_binning_params,
+    plot_snapshots(model, train_data_loader, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
                    plot_settings, prefix='TRAIN_epoch_{}'.format(epoch),
                    **plot_settings)
-    plot_snapshots(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
+    plot_snapshots(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
                    plot_settings, prefix='VAL_epoch_{}'.format(epoch),
                    **plot_settings)
 
