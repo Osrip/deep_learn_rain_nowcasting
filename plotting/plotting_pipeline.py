@@ -58,10 +58,15 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
     }
 
-    plot_from_checkpoint(settings, plot_checkpoint_settings, **plot_checkpoint_settings)
+    plot_fss_settings = {
+        'fss_logspace_threshold': [0.01, 1, 5], # start, stop, steps
+        'fss_linspace_scale': [1, 20, 5], # start, stop, threshold
+    }
+
+    plot_from_checkpoint(plot_fss_settings, plot_checkpoint_settings, **plot_checkpoint_settings)
 
     if settings['s_max_epochs'] > 10:
-        plot_from_checkpoint(plot_checkpoint_settings, epoch=10, **plot_checkpoint_settings)
+        plot_from_checkpoint(plot_fss_settings, plot_checkpoint_settings, epoch=10, **plot_checkpoint_settings)
     # except Exception:
     #     warnings.warn('Image plotting encountered error!')
 
