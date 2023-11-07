@@ -274,6 +274,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
     # s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
     s_dirs['plot_dir'] = '{}/plots'.format(s_dirs['save_dir'])
     s_dirs['plot_dir_images'] = '{}/images'.format(s_dirs['plot_dir'])
+    s_dirs['plot_dir_fss'] = '{}/fss'.format(s_dirs['plot_dir'])
     s_dirs['model_dir'] = '{}/model'.format(s_dirs['save_dir'])
     s_dirs['code_dir'] = '{}/code'.format(s_dirs['save_dir'])
     s_dirs['profile_dir'] = '{}/profile'.format(s_dirs['save_dir'])

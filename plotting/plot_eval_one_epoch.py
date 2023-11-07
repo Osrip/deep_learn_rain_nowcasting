@@ -8,6 +8,8 @@ import numpy as np
 import os
 from pysteps import verification
 
+import matplotlib.pyplot as plt
+
 
 def plot_CRPS(model, data_loader, filter_and_normalization_params, linspace_binning_params, plot_settings,
               ps_runs_path, ps_run_name, ps_checkpoint_name, ps_device, ps_inv_normalize,
@@ -41,6 +43,10 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
              ps_multiple_sigmas, fss_logspace_threshold, fss_linspace_scale, prefix='', **__):
 
     '''
+    This function calculates the mean and std of the FSS over the whole dataset given by the data loader (validations
+    set required). The FSS is calculated for different thresholds and scales. The thresholds are given by the
+    fss_logspace_threshold parameter and the scales are given by the fss_linspace_scale parameter. The FSS is calculated
+    for each threshold and scale for each sample in the dataset of which the mean and std are then calculated.
     ** expects plot_settings
     Always inv normalizes (independently of ps_inv_normalize) as optical flow cannot operate in inv norm space!
     In progress...
@@ -55,7 +61,9 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
     inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=True,
                                                            inverse_normalize=True)
 
-    thresholds = np.logspace(fss_logspace_threshold[0], fss_logspace_threshold[1], fss_logspace_threshold[2])
+    # thresholds = np.logspace(fss_logspace_threshold[0], fss_logspace_threshold[1], fss_logspace_threshold[2])
+    thresholds = np.exp(np.linspace(np.log(fss_logspace_threshold[0]), np.log(fss_logspace_threshold[1]), fss_logspace_threshold[2]))
+    # I want this behaviour: np.exp(np.linspace(np.log(0.01), np.log(0.1), 5))
     scales = np.linspace(fss_linspace_scale[0], fss_linspace_scale[1], fss_linspace_scale[2])
     df_data = []
 
@@ -119,7 +127,39 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
         os.makedirs(log_dir)
 
     df.to_csv('{}/{}'.format(log_dir, log_name))
-    x=1
+
+
+# Function to plot the data with the given specifications
+def plot_fss(s_dirs, **__):
+    # Load the data from the uploaded CSV file
+    data = pd.read_csv('{}/fss_None.csv'.format(s_dirs['logs']))
+
+    # Filter unique scales from the data
+    scales = data['scale'].unique()
+
+    for scale in scales:
+        # Filter data for the current scale
+        scale_data = data[data['scale'] == scale]
+
+        # Plot
+        fig, ax = plt.subplots()
+        ax.plot(scale_data['threshold'], scale_data['fss_lk_baseline_mean'], '--', color='red', label='Baseline Mean')
+        ax.fill_between(scale_data['threshold'], scale_data['fss_lk_baseline_mean'] - scale_data['fss_lk_baseline_std'],
+                        scale_data['fss_lk_baseline_mean'] + scale_data['fss_lk_baseline_std'], color='red', alpha=0.2)
+
+        ax.plot(scale_data['threshold'], scale_data['fss_model_mean'], '--', color='green', label='Model Mean')
+        ax.fill_between(scale_data['threshold'], scale_data['fss_model_mean'] - scale_data['fss_model_std'],
+                        scale_data['fss_model_mean'] + scale_data['fss_model_std'], color='green', alpha=0.2)
+
+        ax.set_xlabel('Threshold')
+        ax.set_ylabel('FSS Mean')
+        ax.set_title(f'FSS Mean and Std Dev at Scale {scale}')
+        ax.legend()
+
+        # Save the plot with the specified format
+        plt.savefig(f'{s_dirs["plot_dir_fss"]}/fss_checkpoint_variable_threshold_scale_{scale}.png')
+        plt.close()  # Close the plot to free memory
+
 
 
 
