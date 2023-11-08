@@ -61,8 +61,8 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
     inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=True,
                                                            inverse_normalize=True)
 
-    # thresholds = np.logspace(fss_logspace_threshold[0], fss_logspace_threshold[1], fss_logspace_threshold[2])
-    thresholds = np.exp(np.linspace(np.log(fss_logspace_threshold[0]), np.log(fss_logspace_threshold[1]), fss_logspace_threshold[2]))
+    # thresholds = np.exp(np.linspace(np.log(fss_logspace_threshold[0]), np.log(fss_logspace_threshold[1]), fss_logspace_threshold[2]))
+    thresholds = np.linspace(fss_logspace_threshold[0], fss_logspace_threshold[1], fss_logspace_threshold[2])
     # I want this behaviour: np.exp(np.linspace(np.log(0.01), np.log(0.1), 5))
     scales = np.linspace(fss_linspace_scale[0], fss_linspace_scale[1], fss_linspace_scale[2])
     df_data = []
@@ -153,15 +153,65 @@ def plot_fss(s_dirs, **__):
 
         ax.set_xlabel('Threshold')
         ax.set_ylabel('FSS Mean')
+        # ax.set_xscale('log')
         ax.set_title(f'FSS Mean and Std Dev at Scale {scale}')
         ax.legend()
 
         # Save the plot with the specified format
         plt.savefig(f'{s_dirs["plot_dir_fss"]}/fss_checkpoint_variable_threshold_scale_{scale}.png')
+        plt.show()
+        plt.close()  # Close the plot to free memory
+
+
+def plot_fss_by_threshold(s_dirs, N, **__):
+    # Load the data from the uploaded CSV file
+    data = pd.read_csv(f"{s_dirs['logs']}/fss_None.csv")
+
+    # Get unique thresholds, sorted
+    unique_thresholds = np.sort(data['threshold'].unique())
+    # Determine the indices to sample thresholds as evenly as possible
+    indices = np.round(np.linspace(0, len(unique_thresholds) - 1, N)).astype(int)
+    sampled_thresholds = unique_thresholds[indices]
+
+    for threshold in sampled_thresholds:
+        # Filter data for the current threshold
+        threshold_data = data[data['threshold'] == threshold]
+
+        # Plot
+        fig, ax = plt.subplots()
+        ax.plot(threshold_data['scale'], threshold_data['fss_lk_baseline_mean'], '--', color='red', label='Baseline Mean')
+        ax.fill_between(threshold_data['scale'],
+                        threshold_data['fss_lk_baseline_mean'] - threshold_data['fss_lk_baseline_std'],
+                        threshold_data['fss_lk_baseline_mean'] + threshold_data['fss_lk_baseline_std'],
+                        color='red', alpha=0.2)
+
+        ax.plot(threshold_data['scale'], threshold_data['fss_model_mean'], '--', color='green', label='Model Mean')
+        ax.fill_between(threshold_data['scale'],
+                        threshold_data['fss_model_mean'] - threshold_data['fss_model_std'],
+                        threshold_data['fss_model_mean'] + threshold_data['fss_model_std'],
+                        color='green', alpha=0.2)
+
+        ax.set_xlabel('Scale')
+        ax.set_ylabel('FSS Mean')
+        ax.set_title(f'FSS Mean and Std Dev at Threshold {threshold:.2f}')
+        ax.legend()
+
+        # Save the plot with the specified format
+        plt.savefig(f"{s_dirs['plot_dir_fss']}/fss_mean_vs_scale_threshold_{threshold:.2f}.png")
+        plt.show()
         plt.close()  # Close the plot to free memory
 
 
 
+
+if __name__ == '__main__':
+    run_dir = '/home/jan/jan/programming/first_CNN_on_Radolan/runs/Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
+
+    s_dirs = {}
+    s_dirs['plot_dir_fss'] = '{}/plots/fss/'.format(run_dir)
+    s_dirs['logs'] = '{}/logs'.format(run_dir)
+    plot_fss(s_dirs)
+    plot_fss_by_threshold(s_dirs, N=5)
 
 
 

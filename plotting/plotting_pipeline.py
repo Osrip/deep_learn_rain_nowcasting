@@ -59,7 +59,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
     }
 
     plot_fss_settings = {
-        'fss_logspace_threshold': [0.01, 1, 50], # start, stop, steps
+        'fss_logspace_threshold': [0.01, 1, 5], # start, stop, steps
         'fss_linspace_scale': [1, 20, 5], # start, stop, threshold
     }
 

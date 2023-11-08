@@ -71,9 +71,6 @@ def plot_from_checkpoint(plot_fss_settings, plot_settings, ps_runs_path, ps_run_
 
     plot_fss(**settings)
 
-
-
-
     # plot_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
     #           plot_settings, prefix='VAL_epoch_{}'.format(epoch),
     #           **plot_settings)
@@ -81,21 +78,53 @@ def plot_from_checkpoint(plot_fss_settings, plot_settings, ps_runs_path, ps_run_
 
 if __name__ == '__main__':
 
+    # # Set wdir to parent dir of plotting:
+    #
+    # # Get the current working directory (cwd)
+    # current_wdir = os.getcwd()
+    #
+    # # Get the parent directory of the current working directory
+    # parent_wdir = os.path.dirname(current_wdir)
+    #
+    # # Set the parent directory as the current working directory
+    # os.chdir(parent_wdir)
+
 
     # plot_settings = {
     #     'ps_runs_path': '/home/jan/jan/programming/first_CNN_on_Radolan/runs',
     #     'ps_run_name': 'Run_20230602-191416_test_profiler',
     #     'ps_checkpoint_name': 'model_epoch=1_val_loss=3.92.ckpt',
     # }
+    # runs_path = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs'
+    # run_name = 'Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
+
+    runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
+    run_name = 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
+
+    runs_path = '{}/{}'.format(runs_path, run_name)
+
+    settings, filtered_indecies_training, filtered_indecies_validation, linspace_binning_params, filter_and_normalization_params \
+        = load_data_from_run(runs_path, run_name)
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    plot_settings = {
-        'ps_runs_path': '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs',
-        'ps_run_name': 'Run_20230611-212949_ID_3646156_12_months_training_fixed_csv_logging_mlflow_working_1_gpus_several_runs',
-        # 'ps_checkpoint_name': 'model_epoch=0049_val_loss=3.95.ckpt',
-        # TODO Implement list with epochs to be plotted with -1 being last epoch
-        'ps_checkpoint_name': None, # If none take checkpoint of last epoch
-        'ps_device': device,
+    # plot_settings = {
+    #     'ps_runs_path': '/home/jan/jan/programming/first_CNN_on_Radolan/runs', # '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs',
+    #     'ps_run_name': 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule', #'Run_20230611-212949_ID_3646156_12_months_training_fixed_csv_logging_mlflow_working_1_gpus_several_runs',
+    #     # 'ps_checkpoint_name': 'model_epoch=0049_val_loss=3.95.ckpt',
+    #     # TODO Implement list with epochs to be plotted with -1 being last epoch
+    #     'ps_checkpoint_name': None, # If none take checkpoint of last epoch
+    #     'ps_device': device,
+    #     'ps_inv_normalize': False,
+    # }
+
+    plot_checkpoint_settings ={
+        'ps_runs_path': runs_path, #'{}/runs'.format(os.getcwd()),
+        'ps_run_name': run_name,
+        'ps_device': settings['device'],
+        'ps_checkpoint_name': None,  # If none take checkpoint of last epoch
         'ps_inv_normalize': False,
+        'ps_gaussian_smoothing_multiple_sigmas': settings['s_gaussian_smoothing_multiple_sigmas'],
+        'ps_multiple_sigmas': settings['s_multiple_sigmas'],
     }
 
     plot_fss_settings = {
@@ -104,4 +133,4 @@ if __name__ == '__main__':
     }
 
 
-    plot_from_checkpoint(plot_settings, **plot_settings)
+    plot_from_checkpoint(plot_fss_settings, plot_checkpoint_settings, **plot_checkpoint_settings)
