@@ -14,5 +14,11 @@
 
 # insert your commands here
 #source venv/bin/activate
-python3 plotting/calc_and_plot_from_checkpoint.py
+# python -m will run my_plotting_script.py as if it were the main module, regardless of where the current working directory is.
+# The Python interpreter will handle the import statements as if the module were being imported, which means that it will
+# use the package structure for resolving imports.
+# Alternatively I could install my whole project with pip to resolve these conflicts. When the code is changed, it will be
+# updated automatically.
+
+python3 -m plotting.calc_and_plot_from_checkpoint.py
 

@@ -40,7 +40,7 @@ def plot_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
 def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binning_params, settings, plot_settings,
              ps_runs_path, ps_run_name, ps_checkpoint_name, ps_device, ps_gaussian_smoothing_multiple_sigmas,
-             ps_multiple_sigmas, fss_logspace_threshold, fss_linspace_scale, prefix='', **__):
+             ps_multiple_sigmas, fss_logspace_threshold, fss_linspace_scale, prefix='', calc_on_every_n_th_batch = 4, **__):
 
     '''
     This function calculates the mean and std of the FSS over the whole dataset given by the data loader (validations
@@ -50,7 +50,12 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
     ** expects plot_settings
     Always inv normalizes (independently of ps_inv_normalize) as optical flow cannot operate in inv norm space!
     In progress...
+
+    calc_on_every_n_th_batch=4 <--- Only use every nth batch of data loder to calculate FSS (for speed); at least one
+    batch is calculated
     '''
+    if calc_on_every_n_th_batch < len(data_loader):
+        calc_on_every_n_th_batch = len(data_loader)
 
     filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
         linspace_binning_max_unnormalized = filter_and_normalization_params
@@ -67,6 +72,8 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
     scales = np.linspace(fss_linspace_scale[0], fss_linspace_scale[1], fss_linspace_scale[2])
     df_data = []
 
+
+
     fss_calc = verification.get_method("FSS")
 
     for scale in scales:
@@ -74,11 +81,21 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
             fss_model_list_const_param = []
             fss_lk_baseline_list_const_param = []
             for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
+                if not (i % calc_on_every_n_th_batch == 0):
+                    break
+
+                print('Calculating FSS for sample {} of {}'.format(i, len(data_loader))) #  Debug
+
                 input_sequence = input_sequence.to(ps_device)
                 model = model.to(ps_device)
                 pred = model(input_sequence)
 
+                if ps_gaussian_smoothing_multiple_sigmas:
+                    pred = pred[0].detach().cpu()
+
+
                 pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+                del pred
                 pred_mm_inv_normed = inv_norm(pred_mm)
                 # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
 
@@ -200,8 +217,6 @@ def plot_fss_by_threshold(s_dirs, N, **__):
         plt.savefig(f"{s_dirs['plot_dir_fss']}/fss_mean_vs_scale_threshold_{threshold:.2f}.png")
         plt.show()
         plt.close()  # Close the plot to free memory
-
-
 
 
 if __name__ == '__main__':

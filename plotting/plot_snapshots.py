@@ -38,7 +38,7 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
             input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
             pred_mm_baseline, _, _ = lk_baseline(input_sequence_inv_normed)
             pred_mm_baseline = T.CenterCrop(size=32)(pred_mm_baseline)
-            pred_mm_baseline = pred_mm_baseline.detach().numpy()
+            pred_mm_baseline = pred_mm_baseline.detach().cpu().numpy()
             # renormalize in case the rest of the plots are not inv normalized
             if not ps_inv_normalize:
                 pred_mm_baseline = lognormalize_data(pred_mm_baseline, mean_filtered_data, std_filtered_data,

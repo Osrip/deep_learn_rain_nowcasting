@@ -67,7 +67,8 @@ def one_hot_to_mm(one_hot_tensor, linspace_binning, linspace_binning_max, channe
     '''
 
     argmax_indecies = torch.argmax(one_hot_tensor, dim=channel_dim)
-    argmax_indecies = np.array(argmax_indecies.cpu())
+    # argmax_indecies = np.array(argmax_indecies.cpu()) OLD
+    argmax_indecies = argmax_indecies.cpu().detach().numpy()
     if mean_bin_vals:
         linspace_binning_with_max = np.append(linspace_binning, linspace_binning_max)
         mm_lower_bound = linspace_binning[argmax_indecies]
