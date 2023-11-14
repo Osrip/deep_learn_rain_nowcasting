@@ -151,8 +151,8 @@ if __name__ == '__main__':
 
 
     plot_fss_settings = {
-        'fss_space_threshold': [1, 20, 20], # start, stop, steps
-        'fss_linspace_scale': [1, 10, 20], # start, stop, steps
+        'fss_space_threshold': [0.1, 2, 50], # [1, 20, 20], # start, stop, steps
+        'fss_linspace_scale': [1, 10, 50], # start, stop, steps
         'fss_calc_on_every_n_th_batch': 10
     }
 
