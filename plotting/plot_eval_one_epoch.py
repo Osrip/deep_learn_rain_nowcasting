@@ -7,6 +7,8 @@ import torchvision.transforms as T
 import numpy as np
 import os
 from pysteps import verification
+from matplotlib import cm
+from matplotlib.colors import LinearSegmentedColormap
 
 import matplotlib.pyplot as plt
 
@@ -70,6 +72,8 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
     thresholds = np.linspace(fss_logspace_threshold[0], fss_logspace_threshold[1], fss_logspace_threshold[2])
     # I want this behaviour: np.exp(np.linspace(np.log(0.01), np.log(0.1), 5))
     scales = np.linspace(fss_linspace_scale[0], fss_linspace_scale[1], fss_linspace_scale[2])
+    scales = scales.astype(int)
+    scales = np.unique(scales)
     df_data = []
     fss_calc = verification.get_method("FSS")
 
@@ -158,7 +162,7 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
 
 
 # Function to plot the data with the given specifications
-def plot_fss(s_dirs, **__):
+def plot_fss_by_scales(s_dirs, **__):
     '''
     This creates fss plots with thresholds on x-axis and a plot for each scale
     '''
@@ -202,6 +206,73 @@ def plot_fss(s_dirs, **__):
         plt.close()  # Close the plot to free memory
 
 
+def plot_fss_by_scales_one_plot(s_dirs, num_lines, **__):
+    '''
+    This creates a single plot with thresholds on x-axis and multiple lines,
+    each representing a different scale.
+    '''
+    # Load the data from the uploaded CSV file
+    data = pd.read_csv('{}/fss_None.csv'.format(s_dirs['logs']))
+
+    # Filter unique scales from the data
+    scales = data['scale'].unique()
+    # Determine the indices to sample scales as evenly as possible
+    indices = np.round(np.linspace(0, len(scales) - 1, num_lines)).astype(int)
+    sampled_scales = scales[indices]
+
+    # Create custom colormaps
+    cmap_baseline = LinearSegmentedColormap.from_list('custom_red_yellow', ['red', 'yellow'])
+    cmap_model = LinearSegmentedColormap.from_list('custom_green_blue', ['green', 'blue'])
+
+    # Create a figure and axis
+    fig, ax = plt.subplots()
+
+    for i, scale in enumerate(sampled_scales):
+        # Filter data for the current scale
+        scale_data = data[data['scale'] == scale]
+
+        # Determine the color for the current scale
+        color_baseline = cmap_baseline(i / len(sampled_scales))
+        color_model = cmap_model(i / len(sampled_scales))
+
+        # Plot for baseline
+        ax.plot(scale_data['threshold'], scale_data['fss_lk_baseline_mean'], '--', color=color_baseline)
+        # ax.fill_between(scale_data['threshold'],
+        #                 scale_data['fss_lk_baseline_mean'] - scale_data['fss_lk_baseline_std'],
+        #                 scale_data['fss_lk_baseline_mean'] + scale_data['fss_lk_baseline_std'],
+        #                 color=color_baseline, alpha=0.2)
+
+        # Plot for model
+        ax.plot(scale_data['threshold'], scale_data['fss_model_mean'], '--', color=color_model)
+        # ax.fill_between(scale_data['threshold'],
+        #                 scale_data['fss_model_mean'] - scale_data['fss_model_std'],
+        #                 scale_data['fss_model_mean'] + scale_data['fss_model_std'],
+        #                 color=color_model, alpha=0.2)
+
+    # Setting labels and title
+    ax.set_xlabel('Threshold')
+    ax.set_ylabel('FSS Mean')
+    ax.set_title('FSS Mean and Std Dev by Scale')
+
+    # Adding colorbars for the scales
+    sm_baseline = plt.cm.ScalarMappable(cmap=cmap_baseline, norm=plt.Normalize(vmin=sampled_scales.min(), vmax=sampled_scales.max()))
+    sm_model = plt.cm.ScalarMappable(cmap=cmap_model, norm=plt.Normalize(vmin=sampled_scales.min(), vmax=sampled_scales.max()))
+    sm_baseline.set_array([])
+    sm_model.set_array([])
+
+    # Add the colorbars to the figure
+    cbar_baseline = plt.colorbar(sm_baseline, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
+    cbar_model = plt.colorbar(sm_model, ax=ax, orientation='vertical', fraction=0.046, pad=0.08)
+    cbar_baseline.set_label('Baseline Scales')
+    cbar_model.set_label('Model Scales')
+
+    # Save the plot with the specified format
+    plt.savefig(f'{s_dirs["plot_dir_fss"]}/fss_mean_vs_threshold_scales_colored.png')
+    plt.show()
+    plt.close()  # Close the plot to free memory
+
+
+
 def plot_fss_by_threshold(s_dirs, num_plots, **__):
     '''
     This creates plots with scale on x-axis and a plot for each threshold
@@ -242,6 +313,76 @@ def plot_fss_by_threshold(s_dirs, num_plots, **__):
         plt.savefig(f"{s_dirs['plot_dir_fss']}/fss_mean_vs_scale_threshold_{threshold:.2f}.png")
         plt.show()
         plt.close()  # Close the plot to free memory
+
+
+
+def plot_fss_by_threshold_one_plot(s_dirs, num_lines, **__):
+    '''
+    This creates a single plot with scale on x-axis and multiple lines,
+    each representing a different threshold.
+    '''
+    # Load the data from the uploaded CSV file
+    data = pd.read_csv(f"{s_dirs['logs']}/fss_None.csv")
+
+    # Get unique thresholds, sorted
+    unique_thresholds = np.sort(data['threshold'].unique())
+    # Determine the indices to sample thresholds as evenly as possible
+    indices = np.round(np.linspace(0, len(unique_thresholds) - 1, num_lines)).astype(int)
+    sampled_thresholds = unique_thresholds[indices]
+
+
+    # Create custom colormaps
+    cmap_baseline = LinearSegmentedColormap.from_list('custom_red_yellow', ['red', 'yellow'])
+    cmap_model = LinearSegmentedColormap.from_list('custom_green_blue', ['green', 'blue'])
+    # Green to blue colormap for model
+
+    # Create a figure and axis
+    fig, ax = plt.subplots()
+
+    for i, threshold in enumerate(sampled_thresholds):
+        # Filter data for the current threshold
+        threshold_data = data[data['threshold'] == threshold]
+
+        # Determine the color for the current threshold
+        color_baseline = cmap_baseline(i / len(sampled_thresholds))
+        color_model = cmap_model(i / len(sampled_thresholds))
+
+        # Plot for baseline
+        ax.plot(threshold_data['scale'], threshold_data['fss_lk_baseline_mean'], '--', color=color_baseline)
+        # ax.fill_between(threshold_data['scale'],
+        #                 threshold_data['fss_lk_baseline_mean'] - threshold_data['fss_lk_baseline_std'],
+        #                 threshold_data['fss_lk_baseline_mean'] + threshold_data['fss_lk_baseline_std'],
+        #                 color=color_baseline, alpha=0.2)
+
+        # Plot for model
+        ax.plot(threshold_data['scale'], threshold_data['fss_model_mean'], '--', color=color_model)
+        # ax.fill_between(threshold_data['scale'],
+        #                 threshold_data['fss_model_mean'] - threshold_data['fss_model_std'],
+        #                 threshold_data['fss_model_mean'] + threshold_data['fss_model_std'],
+        #                 color=color_model, alpha=0.2)
+
+    # Setting labels and title
+    ax.set_xlabel('Scale')
+    ax.set_ylabel('FSS Mean')
+    ax.set_title('FSS Mean by Threshold')
+
+    # Adding colorbars for the thresholds
+    sm_baseline = plt.cm.ScalarMappable(cmap=cmap_baseline, norm=plt.Normalize(vmin=sampled_thresholds.min(), vmax=sampled_thresholds.max()))
+    sm_model = plt.cm.ScalarMappable(cmap=cmap_model, norm=plt.Normalize(vmin=sampled_thresholds.min(), vmax=sampled_thresholds.max()))
+    sm_baseline.set_array([])
+    sm_model.set_array([])
+
+    # Add the colorbars to the figure
+    cbar_baseline = plt.colorbar(sm_baseline, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
+    cbar_model = plt.colorbar(sm_model, ax=ax, orientation='vertical', fraction=0.046, pad=0.08)
+    cbar_baseline.set_label('Baseline Thresholds')
+    cbar_model.set_label('Model Thresholds')
+
+    # Save the plot with the specified format
+    plt.savefig(f"{s_dirs['plot_dir_fss']}/fss_mean_vs_scale_thresholds_colored_one_plot.png")
+    plt.show()
+    plt.close()  # Close the plot to free memory
+
 
 
 if __name__ == '__main__':

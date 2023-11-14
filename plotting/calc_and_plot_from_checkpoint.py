@@ -9,7 +9,8 @@ from helper.checkpoint_handling import load_from_checkpoint, create_data_loaders
 # from helper.helper_functions import load_zipped_pickle
 from plotting.plot_snapshots import plot_snapshots
 from plotting.plot_eval_one_epoch import plot_CRPS
-from plotting.plot_eval_one_epoch import calc_FSS, plot_fss, plot_fss_by_threshold
+from plotting.plot_eval_one_epoch import calc_FSS, plot_fss_by_scales, plot_fss_by_threshold,\
+    plot_fss_by_threshold_one_plot, plot_fss_by_scales_one_plot
 
 
 
@@ -77,8 +78,10 @@ def plot_from_checkpoint(plot_fss_settings, plot_settings, ps_runs_path, ps_run_
         calc_FSS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
                  settings, plot_settings, **plot_settings, **plot_fss_settings)
 
-        plot_fss(**settings)
-        plot_fss_by_threshold(**settings,  num_plots=5)
+        # plot_fss_by_scales(**settings)
+        # plot_fss_by_threshold(**settings,  num_plots=5)
+        plot_fss_by_threshold_one_plot(**settings, num_lines=5)
+        plot_fss_by_scales_one_plot(**settings, num_lines=5)
 
     # plot_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
     #           plot_settings, prefix='VAL_epoch_{}'.format(epoch),
@@ -136,7 +139,6 @@ if __name__ == '__main__':
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
         'ps_plot_snapshots': True,
         'ps_plot_fss': True,
-
     }
 
     # Good qual setings:
