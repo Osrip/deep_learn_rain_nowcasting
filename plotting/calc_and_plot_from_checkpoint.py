@@ -9,15 +9,8 @@ from helper.checkpoint_handling import load_from_checkpoint, create_data_loaders
 # from helper.helper_functions import load_zipped_pickle
 from plotting.plot_snapshots import plot_snapshots
 from plotting.plot_eval_one_epoch import plot_CRPS
-from plotting.plot_eval_one_epoch import calc_FSS, plot_fss
+from plotting.plot_eval_one_epoch import calc_FSS, plot_fss, plot_fss_by_threshold
 
-
-if not __name__ == '__main__':
-    '''
-    Work around to be able to execute this script as main and being able to import packages from parent directory
-    as this is located in sub folder (plotting)
-    '''
-    import_local()
 
 
 def get_checkpoint_name(ps_runs_path, epoch=None, **__):
@@ -48,9 +41,11 @@ def get_checkpoint_name(ps_runs_path, epoch=None, **__):
     return checkpoint_names[arg_idx], arg_idx
 
 
-def plot_from_checkpoint(plot_fss_settings, plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_name, epoch=None, **__):
+def plot_from_checkpoint(plot_fss_settings, plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_name, ps_plot_snapshots,
+                         ps_plot_fss, epoch=None, **__):
     '''
-    Loads corresponding epoch
+    Loads model from corresponding epoch and plotsthings up
+    This does a forward pass! GPU resources required!
     '''
 
     if ps_checkpoint_name == None:
@@ -71,17 +66,19 @@ def plot_from_checkpoint(plot_fss_settings, plot_settings, ps_runs_path, ps_run_
     train_data_loader, validation_data_loader = create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation,
                         linspace_binning_params, filter_and_normalization_params, settings)
 
-    # plot_snapshots(model, train_data_loader, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
-    #                plot_settings, prefix='TRAIN_epoch_{}'.format(epoch),
-    #                **plot_settings)
-    # plot_snapshots(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
-    #                plot_settings, prefix='VAL_epoch_{}'.format(epoch),
-    #                **plot_settings)
+    if ps_plot_snapshots:
+        plot_snapshots(model, train_data_loader, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
+                       plot_settings, prefix='TRAIN_epoch_{}'.format(epoch),
+                       **plot_settings)
+        plot_snapshots(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
+                       plot_settings, prefix='VAL_epoch_{}'.format(epoch),
+                       **plot_settings)
+    if ps_plot_fss:
+        calc_FSS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
+                 settings, plot_settings, **plot_settings, **plot_fss_settings)
 
-    calc_FSS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
-             settings, plot_settings, **plot_settings, **plot_fss_settings)
-
-    plot_fss(**settings)
+        plot_fss(**settings)
+        plot_fss_by_threshold(**settings,  num_plots=5)
 
     # plot_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
     #           plot_settings, prefix='VAL_epoch_{}'.format(epoch),
@@ -90,16 +87,16 @@ def plot_from_checkpoint(plot_fss_settings, plot_settings, ps_runs_path, ps_run_
 
 if __name__ == '__main__':
 
-    # Set wdir to parent dir of plotting:
-
-    # Get the current working directory (cwd)
-    current_wdir = os.getcwd()
-
-    # Get the parent directory of the current working directory
-    parent_wdir = os.path.dirname(current_wdir)
-
-    # Set the parent directory as the current working directory
-    os.chdir(parent_wdir)
+    # # Set wdir to parent dir of plotting:
+    #
+    # # Get the current working directory (cwd)
+    # current_wdir = os.getcwd()
+    #
+    # # Get the parent directory of the current working directory
+    # parent_wdir = os.path.dirname(current_wdir)
+    #
+    # # Set the parent directory as the current working directory
+    # os.chdir(parent_wdir)
 
 
     # plot_settings = {
@@ -137,12 +134,28 @@ if __name__ == '__main__':
         'ps_inv_normalize': False,
         'ps_gaussian_smoothing_multiple_sigmas': settings['s_gaussian_smoothing_multiple_sigmas'],
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
+        'ps_plot_snapshots': True,
+        'ps_plot_fss': True,
+
     }
+
+    # Good qual setings:
+
+    # plot_fss_settings = {
+    #     'fss_logspace_threshold': [0.01, 1, 30], # start, stop, steps
+    #     'fss_linspace_scale': [1, 20, 30], # start, stop, steps
+    #     'fss_calc_on_every_n_th_batch': 100
+    # }
+
+    # Debug settings:
 
     plot_fss_settings = {
         'fss_logspace_threshold': [0.01, 1, 5], # start, stop, steps
         'fss_linspace_scale': [1, 20, 5], # start, stop, threshold
+        'fss_calc_on_every_n_th_batch': 100
     }
+
+    plot_checkpoint_settings['ps_plot_snapshots'] = False
 
 
     plot_from_checkpoint(plot_fss_settings, plot_checkpoint_settings, **plot_checkpoint_settings)

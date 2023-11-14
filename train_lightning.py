@@ -395,7 +395,7 @@ if __name__ == '__main__':
             # Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its
             # prior input sequence to make it through the filter into the training data
 
-    's_testing': True, # Runs tests before starting training
+            's_testing': True, # Runs tests before starting training
             's_profiling': False,  # Runs profiler
 
             # Plotting stuff

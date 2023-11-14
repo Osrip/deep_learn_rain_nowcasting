@@ -40,7 +40,7 @@ def plot_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
 def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binning_params, settings, plot_settings,
              ps_runs_path, ps_run_name, ps_checkpoint_name, ps_device, ps_gaussian_smoothing_multiple_sigmas,
-             ps_multiple_sigmas, fss_logspace_threshold, fss_linspace_scale, prefix='', calc_on_every_n_th_batch = 4, **__):
+             ps_multiple_sigmas, fss_logspace_threshold, fss_linspace_scale, fss_calc_on_every_n_th_batch, prefix='', **__):
 
     '''
     This function calculates the mean and std of the FSS over the whole dataset given by the data loader (validations
@@ -54,8 +54,8 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
     calc_on_every_n_th_batch=4 <--- Only use every nth batch of data loder to calculate FSS (for speed); at least one
     batch is calculated
     '''
-    if calc_on_every_n_th_batch < len(data_loader):
-        calc_on_every_n_th_batch = len(data_loader)
+    if fss_calc_on_every_n_th_batch < len(data_loader):
+        fss_calc_on_every_n_th_batch = len(data_loader)
 
     filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
         linspace_binning_max_unnormalized = filter_and_normalization_params
@@ -71,43 +71,54 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
     # I want this behaviour: np.exp(np.linspace(np.log(0.01), np.log(0.1), 5))
     scales = np.linspace(fss_linspace_scale[0], fss_linspace_scale[1], fss_linspace_scale[2])
     df_data = []
-
-
-
     fss_calc = verification.get_method("FSS")
+
+    preds_and_targets = {}
+    preds_and_targets['pred_mm_inv_normed'] = []
+    preds_and_targets['pred_mm_lk_baseline'] = []
+    preds_and_targets['target_inv_normed'] = []
+
+    for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
+        if not (i % fss_calc_on_every_n_th_batch == 0):
+            break
+
+        print('Calculating FSS for sample {} of {}'.format(i, len(data_loader)))  # Debug
+
+        input_sequence = input_sequence.to(ps_device)
+        model = model.to(ps_device)
+        pred = model(input_sequence)
+
+        if ps_gaussian_smoothing_multiple_sigmas:
+            pred = pred[0].detach().cpu()
+
+        pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+        del pred
+        pred_mm_inv_normed = inv_norm(pred_mm)
+        # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
+
+        logging_type = None
+        lk_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
+        input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
+        pred_mm_lk_baseline, _, _ = lk_baseline(input_sequence_inv_normed)
+        pred_mm_lk_baseline = T.CenterCrop(size=32)(pred_mm_lk_baseline)
+        pred_mm_lk_baseline = pred_mm_lk_baseline.detach().cpu().numpy()
+
+        target = target.detach().cpu().numpy()
+        target_inv_normed = inv_norm(target)
+
+        preds_and_targets['pred_mm_inv_normed'].append(pred_mm_inv_normed)
+        preds_and_targets['pred_mm_lk_baseline'].append(pred_mm_lk_baseline)
+        preds_and_targets['target_inv_normed'].append(target_inv_normed)
 
     for scale in scales:
         for threshold in thresholds:
             fss_model_list_const_param = []
             fss_lk_baseline_list_const_param = []
-            for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
-                if not (i % calc_on_every_n_th_batch == 0):
-                    break
 
-                print('Calculating FSS for sample {} of {}'.format(i, len(data_loader))) #  Debug
-
-                input_sequence = input_sequence.to(ps_device)
-                model = model.to(ps_device)
-                pred = model(input_sequence)
-
-                if ps_gaussian_smoothing_multiple_sigmas:
-                    pred = pred[0].detach().cpu()
-
-
-                pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
-                del pred
-                pred_mm_inv_normed = inv_norm(pred_mm)
-                # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
-
-                logging_type = None
-                lk_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
-                input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
-                pred_mm_lk_baseline, _, _ = lk_baseline(input_sequence_inv_normed)
-                pred_mm_lk_baseline = T.CenterCrop(size=32)(pred_mm_lk_baseline)
-                pred_mm_lk_baseline = pred_mm_lk_baseline.detach().cpu().numpy()
-
-                target = target.detach().cpu().numpy()
-                target_inv_normed = inv_norm(target)
+            # predictions calculated beforehand, such that there are no redundant forward passes
+            for pred_mm_inv_normed, pred_mm_lk_baseline, target_inv_normed in zip(preds_and_targets['pred_mm_inv_normed'],
+                                                                                  preds_and_targets['pred_mm_lk_baseline'],
+                                                                                  preds_and_targets['target_inv_normed']):
 
                 # Works up until here! predictions of baseline and model have been calculated
                 # TODO: Calculate FSS: Write loop that iterates over different thersholds (x-axis) and different scales (several plots or differently colored lines? Or movie?)
@@ -148,6 +159,9 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
 
 # Function to plot the data with the given specifications
 def plot_fss(s_dirs, **__):
+    '''
+    This creates fss plots with thresholds on x-axis and a plot for each scale
+    '''
     # Load the data from the uploaded CSV file
     data = pd.read_csv('{}/fss_None.csv'.format(s_dirs['logs']))
 
@@ -175,19 +189,30 @@ def plot_fss(s_dirs, **__):
         ax.legend()
 
         # Save the plot with the specified format
+        try:
+            _ = s_dirs["plot_dir_fss"]
+        except KeyError:
+            # Catch errors of previous versions where key was not existent
+            s_dirs['plot_dir_fss'] = '{}/fss'.format(s_dirs['plot_dir'])
+            if not os.path.exists(s_dirs['plot_dir_fss']):
+                os.makedirs(s_dirs['plot_dir_fss'])
+
         plt.savefig(f'{s_dirs["plot_dir_fss"]}/fss_checkpoint_variable_threshold_scale_{scale}.png')
         plt.show()
         plt.close()  # Close the plot to free memory
 
 
-def plot_fss_by_threshold(s_dirs, N, **__):
+def plot_fss_by_threshold(s_dirs, num_plots, **__):
+    '''
+    This creates plots with scale on x-axis and a plot for each threshold
+    '''
     # Load the data from the uploaded CSV file
     data = pd.read_csv(f"{s_dirs['logs']}/fss_None.csv")
 
     # Get unique thresholds, sorted
     unique_thresholds = np.sort(data['threshold'].unique())
     # Determine the indices to sample thresholds as evenly as possible
-    indices = np.round(np.linspace(0, len(unique_thresholds) - 1, N)).astype(int)
+    indices = np.round(np.linspace(0, len(unique_thresholds) - 1, num_plots)).astype(int)
     sampled_thresholds = unique_thresholds[indices]
 
     for threshold in sampled_thresholds:
@@ -226,7 +251,7 @@ if __name__ == '__main__':
     s_dirs['plot_dir_fss'] = '{}/plots/fss/'.format(run_dir)
     s_dirs['logs'] = '{}/logs'.format(run_dir)
     plot_fss(s_dirs)
-    plot_fss_by_threshold(s_dirs, N=5)
+    plot_fss_by_threshold(s_dirs, num_plots=5)
 
 
 
