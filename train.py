@@ -7,7 +7,7 @@ from load_data import PrecipitationFilteredDataset, inverse_normalize_data, filt
 from torch.utils.data import DataLoader
 
 import numpy as np
-from helper.helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_mm, save_whole_project
+from helper.helper_functions import load_zipped_pickle, save_zipped_pickle, one_hot_to_lognorm_mm, save_whole_project
 import os
 from plotting_list_based.plot_img_histogram import plot_img_histogram
 from plotting.plot_images import plot_target_vs_pred, plot_target_vs_pred_with_likelihood
@@ -67,7 +67,7 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
             # Calculatatie verfification metrics
 
             target = target.detach().to(device)
-            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
             pred_mm = torch.from_numpy(pred_mm).to(device).detach()
 
             if i == 0:
@@ -239,7 +239,7 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
             ################################
 
             # Quality metrics
-            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
             pred_mm = torch.from_numpy(pred_mm).to(device).detach()
 
             if s_plot_average_preds_boo or s_plot_pixelwise_preds_boo:

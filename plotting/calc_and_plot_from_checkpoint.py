@@ -8,8 +8,8 @@ import os
 from helper.checkpoint_handling import load_from_checkpoint, create_data_loaders, load_data_from_run
 # from helper.helper_functions import load_zipped_pickle
 from plotting.plot_snapshots import plot_snapshots
-from plotting.plot_eval_one_epoch import plot_CRPS
-from plotting.plot_eval_one_epoch import calc_FSS, plot_fss_by_scales, plot_fss_by_threshold,\
+from plotting.calc_plot_CRPS import calc_CRPS
+from plotting.calc_plot_FSS import calc_FSS, plot_fss_by_scales, plot_fss_by_threshold,\
     plot_fss_by_threshold_one_plot, plot_fss_by_scales_one_plot
 
 
@@ -109,7 +109,8 @@ if __name__ == '__main__':
     # }
     # runs_path = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs'
     # run_name = 'Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
-
+    # run_name = 'Run_20231025-143021_ID_4495295several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler_GOOD_PERFORMANCE'
+    #
     runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
     run_name = 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
 
@@ -153,9 +154,9 @@ if __name__ == '__main__':
 
 
     plot_fss_settings = {
-        'fss_space_threshold': [0.1, 10, 50], # [1, 20, 20], # start, stop, steps
-        'fss_linspace_scale': [1, 10, 50], # start, stop, steps
-        'fss_calc_on_every_n_th_batch': 10,
+        'fss_space_threshold': [0.1, 10, 100], # [1, 20, 20], # start, stop, steps
+        'fss_linspace_scale': [1, 10, 100], # start, stop, steps
+        'fss_calc_on_every_n_th_batch': 1,
         'fss_log_thresholds': True,
     }
 

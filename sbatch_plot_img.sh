@@ -20,5 +20,5 @@
 # Alternatively I could install my whole project with pip to resolve these conflicts. When the code is changed, it will be
 # updated automatically.
 
-python3 -m plotting.calc_and_plot_from_checkpoint.py
+python3 -m plotting.calc_and_plot_from_checkpoint
 

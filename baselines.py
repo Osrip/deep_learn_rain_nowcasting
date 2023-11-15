@@ -6,7 +6,7 @@ from pysteps import nowcasts
 from pysteps import verification
 import numpy as np
 from load_data import inverse_normalize_data
-from helper.helper_functions import one_hot_to_mm
+from helper.helper_functions import one_hot_to_lognorm_mm
 
 class LKBaseline(pl.LightningModule):
     '''

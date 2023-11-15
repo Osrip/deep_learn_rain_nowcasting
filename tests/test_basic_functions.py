@@ -1,4 +1,4 @@
-from helper.helper_functions import one_hot_to_mm
+from helper.helper_functions import one_hot_to_lognorm_mm
 from load_data import img_one_hot, normalize_data, inverse_normalize_data
 import numpy as np
 import torch
@@ -49,8 +49,8 @@ def test_one_hot_converting():
     is_one_hot(data_hot, one_hot_dim=1)
 
     # ... then back with one_hot_to_mm assigning lower bin bound
-    data_binned_lower_bound_mm = one_hot_to_mm(data_hot, linspace_binning, linspace_binning_max=linspace_binning_max,
-                                               channel_dim=1, mean_bin_vals=False)
+    data_binned_lower_bound_mm = one_hot_to_lognorm_mm(data_hot, linspace_binning, linspace_binning_max=linspace_binning_max,
+                                                       channel_dim=1, mean_bin_vals=False)
 
     # Sort the test_data directly into bins as valiadation. Take the lower bound of the bin as value for the bin
     # Hacking some stuff with lambda and np.vecotrize to enable an additional argument (linspace_binning)
@@ -62,8 +62,8 @@ def test_one_hot_converting():
 
 
     # ... this time converting from one hot to mm with one_hot_to_mm assigning mean bin value
-    data_binned_mean_of_bounds_mm = one_hot_to_mm(data_hot, linspace_binning, linspace_binning_max=linspace_binning_max,
-                                               channel_dim=1, mean_bin_vals=True)
+    data_binned_mean_of_bounds_mm = one_hot_to_lognorm_mm(data_hot, linspace_binning, linspace_binning_max=linspace_binning_max,
+                                                          channel_dim=1, mean_bin_vals=True)
     mean_of_bounds_func = lambda x: mean_of_bounds(x, linspace_binning, linspace_binning_max)
     v_mean_of_bounds = np.vectorize(mean_of_bounds_func)
     validate_data_mean_bounds = v_mean_of_bounds(test_data)

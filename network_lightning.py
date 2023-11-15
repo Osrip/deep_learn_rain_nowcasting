@@ -6,7 +6,7 @@ from helper.memory_logging import print_gpu_memory, print_ram_usage
 from modules_blocks import Network
 from modules_blocks_ResNet import ResNet
 import torch.nn as nn
-from helper.helper_functions import one_hot_to_mm
+from helper.helper_functions import one_hot_to_lognorm_mm
 from helper.gaussian_smoothing_helper import gaussian_smoothing_target
 from helper.sigma_scheduler_helper import bernstein_polynomial, linear_schedule_0_to_1
 import torchvision.transforms as T
@@ -194,16 +194,16 @@ class Network_l(pl.LightningModule):
 
                 linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
 
-                pred_mm = one_hot_to_mm(pred_sig, linspace_binning, linspace_binning_max, channel_dim=1,
-                                        mean_bin_vals=True)
+                pred_mm = one_hot_to_lognorm_mm(pred_sig, linspace_binning, linspace_binning_max, channel_dim=1,
+                                                mean_bin_vals=True)
 
                 # Inverse normalize data
                 pred_mm = inverse_normalize_data(pred_mm, self.mean_train_data_set, self.std_train_data_set)
 
                 pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
-                target_mm_sig = one_hot_to_mm(target_binned_sig, linspace_binning, linspace_binning_max, channel_dim=1,
-                                        mean_bin_vals=True)
+                target_mm_sig = one_hot_to_lognorm_mm(target_binned_sig, linspace_binning, linspace_binning_max, channel_dim=1,
+                                                      mean_bin_vals=True)
                 target_mm_sig = inverse_normalize_data(target_mm_sig, self.mean_train_data_set, self.std_train_data_set)
 
                 target_mm_sig = torch.tensor(target_mm_sig, device=self.s_device)
@@ -245,8 +245,8 @@ class Network_l(pl.LightningModule):
 
                 if self.s_calculate_quality_params or self.s_log_precipitation_difference or self.s_calculate_fss:
                     linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
-                    pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-                                            mean_bin_vals=True)
+                    pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                                    mean_bin_vals=True)
 
                     pred_mm = inverse_normalize_data(pred_mm, self.mean_train_data_set, self.std_train_data_set)
 
@@ -277,8 +277,8 @@ class Network_l(pl.LightningModule):
             # TODO: UNNORMALIZE THIS BEFORE CALCULATING QUALITY METRICS!!! NOT IMPORTANT FOR MSE BUT FOR FSS (--> Threshold)!!!!!!
             # TODO ALTERRNATIVELY USE LOGNORMALIZED THRESHOLD!!!
 
-            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-                                    mean_bin_vals=True)
+            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                            mean_bin_vals=True)
 
             pred_mm = inverse_normalize_data(pred_mm, self.mean_train_data_set, self.std_train_data_set)
 
@@ -376,8 +376,8 @@ class Network_l(pl.LightningModule):
 
                 linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
 
-                pred_mm = one_hot_to_mm(pred_sig, linspace_binning, linspace_binning_max, channel_dim=1,
-                                        mean_bin_vals=True)
+                pred_mm = one_hot_to_lognorm_mm(pred_sig, linspace_binning, linspace_binning_max, channel_dim=1,
+                                                mean_bin_vals=True)
 
                 # Inverse normalize data
                 pred_mm = inverse_normalize_data(pred_mm, self.mean_val_data_set, self.std_val_data_set)
@@ -386,8 +386,8 @@ class Network_l(pl.LightningModule):
 
 
 
-                target_mm_sig = one_hot_to_mm(target_binned_sig, linspace_binning, linspace_binning_max, channel_dim=1,
-                                        mean_bin_vals=True)
+                target_mm_sig = one_hot_to_lognorm_mm(target_binned_sig, linspace_binning, linspace_binning_max, channel_dim=1,
+                                                      mean_bin_vals=True)
                 target_mm_sig = inverse_normalize_data(target_mm_sig, self.mean_val_data_set, self.std_val_data_set)
                 target_mm_sig = torch.tensor(target_mm_sig, device=self.s_device)
 
@@ -428,8 +428,8 @@ class Network_l(pl.LightningModule):
 
                 if self.s_calculate_quality_params or self.s_log_precipitation_difference or self.s_calculate_fss:
                     linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
-                    pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-                                            mean_bin_vals=True)
+                    pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                                    mean_bin_vals=True)
                     pred_mm = inverse_normalize_data(pred_mm, self.mean_val_data_set, self.std_val_data_set)
                     pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
@@ -455,8 +455,8 @@ class Network_l(pl.LightningModule):
                 # Only calculate FSS for the prediction with the smallest sigma
                 pred = preds[np.argmin(self.s_multiple_sigmas)]
 
-            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-                                    mean_bin_vals=True)
+            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                            mean_bin_vals=True)
             pred_mm = inverse_normalize_data(pred_mm, self.mean_val_data_set, self.std_val_data_set)
             pred_mm = torch.tensor(pred_mm, device=self.s_device)
 

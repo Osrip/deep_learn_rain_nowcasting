@@ -16,7 +16,6 @@ def create_dilation_list(s_width_height, inverse_ratio=4):
         out.append(en)
         en = en * 2
         if len(out) > 100:
-            # TODO: preliminary, delete this after testing!
             raise Exception('Caught up')
 
     return out
@@ -50,25 +49,28 @@ def bin_to_one_hot_index_linear(mm_data, linspace_binning):
     --> linspace_binning_min, linspace_binning_max have to be in log transformed space
     '''
     # TODO: Use logarithmic binning to account for long tailed data distribution of precipitation???
-    # Linspace binning always annotates the lowest value of the bin. The very last value (whoich is linspacebinning_max) is not
+    # Linspace binning always annotates the lowest value of the bin. The very last value (whoich is linspacebinning_max) is
     # not included in the linspace binning, such that the number of entries in linspace binning correstponts to the number of bins
     # Indecies start counting at 1, therefore - 1
     indecies = np.digitize(mm_data, linspace_binning, right=False) - 1
     return indecies
 
 
-def one_hot_to_mm(one_hot_tensor, linspace_binning, linspace_binning_max, channel_dim, mean_bin_vals=True):
+def one_hot_to_lognorm_mm(one_hot_tensor, linspace_binning, linspace_binning_max, channel_dim, mean_bin_vals=False,
+                          geo_mean_bin_vals=True):
     '''
     THIS IS NOT UNDOING LOGNORMALIZATION
     Converts one hot data back to precipitation mm data based upon argmax (highest bin wins)
     mean_bin_vals==False --> bin value is lower bin bound (given by bin index in linspace_binning)
     mean_bin_vals==True --> bin value is mean of lower and upper bin bound TODO: something better for logspace that binnning is in?
+    #TODO --> GEOMETRIC MEAN does not work for lognormal data due to negative values
+    #TODO: Calculate arithmetic mena after invlognormalization then lognormalize back
     channel dim: Channel dimension, that represents binning (num channels --> num bins)
     '''
 
     argmax_indecies = torch.argmax(one_hot_tensor, dim=channel_dim)
-    # argmax_indecies = np.array(argmax_indecies.cpu()) OLD
     argmax_indecies = argmax_indecies.cpu().detach().numpy()
+
     if mean_bin_vals:
         linspace_binning_with_max = np.append(linspace_binning, linspace_binning_max)
         mm_lower_bound = linspace_binning[argmax_indecies]
@@ -77,6 +79,9 @@ def one_hot_to_mm(one_hot_tensor, linspace_binning, linspace_binning_max, channe
     else:
         mm_data = linspace_binning[argmax_indecies]
     return mm_data
+
+
+
 
 
 def save_zipped_pickle(title, data):

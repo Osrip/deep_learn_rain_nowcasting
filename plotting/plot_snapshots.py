@@ -1,6 +1,6 @@
 import torch
 
-from helper.helper_functions import one_hot_to_mm
+from helper.helper_functions import one_hot_to_lognorm_mm
 from load_data import inverse_normalize_data, lognormalize_data
 from plotting.plot_images import plot_target_vs_pred_with_likelihood
 from baselines import LKBaseline
@@ -57,7 +57,7 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
 
         # When s_gaussian_smoothing_multiple_sigmas we get several predictions, which we iterate through
         for pred, sigma_str in zip(preds, sigma_strs):
-            pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
 
             # vmin = torch.mean(inv_norm_or_not(input_sequence)) - 3 * torch.std(inv_norm_or_not(input_sequence))
             vmin = min(torch.min(inv_norm_or_not(target)).item(), torch.min(inv_norm_or_not(input_sequence)))
