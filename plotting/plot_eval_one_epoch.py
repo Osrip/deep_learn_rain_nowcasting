@@ -191,7 +191,7 @@ def plot_fss_by_scales(s_dirs, fss_log_thresholds, **__):
         ax.fill_between(scale_data['threshold'], scale_data['fss_model_mean'] - scale_data['fss_model_std'],
                         scale_data['fss_model_mean'] + scale_data['fss_model_std'], color='green', alpha=0.2)
 
-        ax.set_xlabel('Threshold')
+        ax.set_xlabel('Threshold (mm/h)')
         ax.set_ylabel('FSS Mean')
 
         if fss_log_thresholds:
@@ -259,7 +259,7 @@ def plot_fss_by_scales_one_plot(s_dirs, fss_log_thresholds, num_lines, **__):
         ax.set_xscale('log')
 
     # Setting labels and title
-    ax.set_xlabel('Threshold')
+    ax.set_xlabel('Threshold (mm/h)')
     ax.set_ylabel('FSS Mean')
     ax.set_title('FSS Mean and Std Dev by Scale')
 
@@ -270,7 +270,7 @@ def plot_fss_by_scales_one_plot(s_dirs, fss_log_thresholds, num_lines, **__):
 
     # Add the colorbars to the figure
     cbar = plt.colorbar(scalar_mappable, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
-    cbar.set_label('Scales')
+    cbar.set_label('Scales (km, pixels)')
 
     # Add a legend outside the plot, below
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=True, shadow=True, ncol=3)
@@ -321,7 +321,7 @@ def plot_fss_by_threshold(s_dirs, fss_log_thresholds, num_plots, **__):
                         threshold_data['fss_model_mean'] + threshold_data['fss_model_std'],
                         color='green', alpha=0.2)
 
-        ax.set_xlabel('Scale')
+        ax.set_xlabel('Scale (km, pixel)')
         ax.set_ylabel('FSS Mean')
         ax.set_title(f'FSS Mean and Std Dev at Threshold {threshold:.2f}')
         ax.legend()
@@ -385,7 +385,7 @@ def plot_fss_by_threshold_one_plot(s_dirs, fss_log_thresholds, num_lines, **__):
                 label=f'Model (Threshold {threshold:.2f})')
 
     # Setting labels and title
-    ax.set_xlabel('Scale')
+    ax.set_xlabel('Scale (km, pixel)')
     ax.set_ylabel('FSS Mean')
     ax.set_title('FSS Mean by Threshold')
 
@@ -394,7 +394,7 @@ def plot_fss_by_threshold_one_plot(s_dirs, fss_log_thresholds, num_lines, **__):
     scalar_mappable.set_array(sampled_thresholds)
 
     cbar = plt.colorbar(scalar_mappable, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
-    cbar.set_label('Thresholds')
+    cbar.set_label('Thresholds (mm/h)')
 
     # Add a legend outside the plot, below
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=True, shadow=True, ncol=3)
@@ -413,8 +413,8 @@ def plot_fss_by_threshold_one_plot(s_dirs, fss_log_thresholds, num_lines, **__):
 
 
 if __name__ == '__main__':
-    run_dir = '/home/jan/jan/programming/first_CNN_on_Radolan/runs/Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
-    # run_dir = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
+    # run_dir = '/home/jan/jan/programming/first_CNN_on_Radolan/runs/Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
+    run_dir = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
     fss_log_thresholds = True
 
     s_dirs = {}

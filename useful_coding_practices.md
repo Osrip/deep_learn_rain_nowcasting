@@ -43,6 +43,9 @@ sim_name=""; mkdir -p "/home/jan/Documents/results_nowcasting/$sim_name/plots" &
 BEST:
 ./copy_runs.sh sim_name_1 sim_name_2 ...
 
+#### SCP plots indivisually
+scp bst981@134.2.168.72:/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler/plots/fss/* /home/jan/Documents/results_nowcasting/Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler_GOOD_PERFORMANCE/plots/fss
+
 ### Torch Code
 
 from https://github.com/jthuemmel/SpatioTemporalNetworks/blob/main/train_mixed.py

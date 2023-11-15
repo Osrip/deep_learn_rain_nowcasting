@@ -152,21 +152,21 @@ if __name__ == '__main__':
     # }
 
 
-    # plot_fss_settings = {
-    #     'fss_space_threshold': [0.1, 10, 50], # [1, 20, 20], # start, stop, steps
-    #     'fss_linspace_scale': [1, 10, 50], # start, stop, steps
-    #     'fss_calc_on_every_n_th_batch': 10
-    #     'fss_log_thresholds': True,
-    # }
+    plot_fss_settings = {
+        'fss_space_threshold': [0.1, 10, 50], # [1, 20, 20], # start, stop, steps
+        'fss_linspace_scale': [1, 10, 50], # start, stop, steps
+        'fss_calc_on_every_n_th_batch': 10,
+        'fss_log_thresholds': True,
+    }
 
     # Debug settings:
 
-    plot_fss_settings = {
-        'fss_space_threshold': [0.1, 10, 5], # start, stop, steps
-        'fss_linspace_scale': [1, 10, 50], # start, stop, threshold
-        'fss_calc_on_every_n_th_batch': 100,
-        'fss_log_thresholds': True,
-    }
+    # plot_fss_settings = {
+    #     'fss_space_threshold': [0.1, 10, 50], # start, stop, steps
+    #     'fss_linspace_scale': [1, 10, 50], # start, stop, steps
+    #     'fss_calc_on_every_n_th_batch': 100,
+    #     'fss_log_thresholds': True,
+    # }
 
     plot_checkpoint_settings['ps_plot_snapshots'] = False
 
