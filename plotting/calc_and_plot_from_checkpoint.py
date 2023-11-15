@@ -78,10 +78,10 @@ def plot_from_checkpoint(plot_fss_settings, plot_settings, ps_runs_path, ps_run_
         calc_FSS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
                  settings, plot_settings, **plot_settings, **plot_fss_settings)
 
-        plot_fss_by_scales(**settings)
-        plot_fss_by_threshold(**settings,  num_plots=5)
-        plot_fss_by_threshold_one_plot(**settings, num_lines=5)
-        plot_fss_by_scales_one_plot(**settings, num_lines=5)
+        plot_fss_by_scales(**settings, **plot_fss_settings)
+        plot_fss_by_threshold(**settings, **plot_fss_settings, num_plots=5)
+        plot_fss_by_threshold_one_plot(**settings, **plot_fss_settings, num_lines=5)
+        plot_fss_by_scales_one_plot(**settings, **plot_fss_settings, num_lines=5)
 
     # plot_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
     #           plot_settings, prefix='VAL_epoch_{}'.format(epoch),
@@ -107,11 +107,11 @@ if __name__ == '__main__':
     #     'ps_run_name': 'Run_20230602-191416_test_profiler',
     #     'ps_checkpoint_name': 'model_epoch=1_val_loss=3.92.ckpt',
     # }
-    runs_path = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs'
-    run_name = 'Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
-    #
-    # runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
-    # run_name = 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
+    # runs_path = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs'
+    # run_name = 'Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
+
+    runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
+    run_name = 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
 
     runs_path = '{}/{}'.format(runs_path, run_name)
 
@@ -139,6 +139,7 @@ if __name__ == '__main__':
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
         'ps_plot_snapshots': True,
         'ps_plot_fss': True,
+
     }
 
     # Good qual setings:
@@ -147,24 +148,27 @@ if __name__ == '__main__':
     #     'fss_space_threshold': [0.01, 1, 30], # start, stop, steps
     #     'fss_linspace_scale': [1, 20, 30], # start, stop, steps
     #     'fss_calc_on_every_n_th_batch': 10
+    #     'fss_log_thresholds': True,
     # }
 
 
-    plot_fss_settings = {
-        'fss_space_threshold': [0.1, 2, 50], # [1, 20, 20], # start, stop, steps
-        'fss_linspace_scale': [1, 10, 50], # start, stop, steps
-        'fss_calc_on_every_n_th_batch': 10
-    }
+    # plot_fss_settings = {
+    #     'fss_space_threshold': [0.1, 10, 50], # [1, 20, 20], # start, stop, steps
+    #     'fss_linspace_scale': [1, 10, 50], # start, stop, steps
+    #     'fss_calc_on_every_n_th_batch': 10
+    #     'fss_log_thresholds': True,
+    # }
 
     # Debug settings:
 
-    # plot_fss_settings = {
-    #     'fss_space_threshold': [0.01, 1, 5], # start, stop, steps
-    #     'fss_linspace_scale': [1, 20, 5], # start, stop, threshold
-    #     'fss_calc_on_every_n_th_batch': 100
-    # }
-    #
-    # plot_checkpoint_settings['ps_plot_snapshots'] = False
+    plot_fss_settings = {
+        'fss_space_threshold': [0.1, 10, 5], # start, stop, steps
+        'fss_linspace_scale': [1, 10, 50], # start, stop, threshold
+        'fss_calc_on_every_n_th_batch': 100,
+        'fss_log_thresholds': True,
+    }
+
+    plot_checkpoint_settings['ps_plot_snapshots'] = False
 
 
     plot_from_checkpoint(plot_fss_settings, plot_checkpoint_settings, **plot_checkpoint_settings)

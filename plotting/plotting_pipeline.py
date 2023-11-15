@@ -61,6 +61,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
     plot_fss_settings = {
         'fss_space_threshold': [0.01, 1, 10], # start, stop, steps
         'fss_linspace_scale': [1, 20, 10], # start, stop, threshold
+        'fss_log_thresholds': True,
     }
 
     plot_from_checkpoint(plot_fss_settings, plot_checkpoint_settings, **plot_checkpoint_settings)
