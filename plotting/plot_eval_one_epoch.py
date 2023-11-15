@@ -194,8 +194,9 @@ def plot_fss_by_scales(s_dirs, fss_log_thresholds, **__):
         ax.set_xlabel('Threshold')
         ax.set_ylabel('FSS Mean')
 
+        if fss_log_thresholds:
+            ax.set_xscale('log')
 
-        ax.set_xscale('log')
         ax.set_title(f'FSS Mean and Std Dev at Scale {scale}')
         ax.legend()
 
@@ -254,8 +255,8 @@ def plot_fss_by_scales_one_plot(s_dirs, fss_log_thresholds, num_lines, **__):
         #                 scale_data['fss_model_mean'] + scale_data['fss_model_std'],
         #                 color=color_model, alpha=0.2)
 
-    ax.set_xscale('log')
-
+    if fss_log_thresholds:
+        ax.set_xscale('log')
 
     # Setting labels and title
     ax.set_xlabel('Threshold')
@@ -287,7 +288,6 @@ def plot_fss_by_scales_one_plot(s_dirs, fss_log_thresholds, num_lines, **__):
     plt.savefig(f'{s_dirs["plot_dir_fss"]}/fss_mean_vs_threshold_scales_colored.png', bbox_inches='tight')
     plt.show()
     plt.close()  # Close the plot to free memory
-
 
 
 def plot_fss_by_threshold(s_dirs, fss_log_thresholds, num_plots, **__):
@@ -410,78 +410,6 @@ def plot_fss_by_threshold_one_plot(s_dirs, fss_log_thresholds, num_lines, **__):
     plt.savefig(f"{s_dirs['plot_dir_fss']}/fss_mean_vs_scale_thresholds_colored_one_plot.png", bbox_inches='tight')
     plt.show()
     plt.close()  # Close the plot to free memory
-
-# def plot_fss_by_threshold_one_plot(s_dirs, fss_log_thresholds, num_lines, **__):
-#     '''
-#     This creates a single plot with scale on x-axis and multiple lines,
-#     each representing a different threshold.
-#     '''
-#     # Load the data from the uploaded CSV file
-#     data = pd.read_csv(f"{s_dirs['logs']}/fss_None.csv")
-#
-#     # Get unique thresholds, sorted
-#     unique_thresholds = np.sort(data['threshold'].unique())
-#     # Determine the indices to sample thresholds as evenly as possible
-#     indices = np.round(np.linspace(0, len(unique_thresholds) - 1, num_lines)).astype(int)
-#     sampled_thresholds = unique_thresholds[indices]
-#
-#     # Create a single custom colormap
-#     cmap = LinearSegmentedColormap.from_list('custom_colormap', ['blue', 'green', 'yellow', 'red'])
-#
-#     # Create a figure and axis
-#     fig, ax = plt.subplots()
-#
-#     for i, threshold in enumerate(sampled_thresholds):
-#         # Filter data for the current threshold
-#         threshold_data = data[data['threshold'] == threshold]
-#
-#         # Determine the color for the current threshold
-#         color = cmap(i / (len(sampled_thresholds)-1))
-#
-#         # Plot for both baseline and model using the same color
-#         ax.plot(threshold_data['scale'], threshold_data['fss_lk_baseline_mean'], '--', color=color, label=f'Baseline (Threshold {threshold:.2f})')
-#         ax.plot(threshold_data['scale'], threshold_data['fss_model_mean'], '-', color=color, label=f'Model (Threshold {threshold:.2f})')
-#
-#     # Setting labels and title
-#     ax.set_xlabel('Scale')
-#     ax.set_ylabel('FSS Mean')
-#     ax.set_title('FSS Mean by Threshold')
-#
-#     # Adding a colorbar for the thresholds
-#     scalar_mappable = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=sampled_thresholds.min(), vmax=sampled_thresholds.max()))
-#     scalar_mappable.set_array([])
-#
-#     cbar = plt.colorbar(scalar_mappable, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
-#     cbar.set_label('Thresholds')
-#
-#     if fss_log_thresholds:
-#         # pass
-#         # After setting the colorbar to log scale
-#         cbar._set_scale('log')
-#
-#         # Set the ticks to the specified values
-#         # cbar.set_ticks([0.1, 1, 10])  # 10^-1, 10^0, 10^1
-#
-#         # Set custom labels for these ticks
-#         # cbar.set_ticklabels(['$10^{-1}$', '$10^{0}$', '$10^{1}$'])
-#
-#     # Add a legend outside the plot, below
-#     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=True, shadow=True, ncol=3)
-#
-#     # Save the plot with the specified format
-#     try:
-#         _ = s_dirs["plot_dir_fss"]
-#     except KeyError:
-#         # Catch errors of previous versions where key was not existent
-#         s_dirs['plot_dir_fss'] = '{}/fss'.format(s_dirs['plot_dir'])
-#     if not os.path.exists(s_dirs['plot_dir_fss']):
-#         os.makedirs(s_dirs['plot_dir_fss'])
-#
-#     # Save the plot with the specified format
-#     plt.savefig(f"{s_dirs['plot_dir_fss']}/fss_mean_vs_scale_thresholds_colored_one_plot.png", bbox_inches='tight')
-#     plt.show()
-#     plt.close()  # Close the plot to free memory
-
 
 
 if __name__ == '__main__':
