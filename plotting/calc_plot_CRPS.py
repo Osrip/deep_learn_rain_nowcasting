@@ -128,49 +128,16 @@ def calculate_crps(bin_edges, bin_probs, observation):
         # that is left_edge < observation < right_edge, nothing is added to CRPS
         # TODO is that well implemented??
         elif left_edge < observation and observation < right_edge:
-            crps += ((cdf[i] ** 2) / 2 + (1 - cdf[i] ** 2) / 2) * (right_edge - left_edge)
+            pass
+            crps += cdf[i] ** 2 * (right_edge - left_edge)
+
+            # crps += ((cdf[i] ** 2) / 2 + (1 - cdf[i] ** 2) / 2) * (right_edge - left_edge)
             # crps += (1 - cdf[i]) ** 2 * (right_edge - left_edge)
         elif observation > left_edge:
             crps += cdf[i] ** 2 * (right_edge - left_edge)
             # Everything larger than observation 1 - integral is added
 
     return crps
-
-
-def calculate_crps(bin_edges, bin_probs, observation):
-    """
-    Calculate CRPS between an empirical distribution and a point observation.
-    Parameters:
-    - bin_edges : array-like, bin edges
-    !!including leftmost and rightmost edge!!!
-    - bin_probs : array-like, probabilities of each bin --> len(bin_probs) == len(bin_edges - 1) as last right bin not included!
-    - observation : float, observed value
-    Returns:
-    - CRPS value : float
-    """
-    cdf = np.cumsum(bin_probs)
-    crps = 0
-    for i in range(len(bin_edges)-1):
-        left_edge = bin_edges[i]
-        right_edge = bin_edges[i+1]
-        if observation < right_edge:
-            crps += cdf[i] ** 2 * (right_edge - left_edge)
-            # Eveything smaller than observation is added to represent integral
-
-        # Case where observation is within current bin,
-        # that is left_edge < observation < right_edge, nothing is added to CRPS
-        # TODO is that well implemented??
-        elif left_edge < observation and observation < right_edge:
-            crps += ((cdf[i] ** 2) / 2 + (1 - cdf[i] ** 2) / 2) * (right_edge - left_edge)
-            # crps += (1 - cdf[i]) ** 2 * (right_edge - left_edge)
-        elif observation > left_edge:
-            crps += cdf[i] ** 2 * (right_edge - left_edge)
-            # Everything larger than observation 1 - integral is added
-
-    return crps
-
-
-
 
 
 def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filtered_data, std_filtered_data):
@@ -187,7 +154,7 @@ def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filter
 if __name__ == '__main__':
     bin_edges = np.array([0, 1, 2, 3, 4])
     bin_probs = np.array([0, 0, 1, 0])
-    observation = 3.5
+    observation = 2.5
 
     test = calculate_crps(bin_edges, bin_probs, observation)
     pass

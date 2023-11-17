@@ -107,12 +107,12 @@ if __name__ == '__main__':
     #     'ps_run_name': 'Run_20230602-191416_test_profiler',
     #     'ps_checkpoint_name': 'model_epoch=1_val_loss=3.92.ckpt',
     # }
-    # runs_path = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs'
+    runs_path = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs'
     # run_name = 'Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
-    # run_name = 'Run_20231025-143021_ID_4495295several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler_GOOD_PERFORMANCE'
+    run_name = 'Run_20231025-143021_ID_4495295several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
     #
-    runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
-    run_name = 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
+    # runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
+    # run_name = 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
 
     runs_path = '{}/{}'.format(runs_path, run_name)
 
@@ -154,7 +154,7 @@ if __name__ == '__main__':
 
 
     plot_fss_settings = {
-        'fss_space_threshold': [0.1, 10, 100], # [1, 20, 20], # start, stop, steps
+        'fss_space_threshold': [0.1, 50, 100], # [1, 20, 20], # start, stop, steps
         'fss_linspace_scale': [1, 10, 100], # start, stop, steps
         'fss_calc_on_every_n_th_batch': 1,
         'fss_log_thresholds': True,
