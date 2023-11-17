@@ -13,12 +13,19 @@ class LKBaseline(pl.LightningModule):
     Optical Flow baseline (PySteps)
     '''
     def __init__(self, logging_type, mean_filtered_data, std_filtered_data, s_num_lead_time_steps, s_calculate_fss,
-                 s_fss_scales, s_fss_threshold, device, **__):
+                 s_fss_scales, s_fss_threshold, device, use_steps=False, **__):
         '''
         logging_type depending on data loader either: 'train' or 'val' or None if no logging is desired
         This is used by both,
         '''
         super().__init__()
+        if use_steps == True:
+            self.inference_method = 'steps'
+        else:
+            self.inference_method = 'extrapolation'
+
+        self.method_calc_motionfield = motion.get_method("LK")
+
         self.logging_type = logging_type
         self.mean_filtered_data = mean_filtered_data
         self.std_filtered_data = std_filtered_data
@@ -30,7 +37,18 @@ class LKBaseline(pl.LightningModule):
         self.s_fss_threshold = s_fss_threshold
         self.s_device = device
 
-        self.baseline_method = motion.get_method("LK")
+
+
+    def _infer_by_extrapolation(self, frames_2dim, motion_field):
+        extrapolate = nowcasts.get_method("extrapolation")
+        precip_forecast = extrapolate(frames_2dim, motion_field, self.s_num_lead_time_steps)
+        return precip_forecast
+
+
+    def _infer_with_steps(self, frames_2dim, motion_field):
+        STEP = nowcasts.get_method('steps')
+        precip_forecast = STEP(frames_2dim, motion_field, self.s_num_lead_time_steps)
+        return precip_forecast
 
 
     def forward(self, frames):
@@ -39,17 +57,21 @@ class LKBaseline(pl.LightningModule):
 
         predictions = []
         for batch_idx in range(frames_np.shape[0]):
-
-
             # Calculate optical flow using PySTEPS
             # Motion vectors only become feasible for lognormalized data!
 
-            motion_field = self.baseline_method(frames_np[batch_idx, :, :, :])
+            motion_field = self.method_calc_motionfield(frames_np[batch_idx, :, :, :])
 
+            if self.inference_method == 'extrapolation':
+                precip_forecast = self._infer_by_extrapolation(frames_np[batch_idx, -1, :, :], motion_field)
+            elif self.inference_method == 'steps':
+                precip_forecast = self._infer_with_steps(frames_np[batch_idx, -1, :, :], motion_field)
+            else:
+                raise ValueError(
+                    f"Invalid inference method: {self.inference_method}. Expected 'extrapolation' or 'steps'.")
 
             # Extrapolate the last radar observation
-            extrapolate = nowcasts.get_method("extrapolation")
-            precip_forecast = extrapolate(frames_np[batch_idx, -1, :, :], motion_field, self.s_num_lead_time_steps)
+
             predictions.append(precip_forecast)
 
         precip_forecast = torch.from_numpy(np.array(predictions)).to(self.s_device)
@@ -123,7 +145,7 @@ class STEPSBaseline(pl.LightningModule):
 
         for batch_idx in range(frames_np.shape[0]):
             # Generate nowcast using STEPS
-            precip_forecast = nowcasts.steps.forecast(frames_np[batch_idx, :, :, :], self.s_num_lead_time_steps, **self.steps_nowcast_kwargs)
+            precip_forecast = nowcasts.steps.forecast(frames_np[batch_idx, :, :, :], self.s_num_lead_time_steps)
             predictions.append(precip_forecast)
 
         precip_forecast = torch.from_numpy(np.array(predictions)).to(self.s_device)

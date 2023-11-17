@@ -2,36 +2,12 @@ from helper.helper_functions import one_hot_to_lognorm_mm
 from load_data import inverse_normalize_data
 import numpy as np
 from pysteps import verification
-
-
-def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binning_params, plot_settings,
-              ps_runs_path, ps_run_name, ps_checkpoint_name, ps_device,
-              ps_gaussian_smoothing_multiple_sigmas, ps_multiple_sigmas, prefix='', **__):
-
-    '''
-    In progress...
-    '''
-
-    filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
-        linspace_binning_max_unnormalized = filter_and_normalization_params
-
-    linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
-
-
-    inv_norm_ = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=True,
-                                                       inverse_normalize=True)
-
-    for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
-        input_sequence = input_sequence.to(ps_device)
-        model = model.to(ps_device)
-        pred = model(input_sequence)
-
-        pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+from baselines import STEPSBaseline
 
 
 def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binning_params, settings, plot_settings,
              ps_runs_path, ps_run_name, ps_checkpoint_name, ps_device, ps_gaussian_smoothing_multiple_sigmas,
-             ps_multiple_sigmas, fss_space_threshold, fss_linspace_scale, fss_calc_on_every_n_th_batch, fss_log_thresholds,
+             ps_multiple_sigmas, crps_calc_on_every_n_th_batch,
              prefix='', **__):
 
     '''
@@ -46,8 +22,8 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
     calc_on_every_n_th_batch=4 <--- Only use every nth batch of data loder to calculate FSS (for speed); at least one
     batch is calculated
     '''
-    if fss_calc_on_every_n_th_batch < len(data_loader):
-        fss_calc_on_every_n_th_batch = len(data_loader)
+    if crps_calc_on_every_n_th_batch < len(data_loader):
+        crps_calc_on_every_n_th_batch = len(data_loader)
 
     filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
         linspace_binning_max_unnormalized = filter_and_normalization_params
@@ -60,21 +36,20 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
 
     # I want this behaviour: np.exp(np.linspace(np.log(0.01), np.log(0.1), 5))
-    scales = np.linspace(fss_linspace_scale[0], fss_linspace_scale[1], fss_linspace_scale[2])
-    scales = scales.astype(int)
-    scales = np.unique(scales)
+
     df_data = []
-    fss_calc = verification.get_method("FSS")
+
 
     preds_and_targets = {}
     preds_and_targets['pred_mm_inv_normed'] = []
-    preds_and_targets['pred_mm_lk_baseline'] = []
+    preds_and_targets['pred_mm_steps_baseline'] = []
     preds_and_targets['target_inv_normed'] = []
 
-    lk_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
+    logging_type = None
+    steps_baseline = STEPSBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
 
     for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
-        if not (i % fss_calc_on_every_n_th_batch == 0):
+        if not (i % crps_calc_on_every_n_th_batch == 0):
             break
 
         input_sequence = input_sequence.to(ps_device)
@@ -93,14 +68,13 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
         logging_type = None
         input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
-        pred_mm_lk_baseline, _, _ = lk_baseline(input_sequence_inv_normed)
-
+        pred_mm_steps_baseline, _, _ = steps_baseline(input_sequence_inv_normed)
 
         target = target.detach().cpu().numpy()
         target_inv_normed = inv_norm(target)
 
         preds_and_targets['pred_mm_inv_normed'].append(pred_mm_inv_normed)
-        preds_and_targets['pred_mm_lk_baseline'].append(pred_mm_lk_baseline)
+        preds_and_targets['pred_mm_steps_baseline'].append(pred_mm_steps_baseline)
         preds_and_targets['target_inv_normed'].append(target_inv_normed)
 
 
@@ -146,9 +120,9 @@ def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filter
     By default the linspace binning only includes the lower bounds#
     Therefore the highest upper bound is missing which is given by linspace_binning_max
     '''
-    linspace_binning_inv_norm = (linspace_binning, mean_filtered_data, std_filtered_data)
-    linspace_binning_max_inv_norm = inverse_normalize_data(linspace_binning_max, mean_filtered_data, std_filtered_data, inverse_log=True)
-    return linspace_binning_inv_norm, linspace_binning_max_inv_norm
+    linspace_binning_inv_norm = (np.array(linspace_binning), mean_filtered_data, std_filtered_data)
+    linspace_binning_max_inv_norm = inverse_normalize_data(np.array(linspace_binning_max), mean_filtered_data, std_filtered_data, inverse_log=True)
+    return linspace_binning_inv_norm, linspace_binning_max_inv_norm.item()
 
 
 if __name__ == '__main__':
