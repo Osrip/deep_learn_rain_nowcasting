@@ -2,7 +2,6 @@ from helper.helper_functions import one_hot_to_lognorm_mm
 from load_data import inverse_normalize_data
 import numpy as np
 from pysteps import verification
-from baselines import STEPSBaseline
 
 
 def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binning_params, settings, plot_settings,
@@ -46,7 +45,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
     preds_and_targets['target_inv_normed'] = []
 
     logging_type = None
-    steps_baseline = STEPSBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
+    # steps_baseline = STEPSBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
 
     for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
         if not (i % crps_calc_on_every_n_th_batch == 0):
