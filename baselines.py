@@ -13,7 +13,8 @@ class LKBaseline(pl.LightningModule):
     Optical Flow baseline (PySteps)
     '''
     def __init__(self, logging_type, mean_filtered_data, std_filtered_data, s_num_lead_time_steps, s_calculate_fss,
-                 s_fss_scales, s_fss_threshold, device, use_steps=True, **__):
+                 s_fss_scales, s_fss_threshold, device, use_steps=True
+                 , **__):
         '''
         logging_type depending on data loader either: 'train' or 'val' or None if no logging is desired
         This is used by both,
@@ -47,9 +48,58 @@ class LKBaseline(pl.LightningModule):
 
     def _infer_with_steps(self, frames_3dim, motion_field):
         STEP = nowcasts.get_method('steps')
-        precip_forecast = STEP(frames_3dim, motion_field, self.s_num_lead_time_steps, precip_thr=None)
+        # precip_forecast = STEP(frames_3dim, motion_field, self.s_num_lead_time_steps, mask_method=None)
+        precip_forecast = STEP(
+            frames_3dim,
+            motion_field,
+            self.s_num_lead_time_steps,
+            n_ens_members=12,
+            n_cascade_levels=6,
+            precip_thr=0.01,  # everything below is assumed to be zero
+            kmperpixel=1,
+            timestep=5,
+            noise_method="nonparametric",
+            vel_pert_method="bps",
+            mask_method="incremental",
+            num_workers=2
+            # mask_method=None,
+        )
+
         return precip_forecast
 
+
+    # Implementation in LDCast Leinonen paper:
+    # https: // github.com / MeteoSwiss / ldcast / blob / master / ldcast / models / benchmarks / pysteps.py
+    # self.nowcast_method = nowcasts.get_method("steps")
+
+    # Here they seem to be first transforming into mm/h and then into dBz before feeding into
+    # STEPS
+
+    # R = self.transform_to_rainrate(x)
+    # (R, _) = transformation.dB_transform(
+    #     R, threshold=0.1, zerovalue=zerovalue
+    # )
+    # R[~np.isfinite(R)] = zerovalue
+    # if (R == zerovalue).all():
+    #     R_f = self.zero_prediction(R, zerovalue)
+    # else:
+    #     V = dense_lucaskanade(R)
+    #     try:
+    #         R_f = self.nowcast_method(
+    #             R,
+    #             V,
+    #             self.future_timesteps,
+    #             n_ens_members=self.ensemble_size,
+    #             n_cascade_levels=6,
+    #             precip_thr=threshold,
+    #             kmperpixel=self.km_per_pixel,
+    #             timestep=self.interval.total_seconds()/60,
+    #             noise_method="nonparametric",
+    #             vel_pert_method="bps",
+    #             mask_method="incremental",
+    #             num_workers=2
+    #         )
+    #         R_f = R_f.transpose(1,2,3,0)
 
     def forward(self, frames):
 

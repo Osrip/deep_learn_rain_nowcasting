@@ -33,11 +33,9 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
     inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=True,
                                                            inverse_normalize=True)
 
-
     # I want this behaviour: np.exp(np.linspace(np.log(0.01), np.log(0.1), 5))
 
     df_data = []
-
 
     preds_and_targets = {}
     preds_and_targets['pred_mm_inv_normed'] = []
