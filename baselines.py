@@ -13,8 +13,7 @@ class LKBaseline(pl.LightningModule):
     Optical Flow baseline (PySteps)
     '''
     def __init__(self, logging_type, mean_filtered_data, std_filtered_data, s_num_lead_time_steps, s_calculate_fss,
-                 s_fss_scales, s_fss_threshold, device, use_steps=True
-                 , **__):
+                 s_fss_scales, s_fss_threshold, device, use_steps=False, steps_settings=None, **__):
         '''
         logging_type depending on data loader either: 'train' or 'val' or None if no logging is desired
         This is used by both,
@@ -38,33 +37,42 @@ class LKBaseline(pl.LightningModule):
         self.s_fss_threshold = s_fss_threshold
         self.s_device = device
 
+        self.steps_settings = steps_settings
+
 
 
     def _infer_by_extrapolation(self, frames_2dim, motion_field):
+        '''
+        This infers the future frame using the motion field implementing extrapolation
+        OUt: c (=1) x w x h
+        '''
         extrapolate = nowcasts.get_method("extrapolation")
         precip_forecast = extrapolate(frames_2dim, motion_field, self.s_num_lead_time_steps)
         return precip_forecast
 
 
-    def _infer_with_steps(self, frames_3dim, motion_field):
+    def _infer_with_steps(self, frames_3dim, motion_field, steps_n_ens_members, steps_num_workers, **__):
+        '''
+        This infers the future frame using the motion field implementing STEPS
+        OUt: num_ensembles x c (=1) x w x h
+        '''
         STEP = nowcasts.get_method('steps')
         # precip_forecast = STEP(frames_3dim, motion_field, self.s_num_lead_time_steps, mask_method=None)
         precip_forecast = STEP(
             frames_3dim,
             motion_field,
             self.s_num_lead_time_steps,
-            n_ens_members=12,
+            n_ens_members=steps_n_ens_members, # num ensemble members TODO: Increase this
             n_cascade_levels=6,
             precip_thr=0.01,  # everything below is assumed to be zero
             kmperpixel=1,
-            timestep=5,
+            timestep=5, # Minutes temp. distance between frames of input motion field
             noise_method="nonparametric",
             vel_pert_method="bps",
             mask_method="incremental",
-            num_workers=2
+            num_workers=steps_num_workers
             # mask_method=None,
         )
-
         return precip_forecast
 
 
@@ -115,7 +123,10 @@ class LKBaseline(pl.LightningModule):
             if self.inference_method == 'extrapolation':
                 precip_forecast = self._infer_by_extrapolation(frames_np[batch_idx, -1, :, :], motion_field)
             elif self.inference_method == 'steps':
-                precip_forecast = self._infer_with_steps(frames_np[batch_idx, :, :, :], motion_field)
+                if self.steps_settings is None:
+                    raise ValueError('When using STEPS, steps settings have to be set with '
+                                     'steps_n_ens_members, steps_num_workers')
+                precip_forecast = self._infer_with_steps(frames_np[batch_idx, :, :, :], motion_field, **self.steps_settings)
             else:
                 raise ValueError(
                     f"Invalid inference method: {self.inference_method}. Expected 'extrapolation' or 'steps'.")
@@ -126,7 +137,13 @@ class LKBaseline(pl.LightningModule):
 
         precip_forecast = torch.from_numpy(np.array(predictions)).to(self.s_device)
 
-        return precip_forecast[:, -1, :, :], motion_field, precip_forecast
+        if self.inference_method == 'extrapolation':
+            return precip_forecast[:, -1, :, :], motion_field, precip_forecast
+        elif self.inference_method == 'steps':
+            # steps has one extra dimension for ensemble members
+            # Dimension order:
+            # [batch, ensemble_member, w, h]
+            return precip_forecast[:, :, -1, :, :], motion_field, precip_forecast
 
 
     def validation_step(self, val_batch, batch_idx):
