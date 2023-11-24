@@ -58,7 +58,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
         'ps_plot_snapshots': True,
         'ps_plot_fss': True,
-        'ps_plot_crps': False,
+        'ps_plot_crps': True,
     }
 
     plot_fss_settings = {
@@ -68,14 +68,23 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
         'fss_log_thresholds': True,
     }
 
+
+
+
     plot_crps_settings = {
-        'crps_calc_on_every_n_th_batch': 100,
+        'crps_calc_on_every_n_th_batch': 1,
+
     }
 
     steps_settings = {
-        'steps_n_ens_members': 16,
+        'steps_n_ens_members': 300,
         'steps_num_workers': 16
     }
+
+    if settings['local_machine_mode']:
+        plot_crps_settings['crps_calc_on_every_n_th_batch'] = 100
+        steps_settings['steps_n_ens_members'] = 10
+        steps_settings['steps_num_workers'] = 16
 
     plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, **plot_checkpoint_settings)
 
