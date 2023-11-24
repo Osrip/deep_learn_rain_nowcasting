@@ -84,8 +84,10 @@ def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, 
         plot_fss_by_scales_one_plot(**settings, **plot_fss_settings, num_lines=5)
 
     if ps_plot_crps:
-        calc_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
+        crps_model_mean, crps_model_std, crps_steps_mean, crps_steps_std = calc_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
                  settings, plot_settings, steps_settings, **plot_settings, **plot_crps_settings)
+
+        pass
 
 
     # plot_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,

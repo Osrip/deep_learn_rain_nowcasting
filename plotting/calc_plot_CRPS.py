@@ -1,12 +1,13 @@
-from helper.helper_functions import one_hot_to_lognorm_mm
-from load_data import inverse_normalize_data
+
+from load_data import inverse_normalize_data, img_one_hot
 import numpy as np
 from baselines import LKBaseline
 import torch
 import torchvision.transforms as T
+import einops
 
 
-def calculate_crps(bin_probs, observation, bin_edges):
+def element_wise_crps(bin_probs, observation, bin_edges):
     """
     VIDEO ZUR IMPLEMENTATION IN ICLOUD NOTES UNTER NOTIZ "CRPS"
     Calculate CRPS between an empirical distribution and a point observation.
@@ -79,11 +80,11 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
     steps_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, use_steps=True,
                                 steps_settings=steps_settings, **settings)
 
-    calculate_crps_lambda = lambda x, y: calculate_crps(x, y,
-                                                 np.append(linspace_binning_inv_norm, linspace_binning_max_inv_norm), )
-    calculate_crps_vec = np.vectorize(calculate_crps_lambda)
 
 
+
+    crps_np_model_list = []
+    crps_np_steps_list = []
 
     for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
         if not (i % crps_calc_on_every_n_th_batch == 0):
@@ -109,26 +110,77 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
         pred_ensemble_steps_baseline, _, _ = steps_baseline(input_sequence_inv_normed)
         pred_ensemble_steps_baseline = T.CenterCrop(size=settings['s_width_height_target'])(pred_ensemble_steps_baseline)
 
-
         target = target.detach().cpu().numpy()
         target_inv_normed = inv_norm(target)
 
+        # Calculate CRPS for baseline
+        steps_binning_torch = create_binning_from_ensemble(pred_ensemble_steps_baseline, linspace_binning, **settings)
+        steps_binning_np = steps_binning_torch.cpu().detach().numpy()
+        crps_np_steps = iterate_crps_model(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+        crps_np_steps_list.append(crps_np_steps)
 
-        # Calculate CRPS for predictions
+        # Calculate CRPS for model predictions
 
         pred_np = pred.cpu().detach().numpy()
         # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
-        crps_np = calculate_crps_vec(pred_np, target_inv_normed)
+        crps_np_model = iterate_crps_model(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+        crps_np_model_list.append(crps_np_model)
+
+
+    crps_np_model_all = np.array(crps_np_model_list)
+    crps_model_mean = np.mean(crps_np_model_all)
+    crps_model_std = np.mean(crps_np_model_all)
+
+    crps_np_steps_all = np.array(crps_np_steps_list)
+    crps_steps_mean = np.mean(crps_np_steps_all)
+    crps_steps_std = np.mean(crps_np_steps_all)
+
+    return crps_model_mean, crps_model_std, crps_steps_mean, crps_steps_std
+
+
+def create_binning_from_ensemble(ensemble, linspace_binning, s_num_bins_crossentropy, **__):
+    '''
+    expects **settings kwargs
+    Use the NORMALIZED LINSPACE_BINNING
+
+    '''
+    #
+    num_ensemble_member = ensemble.shape[1]
+
+    ensembles_one_hot = img_one_hot(ensemble, s_num_bins_crossentropy, linspace_binning)
+    ensembles_one_hot = einops.rearrange(ensembles_one_hot, 'b e w h c -> b e c w h')
+    # Dimensions now: batch x ensemble_members x channel (one hot binning) x width x height
+    # Summing along ensemble dimension in order to get unnormalized binning
+    ensembles_binned_unnormalized = torch.sum(ensembles_one_hot, dim=1) #  tested: looks reasonable
+    # Dimensions now: batch x channel (one hot binning) x width x height
+    # Normalizing by the number of ensembles
+    binning_from_ensemble = ensembles_binned_unnormalized / num_ensemble_member
+
+    # TEST
+    # test = torch.sum(ensembles_binned, dim=1)
+    # test_np = test.numpy()
+    # test_result = test[test == 1].all()
+
+    return binning_from_ensemble
 
 
 
-        preds_and_targets['pred_mm_inv_normed'].append(pred_mm_inv_normed)
-        preds_and_targets['pred_mm_steps_baseline'].append(pred_mm_steps_baseline)
-        preds_and_targets['target_inv_normed'].append(target_inv_normed)
+def iterate_crps_model(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm):
+    calculate_crps_lambda = lambda x, y: element_wise_crps(x, y,
+                                                           np.append(linspace_binning_inv_norm, linspace_binning_max_inv_norm), )
+    shape_pred = np.shape(pred_np)
+    shape_target = np.shape(target_inv_normed)
+    if not (shape_target[0] == shape_pred[0] and shape_target[1] == shape_pred[2] and shape_target[2] == shape_pred[3]):
+        raise ValueError('Dimensionality mismatch between prediction and target (leaving away channal dimension of prediction')
 
+    crps_out = np.zeros(shape=shape_target)
 
-
-
+    for b in range(shape_target[0]):
+        for h in range(shape_target[1]):
+            for w in range(shape_target[2]):
+                crps = calculate_crps_lambda(pred_np[b, :, h, w], target_inv_normed[b, h, w])
+                crps_out[b, h, w] = crps
+    return crps_out
 
 def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filtered_data, std_filtered_data):
     '''
@@ -146,5 +198,5 @@ if __name__ == '__main__':
     bin_probs = np.array([0, 0, 1, 0])
     observation = 2.5
 
-    test = calculate_crps(bin_probs, observation, bin_edges,)
+    test = element_wise_crps(bin_probs, observation, bin_edges, )
     pass
