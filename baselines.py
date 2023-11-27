@@ -40,7 +40,6 @@ class LKBaseline(pl.LightningModule):
         self.steps_settings = steps_settings
 
 
-
     def _infer_by_extrapolation(self, frames_2dim, motion_field):
         '''
         This infers the future frame using the motion field implementing extrapolation
@@ -166,8 +165,6 @@ class LKBaseline(pl.LightningModule):
             self.log('base_{}_mse_pred_target'.format(self.logging_type), mse_pred_target.item(), on_step=False,
                      on_epoch=True, sync_dist=True)
 
-
-
         if self.s_calculate_fss:
             fss = verification.get_method("FSS")
             pred_np = pred.detach().cpu().numpy()
@@ -181,5 +178,4 @@ class LKBaseline(pl.LightningModule):
                 if self.logging_type is not None:
                     self.log('base_{}_fss_scale_{:03d}_pred_target'.format(self.logging_type, fss_scale), fss_pred_target,
                              on_step=False, on_epoch=True, sync_dist=True)
-
 

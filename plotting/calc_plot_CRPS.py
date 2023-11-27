@@ -114,6 +114,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
         target_inv_normed = inv_norm(target)
 
         # Calculate CRPS for baseline
+        pred_ensemble_steps_baseline = pred_ensemble_steps_baseline.cpu().detach().numpy()
         steps_binning_torch = create_binning_from_ensemble(pred_ensemble_steps_baseline, linspace_binning, **settings)
         steps_binning_np = steps_binning_torch.cpu().detach().numpy()
         crps_np_steps = iterate_crps_model(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
@@ -138,7 +139,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
     return crps_model_mean, crps_model_std, crps_steps_mean, crps_steps_std
 
 
-def create_binning_from_ensemble(ensemble, linspace_binning, s_num_bins_crossentropy, **__):
+def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_bins_crossentropy, **__):
     '''
     expects **settings kwargs
     Use the NORMALIZED LINSPACE_BINNING

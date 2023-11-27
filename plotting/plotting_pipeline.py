@@ -68,12 +68,8 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
         'fss_log_thresholds': True,
     }
 
-
-
-
     plot_crps_settings = {
         'crps_calc_on_every_n_th_batch': 1,
-
     }
 
     steps_settings = {
@@ -81,7 +77,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
         'steps_num_workers': 16
     }
 
-    if settings['local_machine_mode']:
+    if settings['s_local_machine_mode']:
         plot_crps_settings['crps_calc_on_every_n_th_batch'] = 100
         steps_settings['steps_n_ens_members'] = 10
         steps_settings['steps_num_workers'] = 16

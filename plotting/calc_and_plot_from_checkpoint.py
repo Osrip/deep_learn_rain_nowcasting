@@ -87,6 +87,11 @@ def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, 
         crps_model_mean, crps_model_std, crps_steps_mean, crps_steps_std = calc_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
                  settings, plot_settings, steps_settings, **plot_settings, **plot_crps_settings)
 
+        print('CRPS model mean: {}'.format(crps_model_mean))
+        print('CRPS model std: {}'.format(crps_model_std))
+        print('CRPS steps mean: {}'.format(crps_steps_mean))
+        print('CRPS steps std: {}'.format(crps_steps_std))
+
         pass
 
 
@@ -114,12 +119,12 @@ if __name__ == '__main__':
     #     'ps_run_name': 'Run_20230602-191416_test_profiler',
     #     'ps_checkpoint_name': 'model_epoch=1_val_loss=3.92.ckpt',
     # }
-    # runs_path = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs'
-    # run_name = 'Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
+    runs_path = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs'
+    run_name = 'Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
     # run_name = 'Run_20231025-143021_ID_4495295several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
     #
-    runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
-    run_name = 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
+    # runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
+    # run_name = 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
 
     runs_path = '{}/{}'.format(runs_path, run_name)
 
