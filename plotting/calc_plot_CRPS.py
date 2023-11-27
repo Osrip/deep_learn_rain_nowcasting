@@ -130,11 +130,11 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
     crps_np_model_all = np.array(crps_np_model_list)
     crps_model_mean = np.mean(crps_np_model_all)
-    crps_model_std = np.mean(crps_np_model_all)
+    crps_model_std = np.std(crps_np_model_all)
 
     crps_np_steps_all = np.array(crps_np_steps_list)
     crps_steps_mean = np.mean(crps_np_steps_all)
-    crps_steps_std = np.mean(crps_np_steps_all)
+    crps_steps_std = np.std(crps_np_steps_all)
 
     return crps_model_mean, crps_model_std, crps_steps_mean, crps_steps_std
 
