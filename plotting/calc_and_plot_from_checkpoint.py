@@ -8,7 +8,7 @@ import os
 from helper.checkpoint_handling import load_from_checkpoint, create_data_loaders, load_data_from_run
 # from helper.helper_functions import load_zipped_pickle
 from plotting.plot_snapshots import plot_snapshots
-from plotting.calc_plot_CRPS import calc_CRPS
+from plotting.calc_plot_CRPS import calc_CRPS, plot_crps
 from plotting.calc_plot_FSS import calc_FSS, plot_fss_by_scales, plot_fss_by_threshold,\
     plot_fss_by_threshold_one_plot, plot_fss_by_scales_one_plot
 
@@ -84,13 +84,17 @@ def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, 
         plot_fss_by_scales_one_plot(**settings, **plot_fss_settings, num_lines=5)
 
     if ps_plot_crps:
-        crps_model_mean, crps_model_std, crps_steps_mean, crps_steps_std = calc_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
-                 settings, plot_settings, steps_settings, **plot_settings, **plot_crps_settings)
+        # MEMORY INTENSIVE if run with 'crps_load_steps_crps_from_file': False
+        # corresponding ram required as by 4 v100 GPU on fair share with steps_n_ens_members: 1024 and 'fss_calc_on_every_n_th_batch': 1,
+        calc_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
+                  settings, plot_settings, steps_settings, **plot_settings, **plot_crps_settings)
 
-        print('CRPS model mean: {}'.format(crps_model_mean))
-        print('CRPS model std: {}'.format(crps_model_std))
-        print('CRPS steps mean: {}'.format(crps_steps_mean))
-        print('CRPS steps std: {}'.format(crps_steps_std))
+        plot_crps(**settings, **plot_crps_settings)
+
+        # print('CRPS model mean: {}'.format(crps_model_mean))
+        # print('CRPS model std: {}'.format(crps_model_std))
+        # print('CRPS steps mean: {}'.format(crps_steps_mean))
+        # print('CRPS steps std: {}'.format(crps_steps_std))
 
         pass
 
@@ -153,16 +157,17 @@ if __name__ == '__main__':
         'ps_plot_snapshots': False,
         'ps_plot_fss': False,
         'ps_plot_crps' : True
-
     }
 
     plot_crps_settings = {
-        'crps_calc_on_every_n_th_batch': 100,
+        'crps_calc_on_every_n_th_batch': 1, #100,
+        'crps_load_steps_crps_from_file': False,
+        'crps_steps_file_path': None
     }
 
     steps_settings = {
-        'steps_n_ens_members': 16,
-        'steps_num_workers': 16
+        'steps_n_ens_members': 16, #1024, # 16, Keep in mind that there are 64 bins!!!
+        'steps_num_workers': 16,
     }
 
     # Good qual setings:

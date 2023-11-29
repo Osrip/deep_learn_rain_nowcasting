@@ -70,6 +70,8 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
 
     plot_crps_settings = {
         'crps_calc_on_every_n_th_batch': 1,
+        'crps_load_steps_crps_from_file': False,
+        'crps_steps_file_path': None
     }
 
     steps_settings = {

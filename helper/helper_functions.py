@@ -5,6 +5,7 @@ import gzip
 import os
 from os.path import isfile, join
 from shutil import copyfile
+import pandas as pd
 
 import torch
 
@@ -198,3 +199,6 @@ def df_cols_to_list_of_lists(keys, df):
 def convert_list_of_lists_to_lists_of_lists_with_means(list_of_lists):
     mean_f = lambda x: np.mean(x)
     return [[mean_f(l)] for l in list_of_lists]
+
+
+

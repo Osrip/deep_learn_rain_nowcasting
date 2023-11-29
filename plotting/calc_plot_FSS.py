@@ -131,7 +131,7 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
     df = pd.DataFrame(df_data)
 
     log_dir = settings['s_dirs']['logs']
-    log_name = 'fss{}_{}.csv'.format(prefix, ps_checkpoint_name)
+    log_name = 'fss_None.csv'.format(prefix, ps_checkpoint_name)
     if not os.path.exists(log_dir):
         # Create a new directory because it does not exist
         os.makedirs(log_dir)

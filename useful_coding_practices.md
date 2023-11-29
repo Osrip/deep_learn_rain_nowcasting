@@ -138,6 +138,7 @@ mamba create -n phdenv
 mamba env update -n phdenv -f phdenv.yml
 
 --> Diese Befehle direkt auf GPU node mit srun (mamba unterstütz GPU parallelisierung)
+--> NEIN unterstütz kein GPU!
 
 
 ###### Conda env

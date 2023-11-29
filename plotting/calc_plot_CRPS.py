@@ -5,6 +5,9 @@ from baselines import LKBaseline
 import torch
 import torchvision.transforms as T
 import einops
+import matplotlib.pyplot as plt
+import seaborn as sns
+from helper.helper_functions import save_zipped_pickle, load_zipped_pickle
 
 
 def element_wise_crps(bin_probs, observation, bin_edges):
@@ -41,7 +44,7 @@ def element_wise_crps(bin_probs, observation, bin_edges):
 def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binning_params, settings, plot_settings,
              steps_settings,
              ps_runs_path, ps_run_name, ps_checkpoint_name, ps_device, ps_gaussian_smoothing_multiple_sigmas,
-             ps_multiple_sigmas, crps_calc_on_every_n_th_batch,
+             ps_multiple_sigmas, crps_calc_on_every_n_th_batch, crps_load_steps_crps_from_file,
              prefix='', **__):
 
     '''
@@ -56,6 +59,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
     calc_on_every_n_th_batch=4 <--- Only use every nth batch of data loder to calculate FSS (for speed); at least one
     batch is calculated
     '''
+
     if crps_calc_on_every_n_th_batch < len(data_loader):
         crps_calc_on_every_n_th_batch = len(data_loader)
 
@@ -104,39 +108,43 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
         # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
 
+        if not crps_load_steps_crps_from_file:
+            # Baseline Prediction
+            input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
+            pred_ensemble_steps_baseline, _, _ = steps_baseline(input_sequence_inv_normed)
+            pred_ensemble_steps_baseline = T.CenterCrop(size=settings['s_width_height_target'])(pred_ensemble_steps_baseline)
 
-        # Baseline Prediction
-        input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
-        pred_ensemble_steps_baseline, _, _ = steps_baseline(input_sequence_inv_normed)
-        pred_ensemble_steps_baseline = T.CenterCrop(size=settings['s_width_height_target'])(pred_ensemble_steps_baseline)
+            target = target.detach().cpu().numpy()
+            target_inv_normed = inv_norm(target)
 
-        target = target.detach().cpu().numpy()
-        target_inv_normed = inv_norm(target)
-
-        # Calculate CRPS for baseline
-        pred_ensemble_steps_baseline = pred_ensemble_steps_baseline.cpu().detach().numpy()
-        steps_binning_torch = create_binning_from_ensemble(pred_ensemble_steps_baseline, linspace_binning, **settings)
-        steps_binning_np = steps_binning_torch.cpu().detach().numpy()
-        crps_np_steps = iterate_crps_model(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
-        crps_np_steps_list.append(crps_np_steps)
+            # Calculate CRPS for baseline
+            pred_ensemble_steps_baseline = pred_ensemble_steps_baseline.cpu().detach().numpy()
+            steps_binning_torch = create_binning_from_ensemble(pred_ensemble_steps_baseline, linspace_binning, **settings)
+            steps_binning_np = steps_binning_torch.cpu().detach().numpy()
+            crps_np_steps = iterate_crps(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+            crps_np_steps_list.append(crps_np_steps)
 
         # Calculate CRPS for model predictions
 
         pred_np = pred.cpu().detach().numpy()
         # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
-        crps_np_model = iterate_crps_model(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+        crps_np_model = iterate_crps(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
         crps_np_model_list.append(crps_np_model)
 
+    save_dir = settings['s_dirs']['logs']
+    save_name_model = 'crps_model'
+    save_name_steps = 'crps_steps'
 
     crps_np_model_all = np.array(crps_np_model_list)
-    crps_model_mean = np.mean(crps_np_model_all)
-    crps_model_std = np.std(crps_np_model_all)
+    # crps_model_mean = np.mean(crps_np_model_all)
+    # crps_model_std = np.std(crps_np_model_all)
+    save_zipped_pickle('{}/{}'.format(save_dir, save_name_model), crps_np_model_all)
 
-    crps_np_steps_all = np.array(crps_np_steps_list)
-    crps_steps_mean = np.mean(crps_np_steps_all)
-    crps_steps_std = np.std(crps_np_steps_all)
-
-    return crps_model_mean, crps_model_std, crps_steps_mean, crps_steps_std
+    if not crps_load_steps_crps_from_file:
+        crps_np_steps_all = np.array(crps_np_steps_list)
+        # crps_steps_mean = np.mean(crps_np_steps_all)
+        # crps_steps_std = np.std(crps_np_steps_all)
+        save_zipped_pickle('{}/{}'.format(save_dir, save_name_steps), crps_np_steps_all)
 
 
 def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_bins_crossentropy, **__):
@@ -165,14 +173,13 @@ def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_b
     return binning_from_ensemble
 
 
-
-def iterate_crps_model(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm):
+def iterate_crps(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm):
     calculate_crps_lambda = lambda x, y: element_wise_crps(x, y,
-                                                           np.append(linspace_binning_inv_norm, linspace_binning_max_inv_norm), )
+                                                           np.append(linspace_binning_inv_norm, linspace_binning_max_inv_norm),)
     shape_pred = np.shape(pred_np)
     shape_target = np.shape(target_inv_normed)
     if not (shape_target[0] == shape_pred[0] and shape_target[1] == shape_pred[2] and shape_target[2] == shape_pred[3]):
-        raise ValueError('Dimensionality mismatch between prediction and target (leaving away channal dimension of prediction')
+        raise ValueError('Dimensionality mismatch between prediction and target (leaving away channel dimension of prediction')
 
     crps_out = np.zeros(shape=shape_target)
 
@@ -183,6 +190,7 @@ def iterate_crps_model(pred_np, target_inv_normed, linspace_binning_inv_norm, li
                 crps_out[b, h, w] = crps
     return crps_out
 
+
 def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filtered_data, std_filtered_data):
     '''
     Inverse normalizes linspace binning
@@ -192,6 +200,112 @@ def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filter
     linspace_binning_inv_norm = inverse_normalize_data(np.array(linspace_binning), mean_filtered_data, std_filtered_data)
     linspace_binning_max_inv_norm = inverse_normalize_data(np.array(linspace_binning_max), mean_filtered_data, std_filtered_data, inverse_log=True)
     return linspace_binning_inv_norm, linspace_binning_max_inv_norm.item()
+
+
+# def plot_crps(s_dirs, crps_load_steps_crps_from_file, crps_steps_file_path, **__):
+#
+#     save_dir = s_dirs['logs']
+#     save_name_model = 'crps_model'
+#     save_name_steps = 'crps_steps'
+#
+#     crps_model_path = '{}/{}'.format(save_dir, save_name_model)
+#
+#     if crps_load_steps_crps_from_file:
+#         crps_steps_path = crps_steps_file_path
+#     else:
+#         crps_steps_path = '{}/{}'.format(save_dir, save_name_steps)
+#
+#     model_name = 'Model'
+#     steps_name = 'STEPS'
+#
+#     model_array = load_zipped_pickle(crps_model_path)
+#     steps_array = load_zipped_pickle(crps_steps_path)
+#
+#     data = [model_array, steps_array]
+#     means = [np.mean(array) for array in data]
+#     stds = [np.std(array) for array in data]
+#     medians = [np.median(array) for array in data]
+#
+#     # Creating the violin plot with mean as a point and std as a line
+#     plt.figure(figsize=(10, 6))
+#     ax = sns.violinplot(data=data)
+#     ax.set_xticklabels([model_name, steps_name])  # Setting custom names for the x-axis
+#
+#     # # Plotting mean as a point
+#     # ax.scatter(range(len(data)), means, color='red', marker='o', label='Mean')
+#     #
+#     # # Plotting std as a line
+#     # for i in range(len(data)):
+#     #     ax.plot([i, i], [means[i] - stds[i], means[i] + stds[i]], color='blue', lw=2, label='STD' if i == 0 else "")
+#
+#     # Adding text for mean, std, and median values above the plot
+#     for i in range(len(data)):
+#         plt.text(i, ax.get_ylim()[1] * 1.1, f'Mean: {means[i]:.3f}\nSTD: {stds[i]:.3f}\nMedian: {medians[i]:.3f}',
+#                  horizontalalignment='center', size='small', color='black', weight='semibold')
+#
+#     plt.title('Violin Plots with Mean and STD')
+#     plt.legend()
+#
+#     plt.savefig(f"{s_dirs['plot_dir']}/crps.png", bbox_inches='tight')
+#     plt.show()
+#     plt.close()  # Close the plot to free memory
+
+
+def plot_crps(s_dirs, crps_load_steps_crps_from_file, crps_steps_file_path, **__):
+    save_dir = s_dirs['logs']
+    save_name_model = 'crps_model'
+    save_name_steps = 'crps_steps'
+
+    crps_model_path = f'{save_dir}/{save_name_model}'
+
+    if crps_load_steps_crps_from_file:
+        crps_steps_path = crps_steps_file_path
+    else:
+        crps_steps_path = f'{save_dir}/{save_name_steps}'
+
+    model_name = 'Model'
+    steps_name = 'STEPS'
+
+    model_array = load_zipped_pickle(crps_model_path)
+    steps_array = load_zipped_pickle(crps_steps_path)
+
+    model_array = model_array.flatten()
+    steps_array = steps_array.flatten()
+
+    data = [model_array, steps_array]
+    means = [np.mean(array) for array in data]
+    stds = [np.std(array) for array in data]
+    medians = [np.median(array) for array in data]
+
+    plt.figure(figsize=(10, 6))
+    parts = plt.violinplot(data, showmeans=False, showmedians=False, showextrema=False)
+
+    for pc in parts['bodies']:
+        pc.set_facecolor('#D43F3A')
+        pc.set_edgecolor('black')
+        pc.set_alpha(1)
+
+    # Adding mean as a point
+    plt.scatter(range(1, len(data) + 1), means, color='red', marker='o', label='Mean')
+
+    # Adding std as a line
+    for i in range(len(data)):
+        plt.plot([i + 1, i + 1], [means[i] - stds[i], means[i] + stds[i]], color='blue', lw=2, label='STD' if i == 0 else "")
+
+    # Adding custom names for the x-axis
+    plt.xticks([1, 2], [model_name, steps_name])
+
+    # Adding text for mean, std, and median values above the plot
+    for i in range(len(data)):
+        plt.text(i + 1, max(data[i]) * 1.1, f'Mean: {means[i]:.3f}\nSTD: {stds[i]:.3f}\nMedian: {medians[i]:.3f}',
+                 horizontalalignment='center', size='small', color='black', weight='semibold')
+
+    plt.title('Violin Plots with Mean and STD')
+    plt.legend()
+
+    plt.savefig(f"{s_dirs['plot_dir']}/crps.png", bbox_inches='tight')
+    plt.show()
+    plt.close()  # Close the plot to free memory
 
 
 if __name__ == '__main__':
