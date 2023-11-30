@@ -11,6 +11,7 @@ import pandas as pd
 
 import torch
 from torch.nn import functional as F
+import einops
 
 
 def create_dilation_list(s_width_height, inverse_ratio=4):
@@ -60,8 +61,39 @@ def bin_to_one_hot_index_linear(mm_data, linspace_binning):
     return indecies
 
 
-def one_hot_to_lognorm_mm(one_hot_tensor, linspace_binning, linspace_binning_max, channel_dim, mean_bin_vals=False,
-                          geo_mean_bin_vals=True):
+def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning):
+    '''
+    Adds one hot encoded channel dimension
+    Channel dimension is added as -1st dimension, so rearrange dimensions!
+    '''
+    # TODO: Looks like only first third of bins is used in practice despite lognormalization!
+    # vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
+    # data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=mm_min, mm_max=mm_max)
+    data_arr_indexed = bin_to_one_hot_index_linear(data_arr, linspace_binning) # -0.00000001
+    # data_arr_indexed = bin_to_one_hot_index_log(data_arr, num_c)
+    # data_arr_indexed[0, 0] = -1
+    # TODO:Added for debugging, make sure to find bug and fix it!
+    if np.min(data_arr_indexed) < 0:
+        err_message = 'ERROR: ONE HOT ENCODING: data_arr_indexed had values below zero.' \
+                      ' Set all vlas < 0 to 0. data_arr < min_linspace_binning: {},' \
+                      ' min of linspace_binning: {}, (all vals lognormalized) data_arr_index <0: {}'\
+            .format(data_arr[data_arr<np.min(linspace_binning)], np.min(linspace_binning), data_arr_indexed[data_arr_indexed<0])
+        warnings.warn(err_message)
+        print(err_message)
+
+        print('One hot conversion encountered error --> Set data_arr_indexed[data_arr_indexed < 0] = 0')
+        data_arr_indexed[data_arr_indexed < 0] = 0
+        data_indexed = torch.from_numpy(data_arr_indexed)
+        data_hot = F.one_hot(data_indexed.long(), num_c)
+
+    else:
+        data_indexed = torch.from_numpy(data_arr_indexed)
+        data_hot = F.one_hot(data_indexed.long(), num_c)
+
+    return data_hot
+
+
+def one_hot_to_lognorm_mm(one_hot_tensor: torch.Tensor, linspace_binning, linspace_binning_max, channel_dim, mean_bin_vals=False,):
     '''
     THIS IS NOT UNDOING LOGNORMALIZATION
     Converts one hot data back to precipitation mm data based upon argmax (highest bin wins)
@@ -70,6 +102,7 @@ def one_hot_to_lognorm_mm(one_hot_tensor, linspace_binning, linspace_binning_max
     #TODO --> GEOMETRIC MEAN does not work for lognormal data due to negative values
     #TODO: Calculate arithmetic mena after invlognormalization then lognormalize back
     channel dim: Channel dimension, that represents binning (num channels --> num bins)
+    out np.array
     '''
 
     argmax_indecies = torch.argmax(one_hot_tensor, dim=channel_dim)
@@ -85,7 +118,15 @@ def one_hot_to_lognorm_mm(one_hot_tensor, linspace_binning, linspace_binning_max
     return mm_data
 
 
-
+def convert_to_binning_and_back(data_arr: np.ndarray, linspace_binning, linspace_binning_max):
+    '''
+    This function converts to binning and back to mm
+    This way the data exhibits the same discrete properties as the binned data
+    '''
+    data_one_hot = img_one_hot(data_arr, num_c=len(linspace_binning), linspace_binning=linspace_binning)
+    data_one_hot = einops.rearrange(data_one_hot, 'b w h c -> b c w h')
+    data_mm = one_hot_to_lognorm_mm(data_one_hot, linspace_binning, linspace_binning_max, channel_dim=1)
+    return data_mm
 
 
 def save_zipped_pickle(title, data):
@@ -204,35 +245,4 @@ def convert_list_of_lists_to_lists_of_lists_with_means(list_of_lists):
     return [[mean_f(l)] for l in list_of_lists]
 
 
-def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning):
-    '''
-    Adds one hot encoded channel dimension
-    Channel dimension is added as -1st dimension, so rearrange dimensions!
-    '''
-    # TODO: Looks like only first third of bins is used in practice despite lognormalization!
-    # vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
-    # data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=mm_min, mm_max=mm_max)
-    data_arr_indexed = bin_to_one_hot_index_linear(data_arr, linspace_binning) # -0.00000001
-    # data_arr_indexed = bin_to_one_hot_index_log(data_arr, num_c)
-    # data_arr_indexed[0, 0] = -1
-    # TODO:Added for debugging, make sure to find bug and fix it!
-    if np.min(data_arr_indexed) < 0:
-        err_message = 'ERROR: ONE HOT ENCODING: data_arr_indexed had values below zero.' \
-                      ' Set all vlas < 0 to 0. data_arr < min_linspace_binning: {},' \
-                      ' min of linspace_binning: {}, (all vals lognormalized) data_arr_index <0: {}'\
-            .format(data_arr[data_arr<np.min(linspace_binning)], np.min(linspace_binning), data_arr_indexed[data_arr_indexed<0])
-        warnings.warn(err_message)
-        print(err_message)
 
-        print('One hot conversion encountered error --> Set data_arr_indexed[data_arr_indexed < 0] = 0')
-        data_arr_indexed[data_arr_indexed < 0] = 0
-        data_indexed = torch.from_numpy(data_arr_indexed)
-        data_hot = F.one_hot(data_indexed.long(), num_c)
-
-
-    else:
-        data_indexed = torch.from_numpy(data_arr_indexed)
-        data_hot = F.one_hot(data_indexed.long(), num_c)
-
-
-    return data_hot

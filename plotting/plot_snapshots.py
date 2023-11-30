@@ -1,14 +1,13 @@
+import numpy as np
 import torch
 
-from helper.helper_functions import one_hot_to_lognorm_mm
+from helper.helper_functions import one_hot_to_lognorm_mm, convert_to_binning_and_back
 from load_data import inverse_normalize_data, lognormalize_data
 from plotting.plot_images import plot_target_vs_pred_with_likelihood
 from baselines import LKBaseline
 import torchvision.transforms as T
 
 
-def convert_to_binning_and_back(ino):
-    img_one_hot
 
 
 def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace_binning_params, transform_f, settings, plot_settings,
@@ -33,7 +32,6 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
         model = model.to(ps_device)
         pred = model(input_sequence)
 
-
         if plot_baseline:
             logging_type = None
             lk_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
@@ -47,9 +45,10 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
                 pred_mm_baseline = lognormalize_data(pred_mm_baseline, mean_filtered_data, std_filtered_data,
                                                      transform_f, settings['s_normalize'])
 
+            pred_mm_baseline = convert_to_binning_and_back(pred_mm_baseline, linspace_binning, linspace_binning_max)
 
-            # lognormalize if necessary
-
+        target = convert_to_binning_and_back(target.detach().cpu().numpy(), linspace_binning, linspace_binning_max)
+        target = torch.from_numpy(target).to(ps_device)
 
         if not ps_gaussian_smoothing_multiple_sigmas:
             preds = [pred]

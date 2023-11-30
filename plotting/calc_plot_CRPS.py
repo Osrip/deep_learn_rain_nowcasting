@@ -152,8 +152,6 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
         return np.mean(crps_np_model_all), np.std(crps_np_model_all), np.mean(crps_np_steps_all), np.std(crps_np_steps_all)
 
 
-
-
 def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_bins_crossentropy, **__):
     '''
     expects **settings kwargs
