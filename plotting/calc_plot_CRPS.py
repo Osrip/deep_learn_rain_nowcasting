@@ -1,12 +1,12 @@
 
-from load_data import inverse_normalize_data, img_one_hot
+from load_data import inverse_normalize_data
 import numpy as np
 from baselines import LKBaseline
 import torch
 import torchvision.transforms as T
 import einops
 import matplotlib.pyplot as plt
-from helper.helper_functions import save_zipped_pickle, load_zipped_pickle
+from helper.helper_functions import save_zipped_pickle, load_zipped_pickle, img_one_hot
 
 
 def element_wise_crps(bin_probs, observation, bin_edges):

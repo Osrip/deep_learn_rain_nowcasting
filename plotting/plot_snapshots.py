@@ -7,6 +7,8 @@ from baselines import LKBaseline
 import torchvision.transforms as T
 
 
+def convert_to_binning_and_back(ino):
+    img_one_hot
 
 
 def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace_binning_params, transform_f, settings, plot_settings,
@@ -30,6 +32,7 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
         input_sequence = input_sequence.to(ps_device)
         model = model.to(ps_device)
         pred = model(input_sequence)
+
 
         if plot_baseline:
             logging_type = None
