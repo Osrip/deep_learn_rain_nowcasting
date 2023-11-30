@@ -6,7 +6,6 @@ import torch
 import torchvision.transforms as T
 import einops
 import matplotlib.pyplot as plt
-import seaborn as sns
 from helper.helper_functions import save_zipped_pickle, load_zipped_pickle
 
 
@@ -135,6 +134,9 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
     save_name_model = 'crps_model'
     save_name_steps = 'crps_steps'
 
+    # Saving all arrays
+    # They have dimensions sample_num x batch x height x width
+
     crps_np_model_all = np.array(crps_np_model_list)
     # crps_model_mean = np.mean(crps_np_model_all)
     # crps_model_std = np.std(crps_np_model_all)
@@ -174,6 +176,11 @@ def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_b
 
 
 def iterate_crps(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm):
+    '''
+    pred_np: binned prediction b x c x h x w
+    target_inv_normed: target in inv normed space b x h x w
+    linspace_binning_inv_norm: left bins edges in inv normed space
+    '''
     calculate_crps_lambda = lambda x, y: element_wise_crps(x, y,
                                                            np.append(linspace_binning_inv_norm, linspace_binning_max_inv_norm),)
     shape_pred = np.shape(pred_np)
