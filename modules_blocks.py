@@ -54,6 +54,7 @@ class Network(nn.Module):
         for module in self.net_modules:
             x = module(x)
         x = self.conv1_1_downscale(x)
+        # TODO: SOFTMAX SCHON IN X ENTROPY??
         x = self.soft_max(x)
         return x
 
