@@ -1,3 +1,4 @@
+import numpy
 
 from load_data import inverse_normalize_data
 import numpy as np
@@ -7,6 +8,58 @@ import torchvision.transforms as T
 import einops
 import matplotlib.pyplot as plt
 from helper.helper_functions import save_zipped_pickle, load_zipped_pickle, img_one_hot
+
+
+def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
+                    linspace_binning_inv_norm: np.ndarray, linspace_binning_max_inv_norm: np.ndarray):
+    '''
+    pred: pred_np: binned prediction b x c x h x w
+    target: target_inv_normed: target in inv normed space b x h x w
+    linspace_binning_inv_norm: left bins edges in inv normed space
+
+    returns CRPS for each pixel in shape b x h x w
+    '''
+    # Calculations related to binning
+    bins_edges_all = np.append(linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+    bin_edges_all = torch.from_numpy(bins_edges_all)
+    bin_edges_right = bin_edges_all[1:]
+    bin_sizes = torch.diff(bin_edges_all)
+
+    # Unsqueeze binning (adding None dimension) to get same dimensionality as pred with c being dim 1
+    bin_edges_right_c_h_w = bin_edges_right[None, :, None, None]
+    bin_sizes_unsqueezed_b_c_h_w = bin_sizes[None, :, None, None]
+
+    # Calculate the heavyside step function (0 below a vertain value 1 above)
+    # This repaces if condition in element-wise calculation by just adding
+    # heavyside_step is -1 for all bin edges that are on the right side (bigger) than the observation (target)
+
+    '''
+    Dim mismatch!
+    in element-wise we are looping through b ins while observation stays constant
+    We are adding a new c dimension to targets where for each target value is replaced by an array of 1s and 0s depending on whether 
+    the binning is smaller or bigger than the target
+    heavyside step b x c x h x w --> same as pred
+    target b x h x w 
+    binning c
+    '''
+    # TODO: Does this solve it correctly?
+    target = target[:, None, :, :]
+    heavyside_step = (target <= bin_edges_right_c_h_w).float()
+    heavyside_step = - heavyside_step
+
+
+    # Calculate CDF
+    pred_cdf = torch.cumsum(pred, axis=1)
+    # Substract heaviside step
+    pred_cdf = pred_cdf - heavyside_step
+    # Square
+    pred_cdf = torch.square(pred_cdf, axis=1)
+    # Weight according to bin sizes
+    pred_cdf = pred_cdf * bin_sizes_unsqueezed_b_c_h_w
+    # Sum to get CRPS --> c dim is summed so b x c x h x w --> b x h x w
+    crps = torch.sum(pred_cdf, axis=1)
+
+    return crps
 
 
 def element_wise_crps(bin_probs, observation, bin_edges):
@@ -44,7 +97,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
              steps_settings,
              ps_runs_path, ps_run_name, ps_checkpoint_name, ps_device, ps_gaussian_smoothing_multiple_sigmas,
              ps_multiple_sigmas, crps_calc_on_every_n_th_batch, crps_load_steps_crps_from_file,
-             prefix='', test_output=False, **__):
+             prefix='', test_output=False, vec_crps=True, **__):
 
     '''
     This function calculates the mean and std of the FSS over the whole dataset given by the data loader (validations
@@ -120,14 +173,19 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
             pred_ensemble_steps_baseline = pred_ensemble_steps_baseline.cpu().detach().numpy()
             steps_binning_torch = create_binning_from_ensemble(pred_ensemble_steps_baseline, linspace_binning, **settings)
             steps_binning_np = steps_binning_torch.cpu().detach().numpy()
+
             crps_np_steps = iterate_crps(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
             crps_np_steps_list.append(crps_np_steps)
 
         # Calculate CRPS for model predictions
 
-        pred_np = pred.cpu().detach().numpy()
-        # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
-        crps_np_model = iterate_crps(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+        if vec_crps:
+            target_inv_normed = torch.from_numpy(target_inv_normed)
+            crps_np_model = crps_vectorized(pred, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+        else:
+            pred_np = pred.cpu().detach().numpy()
+            # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
+            crps_np_model = iterate_crps(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
         crps_np_model_list.append(crps_np_model)
 
     save_dir = settings['s_dirs']['logs']
