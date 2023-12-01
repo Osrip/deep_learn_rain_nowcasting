@@ -45,8 +45,6 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     # TODO: Does this solve it correctly?
     target = target[:, None, :, :]
     heavyside_step = (target <= bin_edges_right_c_h_w).float()
-    heavyside_step = - heavyside_step
-
 
     # Calculate CDF
     pred_cdf = torch.cumsum(pred, axis=1)
