@@ -51,7 +51,7 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     # Substract heaviside step
     pred_cdf = pred_cdf - heavyside_step
     # Square
-    pred_cdf = torch.square(pred_cdf, axis=1)
+    pred_cdf = torch.square(pred_cdf)
     # Weight according to bin sizes
     pred_cdf = pred_cdf * bin_sizes_unsqueezed_b_c_h_w
     # Sum to get CRPS --> c dim is summed so b x c x h x w --> b x h x w
@@ -177,15 +177,25 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
         # Calculate CRPS for model predictions
 
-        if vec_crps:
-            target_inv_normed = torch.from_numpy(target_inv_normed)
-            crps_np_model = crps_vectorized(pred, target_inv_normed, linspace_binning_inv_norm,
-                                            linspace_binning_max_inv_norm)
+        # if vec_crps:
+        # vec_crps
+        target_inv_normed = torch.from_numpy(target_inv_normed)
+        crps_np_model = crps_vectorized(pred, target_inv_normed, linspace_binning_inv_norm,
+                                        linspace_binning_max_inv_norm)
+        crps_vec = crps_np_model.detach().cpu().numpy()
+
+        # element crps
+        # else:
+        pred_np = pred.cpu().detach().numpy()
+        # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
+        crps_np_model = iterate_crps(pred_np, target_inv_normed, linspace_binning_inv_norm,
+                                     linspace_binning_max_inv_norm)
+
+        if not (np.round(crps_vec, 2) == np.round(crps_np_model, 2)).all():
+            raise ValueError('BUG!!')
         else:
-            pred_np = pred.cpu().detach().numpy()
-            # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
-            crps_np_model = iterate_crps(pred_np, target_inv_normed, linspace_binning_inv_norm,
-                                         linspace_binning_max_inv_norm)
+            print('all good')
+
         crps_np_model_list.append(crps_np_model)
 
     save_dir = settings['s_dirs']['logs']
