@@ -361,7 +361,7 @@ def plot_crps(s_dirs, crps_load_steps_crps_from_file, crps_steps_file_path, **__
         pc.set_alpha(1)
 
     # Adding mean as a point
-    plt.scatter(range(1, len(data) + 1), means, color='red', marker='o', label='Mean')
+    plt.scatter(range(1, len(data) + 1), means, color='green', marker='o', label='Mean')
 
     # Adding std as a line
     for i in range(len(data)):
