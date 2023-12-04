@@ -179,11 +179,13 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
         if vec_crps:
             target_inv_normed = torch.from_numpy(target_inv_normed)
-            crps_np_model = crps_vectorized(pred, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+            crps_np_model = crps_vectorized(pred, target_inv_normed, linspace_binning_inv_norm,
+                                            linspace_binning_max_inv_norm)
         else:
             pred_np = pred.cpu().detach().numpy()
             # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
-            crps_np_model = iterate_crps(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+            crps_np_model = iterate_crps(pred_np, target_inv_normed, linspace_binning_inv_norm,
+                                         linspace_binning_max_inv_norm)
         crps_np_model_list.append(crps_np_model)
 
     save_dir = settings['s_dirs']['logs']
