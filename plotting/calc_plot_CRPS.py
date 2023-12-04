@@ -134,8 +134,8 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
 
 
-    crps_np_model_list = []
-    crps_np_steps_list = []
+    crps_model_list_tc = []
+    crps_steps_list_tc = []
 
     for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
         if not (i % crps_calc_on_every_n_th_batch == 0):
@@ -161,39 +161,43 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
             pred_ensemble_steps_baseline, _, _ = steps_baseline(input_sequence_inv_normed)
             pred_ensemble_steps_baseline = T.CenterCrop(size=settings['s_width_height_target'])(pred_ensemble_steps_baseline)
 
-            target = target.detach().cpu().numpy()
+            # target = target.detach().cpu().numpy()
             target_inv_normed = inv_norm(target)
 
             # Calculate CRPS for baseline
             pred_ensemble_steps_baseline = pred_ensemble_steps_baseline.cpu().detach().numpy()
-            steps_binning_torch = create_binning_from_ensemble(pred_ensemble_steps_baseline, linspace_binning, **settings)
-            steps_binning_np = steps_binning_torch.cpu().detach().numpy()
+            steps_binning_tc = create_binning_from_ensemble(pred_ensemble_steps_baseline, linspace_binning, **settings)
+            # steps_binning_np = steps_binning_torch.cpu().detach().numpy()
 
-            crps_np_steps = iterate_crps(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
-            crps_np_steps_list.append(crps_np_steps)
+            # crps_np_steps = iterate_crps_element_wise(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+            crps_steps_tc = crps_vectorized(steps_binning_tc, target_inv_normed, linspace_binning_inv_norm,
+                                         linspace_binning_max_inv_norm)
+
+            crps_steps_list_tc.append(crps_steps_tc.detach())
 
         # Calculate CRPS for model predictions
 
         # if vec_crps:
         # vec_crps
-        target_inv_normed = torch.from_numpy(target_inv_normed)
-        crps_np_model = crps_vectorized(pred, target_inv_normed, linspace_binning_inv_norm,
+        # target_inv_normed = torch.from_numpy(target_inv_normed)
+        crps_model_tc = crps_vectorized(pred, target_inv_normed, linspace_binning_inv_norm,
                                         linspace_binning_max_inv_norm)
-        crps_vec = crps_np_model.detach().cpu().numpy()
 
-        # element crps
+        crps_model_list_tc.append(crps_model_tc.detach())
+
+
+        # test vectorized with element-wise
         # else:
-        pred_np = pred.cpu().detach().numpy()
-        # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
-        crps_np_model = iterate_crps(pred_np, target_inv_normed, linspace_binning_inv_norm,
-                                     linspace_binning_max_inv_norm)
+        # pred_np = pred.cpu().detach().numpy()
+        # # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
+        # crps_np_model = iterate_crps_element_wise(pred_np, target_inv_normed, linspace_binning_inv_norm,
+        #                                           linspace_binning_max_inv_norm)
+        #
+        # if not (np.round(crps_vec, 2) == np.round(crps_np_model, 2)).all():
+        #     raise ValueError('BUG!!')
+        # else:
+        #     print('all good')
 
-        if not (np.round(crps_vec, 2) == np.round(crps_np_model, 2)).all():
-            raise ValueError('BUG!!')
-        else:
-            print('all good')
-
-        crps_np_model_list.append(crps_np_model)
 
     save_dir = settings['s_dirs']['logs']
     save_name_model = 'crps_model'
@@ -202,19 +206,17 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
     # Saving all arrays
     # They have dimensions sample_num x batch x height x width
 
-    crps_np_model_all = np.array(crps_np_model_list)
+    crps_model_all_tc = torch.stack(crps_model_list_tc)
     # crps_model_mean = np.mean(crps_np_model_all)
     # crps_model_std = np.std(crps_np_model_all)
-    save_zipped_pickle('{}/{}'.format(save_dir, save_name_model), crps_np_model_all)
+    save_zipped_pickle('{}/{}'.format(save_dir, save_name_model), crps_model_all_tc)
 
     if not crps_load_steps_crps_from_file:
-        crps_np_steps_all = np.array(crps_np_steps_list)
+        crps_steps_all_tc = torch.stack(crps_steps_list_tc)
         # crps_steps_mean = np.mean(crps_np_steps_all)
         # crps_steps_std = np.std(crps_np_steps_all)
-        save_zipped_pickle('{}/{}'.format(save_dir, save_name_steps), crps_np_steps_all)
+        save_zipped_pickle('{}/{}'.format(save_dir, save_name_steps), crps_steps_all_tc)
 
-    if test_output:
-        return np.mean(crps_np_model_all), np.std(crps_np_model_all), np.mean(crps_np_steps_all), np.std(crps_np_steps_all)
 
 
 def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_bins_crossentropy, **__):
@@ -243,7 +245,7 @@ def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_b
     return binning_from_ensemble
 
 
-def iterate_crps(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm):
+def iterate_crps_element_wise(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm):
     '''
     pred_np: binned prediction b x c x h x w
     target_inv_normed: target in inv normed space b x h x w
@@ -341,8 +343,12 @@ def plot_crps(s_dirs, crps_load_steps_crps_from_file, crps_steps_file_path, **__
     model_name = 'Model'
     steps_name = 'STEPS'
 
-    model_array = load_zipped_pickle(crps_model_path)
-    steps_array = load_zipped_pickle(crps_steps_path)
+    model_tc = load_zipped_pickle(crps_model_path)
+    steps_tc = load_zipped_pickle(crps_steps_path)
+
+    model_array = model_tc.numpy()
+    steps_array = steps_tc.numpy()
+
 
     model_array = model_array.flatten()
     steps_array = steps_array.flatten()
@@ -375,7 +381,7 @@ def plot_crps(s_dirs, crps_load_steps_crps_from_file, crps_steps_file_path, **__
         plt.text(i + 1, max(data[i]) * 1.1, f'Mean: {means[i]:.3f}\nSTD: {stds[i]:.3f}\nMedian: {medians[i]:.3f}',
                  horizontalalignment='center', size='small', color='black', weight='semibold')
 
-    plt.title('Violin Plots with Mean and STD')
+    plt.title('CRPS')
     plt.legend()
 
     plt.savefig(f"{s_dirs['plot_dir']}/crps.png", bbox_inches='tight')
