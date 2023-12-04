@@ -29,20 +29,17 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     bin_edges_right_c_h_w = bin_edges_right[None, :, None, None]
     bin_sizes_unsqueezed_b_c_h_w = bin_sizes[None, :, None, None]
 
+    # in element-wise we are looping through b ins while observation stays constant
+    # We are adding a new c dimension to targets where for each target value is replaced by an array of 1s and 0s depending on whether
+    # the binning is smaller or bigger than the target
+    # heavyside step b x c x h x w --> same as pred
+    # target b x h x w
+    # binning c
+
+    # Adding c dim that are comparisons to observation: Can also be interpreted as
     # Calculate the heavyside step function (0 below a vertain value 1 above)
     # This repaces if condition in element-wise calculation by just adding
     # heavyside_step is -1 for all bin edges that are on the right side (bigger) than the observation (target)
-
-    '''
-    Dim mismatch!
-    in element-wise we are looping through b ins while observation stays constant
-    We are adding a new c dimension to targets where for each target value is replaced by an array of 1s and 0s depending on whether 
-    the binning is smaller or bigger than the target
-    heavyside step b x c x h x w --> same as pred
-    target b x h x w 
-    binning c
-    '''
-    # TODO: Does this solve it correctly?
     target = target[:, None, :, :]
     heavyside_step = (target <= bin_edges_right_c_h_w).float()
 
@@ -110,7 +107,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
     batch is calculated
     '''
 
-    if crps_calc_on_every_n_th_batch < len(data_loader):
+    if crps_calc_on_every_n_th_batch > len(data_loader):
         crps_calc_on_every_n_th_batch = len(data_loader)
 
     filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
