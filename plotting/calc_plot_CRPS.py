@@ -359,7 +359,7 @@ def plot_crps(s_dirs, crps_load_steps_crps_from_file, crps_steps_file_path, **__
     medians = [np.median(array) for array in data]
 
     plt.figure(figsize=(10, 6))
-    parts = plt.violinplot(data, showmeans=False, showmedians=False, showextrema=False)
+    parts = plt.violinplot(data, showmeans=False, showmedians=True, showextrema=False)
 
     for pc in parts['bodies']:
         pc.set_facecolor('#D43F3A')
