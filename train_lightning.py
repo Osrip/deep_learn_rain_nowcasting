@@ -214,7 +214,7 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
 
     model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
                       data_set_statistics_dict ,s_max_epochs, linspace_binning_params, s_dirs['data_dir'], s_num_gpus,
-                      sigma_schedule_mapping, s_check_val_every_n_epoch, settings)
+                      sigma_schedule_mapping, s_check_val_every_n_epoch, filer_and_normalization_params, settings)
 
     if s_calc_baseline:
         calc_baselines(**settings,
@@ -237,14 +237,16 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
 
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-            data_set_statistics_dict, max_epochs, linspace_binning_params, data_dir, num_gpus, sigma_schedule_mapping, check_val_every_n_epoch, settings):
+            data_set_statistics_dict, max_epochs, linspace_binning_params, data_dir, num_gpus, sigma_schedule_mapping,
+            check_val_every_n_epoch, filer_and_normalization_params, settings):
     '''
     Train loop, keep this clean!
     '''
 
-    model_l = Network_l(linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict, settings,
+    model_l = Network_l(linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict,
+                        filer_and_normalization_params, settings,
                         training_steps_per_epoch = training_steps_per_epoch, **settings)
-    save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
+    # save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
     if settings['s_resnet']:
         # Used due to bug
@@ -369,6 +371,9 @@ if __name__ == '__main__':
             'device': device,
             's_learning_rate': 0.001,  # 0.0001
             's_lr_schedule': True  ,  # enables lr scheduler, takes s_learning_rate as initial rate
+
+            # Loss
+            's_crps_loss': True, #  CRPS loss instead of X-entropy loss
 
             # Gaussian smoothing
             's_gaussian_smoothing_target': False,

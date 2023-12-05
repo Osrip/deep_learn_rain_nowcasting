@@ -57,6 +57,15 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     return crps
 
 
+def crps_loss(linspace_binning_inv_norm: np.ndarray, linspace_binning_max_inv_norm: np.ndarray):
+    '''
+    Returns loss function that requires only pred and target as inputs (dtype: torch.Tensor)
+    Did this because lambda cannot be used in Network_l __init__ when instance is later saved as pickle
+    '''
+
+    return lambda pred, target: crps_vectorized(pred, target, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+
+
 def element_wise_crps(bin_probs, observation, bin_edges):
     """
     VIDEO ZUR IMPLEMENTATION IN ICLOUD NOTES UNTER NOTIZ "CRPS"

@@ -1,6 +1,7 @@
 import torch
 import pytorch_lightning as pl
 
+from plotting.calc_plot_CRPS import crps_loss, crps_vectorized, invnorm_linspace_binning
 from load_data import inverse_normalize_data
 from helper.memory_logging import print_gpu_memory, print_ram_usage
 from modules_blocks import Network
@@ -18,14 +19,12 @@ import numpy as np
 import warnings
 # Stuff for memory logging
 
-
 class Network_l(pl.LightningModule):
-    def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict, settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
+    def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict, filter_and_normalization_params, settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
                  s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
-                 s_resnet,
-                 training_steps_per_epoch=None, **__):
+                 s_resnet, s_crps_loss, training_steps_per_epoch=None, **__):
         '''
         Both data_set_statistics_dict and  sigma_schedule_mapping can be None if no training, but only forward pass is performed (for checkpoint loading)
         '''
@@ -33,6 +32,27 @@ class Network_l(pl.LightningModule):
         super().__init__()
         # self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
         #                      s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
+
+        if s_crps_loss and filter_and_normalization_params is None:
+            raise ValueError('When using CRPS loss mean_filtered_data and std_filtered_data have to be passed to Network_l')
+
+        if s_crps_loss:
+            # Extract and inverse normalize linspace_binning_params:
+            _, mean_filtered_data, std_filtered_data, _, _ = filter_and_normalization_params
+
+            linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
+            linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
+                                                                                                linspace_binning_max,
+                                                                                                mean_filtered_data,
+                                                                                                std_filtered_data)
+
+            self.loss_func = lambda pred, target: torch.mean(crps_vectorized(pred, target,
+                                                                  linspace_binning_inv_norm,
+                                                                  linspace_binning_max_inv_norm))
+            # self.loss_func = crps_loss(linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+        else:
+            self.loss_func = nn.CrossEntropyLoss()
+
         if not s_resnet:
             self.model = Network(c_in=s_num_input_time_steps, **settings)
         else:
@@ -117,13 +137,9 @@ class Network_l(pl.LightningModule):
                 raise ValueError('Optional training_steps_per_epoch not initialized in Network_l object. Cannot proceed without it.')
                 # optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
 
-
-            return optimizer
-
         else:
             optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
             return optimizer
-
 
 
     def training_step(self, batch, batch_idx):
@@ -171,7 +187,7 @@ class Network_l(pl.LightningModule):
         # We use cross entropy loss, for both gaussian smoothed and normal one_hot target
         if not self.s_gaussian_smoothing_multiple_sigmas:
             pred = self(input_sequence)
-            loss = nn.CrossEntropyLoss()(pred, target_binned)
+            loss = self.loss_func(pred, target_binned)
 
             preds = [pred]
             log_prefixes = ['']
@@ -184,12 +200,12 @@ class Network_l(pl.LightningModule):
                 # Invert i to start with large value in schedule of the largest sigma
                 inverted_i = len(self.s_multiple_sigmas) - i - 1
                 if self.s_schedule_sigma_smoothing:
-                    loss = nn.CrossEntropyLoss()(pred_sig, target_binned_sig)
+                    loss = self.loss_func(pred_sig, target_binned_sig)
                     x = linear_schedule_0_to_1(self.current_epoch, self.s_max_epochs)
                     weight_curr_sigma = bernstein_polynomial(inverted_i, len(self.s_multiple_sigmas), x)
                     losses.append(loss * weight_curr_sigma)
                 else:
-                    losses.append(nn.CrossEntropyLoss()(pred_sig, target_binned_sig))
+                    losses.append(self.loss_func(pred_sig, target_binned_sig))
 
 
                 linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
@@ -353,7 +369,7 @@ class Network_l(pl.LightningModule):
 
         if not self.s_gaussian_smoothing_multiple_sigmas:
             pred = self(input_sequence)
-            loss = nn.CrossEntropyLoss()(pred, target_binned)
+            loss = self.loss_func(pred, target_binned)
 
             preds = [pred]
             log_prefixes = ['']
@@ -366,12 +382,12 @@ class Network_l(pl.LightningModule):
                 # Invert i to start with large value in schedule of the largest sigma
                 inverted_i = len(self.s_multiple_sigmas) - i - 1
                 if self.s_schedule_sigma_smoothing:
-                    loss = nn.CrossEntropyLoss()(pred_sig, target_binned_sig)
+                    loss = self.loss_func(pred_sig, target_binned_sig)
                     x = linear_schedule_0_to_1(self.current_epoch, self.s_max_epochs)
                     weight_curr_sigma = bernstein_polynomial(inverted_i, len(self.s_multiple_sigmas), x)
                     losses.append(loss * weight_curr_sigma)
                 else:
-                    losses.append(nn.CrossEntropyLoss()(pred_sig, target_binned_sig))
+                    losses.append(self.loss_func(pred_sig, target_binned_sig))
 
 
                 linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
