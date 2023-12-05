@@ -238,14 +238,15 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
             data_set_statistics_dict, max_epochs, linspace_binning_params, data_dir, num_gpus, sigma_schedule_mapping,
-            check_val_every_n_epoch, filer_and_normalization_params, settings):
+            check_val_every_n_epoch, filter_and_normalization_params, settings):
     '''
     Train loop, keep this clean!
     '''
 
     model_l = Network_l(linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict,
-                        filer_and_normalization_params, settings,
-                        training_steps_per_epoch = training_steps_per_epoch, **settings)
+                        settings,
+                        training_steps_per_epoch = training_steps_per_epoch,
+                        filter_and_normalization_params = filter_and_normalization_params, **settings)
     # save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
     if settings['s_resnet']:

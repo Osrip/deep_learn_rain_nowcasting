@@ -63,7 +63,8 @@ def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, 
     else:
         transform_f = lambda x: x
 
-    model = load_from_checkpoint(ps_runs_path, ps_run_name, checkpoint_name, linspace_binning_params, settings)
+    model = load_from_checkpoint(ps_runs_path, ps_run_name, checkpoint_name, linspace_binning_params, settings,
+                                 filter_and_normalization_params=filter_and_normalization_params)
     train_data_loader, validation_data_loader = create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation,
                         linspace_binning_params, filter_and_normalization_params, settings)
 

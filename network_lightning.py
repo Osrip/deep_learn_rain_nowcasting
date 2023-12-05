@@ -20,11 +20,11 @@ import warnings
 # Stuff for memory logging
 
 class Network_l(pl.LightningModule):
-    def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict, filter_and_normalization_params, settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
+    def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict, settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
                  s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
-                 s_resnet, s_crps_loss, training_steps_per_epoch=None, **__):
+                 s_resnet, s_crps_loss, training_steps_per_epoch=None, filter_and_normalization_params=None, **__):
         '''
         Both data_set_statistics_dict and  sigma_schedule_mapping can be None if no training, but only forward pass is performed (for checkpoint loading)
         '''
