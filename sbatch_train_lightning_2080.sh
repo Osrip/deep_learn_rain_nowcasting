@@ -3,7 +3,7 @@
 #SBATCH --nodes=1                 # Ensure that all cores are on one machine
 #SBATCH --time=0-12:00            # Runtime in D-HH:MM
 #SBATCH --gres=gpu:4    # optionally type and number of gpus
-#SBATCH --partition=gpu-v100
+#SBATCH --partition=gpu-2080ti
 #SBATCH --output=out_%j.out  # File to which STDOUT will be written - make sure this is not on $HOME
 #SBATCH --error=err_%j.err   # File to which STDERR will be written - make sure this is not on $HOME
 #SBATCH --mail-type=END           # Type of email notification- BEGIN,END,FAIL,ALL

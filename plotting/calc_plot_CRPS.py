@@ -11,7 +11,7 @@ from helper.helper_functions import save_zipped_pickle, load_zipped_pickle, img_
 
 
 def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
-                    linspace_binning_inv_norm: np.ndarray, linspace_binning_max_inv_norm: np.ndarray):
+                    linspace_binning_inv_norm: np.ndarray, linspace_binning_max_inv_norm: np.ndarray, device, **__):
     '''
     pred: pred_np: binned prediction b x c x h x w
     target: target_inv_normed: target in inv normed space b x h x w
@@ -20,8 +20,8 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     returns CRPS for each pixel in shape b x h x w
     '''
     # Calculations related to binning
-    bins_edges_all = np.append(linspace_binning_inv_norm, linspace_binning_max_inv_norm)
-    bin_edges_all = torch.from_numpy(bins_edges_all)
+    bin_edges_all = np.append(linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+    bin_edges_all = torch.from_numpy(bin_edges_all).to(device)
     bin_edges_right = bin_edges_all[1:]
     bin_sizes = torch.diff(bin_edges_all)
 
@@ -55,15 +55,6 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     crps = torch.sum(pred_cdf, axis=1)
 
     return crps
-
-
-def crps_loss(linspace_binning_inv_norm: np.ndarray, linspace_binning_max_inv_norm: np.ndarray):
-    '''
-    Returns loss function that requires only pred and target as inputs (dtype: torch.Tensor)
-    Did this because lambda cannot be used in Network_l __init__ when instance is later saved as pickle
-    '''
-
-    return lambda pred, target: crps_vectorized(pred, target, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
 
 
 def element_wise_crps(bin_probs, observation, bin_edges):
@@ -151,6 +142,9 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
             break
 
         input_sequence = input_sequence.to(ps_device)
+        target_one_hot = target_one_hot.to(ps_device)
+        target = target.to(ps_device)
+
         model = model.to(ps_device)
         pred = model(input_sequence)
 
@@ -180,7 +174,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
             # crps_np_steps = iterate_crps_element_wise(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
             crps_steps_tc = crps_vectorized(steps_binning_tc, target_inv_normed, linspace_binning_inv_norm,
-                                         linspace_binning_max_inv_norm)
+                                         linspace_binning_max_inv_norm, **settings)
 
             crps_steps_list_tc.append(crps_steps_tc.detach())
 
@@ -190,7 +184,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
         # vec_crps
         # target_inv_normed = torch.from_numpy(target_inv_normed)
         crps_model_tc = crps_vectorized(pred, target_inv_normed, linspace_binning_inv_norm,
-                                        linspace_binning_max_inv_norm)
+                                        linspace_binning_max_inv_norm, **settings)
 
         crps_model_list_tc.append(crps_model_tc.detach())
 
@@ -228,7 +222,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
 
 
-def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_bins_crossentropy, **__):
+def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_bins_crossentropy, device, **__):
     '''
     expects **settings kwargs
     Use the NORMALIZED LINSPACE_BINNING
@@ -238,6 +232,7 @@ def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_b
     num_ensemble_member = ensemble.shape[1]
 
     ensembles_one_hot = img_one_hot(ensemble, s_num_bins_crossentropy, linspace_binning)
+    ensembles_one_hot = ensembles_one_hot.to(device)
     ensembles_one_hot = einops.rearrange(ensembles_one_hot, 'b e w h c -> b e c w h')
     # Dimensions now: batch x ensemble_members x channel (one hot binning) x width x height
     # Summing along ensemble dimension in order to get unnormalized binning
@@ -352,17 +347,17 @@ def plot_crps(s_dirs, crps_load_steps_crps_from_file, crps_steps_file_path, **__
     model_name = 'Model'
     steps_name = 'STEPS'
 
-    model_tc = load_zipped_pickle(crps_model_path)
-    steps_tc = load_zipped_pickle(crps_steps_path)
+    model_crps_tc = load_zipped_pickle(crps_model_path)
+    steps_crps_tc = load_zipped_pickle(crps_steps_path)
 
-    model_array = model_tc.numpy()
-    steps_array = steps_tc.numpy()
+    model_crps_array = model_crps_tc.detach().cpu().numpy()
+    steps_crps_array = steps_crps_tc.detach().cpu().numpy()
 
 
-    model_array = model_array.flatten()
-    steps_array = steps_array.flatten()
+    model_crps_array = model_crps_array.flatten()
+    steps_crps_array = steps_crps_array.flatten()
 
-    data = [model_array, steps_array]
+    data = [model_crps_array, steps_crps_array]
     means = [np.mean(array) for array in data]
     stds = [np.std(array) for array in data]
     medians = [np.median(array) for array in data]

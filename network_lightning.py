@@ -1,7 +1,7 @@
 import torch
 import pytorch_lightning as pl
 
-from plotting.calc_plot_CRPS import crps_loss, crps_vectorized, invnorm_linspace_binning
+from plotting.calc_plot_CRPS import crps_vectorized, invnorm_linspace_binning
 from load_data import inverse_normalize_data
 from helper.memory_logging import print_gpu_memory, print_ram_usage
 from modules_blocks import Network
@@ -48,7 +48,8 @@ class Network_l(pl.LightningModule):
 
             self.loss_func = lambda pred, target: torch.mean(crps_vectorized(pred, target,
                                                                   linspace_binning_inv_norm,
-                                                                  linspace_binning_max_inv_norm))
+                                                                  linspace_binning_max_inv_norm,
+                                                                             device))
             # self.loss_func = crps_loss(linspace_binning_inv_norm, linspace_binning_max_inv_norm)
         else:
             self.loss_func = nn.CrossEntropyLoss()
