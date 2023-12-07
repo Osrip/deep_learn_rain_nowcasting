@@ -247,6 +247,7 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
                         settings,
                         training_steps_per_epoch = training_steps_per_epoch,
                         filter_and_normalization_params = filter_and_normalization_params, **settings)
+
     # save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
     if settings['s_resnet']:
@@ -258,6 +259,7 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
                          logger=logger, devices=num_gpus, check_val_every_n_epoch=check_val_every_n_epoch,
                          strategy=strategy)# strategy="ddp", # precision='16-mixed'
+    # 'devices' argument is ignored when device == 'cpu'
     # Speed up advice: https://pytorch-lightning.readthedocs.io/en/1.8.6/guides/speed.html
 
     # trainer.logger = logger
@@ -469,7 +471,7 @@ if __name__ == '__main__':
     if not settings['s_plotting_only']:
         # Normal training
         model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(settings, **settings)
-        plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, settings, model_l)
+        plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l, settings, **settings)
     else:
         # Plotting only
         load_dirs = create_s_dirs(settings['s_plot_sim_name'], settings['s_local_machine_mode'])

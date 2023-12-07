@@ -4,8 +4,8 @@ from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
 from plotting.calc_and_plot_from_checkpoint import plot_from_checkpoint
 
 
-def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, settings, model_l, plot_lr_schedule_boo=True,
-                      **__):
+def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l, settings, s_dirs, s_num_gpus,
+                      plot_lr_schedule_boo=True, **__):
     '''
     Pipeline for automatic plotting of several figures
     For plot_lr_schedule=True, model_l is required, otherwise None can be passed for model_l
@@ -59,6 +59,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
         'ps_plot_snapshots': True,
         'ps_plot_fss': True,
         'ps_plot_crps': True,
+        'ps_num_gpus': settings['s_num_gpus'],
     }
 
     plot_fss_settings = {
@@ -87,7 +88,8 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, s_dirs, 
     plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, **plot_checkpoint_settings)
 
     if settings['s_max_epochs'] > 10:
-        plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, epoch=10, **plot_checkpoint_settings)
+        plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, epoch=10,
+                             **plot_checkpoint_settings)
     # except Exception:
     #     warnings.warn('Image plotting encountered error!')
 

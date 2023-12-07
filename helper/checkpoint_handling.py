@@ -4,8 +4,9 @@ from torch.utils.data import DataLoader
 from load_data import PrecipitationFilteredDataset
 
 
-def load_from_checkpoint(runs_path, run_name, checkpoint_name, linspace_binning_params, settings, data_set_statistics_dict=None,
-                         sigma_schedule_mapping=None, filter_and_normalization_params=None):
+def load_from_checkpoint(runs_path, checkpoint_name, linspace_binning_params, settings, ps_device, ps_num_gpus,
+                         data_set_statistics_dict=None, sigma_schedule_mapping=None,
+                         filter_and_normalization_params=None, **__):
     '''
     filter_and_normalization_params is needed for crps loss in Network_l
     '''
@@ -13,8 +14,10 @@ def load_from_checkpoint(runs_path, run_name, checkpoint_name, linspace_binning_
     model = Network_l.load_from_checkpoint(checkpoint_path=checkpoint_path, linspace_binning_params=linspace_binning_params,
                                            sigma_schedule_mapping=sigma_schedule_mapping, settings=settings,
                                            data_set_statistics_dict=data_set_statistics_dict,
-                                           filter_and_normalization_params=filter_and_normalization_params, **settings)
-
+                                           filter_and_normalization_params=filter_and_normalization_params,
+                                           devices=ps_num_gpus,
+                                           **settings)
+    model = model.to(ps_device)
     return model
 
 

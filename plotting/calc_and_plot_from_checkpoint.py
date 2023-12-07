@@ -43,7 +43,7 @@ def get_checkpoint_name(ps_runs_path, epoch=None, **__):
 
 
 def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_name, ps_plot_snapshots,
-                         ps_plot_fss, ps_plot_crps, epoch=None, **__):
+                         ps_plot_fss, ps_plot_crps, ps_num_gpus, epoch=None, **__):
     '''
     Loads model from corresponding epoch and plotsthings up
     This does a forward pass! GPU resources required!
@@ -63,8 +63,8 @@ def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, 
     else:
         transform_f = lambda x: x
 
-    model = load_from_checkpoint(ps_runs_path, ps_run_name, checkpoint_name, linspace_binning_params, settings,
-                                 filter_and_normalization_params=filter_and_normalization_params)
+    model = load_from_checkpoint(ps_runs_path, checkpoint_name, linspace_binning_params, settings,
+                                 filter_and_normalization_params=filter_and_normalization_params, **plot_settings)
     train_data_loader, validation_data_loader = create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation,
                         linspace_binning_params, filter_and_normalization_params, settings)
 
@@ -124,12 +124,12 @@ if __name__ == '__main__':
     #     'ps_run_name': 'Run_20230602-191416_test_profiler',
     #     'ps_checkpoint_name': 'model_epoch=1_val_loss=3.92.ckpt',
     # }
-    # runs_path = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs'
-    # run_name = 'Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
+    runs_path = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs'
+    run_name = 'Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
     # run_name = 'Run_20231025-143021_ID_4495295several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
     #
-    runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
-    run_name = 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
+    # runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
+    # run_name = 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
 
     runs_path = '{}/{}'.format(runs_path, run_name)
 
@@ -157,7 +157,8 @@ if __name__ == '__main__':
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
         'ps_plot_snapshots': False,
         'ps_plot_fss': False,
-        'ps_plot_crps' : True
+        'ps_plot_crps' : True,
+        'ps_num_gpus': 4,
     }
 
     plot_crps_settings = {
@@ -199,5 +200,8 @@ if __name__ == '__main__':
 
     plot_checkpoint_settings['ps_plot_snapshots'] = False
 
-
-    plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, **plot_checkpoint_settings)
+    # Catch previous versions where certain features were not implemented
+    try:
+        plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, **plot_checkpoint_settings)
+    except TypeError:
+        settings['s_crps_loss'] = False
