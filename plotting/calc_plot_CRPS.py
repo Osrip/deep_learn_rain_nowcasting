@@ -8,6 +8,7 @@ import torchvision.transforms as T
 import einops
 import matplotlib.pyplot as plt
 from helper.helper_functions import save_zipped_pickle, load_zipped_pickle, img_one_hot
+from helper.memory_logging import print_gpu_memory
 
 
 def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
@@ -106,119 +107,122 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
     calc_on_every_n_th_batch=4 <--- Only use every nth batch of data loder to calculate FSS (for speed); at least one
     batch is calculated
     '''
+    with torch.no_grad():
+        if crps_calc_on_every_n_th_batch > len(data_loader):
+            crps_calc_on_every_n_th_batch = len(data_loader)
 
-    if crps_calc_on_every_n_th_batch > len(data_loader):
-        crps_calc_on_every_n_th_batch = len(data_loader)
+        filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
+            linspace_binning_max_unnormalized = filter_and_normalization_params
 
-    filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
-        linspace_binning_max_unnormalized = filter_and_normalization_params
-
-    linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
-
-
-    inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=True,
-                                                           inverse_normalize=True)
+        linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
 
-    df_data = []
-
-    preds_and_targets = {}
-    preds_and_targets['pred_mm_inv_normed'] = []
-    preds_and_targets['pred_mm_steps_baseline'] = []
-    preds_and_targets['target_inv_normed'] = []
-
-    logging_type = None
-    steps_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, use_steps=True,
-                                steps_settings=steps_settings, **settings)
+        inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=True,
+                                                               inverse_normalize=True)
 
 
+        df_data = []
+
+        preds_and_targets = {}
+        preds_and_targets['pred_mm_inv_normed'] = []
+        preds_and_targets['pred_mm_steps_baseline'] = []
+        preds_and_targets['target_inv_normed'] = []
+
+        logging_type = None
+        steps_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, use_steps=True,
+                                    steps_settings=steps_settings, **settings)
 
 
-    crps_model_list_tc = []
-    crps_steps_list_tc = []
 
-    for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
-        if not (i % crps_calc_on_every_n_th_batch == 0):
-            break
 
-        input_sequence = input_sequence.to(ps_device)
-        target_one_hot = target_one_hot.to(ps_device)
-        target = target.to(ps_device)
+        crps_model_list_tc = []
+        crps_steps_list_tc = []
 
-        model = model.to(ps_device)
-        pred = model(input_sequence)
+        print('CRPS calculations started')
+        for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
+            print(f'Batch_num: {i}')
+            print_gpu_memory()
+            if not (i % crps_calc_on_every_n_th_batch == 0):
+                break
 
-        if ps_gaussian_smoothing_multiple_sigmas:
-            pred = pred[0].detach().cpu()
+            input_sequence = input_sequence.to(ps_device)
+            target_one_hot = target_one_hot.to(ps_device)
+            target = target.to(ps_device)
 
-        linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
-                                                                                            linspace_binning_max,
-                                                                                            mean_filtered_data,
-                                                                                            std_filtered_data)
+            model = model.to(ps_device)
+            pred = model(input_sequence)
 
-        # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
+            if ps_gaussian_smoothing_multiple_sigmas:
+                pred = pred[0].detach().cpu()
+
+            linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
+                                                                                                linspace_binning_max,
+                                                                                                mean_filtered_data,
+                                                                                                std_filtered_data)
+
+            # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
+
+            if not crps_load_steps_crps_from_file:
+                # Baseline Prediction
+                input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
+                pred_ensemble_steps_baseline, _, _ = steps_baseline(input_sequence_inv_normed)
+                pred_ensemble_steps_baseline = T.CenterCrop(size=settings['s_width_height_target'])(pred_ensemble_steps_baseline)
+
+                # target = target.detach().cpu().numpy()
+                target_inv_normed = inv_norm(target)
+
+                # Calculate CRPS for baseline
+                pred_ensemble_steps_baseline = pred_ensemble_steps_baseline.cpu().detach().numpy()
+                steps_binning_tc = create_binning_from_ensemble(pred_ensemble_steps_baseline, linspace_binning, **settings)
+                # steps_binning_np = steps_binning_torch.cpu().detach().numpy()
+
+                # crps_np_steps = iterate_crps_element_wise(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+                crps_steps_tc = crps_vectorized(steps_binning_tc, target_inv_normed, linspace_binning_inv_norm,
+                                             linspace_binning_max_inv_norm, **settings)
+
+                crps_steps_list_tc.append(crps_steps_tc.detach())
+
+            # Calculate CRPS for model predictions
+
+            # if vec_crps:
+            # vec_crps
+            # target_inv_normed = torch.from_numpy(target_inv_normed)
+            crps_model_tc = crps_vectorized(pred, target_inv_normed, linspace_binning_inv_norm,
+                                            linspace_binning_max_inv_norm, **settings)
+
+            crps_model_list_tc.append(crps_model_tc.detach())
+
+
+            # test vectorized with element-wise
+            # else:
+            # pred_np = pred.cpu().detach().numpy()
+            # # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
+            # crps_np_model = iterate_crps_element_wise(pred_np, target_inv_normed, linspace_binning_inv_norm,
+            #                                           linspace_binning_max_inv_norm)
+            #
+            # if not (np.round(crps_vec, 2) == np.round(crps_np_model, 2)).all():
+            #     raise ValueError('BUG!!')
+            # else:
+            #     print('all good')
+
+
+        save_dir = settings['s_dirs']['logs']
+        save_name_model = 'crps_model'
+        save_name_steps = 'crps_steps'
+
+        # Saving all arrays
+        # They have dimensions sample_num x batch x height x width
+
+        crps_model_all_tc = torch.stack(crps_model_list_tc)
+        # crps_model_mean = np.mean(crps_np_model_all)
+        # crps_model_std = np.std(crps_np_model_all)
+        save_zipped_pickle('{}/{}'.format(save_dir, save_name_model), crps_model_all_tc)
 
         if not crps_load_steps_crps_from_file:
-            # Baseline Prediction
-            input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
-            pred_ensemble_steps_baseline, _, _ = steps_baseline(input_sequence_inv_normed)
-            pred_ensemble_steps_baseline = T.CenterCrop(size=settings['s_width_height_target'])(pred_ensemble_steps_baseline)
-
-            # target = target.detach().cpu().numpy()
-            target_inv_normed = inv_norm(target)
-
-            # Calculate CRPS for baseline
-            pred_ensemble_steps_baseline = pred_ensemble_steps_baseline.cpu().detach().numpy()
-            steps_binning_tc = create_binning_from_ensemble(pred_ensemble_steps_baseline, linspace_binning, **settings)
-            # steps_binning_np = steps_binning_torch.cpu().detach().numpy()
-
-            # crps_np_steps = iterate_crps_element_wise(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
-            crps_steps_tc = crps_vectorized(steps_binning_tc, target_inv_normed, linspace_binning_inv_norm,
-                                         linspace_binning_max_inv_norm, **settings)
-
-            crps_steps_list_tc.append(crps_steps_tc.detach())
-
-        # Calculate CRPS for model predictions
-
-        # if vec_crps:
-        # vec_crps
-        # target_inv_normed = torch.from_numpy(target_inv_normed)
-        crps_model_tc = crps_vectorized(pred, target_inv_normed, linspace_binning_inv_norm,
-                                        linspace_binning_max_inv_norm, **settings)
-
-        crps_model_list_tc.append(crps_model_tc.detach())
-
-
-        # test vectorized with element-wise
-        # else:
-        # pred_np = pred.cpu().detach().numpy()
-        # # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
-        # crps_np_model = iterate_crps_element_wise(pred_np, target_inv_normed, linspace_binning_inv_norm,
-        #                                           linspace_binning_max_inv_norm)
-        #
-        # if not (np.round(crps_vec, 2) == np.round(crps_np_model, 2)).all():
-        #     raise ValueError('BUG!!')
-        # else:
-        #     print('all good')
-
-
-    save_dir = settings['s_dirs']['logs']
-    save_name_model = 'crps_model'
-    save_name_steps = 'crps_steps'
-
-    # Saving all arrays
-    # They have dimensions sample_num x batch x height x width
-
-    crps_model_all_tc = torch.stack(crps_model_list_tc)
-    # crps_model_mean = np.mean(crps_np_model_all)
-    # crps_model_std = np.std(crps_np_model_all)
-    save_zipped_pickle('{}/{}'.format(save_dir, save_name_model), crps_model_all_tc)
-
-    if not crps_load_steps_crps_from_file:
-        crps_steps_all_tc = torch.stack(crps_steps_list_tc)
-        # crps_steps_mean = np.mean(crps_np_steps_all)
-        # crps_steps_std = np.std(crps_np_steps_all)
-        save_zipped_pickle('{}/{}'.format(save_dir, save_name_steps), crps_steps_all_tc)
+            crps_steps_all_tc = torch.stack(crps_steps_list_tc)
+            # crps_steps_mean = np.mean(crps_np_steps_all)
+            # crps_steps_std = np.std(crps_np_steps_all)
+            save_zipped_pickle('{}/{}'.format(save_dir, save_name_steps), crps_steps_all_tc)
 
 
 

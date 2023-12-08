@@ -1,6 +1,7 @@
 import pandas as pd
 
 from helper.helper_functions import one_hot_to_lognorm_mm
+from helper.memory_logging import print_gpu_memory
 from load_data import inverse_normalize_data
 from baselines import LKBaseline
 import torchvision.transforms as T
@@ -13,6 +14,7 @@ from matplotlib.ticker import LogLocator
 from matplotlib.colors import LogNorm
 
 import matplotlib.pyplot as plt
+import torch
 
 
 def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binning_params, settings, plot_settings,
@@ -32,111 +34,116 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
     calc_on_every_n_th_batch=4 <--- Only use every nth batch of data loder to calculate FSS (for speed); at least one
     batch is calculated
     '''
-    if fss_calc_on_every_n_th_batch < len(data_loader):
-        fss_calc_on_every_n_th_batch = len(data_loader)
+    with torch.no_grad():
+        if fss_calc_on_every_n_th_batch < len(data_loader):
+            fss_calc_on_every_n_th_batch = len(data_loader)
 
-    filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
-        linspace_binning_max_unnormalized = filter_and_normalization_params
+        filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
+            linspace_binning_max_unnormalized = filter_and_normalization_params
 
-    linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
+        linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
 
-    inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=True,
-                                                           inverse_normalize=True)
-    if fss_log_thresholds:
-        thresholds = np.exp(np.linspace(np.log(fss_space_threshold[0]), np.log(fss_space_threshold[1]), fss_space_threshold[2]))
-    else:
-        thresholds = np.linspace(fss_space_threshold[0], fss_space_threshold[1], fss_space_threshold[2])
+        inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=True,
+                                                               inverse_normalize=True)
+        if fss_log_thresholds:
+            thresholds = np.exp(np.linspace(np.log(fss_space_threshold[0]), np.log(fss_space_threshold[1]), fss_space_threshold[2]))
+        else:
+            thresholds = np.linspace(fss_space_threshold[0], fss_space_threshold[1], fss_space_threshold[2])
 
-    # I want this behaviour: np.exp(np.linspace(np.log(0.01), np.log(0.1), 5))
-    scales = np.linspace(fss_linspace_scale[0], fss_linspace_scale[1], fss_linspace_scale[2])
-    scales = scales.astype(int)
-    scales = np.unique(scales)
-    df_data = []
-    fss_calc = verification.get_method("FSS")
+        # I want this behaviour: np.exp(np.linspace(np.log(0.01), np.log(0.1), 5))
+        scales = np.linspace(fss_linspace_scale[0], fss_linspace_scale[1], fss_linspace_scale[2])
+        scales = scales.astype(int)
+        scales = np.unique(scales)
+        df_data = []
+        fss_calc = verification.get_method("FSS")
 
-    preds_and_targets = {}
-    preds_and_targets['pred_mm_inv_normed'] = []
-    preds_and_targets['pred_mm_lk_baseline'] = []
-    preds_and_targets['target_inv_normed'] = []
+        preds_and_targets = {}
+        preds_and_targets['pred_mm_inv_normed'] = []
+        preds_and_targets['pred_mm_lk_baseline'] = []
+        preds_and_targets['target_inv_normed'] = []
 
-    for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
-        if not (i % fss_calc_on_every_n_th_batch == 0):
-            break
+        print('Started FSS Calculations')
+        for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
+            print(f'Batch_num: {i}')
+            print_gpu_memory()
 
-        print('Calculating FSS for sample {} of {}'.format(i, len(data_loader)))  # Debug
+            if not (i % fss_calc_on_every_n_th_batch == 0):
+                break
 
-        input_sequence = input_sequence.to(ps_device)
-        model = model.to(ps_device)
-        pred = model(input_sequence)
+            print('Calculating FSS for sample {} of {}'.format(i, len(data_loader)))  # Debug
 
-        if ps_gaussian_smoothing_multiple_sigmas:
-            pred = pred[0].detach().cpu()
+            input_sequence = input_sequence.to(ps_device)
+            model = model.to(ps_device)
+            pred = model(input_sequence)
 
-        pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
-        del pred
-        pred_mm_inv_normed = inv_norm(pred_mm)
-        # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
+            if ps_gaussian_smoothing_multiple_sigmas:
+                pred = pred[0].detach().cpu()
 
-        logging_type = None
-        lk_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
-        input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
-        pred_mm_lk_baseline, _, _ = lk_baseline(input_sequence_inv_normed)
-        pred_mm_lk_baseline = T.CenterCrop(size=32)(pred_mm_lk_baseline)
-        pred_mm_lk_baseline = pred_mm_lk_baseline.detach().cpu().numpy()
+            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+            del pred
+            pred_mm_inv_normed = inv_norm(pred_mm)
+            # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
 
-        target = target.detach().cpu().numpy()
-        target_inv_normed = inv_norm(target)
+            logging_type = None
+            lk_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
+            input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
+            pred_mm_lk_baseline, _, _ = lk_baseline(input_sequence_inv_normed)
+            pred_mm_lk_baseline = T.CenterCrop(size=32)(pred_mm_lk_baseline)
+            pred_mm_lk_baseline = pred_mm_lk_baseline.detach().cpu().numpy()
 
-        preds_and_targets['pred_mm_inv_normed'].append(pred_mm_inv_normed)
-        preds_and_targets['pred_mm_lk_baseline'].append(pred_mm_lk_baseline)
-        preds_and_targets['target_inv_normed'].append(target_inv_normed)
+            target = target.detach().cpu().numpy()
+            target_inv_normed = inv_norm(target)
 
-    for scale in scales:
-        for threshold in thresholds:
-            fss_model_list_const_param = []
-            fss_lk_baseline_list_const_param = []
+            preds_and_targets['pred_mm_inv_normed'].append(pred_mm_inv_normed)
+            preds_and_targets['pred_mm_lk_baseline'].append(pred_mm_lk_baseline)
+            preds_and_targets['target_inv_normed'].append(target_inv_normed)
 
-            # predictions calculated beforehand, such that there are no redundant forward passes
-            for pred_mm_inv_normed, pred_mm_lk_baseline, target_inv_normed in zip(preds_and_targets['pred_mm_inv_normed'],
-                                                                                  preds_and_targets['pred_mm_lk_baseline'],
-                                                                                  preds_and_targets['target_inv_normed']):
+        for scale in scales:
+            for threshold in thresholds:
+                fss_model_list_const_param = []
+                fss_lk_baseline_list_const_param = []
 
-                # Works up until here! predictions of baseline and model have been calculated
-                # TODO: Calculate FSS: Write loop that iterates over different thersholds (x-axis) and different scales (several plots or differently colored lines? Or movie?)
+                # predictions calculated beforehand, such that there are no redundant forward passes
+                for pred_mm_inv_normed, pred_mm_lk_baseline, target_inv_normed in zip(preds_and_targets['pred_mm_inv_normed'],
+                                                                                      preds_and_targets['pred_mm_lk_baseline'],
+                                                                                      preds_and_targets['target_inv_normed']):
 
-                for batch_num in range(np.shape(target_inv_normed)[0]):
-                    fss_model = fss_calc(pred_mm_inv_normed[batch_num, :, :], target_inv_normed[batch_num, :, :], threshold, scale)
-                    fss_model_list_const_param.append(fss_model)
+                    # Works up until here! predictions of baseline and model have been calculated
+                    # TODO: Calculate FSS: Write loop that iterates over different thersholds (x-axis) and different scales (several plots or differently colored lines? Or movie?)
 
-                    fss_lk_baseline = fss_calc(pred_mm_lk_baseline[batch_num, :, :], target_inv_normed[batch_num, :, :], threshold, scale)
-                    fss_lk_baseline_list_const_param.append(fss_lk_baseline)
-                    
-                # fss = np.nanmean(
-                #     [fss(pred_mm_inv_normed[batch_num, :, :], target[batch_num, :, :], threshold, scale)
-                #      for batch_num in range(np.shape(target)[0])]
-                # )
-                # fss_list_const_param.append(fss)
+                    for batch_num in range(np.shape(target_inv_normed)[0]):
+                        fss_model = fss_calc(pred_mm_inv_normed[batch_num, :, :], target_inv_normed[batch_num, :, :], threshold, scale)
+                        fss_model_list_const_param.append(fss_model)
 
-            fss_model_mean = np.nanmean(fss_model_list_const_param)
-            fss_model_std = np.nanstd(fss_model_list_const_param)
+                        fss_lk_baseline = fss_calc(pred_mm_lk_baseline[batch_num, :, :], target_inv_normed[batch_num, :, :], threshold, scale)
+                        fss_lk_baseline_list_const_param.append(fss_lk_baseline)
 
-            fss_lk_baseline_mean = np.nanmean(fss_lk_baseline_list_const_param)
-            fss_lk_baseline_std = np.nanstd(fss_lk_baseline_list_const_param)
+                    # fss = np.nanmean(
+                    #     [fss(pred_mm_inv_normed[batch_num, :, :], target[batch_num, :, :], threshold, scale)
+                    #      for batch_num in range(np.shape(target)[0])]
+                    # )
+                    # fss_list_const_param.append(fss)
 
-            df_data.append({'scale': scale, 'threshold': threshold, 'fss_model_mean': fss_model_mean,
-                            'fss_model_std': fss_model_std, 'fss_lk_baseline_mean': fss_lk_baseline_mean,
-                            'fss_lk_baseline_std': fss_lk_baseline_std})
+                fss_model_mean = np.nanmean(fss_model_list_const_param)
+                fss_model_std = np.nanstd(fss_model_list_const_param)
 
-    df = pd.DataFrame(df_data)
+                fss_lk_baseline_mean = np.nanmean(fss_lk_baseline_list_const_param)
+                fss_lk_baseline_std = np.nanstd(fss_lk_baseline_list_const_param)
 
-    log_dir = settings['s_dirs']['logs']
-    log_name = 'fss_None.csv'.format(prefix, ps_checkpoint_name)
-    if not os.path.exists(log_dir):
-        # Create a new directory because it does not exist
-        os.makedirs(log_dir)
+                df_data.append({'scale': scale, 'threshold': threshold, 'fss_model_mean': fss_model_mean,
+                                'fss_model_std': fss_model_std, 'fss_lk_baseline_mean': fss_lk_baseline_mean,
+                                'fss_lk_baseline_std': fss_lk_baseline_std})
 
-    df.to_csv('{}/{}'.format(log_dir, log_name))
+        df = pd.DataFrame(df_data)
+
+        log_dir = settings['s_dirs']['logs']
+        log_name = 'fss_None.csv'.format(prefix, ps_checkpoint_name)
+        if not os.path.exists(log_dir):
+            # Create a new directory because it does not exist
+            os.makedirs(log_dir)
+
+        df.to_csv('{}/{}'.format(log_dir, log_name))
 
 
 # Function to plot the data with the given specifications

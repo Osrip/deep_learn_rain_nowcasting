@@ -3,15 +3,6 @@ import psutil
 import torch
 
 def print_gpu_memory():
-    import nvidia_smi
-    nvidia_smi.nvmlInit()
-
-    handle = nvidia_smi.nvmlDeviceGetHandleByIndex(0)
-    info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
-    print("GPU Memory: Total: {}, Free: {}, Used:{}".format(size(info.total), size(info.free), size(info.used)))
-
-
-def print_gpu_memory():
     # Check if CUDA is available and get the current device
     if torch.cuda.is_available():
         device = torch.cuda.current_device()
@@ -22,7 +13,7 @@ def print_gpu_memory():
         # Get current memory usage
         current_memory = torch.cuda.memory_allocated(device)
 
-        print(f"CUDA device {device} Total memory : {size(total_memory)} Used memory: {size(current_memory)}")
+        print(f"\nCUDA device {device} Total memory : {size(total_memory)} Used memory: {size(current_memory)}")
 
 
 def print_ram_usage():
