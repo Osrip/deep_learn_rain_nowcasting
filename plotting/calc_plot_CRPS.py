@@ -1,6 +1,4 @@
-import numpy
-
-from load_data import inverse_normalize_data
+from load_data import inverse_normalize_data, invnorm_linspace_binning
 import numpy as np
 from baselines import LKBaseline
 import torch
@@ -274,17 +272,6 @@ def iterate_crps_element_wise(pred_np, target_inv_normed, linspace_binning_inv_n
                 crps = calculate_crps_lambda(pred_np[b, :, h, w], target_inv_normed[b, h, w])
                 crps_out[b, h, w] = crps
     return crps_out
-
-
-def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filtered_data, std_filtered_data):
-    '''
-    Inverse normalizes linspace binning
-    By default the linspace binning only includes the lower bounds#
-    Therefore the highest upper bound is missing which is given by linspace_binning_max
-    '''
-    linspace_binning_inv_norm = inverse_normalize_data(np.array(linspace_binning), mean_filtered_data, std_filtered_data)
-    linspace_binning_max_inv_norm = inverse_normalize_data(np.array(linspace_binning_max), mean_filtered_data, std_filtered_data, inverse_log=True)
-    return linspace_binning_inv_norm, linspace_binning_max_inv_norm.item()
 
 
 # def plot_crps(s_dirs, crps_load_steps_crps_from_file, crps_steps_file_path, **__):

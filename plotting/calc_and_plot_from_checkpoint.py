@@ -161,9 +161,9 @@ if __name__ == '__main__':
         'ps_inv_normalize': False,
         'ps_gaussian_smoothing_multiple_sigmas': settings['s_gaussian_smoothing_multiple_sigmas'],
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
-        'ps_plot_snapshots': False,
+        'ps_plot_snapshots': True,
         'ps_plot_fss': False,
-        'ps_plot_crps' : True,
+        'ps_plot_crps' : False,
         'ps_num_gpus': 4,
     }
 
@@ -204,7 +204,6 @@ if __name__ == '__main__':
     #     'fss_log_thresholds': True,
     # }
 
-    plot_checkpoint_settings['ps_plot_snapshots'] = False
 
     # Catch previous versions where certain features were not implemented
 

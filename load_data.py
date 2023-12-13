@@ -495,3 +495,12 @@ if __name__ == '__main__':
     pass
 
 
+def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filtered_data, std_filtered_data):
+    '''
+    Inverse normalizes linspace binning
+    By default the linspace binning only includes the lower bounds#
+    Therefore the highest upper bound is missing which is given by linspace_binning_max
+    '''
+    linspace_binning_inv_norm = inverse_normalize_data(np.array(linspace_binning), mean_filtered_data, std_filtered_data)
+    linspace_binning_max_inv_norm = inverse_normalize_data(np.array(linspace_binning_max), mean_filtered_data, std_filtered_data, inverse_log=True)
+    return linspace_binning_inv_norm, linspace_binning_max_inv_norm.item()
