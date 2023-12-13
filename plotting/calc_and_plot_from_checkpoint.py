@@ -58,6 +58,10 @@ def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, 
     settings, filtered_indecies_training, filtered_indecies_validation, linspace_binning_params, filter_and_normalization_params \
         = load_data_from_run(ps_runs_path, ps_run_name)
 
+    # Cover case of old versions, where crps loss has not been introduced
+    if 's_crps_loss' not in settings.keys():
+        settings['s_crps_loss'] = False
+
     if settings['s_log_transform']:
         transform_f = lambda x: np.log(x + 1)
     else:
@@ -127,7 +131,8 @@ if __name__ == '__main__':
     runs_path = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs'
     # run_name = 'Run_20231025-102508_ID_4495294several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
     # run_name = 'Run_20231025-143021_ID_4495295several_seperate_sigmas_01_05_1_2_CONTROL_bernstein_100_epochs_averaged_baseline_NO_lr_scheduler'
-    run_name = 'Run_20231207-212109_ID_4624317crps_loss_no_gaussian_blurring'
+    # run_name = 'Run_20231207-212109_ID_4624317crps_loss_no_gaussian_blurring'
+    run_name = 'Run_20231024-085515_ID_4492846no_gaussian_100_epochs_averaged_baseline_with_lr_scheduler'
     #
     # runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
     # run_name = 'Run_20231108-115128no_gaussian_blurring_with_exp_lr_schedule'
@@ -202,7 +207,5 @@ if __name__ == '__main__':
     plot_checkpoint_settings['ps_plot_snapshots'] = False
 
     # Catch previous versions where certain features were not implemented
-    try:
-        plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, **plot_checkpoint_settings)
-    except TypeError:
-        settings['s_crps_loss'] = False
+
+    plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, **plot_checkpoint_settings)
