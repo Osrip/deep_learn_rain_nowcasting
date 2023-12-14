@@ -77,19 +77,19 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
 
                 if i == 0:
                     # !!! Can also be plotted without input sequence by just leaving input_sequence=None !!!
-                    # plot_target_vs_pred_with_likelihood(inv_norm_or_not(target), inv_norm_or_not(pred_mm), pred, pred_mm_baseline,
-                    #                                     plot_baseline=plot_baseline,
-                    #                                     linspace_binning=inv_norm_or_not(linspace_binning),
-                    #                                     vmin=vmin,
-                    #                                     vmax=vmax,
-                    #                                     save_path_name= '{}/plots/{}{}_target_vs_pred_likelihood_{}'.format(ps_runs_path
-                    #                                                                                             , prefix
-                    #                                                                                             , sigma_str
-                    #                                                                                             , ps_checkpoint_name),
-                    #                                     title='{}{}'.format(prefix, sigma_str),
-                    #                                     input_sequence = inv_norm_or_not(input_sequence),
-                    #                                     **plot_settings
-                    #                                     )
+                    plot_target_vs_pred_with_likelihood(inv_norm_or_not(target), inv_norm_or_not(pred_mm), pred, pred_mm_baseline,
+                                                        plot_baseline=plot_baseline,
+                                                        linspace_binning=inv_norm_or_not(linspace_binning),
+                                                        vmin=vmin,
+                                                        vmax=vmax,
+                                                        save_path_name= '{}/plots/{}{}_target_vs_pred_likelihood_{}'.format(ps_runs_path
+                                                                                                                , prefix
+                                                                                                                , sigma_str
+                                                                                                                , ps_checkpoint_name),
+                                                        title='{}{}'.format(prefix, sigma_str),
+                                                        input_sequence = inv_norm_or_not(input_sequence),
+                                                        **plot_settings
+                                                        )
                     plot_distributions(target, pred,
                                        linspace_binning_inv_norm, linspace_binning_max_inv_norm,
                                        title='{}{}'.format(prefix, sigma_str),

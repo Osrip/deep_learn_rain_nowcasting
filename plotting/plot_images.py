@@ -52,9 +52,10 @@ def plot_target_vs_pred(target_img, pred_img, save_path_name, vmin, vmax, max_ro
     gc.collect()
 
 
-def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, pred_mm_baseline, save_path_name, vmin, vmax, linspace_binning,
+def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_binned, pred_mm_baseline, save_path_name, vmin, vmax, linspace_binning,
                                         plot_baseline,
-                                        ps_inv_normalize, max_row_num=5, input_sequence=None, crop_inputs=True ,title='', **__):
+                                        ps_inv_normalize, max_row_num=5, input_sequence=None, crop_inputs=True,
+                                        plot_argmax_probs=True, title='', **__):
     '''
     !!! Can also be plotted without input sequence by just leaving input_sequence=None !!!
     '''
@@ -82,13 +83,13 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, pred_
 
     num_rows = np.min((target_img.shape[0], max_row_num))
     add_cols = 0 if input_sequence is None else input_sequence.shape[1]
-    if plot_baseline:
-        add_baseline = 1
-    else:
-        add_baseline = 0
-    num_cols = 3 + add_cols + add_baseline
+    # if plot_baseline:
+    #     add_baseline = 1
+    # else:
+    #     add_baseline = 0
+    num_cols = 3 + add_cols + plot_baseline + plot_argmax_probs
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(5*num_cols, 5*num_rows))
-    likelihoods = calc_likelihood_target_vs_pred_man(target_img, pred_one_hot, linspace_binning)
+    likelihoods = calc_likelihood_target_vs_pred_man(target_img, pred_binned, linspace_binning)
     # likelihoods = np.log(likelihoods)
     plt.set_cmap('jet')
 
@@ -135,7 +136,12 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, pred_
 
                 cbar4.set_label(cbar_label, rotation=270, labelpad=12)
 
+            elif (col == 4 + add_cols) and plot_argmax_probs:
+                pred_binned_argmax = torch.argmax(pred_binned, dim=1)
+                im5 = curr_ax.imshow(pred_binned_argmax[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
+                cbar5 = plt.colorbar(im5, cmap='jet')
 
+                cbar5.set_label(cbar_label, rotation=270, labelpad=12)
 
             if row == 0:
                 if add_input_sequence and col in range(add_cols):
@@ -148,6 +154,9 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_one_hot, pred_
                     curr_ax.set_title('Likelihood')
                 elif (col == 3 + add_cols) and plot_baseline:
                     curr_ax.set_title('Baseline')
+                elif (col == 4 + add_cols) and plot_argmax_probs:
+                    curr_ax.set_title('Argmax Probabilities')
+
     # plt.colorbar(fig)
     fig.suptitle(title)
     plt.savefig('{}.png'.format(save_path_name), dpi=300)

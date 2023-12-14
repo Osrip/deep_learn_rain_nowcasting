@@ -12,6 +12,10 @@ from helper.memory_logging import print_gpu_memory
 def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
                     linspace_binning_inv_norm: np.ndarray, linspace_binning_max_inv_norm: np.ndarray, device, **__):
     '''
+    TODO: WHAT HAPPENS IF TARGET IS A DITRIBUTION INSTEAD OF ONE HOT VALUE? --> Not possible as target has no c dimension
+    TODO: THIS IS IN PRINCIPLE POSSIBLE TO CALCULATE CRPS IN THAT SCENARIO BUT DOES OUR FUNCTION DEAL WITH THIS CORRECTLY?
+    --> TODO: We can calculate BRIER Score independently for each bin. In one hot target case the step function is the same
+    TODO: But in case of target distribution it would be different according to the value of the current bin in the target (???)
     pred: pred_np: binned prediction b x c x h x w
     target: target_inv_normed: target in inv normed space b x h x w
     linspace_binning_inv_norm: left bins edges in inv normed space

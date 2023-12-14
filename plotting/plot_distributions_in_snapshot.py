@@ -43,7 +43,7 @@ def plot_distributions(target: torch.Tensor, pred_binned: torch.Tensor,
 
 
     plt.suptitle(title)
-    plt.savefig(save_path_name)
+    plt.savefig(f'{save_path_name}.png')
     plt.tight_layout()
     plt.show()
     plt.close()
