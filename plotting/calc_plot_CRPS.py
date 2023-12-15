@@ -1,3 +1,4 @@
+from helper.calc_CRPS import crps_vectorized, element_wise_crps
 from load_data import inverse_normalize_data, invnorm_linspace_binning
 import numpy as np
 from baselines import LKBaseline
@@ -7,88 +8,6 @@ import einops
 import matplotlib.pyplot as plt
 from helper.helper_functions import save_zipped_pickle, load_zipped_pickle, img_one_hot
 from helper.memory_logging import print_gpu_memory
-
-
-def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
-                    linspace_binning_inv_norm: np.ndarray, linspace_binning_max_inv_norm: np.ndarray, device, **__):
-    '''
-    TODO: WHAT HAPPENS IF TARGET IS A DITRIBUTION INSTEAD OF ONE HOT VALUE? --> Not possible as target has no c dimension
-    TODO: THIS IS IN PRINCIPLE POSSIBLE TO CALCULATE CRPS IN THAT SCENARIO BUT DOES OUR FUNCTION DEAL WITH THIS CORRECTLY?
-    --> TODO: We can calculate BRIER Score independently for each bin. In one hot target case the step function is the same
-    TODO: But in case of target distribution it would be different according to the value of the current bin in the target (???)
-    pred: pred_np: binned prediction b x c x h x w
-    target: target_inv_normed: target in inv normed space b x h x w
-    linspace_binning_inv_norm: left bins edges in inv normed space
-
-    returns CRPS for each pixel in shape b x h x w
-    '''
-    # Calculations related to binning
-    bin_edges_all = np.append(linspace_binning_inv_norm, linspace_binning_max_inv_norm)
-    bin_edges_all = torch.from_numpy(bin_edges_all).to(device)
-    bin_edges_right = bin_edges_all[1:]
-    bin_sizes = torch.diff(bin_edges_all)
-
-    # Unsqueeze binning (adding None dimension) to get same dimensionality as pred with c being dim 1
-    bin_edges_right_c_h_w = bin_edges_right[None, :, None, None]
-    bin_sizes_unsqueezed_b_c_h_w = bin_sizes[None, :, None, None]
-
-    # in element-wise we are looping through b ins while observation stays constant
-    # We are adding a new c dimension to targets where for each target value is replaced by an array of 1s and 0s depending on whether
-    # the binning is smaller or bigger than the target
-    # heavyside step b x c x h x w --> same as pred
-    # target b x h x w
-    # binning c
-
-    # Adding c dim that are comparisons to observation: Can also be interpreted as
-    # Calculate the heavyside step function (0 below a vertain value 1 above)
-    # This repaces if condition in element-wise calculation by just adding
-    # heavyside_step is -1 for all bin edges that are on the right side (bigger) than the observation (target)
-    target = target[:, None, :, :]
-    heavyside_step = (target <= bin_edges_right_c_h_w).float()
-
-    # Calculate CDF
-    pred_cdf = torch.cumsum(pred, axis=1)
-    # Substract heaviside step
-    pred_cdf = pred_cdf - heavyside_step
-    # Square
-    pred_cdf = torch.square(pred_cdf)
-    # Weight according to bin sizes
-    pred_cdf = pred_cdf * bin_sizes_unsqueezed_b_c_h_w
-    # Sum to get CRPS --> c dim is summed so b x c x h x w --> b x h x w
-    crps = torch.sum(pred_cdf, axis=1)
-
-    return crps
-
-
-def element_wise_crps(bin_probs, observation, bin_edges):
-    """
-    VIDEO ZUR IMPLEMENTATION IN ICLOUD NOTES UNTER NOTIZ "CRPS"
-    Calculate CRPS between an empirical distribution and a point observation.
-    Parameters:
-    - bin_edges : array-like, bin edges
-    !!including leftmost and rightmost edge!!!
-    - bin_probs : array-like, probabilities of each bin --> len(bin_probs) == len(bin_edges - 1) as last right bin not included!
-    - observation : float, observed value
-    Returns:
-    - CRPS value : float
-    """
-    # TODO Speed this up with jit!
-    cdf = np.cumsum(bin_probs)
-    crps = 0
-    # Iterating through each bin and looking whether observation is outside
-    for i in range(len(bin_edges)-1):
-        left_edge = bin_edges[i]
-        right_edge = bin_edges[i+1]
-        if observation > right_edge:
-            crps += cdf[i] ** 2 * (right_edge - left_edge)
-            # Eveything smaller than observation is added to represent integral
-
-        # elif observation < right_edge:
-        else:
-            crps += (cdf[i] - 1) ** 2 * (right_edge - left_edge)
-            # For the bin that the observation is in and all larger bins Observation - 1 is added
-
-    return crps
 
 
 def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binning_params, settings, plot_settings,
@@ -180,7 +99,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
                 # crps_np_steps = iterate_crps_element_wise(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
                 crps_steps_tc = crps_vectorized(steps_binning_tc, target_inv_normed, linspace_binning_inv_norm,
-                                             linspace_binning_max_inv_norm, **settings)
+                                                linspace_binning_max_inv_norm, **settings)
 
                 crps_steps_list_tc.append(crps_steps_tc.detach())
 
@@ -253,78 +172,6 @@ def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_b
     # test_result = test[test == 1].all()
 
     return binning_from_ensemble
-
-
-def iterate_crps_element_wise(pred_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm):
-    '''
-    pred_np: binned prediction b x c x h x w
-    target_inv_normed: target in inv normed space b x h x w
-    linspace_binning_inv_norm: left bins edges in inv normed space
-    '''
-    calculate_crps_lambda = lambda x, y: element_wise_crps(x, y,
-                                                           np.append(linspace_binning_inv_norm, linspace_binning_max_inv_norm),)
-    shape_pred = np.shape(pred_np)
-    shape_target = np.shape(target_inv_normed)
-    if not (shape_target[0] == shape_pred[0] and shape_target[1] == shape_pred[2] and shape_target[2] == shape_pred[3]):
-        raise ValueError('Dimensionality mismatch between prediction and target (leaving away channel dimension of prediction')
-
-    crps_out = np.zeros(shape=shape_target)
-
-    for b in range(shape_target[0]):
-        for h in range(shape_target[1]):
-            for w in range(shape_target[2]):
-                crps = calculate_crps_lambda(pred_np[b, :, h, w], target_inv_normed[b, h, w])
-                crps_out[b, h, w] = crps
-    return crps_out
-
-
-# def plot_crps(s_dirs, crps_load_steps_crps_from_file, crps_steps_file_path, **__):
-#
-#     save_dir = s_dirs['logs']
-#     save_name_model = 'crps_model'
-#     save_name_steps = 'crps_steps'
-#
-#     crps_model_path = '{}/{}'.format(save_dir, save_name_model)
-#
-#     if crps_load_steps_crps_from_file:
-#         crps_steps_path = crps_steps_file_path
-#     else:
-#         crps_steps_path = '{}/{}'.format(save_dir, save_name_steps)
-#
-#     model_name = 'Model'
-#     steps_name = 'STEPS'
-#
-#     model_array = load_zipped_pickle(crps_model_path)
-#     steps_array = load_zipped_pickle(crps_steps_path)
-#
-#     data = [model_array, steps_array]
-#     means = [np.mean(array) for array in data]
-#     stds = [np.std(array) for array in data]
-#     medians = [np.median(array) for array in data]
-#
-#     # Creating the violin plot with mean as a point and std as a line
-#     plt.figure(figsize=(10, 6))
-#     ax = sns.violinplot(data=data)
-#     ax.set_xticklabels([model_name, steps_name])  # Setting custom names for the x-axis
-#
-#     # # Plotting mean as a point
-#     # ax.scatter(range(len(data)), means, color='red', marker='o', label='Mean')
-#     #
-#     # # Plotting std as a line
-#     # for i in range(len(data)):
-#     #     ax.plot([i, i], [means[i] - stds[i], means[i] + stds[i]], color='blue', lw=2, label='STD' if i == 0 else "")
-#
-#     # Adding text for mean, std, and median values above the plot
-#     for i in range(len(data)):
-#         plt.text(i, ax.get_ylim()[1] * 1.1, f'Mean: {means[i]:.3f}\nSTD: {stds[i]:.3f}\nMedian: {medians[i]:.3f}',
-#                  horizontalalignment='center', size='small', color='black', weight='semibold')
-#
-#     plt.title('Violin Plots with Mean and STD')
-#     plt.legend()
-#
-#     plt.savefig(f"{s_dirs['plot_dir']}/crps.png", bbox_inches='tight')
-#     plt.show()
-#     plt.close()  # Close the plot to free memory
 
 
 def plot_crps(s_dirs, crps_load_steps_crps_from_file, crps_steps_file_path, **__):

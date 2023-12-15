@@ -1,7 +1,7 @@
 import torch
 import pytorch_lightning as pl
 
-from plotting.calc_plot_CRPS import crps_vectorized
+from helper.calc_CRPS import crps_vectorized
 from load_data import inverse_normalize_data, invnorm_linspace_binning
 from helper.memory_logging import print_gpu_memory, print_ram_usage
 from modules_blocks import Network
