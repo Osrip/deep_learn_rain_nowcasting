@@ -1,4 +1,4 @@
-from helper.calc_CRPS import crps_vectorized, element_wise_crps
+from helper.calc_CRPS import crps_vectorized, element_wise_crps, iterate_crps_element_wise
 from load_data import inverse_normalize_data, invnorm_linspace_binning
 import numpy as np
 from baselines import LKBaseline
@@ -15,7 +15,6 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
              ps_runs_path, ps_run_name, ps_checkpoint_name, ps_device, ps_gaussian_smoothing_multiple_sigmas,
              ps_multiple_sigmas, crps_calc_on_every_n_th_batch, crps_load_steps_crps_from_file,
              prefix='', test_output=False, vec_crps=True, **__):
-
     '''
     This function calculates the mean and std of the FSS over the whole dataset given by the data loader (validations
     set required). The FSS is calculated for different thresholds and scales. The thresholds are given by the
@@ -28,6 +27,8 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
     calc_on_every_n_th_batch=4 <--- Only use every nth batch of data loder to calculate FSS (for speed); at least one
     batch is calculated
     '''
+
+
     with torch.no_grad():
         if crps_calc_on_every_n_th_batch > len(data_loader):
             crps_calc_on_every_n_th_batch = len(data_loader)
@@ -116,15 +117,15 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
             # test vectorized with element-wise
             # else:
-            # pred_np = pred.cpu().detach().numpy()
-            # # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
-            # crps_np_model = iterate_crps_element_wise(pred_np, target_inv_normed, linspace_binning_inv_norm,
-            #                                           linspace_binning_max_inv_norm)
-            #
-            # if not (np.round(crps_vec, 2) == np.round(crps_np_model, 2)).all():
-            #     raise ValueError('BUG!!')
-            # else:
-            #     print('all good')
+            pred_np = pred.cpu().detach().numpy()
+            # We take normalized pred as we already passed the inv normalized binning to the calculate_crps function
+            crps_np_model = iterate_crps_element_wise(pred_np, target_inv_normed, linspace_binning_inv_norm,
+                                                      linspace_binning_max_inv_norm)
+
+            if not (np.round(crps_model_tc.cpu().numpy(), 4) == np.round(crps_np_model, 4)).all():
+                raise ValueError('BUG!!')
+            else:
+                print('all good')
 
 
         save_dir = settings['s_dirs']['logs']
@@ -144,7 +145,6 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
             # crps_steps_mean = np.mean(crps_np_steps_all)
             # crps_steps_std = np.std(crps_np_steps_all)
             save_zipped_pickle('{}/{}'.format(save_dir, save_name_steps), crps_steps_all_tc)
-
 
 
 def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_bins_crossentropy, device, **__):
@@ -240,8 +240,7 @@ if __name__ == '__main__':
     bin_probs = np.array([0, 0, 1, 0])
     observation = 2.5
 
-    test = element_wise_crps(bin_probs, observation, bin_edges, )
-    pass
+    test = element_wise_crps(bin_probs, observation, bin_edges,)
 
 
 
