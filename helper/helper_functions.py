@@ -26,34 +26,33 @@ def create_dilation_list(s_width_height, inverse_ratio=4):
     return out
 
 
-def map_mm_to_one_hot_index(mm, num_indecies, mm_min, mm_max):
-    '''
-    !!! OLD !!!
-    This is older version --> Use bin_to_one_hot_index_linear
-    index starts counting at 0 and has max index at max_index --> length of indecies is max_index + 1 !!!
-    '''
-    # TODO: Use logarithmic binning to account for long tailed data distribution of precipitation???
-    # Add tiny number, such that np. floor always accounts for next lower number
-    if mm < mm_min or mm > mm_max:
-        raise IndexError('The input is outside of the given bounds min {} and max {}'.format(mm_min, mm_max))
-    mm_max = mm_max + sys.float_info.min
-    bin_size = (mm_max - mm_min) / num_indecies
-    index = int(np.floor(mm / bin_size))
-    # Covering the case that mm == mm_max in which case np.floor would exceed num indecies
-    if mm_max == mm:
-        index -= 1
-    # np ceil rounds down. In principle we need to round up as all the rest above an integer would fill the next bin
-    # But as the indexing starts at Zero we round down instead
-    return index
+# def map_mm_to_one_hot_index(mm, num_indecies, mm_min, mm_max):
+#     '''
+#     !!! OLD !!!
+#     This is older version --> Use bin_to_one_hot_index_linear
+#     index starts counting at 0 and has max index at max_index --> length of indecies is max_index + 1 !!!
+#     '''
+#     # TODO: Use logarithmic binning to account for long tailed data distribution of precipitation???
+#     # Add tiny number, such that np. floor always accounts for next lower number
+#     if mm < mm_min or mm > mm_max:
+#         raise IndexError('The input is outside of the given bounds min {} and max {}'.format(mm_min, mm_max))
+#     mm_max = mm_max + sys.float_info.min
+#     bin_size = (mm_max - mm_min) / num_indecies
+#     index = int(np.floor(mm / bin_size))
+#     # Covering the case that mm == mm_max in which case np.floor would exceed num indecies
+#     if mm_max == mm:
+#         index -= 1
+#     # np ceil rounds down. In principle we need to round up as all the rest above an integer would fill the next bin
+#     # But as the indexing starts at Zero we round down instead
+#     return index
 
 
-def bin_to_one_hot_index_linear(mm_data, linspace_binning):
+def bin_to_one_hot_index(mm_data, linspace_binning):
     '''
     Can directly handle log data
     In practice gets passed log transformed data
     --> linspace_binning_min, linspace_binning_max have to be in log transformed space
     '''
-    # TODO: Use logarithmic binning to account for long tailed data distribution of precipitation???
     # Linspace binning always annotates the lowest value of the bin. The very last value (whoich is linspacebinning_max) is
     # not included in the linspace binning, such that the number of entries in linspace binning correstponts to the number of bins
     # Indecies start counting at 1, therefore - 1
@@ -61,19 +60,17 @@ def bin_to_one_hot_index_linear(mm_data, linspace_binning):
     return indecies
 
 
-def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning):
+def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning) -> torch.Tensor:
     '''
     Adds one hot encoded channel dimension
     Channel dimension is added as -1st dimension, so rearrange dimensions!
     '''
-    # TODO: Looks like only first third of bins is used in practice despite lognormalization!
-    # vmap_mm_to_one_hot_index = np.vectorize(map_mm_to_one_hot_index)
-    # data_arr_indexed = vmap_mm_to_one_hot_index(mm=data_arr, max_index=num_c-1, mm_min=mm_min, mm_max=mm_max)
-    data_arr_indexed = bin_to_one_hot_index_linear(data_arr, linspace_binning) # -0.00000001
-    # data_arr_indexed = bin_to_one_hot_index_log(data_arr, num_c)
-    # data_arr_indexed[0, 0] = -1
-    # TODO:Added for debugging, make sure to find bug and fix it!
+    data_arr_indexed = bin_to_one_hot_index(data_arr, linspace_binning) # -0.00000001
+
+
     if np.min(data_arr_indexed) < 0:
+        # Handling Values below 0.
+        # If warning is encountered fix cause!
         err_message = 'ERROR: ONE HOT ENCODING: data_arr_indexed had values below zero.' \
                       ' Set all vlas < 0 to 0. data_arr < min_linspace_binning: {},' \
                       ' min of linspace_binning: {}, (all vals lognormalized) data_arr_index <0: {}'\
@@ -81,7 +78,7 @@ def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning):
         warnings.warn(err_message)
         print(err_message)
 
-        print('One hot conversion encountered error --> Set data_arr_indexed[data_arr_indexed < 0] = 0')
+        print('One hot conversion encountered error --> Set data_arr_indexed[data_arr_indexed < 0] = 0\nTHIS IS BAD, FIX THIS')
         data_arr_indexed[data_arr_indexed < 0] = 0
         data_indexed = torch.from_numpy(data_arr_indexed)
         data_hot = F.one_hot(data_indexed.long(), num_c)
