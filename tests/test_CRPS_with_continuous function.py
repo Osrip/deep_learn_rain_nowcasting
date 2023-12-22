@@ -26,7 +26,7 @@ def crps_gaussian(x: np.ndarray, mu: np.ndarray, std: np.ndarray) -> np.ndarray:
 
 def create_gaussian_binning(mu: np.ndarray, std: np.ndarray) -> (np.ndarray, np.ndarray):
     gauss_random_vars = norm.rvs(size=100000000, loc=mu, scale=std)
-    bin_edges_left = np.linspace(np.min(gauss_random_vars), np.max(gauss_random_vars), num=1000, endpoint=False)
+    bin_edges_left = np.linspace(np.min(gauss_random_vars), np.max(gauss_random_vars), num=10000, endpoint=False)
     bin_edge_max_right = np.max(gauss_random_vars)
     bin_edges = np.append(bin_edges_left, bin_edge_max_right)
     indecies = np.digitize(gauss_random_vars, bin_edges_left, right=False) - 1
@@ -113,9 +113,9 @@ def crps_vectorized_one_dim_input(pred: torch.Tensor, target: torch.Tensor,
 
 
 if __name__ == '__main__':
-    x = 3
-    mu = 4
-    std = 2
+    x = 20 #3
+    mu = 27# 4
+    std = 500 # 2
 
     vec_crps = vec_crps_gaussian(x, mu, std)
     elem_crps = element_crps_gaussian(x, mu, std)
