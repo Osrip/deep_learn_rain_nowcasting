@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#Usage: ./copy_runs.sh <sim_name1> [<sim_name2> ... <sim_nameN>]
+#Usage: ./copy_complete_runs.sh <sim_name1> [<sim_name2> ... <sim_nameN>]
 
 # Check if at least one argument (sim name) is provided
 
