@@ -12,7 +12,7 @@
 #
 ## Loop through each sim name argument
 #for sim_name in "$@"; do
-#  mkdir -p "/Users/jan/Documents/results_nowcasting/$sim_name" &&
+#  mkdir -p "/home/jan/Documents/results_nowcasting/$sim_name" &&
 #  rsync -avz -e "ssh" bst981@134.2.168.52:"/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/$sim_name" "/home/jan/Documents/results_nowcasting/complete_runs/"
 #  echo "Copied complete folder of $sim_name"
 #done
@@ -40,7 +40,7 @@ if [ $# -lt 1 ]; then
 fi
 
 # Define the local base directory for complete runs
-local_base_dir="/Users/jan/Documents/results_nowcasting/complete_runs"
+local_base_dir="/home/jan/Documents/results_nowcasting/complete_runs"
 
 # Loop through each sim name argument
 for sim_name in "$@"; do

@@ -138,7 +138,7 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_binned, pred_m
 
             elif (col == 4 + add_cols) and plot_argmax_probs:
                 pred_binned_argmax = torch.argmax(pred_binned, dim=1)
-                im5 = curr_ax.imshow(pred_binned_argmax[row, :, :], vmin=vmin, vmax=vmax, norm='linear')
+                im5 = curr_ax.imshow(pred_binned_argmax[row, :, :].cpu().numpy(), vmin=vmin, vmax=vmax, norm='linear')
                 cbar5 = plt.colorbar(im5, cmap='jet')
 
                 cbar5.set_label(cbar_label, rotation=270, labelpad=12)
