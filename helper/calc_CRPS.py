@@ -5,7 +5,7 @@ import torch
 def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
                     linspace_binning_inv_norm: np.ndarray, linspace_binning_max_inv_norm: np.ndarray, device, **__):
     '''
-    TODO: WHAT HAPPENS IF TARGET IS A DISTRIBUTION INSTEAD OF ONE HOT VALUE? --> Not possible as target has no c dimension
+    TODO: WHAT HAPPENS IF TARGET IS A DITRIBUTION INSTEAD OF ONE HOT VALUE? --> Not possible as target has no c dimension
     TODO: THIS IS IN PRINCIPLE POSSIBLE TO CALCULATE CRPS IN THAT SCENARIO BUT DOES OUR FUNCTION DEAL WITH THIS CORRECTLY?
     --> TODO: We can calculate BRIER Score independently for each bin. In one hot target case the step function is the same
     TODO: But in case of target distribution it would be different according to the value of the current bin in the target (???)
@@ -39,30 +39,30 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     target = target[:, None, :, :]
     heavyside_step = (target <= bin_edges_right_c_h_w).float()
 
-    # This line weights the bins according to the bin sizes:
-    # pred = pred * bin_sizes_unsqueezed_b_c_h_w
+    # TODO: Insert bin weighting here, before cumsum?
 
     # Calculate CDF
     pred_cdf = torch.cumsum(pred, axis=1)
-
     # Substract heaviside step
     pred_cdf = pred_cdf - heavyside_step
     # Square
     pred_cdf = torch.square(pred_cdf)
 
-    # This is where we used to do weighting according to bin sizes
-    pred = pred * bin_sizes_unsqueezed_b_c_h_w
+    # Weight according to bin sizes --> When this line is removed, element-wise fails
+    # TODO Does elemet-wise also use the wrong weighting approach??
+    pred_cdf = pred_cdf * bin_sizes_unsqueezed_b_c_h_w
 
+    # Sum to get CRPS --> c dim is summed so b x c x h x w --> b x h x w
+    crps = torch.sum(pred_cdf, axis=1)
+
+    return crps
+
+    # Reasoning with Martin
     # TODO: Bullshit to calculate cdf without regarding bin size but then weighting bin size when calculating integral.
     # If we do bin weighting we have to do that before calculating cdf
     # when weighting bins we are calculating CRPS in inverse lognorm space. When not weighting we are calculating in
     # lognorm space --> Xentropy is calculated with equal weights as well. However CRPS is made to be put on original
     # scale
-    #
-    # Sum (discrete integral) to get CRPS --> c dim is summed so b x c x h x w --> b x h x w
-    crps = torch.sum(pred_cdf, axis=1)
-
-    return crps
 
 
 def element_wise_crps(bin_probs, observation, bin_edges):
