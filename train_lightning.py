@@ -258,7 +258,8 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
                          logger=logger, devices=num_gpus, check_val_every_n_epoch=check_val_every_n_epoch,
-                         strategy=strategy)# strategy="ddp", # precision='16-mixed'
+                         strategy=strategy) # on mac: , accelerator='cpu'
+    # strategy="ddp", # precision='16-mixed'
     # 'devices' argument is ignored when device == 'cpu'
     # Speed up advice: https://pytorch-lightning.readthedocs.io/en/1.8.6/guides/speed.html
 
@@ -329,13 +330,13 @@ if __name__ == '__main__':
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
-            's_resnet': False, # Use ResNet instead of ours
+            's_resnet': False,  # Use ResNet instead of ours
 
             # TODO: Implement!!
-            's_plotting_only': False, # If active loads sim s_plot_sim_name and runs plotting pipeline
+            's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20231222-092203_ID_4751100CRPS_loss_no_bin_weighting', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
-            's_max_epochs': 50, # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 50,  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
             's_data_file_names': ['RV_recalc_data_2019-{:02d}.nc'.format(i + 1) for i in range(12)],
             # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
@@ -348,7 +349,7 @@ if __name__ == '__main__':
             's_check_val_every_n_epoch': 1, # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
-            's_num_gpus': 4,
+            's_num_gpus': 1,
             's_batch_size': 45, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55, downgraded to 45 after memory issue on v100 with smoothing stuff
 
             # Parameters that give the network architecture

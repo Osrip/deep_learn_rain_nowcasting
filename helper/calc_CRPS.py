@@ -39,6 +39,7 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     target = target[:, None, :, :]
     heavyside_step = (target <= bin_edges_right_c_h_w).float()
 
+    # This line weights the bins according to the bin sizes:
     # pred = pred * bin_sizes_unsqueezed_b_c_h_w
 
     # Calculate CDF
@@ -48,7 +49,10 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     pred_cdf = pred_cdf - heavyside_step
     # Square
     pred_cdf = torch.square(pred_cdf)
-    # Weight according to bin sizes
+
+    # This is where we used to do weighting according to bin sizes
+    pred = pred * bin_sizes_unsqueezed_b_c_h_w
+
     # TODO: Bullshit to calculate cdf without regarding bin size but then weighting bin size when calculating integral.
     # If we do bin weighting we have to do that before calculating cdf
     # when weighting bins we are calculating CRPS in inverse lognorm space. When not weighting we are calculating in
