@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 
 import numpy as np
 from helper.helper_functions import save_zipped_pickle, save_dict_pickle_csv,\
-    save_tuple_pickle_csv, save_whole_project, load_zipped_pickle
+    save_tuple_pickle_csv, save_whole_project, load_zipped_pickle, save_data_loader_vars, load_data_loader_vars
 import os
 
 import pytorch_lightning as pl
@@ -151,12 +151,17 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
         trainer.validate(lk_baseline, data_loader)
 
 
-def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
+def train_wrapper(data_loader_vars, settings, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
                   s_sim_name, s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
                   s_check_val_every_n_epoch, s_calc_baseline, **__):
     '''
     All the junk surrounding train goes in here
     '''
+    train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation, \
+    linspace_binning_params, filer_and_normalization_params, training_steps_per_epoch, data_set_statistics_dict, \
+    = data_loader_vars
+
+
     train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)
 
     save_dict_pickle_csv('{}/settings'.format(s_dirs['data_dir']), settings)
@@ -175,14 +180,7 @@ def train_wrapper(settings, s_log_transform, s_dirs, s_model_every_n_epoch, s_pr
 
     # save_top_k=-1, prevents callback from overwriting previous checkpoints
 
-    if s_log_transform:
-        transform_f = lambda x: np.log(x + 1)
-    else:
-        transform_f = lambda x: x
 
-    train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,\
-        linspace_binning_params, filer_and_normalization_params, training_steps_per_epoch, data_set_statistics_dict,\
-        = data_loading(transform_f, settings, **settings)
 
     save_dict_pickle_csv('{}/data_set_statistcis_dict'.format(s_dirs['data_dir']), data_set_statistics_dict)
 
@@ -420,6 +418,10 @@ if __name__ == '__main__':
 
             # Logging Stuff
             's_model_every_n_epoch': 1, # Save model every nth epoch
+
+            # Save data loader variables
+            's_data_loader_vars_path': '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
+
         }
 
     if not settings['s_plotting_only']:
@@ -462,6 +464,7 @@ if __name__ == '__main__':
         settings['s_num_gpus'] = 1
 
         settings['s_multiple_sigmas'] = [2, 16]
+        settings['s_data_loader_vars_path'] = '/home/jan/Programming/weather_data/data_loader_vars'
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
     settings['s_num_lead_time_steps'] = settings['s_num_lead_time_steps'] - 2
@@ -473,8 +476,21 @@ if __name__ == '__main__':
 
     if not settings['s_plotting_only']:
         # Normal training
-        model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(settings, **settings)
+
+        if settings['s_log_transform']:
+            transform_f = lambda x: np.log(x + 1)
+        else:
+            transform_f = lambda x: x
+
+        try:
+            data_loader_vars = load_data_loader_vars(**settings)
+        except FileNotFoundError:
+            data_loader_vars = data_loading(transform_f, settings, **settings)
+            save_data_loader_vars(data_loader_vars, **settings)
+
+        model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(data_loader_vars, settings, **settings)
         plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l, settings, **settings)
+
     else:
         # Plotting only
         load_dirs = create_s_dirs(settings['s_plot_sim_name'], settings['s_local_machine_mode'])

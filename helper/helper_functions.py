@@ -196,6 +196,35 @@ def save_whole_project(save_folder):
         save_code(save_folder, file)
 
 
+def _create_save_name_for_data_loader_vars(s_folder_path, s_log_transform, s_normalize):
+    if s_log_transform:
+        log_transform_str = 'log_transform'
+    else:
+        log_transform_str = 'no_log_transform'
+
+    if s_normalize:
+        normalize_str = 'normalize'
+    else:
+        normalize_str = 'no_normalize'
+
+    original_file_name = s_folder_path.split('/')[-1]
+
+    return 'data_loader_vars_{}_{}_{}'.format(log_transform_str, normalize_str, original_file_name)
+
+
+def save_data_loader_vars(data_loader_vars, s_data_loader_vars_path, s_folder_path, s_log_transform, s_normalize, **__):
+    file_name = _create_save_name_for_data_loader_vars(s_folder_path, s_log_transform, s_normalize)
+    save_zipped_pickle(os.path.join(s_data_loader_vars_path, file_name), data_loader_vars)
+
+
+def load_data_loader_vars(s_data_loader_vars_path, s_folder_path, s_log_transform, s_normalize, **__):
+    file_name = _create_save_name_for_data_loader_vars(s_folder_path, s_log_transform, s_normalize)
+    path = os.path.join(s_data_loader_vars_path, file_name)
+    if not os.path.exists(path):
+        raise FileNotFoundError('File {} not found'.format(path))
+    return load_zipped_pickle(path)
+
+
 def save_code(save_folder, filename):
     src = filename
     dst = os.path.join(save_folder, src)  # Properly join the folder and filename
@@ -204,6 +233,7 @@ def save_code(save_folder, filename):
         copyfile(src, dst)
     except FileNotFoundError:
         os.makedirs(dst[0:dst.rfind('/')])
+
 
 def convert_tensor_to_np(tensor):
     return tensor.cpu().detach().numpy()
