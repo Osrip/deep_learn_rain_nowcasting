@@ -40,6 +40,7 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     heavyside_step = (target <= bin_edges_right_c_h_w).float()
 
     # TODO: Insert bin weighting here, before cumsum?
+    # pred = pred * bin_sizes_unsqueezed_b_c_h_w
 
     # Calculate CDF
     pred_cdf = torch.cumsum(pred, axis=1)
@@ -49,8 +50,7 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     pred_cdf = torch.square(pred_cdf)
 
     # Weight according to bin sizes --> When this line is removed, element-wise fails
-    # TODO Does elemet-wise also use the wrong weighting approach??
-    pred_cdf = pred_cdf * bin_sizes_unsqueezed_b_c_h_w
+    # pred_cdf = pred_cdf * bin_sizes_unsqueezed_b_c_h_w
 
     # Sum to get CRPS --> c dim is summed so b x c x h x w --> b x h x w
     crps = torch.sum(pred_cdf, axis=1)
@@ -65,7 +65,7 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     # scale
 
 
-def element_wise_crps(bin_probs, observation, bin_edges):
+def element_wise_crps(bin_probs, observation, bin_edges, bin_weighting=False):
     """
     VIDEO ZUR IMPLEMENTATION IN ICLOUD NOTES UNTER NOTIZ "CRPS"
     Calculate CRPS between an empirical distribution and a point observation.
@@ -84,13 +84,17 @@ def element_wise_crps(bin_probs, observation, bin_edges):
     for i in range(len(bin_edges)-1):
         left_edge = bin_edges[i]
         right_edge = bin_edges[i+1]
+        if bin_weighting:
+            bin_weight = (right_edge - left_edge)
+        else:
+            bin_weight = 1
         if observation > right_edge:
-            crps += cdf[i] ** 2 * (right_edge - left_edge)
+            crps += cdf[i] ** 2 * bin_weight
             # Eveything smaller than observation is added to represent integral
 
         # elif observation < right_edge:
         else:
-            crps += (cdf[i] - 1) ** 2 * (right_edge - left_edge)
+            crps += (cdf[i] - 1) ** 2 * bin_weight
             # For the bin that the observation is in and all larger bins Observation - 1 is added
 
     return crps
