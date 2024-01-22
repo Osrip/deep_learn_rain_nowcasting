@@ -4,7 +4,7 @@ from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
 from plotting.calc_and_plot_from_checkpoint import plot_from_checkpoint
 
 
-def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l, settings, s_dirs, s_num_gpus,
+def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l, settings, s_dirs,
                       plot_lr_schedule_boo=True, **__):
     '''
     Pipeline for automatic plotting of several figures

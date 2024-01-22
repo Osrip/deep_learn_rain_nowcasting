@@ -300,7 +300,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = 'CRPS_loss_NO_bin_weighting'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'TEST_No_bin_weighting'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -329,11 +329,11 @@ if __name__ == '__main__':
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
-            's_resnet': False,  # Use ResNet instead of ours
+            's_resnet': False,  # Use ResNet instead of ourss
 
             # TODO: Implement!!
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
-            's_plot_sim_name': 'Run_20231222-092203_ID_4751100CRPS_loss_no_bin_weighting', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            's_plot_sim_name': 'Run_20240120-164832_ID_5107430CRPS_loss_NO_bin_weighting', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
             's_max_epochs': 10,  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
@@ -349,7 +349,8 @@ if __name__ == '__main__':
 
             # Parameters related to lightning
             's_num_gpus': 1,
-            's_batch_size': 18, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55, downgraded to 45 after memory issue on v100 with smoothing stuff
+            's_batch_size': 48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 48, downgraded to 45 after memory issue on v100 with smoothing stuff
+            # Make this divisible by 8 or best 8 * 2^n
 
             # Parameters that give the network architecture
             's_upscale_c_to': 32,  # 64, #128, # 512,
@@ -373,10 +374,10 @@ if __name__ == '__main__':
             's_dirs': s_dirs,
             'device': device,
             's_learning_rate': 0.001,  # 0.0001
-            's_lr_schedule': False  ,  # enables lr scheduler, takes s_learning_rate as initial rate
+            's_lr_schedule': False,  # enables lr scheduler, takes s_learning_rate as initial rate
 
             # Loss
-            's_crps_loss': True, #  CRPS loss instead of X-entropy loss
+            's_crps_loss': True,  # CRPS loss instead of X-entropy loss
 
             # Gaussian smoothing
             's_gaussian_smoothing_target': False,
@@ -497,8 +498,12 @@ if __name__ == '__main__':
         training_steps_per_epoch = load_zipped_pickle('{}/training_steps_per_epoch'.format(load_dirs['data_dir']))
         sigma_schedule_mapping = load_zipped_pickle('{}/sigma_schedule_mapping'.format(load_dirs['data_dir']))
         settings_loaded = load_zipped_pickle('{}/settings'.format(load_dirs['data_dir']))
-        plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, load_dirs, settings_loaded, model_l=None,
-                          plot_lr_schedule_boo=False)
+        # Convert some of the loaded settings to the current settings
+        settings_loaded['s_num_gpus'] = settings['s_num_gpus']
+
+
+        plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l=None, s_dirs=load_dirs,
+                          settings=settings_loaded, plot_lr_schedule_boo=False)
 
 
 

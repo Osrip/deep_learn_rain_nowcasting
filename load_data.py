@@ -90,7 +90,7 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         # input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence,
         #                                               last_idx_input_sequence))  # last_idx_input_sequence + 1 like in np! Did I already do that prior?
 
-        input_data_set = data_dataset.isel(time=np.arange(first_idx_input_sequence,last_idx_input_sequence))
+        input_data_set = data_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence))
         # Using arange leads to same result as slice() (tested)
 
         input_sequence = input_data_set[s_data_variable_name].values
