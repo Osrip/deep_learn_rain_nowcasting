@@ -220,8 +220,10 @@ def save_data_loader_vars(data_loader_vars, s_data_loader_vars_path, s_folder_pa
 def load_data_loader_vars(s_data_loader_vars_path, s_folder_path, s_log_transform, s_normalize, **__):
     file_name = _create_save_name_for_data_loader_vars(s_folder_path, s_log_transform, s_normalize)
     path = os.path.join(s_data_loader_vars_path, file_name)
-    if not os.path.exists(path):
+    if not os.path.exists('{}.pickle.pgz'.format(path)):
+        print('No data loader vars found at {}, therefore filtering data from scratch'.format(path))
         raise FileNotFoundError('File {} not found'.format(path))
+    print('Loading data loader vars from {}'.format(path))
     return load_zipped_pickle(path)
 
 

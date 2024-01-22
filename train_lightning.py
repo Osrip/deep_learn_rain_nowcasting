@@ -26,8 +26,27 @@ import copy
 import warnings
 
 
-def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
-                s_num_bins_crossentropy, s_data_loader_chunk_size, s_batch_size, s_num_workers_data_loader, s_dirs, **__):
+def data_loading(settings, **__):
+
+    if settings['s_log_transform']:
+        transform_f = lambda x: np.log(x + 1)
+    else:
+        transform_f = lambda x: x
+    # Try to load data loader vars, if not possible preprocess data
+    try:
+        # When loading data loader vars, the file name is checked for wether log transform was used
+        data_loader_vars = load_data_loader_vars(**settings)
+    except FileNotFoundError:
+        data_loader_vars = preprocess_data(transform_f, settings, **settings)
+        save_data_loader_vars(data_loader_vars, **settings)
+
+    data_set_vars = create_data_loaders(transform_f, *data_loader_vars, settings,  **settings)
+    return data_set_vars
+
+
+def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
+                s_num_bins_crossentropy, s_data_loader_chunk_size, **__):
+
     # relative index of last input picture (starting from first input picture as idx 1)
     last_input_rel_idx = s_num_input_time_steps
     #  relative index of target picture (starting from first input picture as idx 1)
@@ -71,6 +90,19 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
         filtered_indecies, num_training_samples, num_validation_samples, s_data_loader_chunk_size)
 
+
+    print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
+                                                                                                 num_training_samples,
+                                                                                                 num_validation_samples))
+
+    return (filtered_indecies_training, filtered_indecies_validation, mean_filtered_data, std_filtered_data,
+            linspace_binning_min, linspace_binning_max, linspace_binning, filter_and_normalization_params)
+
+
+def create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation, mean_filtered_data, std_filtered_data,
+                        linspace_binning_min, linspace_binning_max, linspace_binning, filter_and_normalization_params, settings,
+                        s_batch_size, s_num_workers_data_loader, **__):
+
     class_weights_target, class_count_target, sample_num_target = calc_class_frequencies(filtered_indecies_training, linspace_binning,
                                                                                   mean_filtered_data, std_filtered_data,
                                                                                   transform_f, settings, normalize=True, **settings)
@@ -78,6 +110,7 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     target_mean_weights = class_weights_per_sample(filtered_indecies_training, class_weights_target, linspace_binning,
                                                    mean_filtered_data, std_filtered_data, transform_f, settings,
                                                    normalize=True)
+
 
     # TODO: RETURN filtered indecies instead of data set
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
@@ -114,9 +147,7 @@ def data_loading(transform_f, settings, s_ratio_training_data, s_num_input_time_
     validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=False, drop_last=True,
                                         num_workers=s_num_workers_data_loader, pin_memory=True)
 
-    print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
-                                                                                                 num_training_samples,
-                                                                                                 num_validation_samples))
+
     print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
                                                                                        len(validation_data_loader),
                                                                                        s_batch_size))
@@ -151,15 +182,16 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
         trainer.validate(lk_baseline, data_loader)
 
 
-def train_wrapper(data_loader_vars, settings, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
+def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,
+                  linspace_binning_params, filer_and_normalization_params, training_steps_per_epoch, data_set_statistics_dict,
+                  settings, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
                   s_sim_name, s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
                   s_check_val_every_n_epoch, s_calc_baseline, **__):
     '''
     All the junk surrounding train goes in here
     '''
-    train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation, \
-    linspace_binning_params, filer_and_normalization_params, training_steps_per_epoch, data_set_statistics_dict, \
-    = data_loader_vars
+    # train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation, linspace_binning_params, filer_and_normalization_params, training_steps_per_epoch, data_set_statistics_dict, \
+    # = data_set_vars
 
 
     train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)
@@ -477,19 +509,9 @@ if __name__ == '__main__':
 
     if not settings['s_plotting_only']:
         # Normal training
-
-        if settings['s_log_transform']:
-            transform_f = lambda x: np.log(x + 1)
-        else:
-            transform_f = lambda x: x
-
-        try:
-            data_loader_vars = load_data_loader_vars(**settings)
-        except FileNotFoundError:
-            data_loader_vars = data_loading(transform_f, settings, **settings)
-            save_data_loader_vars(data_loader_vars, **settings)
-
-        model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(data_loader_vars, settings, **settings)
+        data_set_vars = data_loading(settings, **settings)
+        model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(*data_set_vars, settings,
+                                                                                  **settings)
         plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l, settings, **settings)
 
     else:
@@ -500,7 +522,6 @@ if __name__ == '__main__':
         settings_loaded = load_zipped_pickle('{}/settings'.format(load_dirs['data_dir']))
         # Convert some of the loaded settings to the current settings
         settings_loaded['s_num_gpus'] = settings['s_num_gpus']
-
 
         plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l=None, s_dirs=load_dirs,
                           settings=settings_loaded, plot_lr_schedule_boo=False)
