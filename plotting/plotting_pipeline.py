@@ -70,14 +70,14 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l,
     }
 
     plot_crps_settings = {
-        'crps_calc_on_every_n_th_batch': 1,
+        'crps_calc_on_every_n_th_batch': 10, #1,
         'crps_load_steps_crps_from_file': False,
         'crps_steps_file_path': None
     }
 
     steps_settings = {
         'steps_n_ens_members': 300,
-        'steps_num_workers': 16
+        'steps_num_workers': 16,
     }
 
     if settings['s_local_machine_mode']:
