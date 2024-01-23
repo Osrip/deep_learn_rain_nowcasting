@@ -71,7 +71,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l,
 
     plot_crps_settings = {
         'crps_calc_on_every_n_th_batch': 10, #1,
-        'crps_load_steps_crps_from_file': False,
+        'crps_load_steps_crps_from_file': True,
         'crps_steps_file_path': None
     }
 
@@ -82,6 +82,8 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l,
 
     if settings['s_local_machine_mode']:
         plot_crps_settings['crps_calc_on_every_n_th_batch'] = 100
+        plot_crps_settings['crps_steps_file_path'] = '/home/jan/Programming/remote/first_CNN_on_radolan_remote/runs/Run_20240123-161505NO_bin_weighting/logs/crps_steps'
+        plot_crps_settings['crps_load_steps_crps_from_file'] = True
         steps_settings['steps_n_ens_members'] = 10
         steps_settings['steps_num_workers'] = 16
 

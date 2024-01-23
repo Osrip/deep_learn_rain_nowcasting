@@ -83,7 +83,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
                                                                                                 std_filtered_data)
 
             # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
-
+            target_inv_normed = inv_norm(target)
             if not crps_load_steps_crps_from_file:
                 # Baseline Prediction
                 input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
@@ -91,7 +91,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
                 pred_ensemble_steps_baseline = T.CenterCrop(size=settings['s_width_height_target'])(pred_ensemble_steps_baseline)
 
                 # target = target.detach().cpu().numpy()
-                target_inv_normed = inv_norm(target)
+
 
                 # Calculate CRPS for baseline
                 pred_ensemble_steps_baseline = pred_ensemble_steps_baseline.cpu().detach().numpy()
