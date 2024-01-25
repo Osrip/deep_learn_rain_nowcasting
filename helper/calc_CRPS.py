@@ -39,7 +39,8 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     target = target[:, None, :, :]
     heavyside_step = (target <= bin_edges_right_c_h_w).float()
 
-    # TODO: Insert bin weighting here, before cumsum?
+    # Do not use bin weighting as we are operating in lognorm space
+    # Without weighting, yields the same results as element-wise
     # pred = pred * bin_sizes_unsqueezed_b_c_h_w
 
     # Calculate CDF
@@ -89,12 +90,12 @@ def element_wise_crps(bin_probs, observation, bin_edges, bin_weighting=False):
         else:
             bin_weight = 1
         if observation > right_edge:
-            crps += cdf[i] ** 2 # * bin_weight
+            crps += cdf[i] ** 2  # * bin_weight  Do not use weighting, we are operating in lognorm space
             # Eveything smaller than observation is added to represent integral
 
         # elif observation < right_edge:
         else:
-            crps += (cdf[i] - 1) ** 2 # * bin_weight
+            crps += (cdf[i] - 1) ** 2  # * bin_weight
             # For the bin that the observation is in and all larger bins Observation - 1 is added
 
     return crps
