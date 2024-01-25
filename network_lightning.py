@@ -26,7 +26,8 @@ class Network_l(pl.LightningModule):
                  s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
                  s_resnet, s_crps_loss, training_steps_per_epoch=None, filter_and_normalization_params=None, **__):
         '''
-        Both data_set_statistics_dict and  sigma_schedule_mapping can be None if no training, but only forward pass is performed (for checkpoint loading)
+        Both data_set_statistics_dict and  sigma_schedule_mapping can be None if no training, but only forward pass is
+        performed (for checkpoint loading)
         '''
 
         super().__init__()
@@ -135,7 +136,8 @@ class Network_l(pl.LightningModule):
                 }
 
             else:
-                raise ValueError('Optional training_steps_per_epoch not initialized in Network_l object. Cannot proceed without it.')
+                raise ValueError('Optional training_steps_per_epoch not initialized in Network_l object.'
+                                 ' Cannot proceed without it.')
                 # optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
 
         else:

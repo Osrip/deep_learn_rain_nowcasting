@@ -89,12 +89,12 @@ def element_wise_crps(bin_probs, observation, bin_edges, bin_weighting=False):
         else:
             bin_weight = 1
         if observation > right_edge:
-            crps += cdf[i] ** 2 * bin_weight
+            crps += cdf[i] ** 2 # * bin_weight
             # Eveything smaller than observation is added to represent integral
 
         # elif observation < right_edge:
         else:
-            crps += (cdf[i] - 1) ** 2 * bin_weight
+            crps += (cdf[i] - 1) ** 2 # * bin_weight
             # For the bin that the observation is in and all larger bins Observation - 1 is added
 
     return crps
