@@ -167,7 +167,7 @@ if __name__ == '__main__':
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
         'ps_plot_snapshots': False,
         'ps_plot_fss': False,
-        'ps_plot_crps' : True,
+        'ps_plot_crps': True,
         'ps_num_gpus': 4,
     }
 

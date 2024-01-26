@@ -35,8 +35,10 @@ def data_loading(settings, **__):
     # Try to load data loader vars, if not possible preprocess data
     try:
         # When loading data loader vars, the file name is checked for wether log transform was used
+        print('Loading data loader vars from file!')
         data_loader_vars = load_data_loader_vars(settings, **settings)
     except FileNotFoundError:
+        print('Data loader vars not found, preprocessing data!')
         data_loader_vars = preprocess_data(transform_f, settings, **settings)
         save_data_loader_vars(data_loader_vars, settings, **settings)
 
@@ -103,10 +105,15 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
                         linspace_binning_min, linspace_binning_max, linspace_binning, filter_and_normalization_params, settings,
                         s_batch_size, s_num_workers_data_loader, **__):
 
+    # We calculate the weights of each class which is = 1 / number of samples (pixels) in class
+    # class_weights_target has length and order of bins
+    # The class weights don't sum to one --> Why don't I take the softmax of the weights? --> WeightedRandomsampler doesn't care
     class_weights_target, class_count_target, sample_num_target = calc_class_frequencies(filtered_indecies_training, linspace_binning,
                                                                                   mean_filtered_data, std_filtered_data,
-                                                                                  transform_f, settings, normalize=True, **settings)
-
+                                                                                  transform_f, settings, normalize=True,
+                                                                                  **settings)
+    # This calculates the mean weight of each sample, meaning the mean of all pixel weights in the sample are taken
+    # target_mean_weights has length and order of targets
     target_mean_weights = class_weights_per_sample(filtered_indecies_training, class_weights_target, linspace_binning,
                                                    mean_filtered_data, std_filtered_data, transform_f, settings,
                                                    normalize=True)
@@ -330,9 +337,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
-    s_sim_name_suffix = 'Plot_bin_weighting_before_cumsum'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'Test'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -364,7 +371,7 @@ if __name__ == '__main__':
             's_resnet': False,  # Use ResNet instead of ours
 
             # TODO: Implement!!
-            's_plotting_only': True,  # If active loads sim s_plot_sim_name and runs plotting pipeline
+            's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20240120-114544_ID_5107328CRPS_loss_with_bin_weighting_BEFORE_cumsum', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
             's_max_epochs': 10,  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
