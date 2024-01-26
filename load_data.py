@@ -267,7 +267,7 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_da
     sample_num = torch.sum(class_count)
 
     # class_weights = sample_num / class_count
-    class_weights = torch.nn.softmax()(1 / class_count)
+    class_weights = 1 / class_count
 
     # TODO: How to handle class_count == 0 ? At the moment --> inf
     # HHowever those classes that do not appear are never used, therefore it does not really matter what the

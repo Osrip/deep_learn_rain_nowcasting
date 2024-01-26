@@ -162,7 +162,7 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
     # tODO: RETURN filtered indecies instead of data set
     return train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,\
         linspace_binning_params, filter_and_normalization_params, training_steps_per_epoch,\
-        data_set_statistics_dict
+        data_set_statistics_dict, class_count_target
     # training_steps_per_epoch only needed for lr_schedule_plotting
 
 
@@ -191,7 +191,7 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
 
 def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,
                   linspace_binning_params, filer_and_normalization_params, training_steps_per_epoch, data_set_statistics_dict,
-                  settings, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
+                  class_count_target, settings, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
                   s_sim_name, s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
                   s_check_val_every_n_epoch, s_calc_baseline, **__):
     '''
@@ -251,7 +251,8 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
 
     model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
                       data_set_statistics_dict ,s_max_epochs, linspace_binning_params, s_dirs['data_dir'], s_num_gpus,
-                      sigma_schedule_mapping, s_check_val_every_n_epoch, filer_and_normalization_params, settings)
+                      sigma_schedule_mapping, s_check_val_every_n_epoch, filer_and_normalization_params,
+                      class_count_target, settings)
 
     if s_calc_baseline:
         calc_baselines(**settings,
@@ -275,15 +276,17 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
             data_set_statistics_dict, max_epochs, linspace_binning_params, data_dir, num_gpus, sigma_schedule_mapping,
-            check_val_every_n_epoch, filter_and_normalization_params, settings):
+            check_val_every_n_epoch, filter_and_normalization_params, class_count_target, settings):
     '''
     Train loop, keep this clean!
     '''
 
     model_l = Network_l(linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict,
                         settings,
-                        training_steps_per_epoch = training_steps_per_epoch,
-                        filter_and_normalization_params = filter_and_normalization_params, **settings)
+                        training_steps_per_epoch=training_steps_per_epoch,
+                        filter_and_normalization_params=filter_and_normalization_params,
+                        class_count_target=class_count_target,
+                        **settings)
 
     # save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
 
@@ -337,9 +340,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
-    s_sim_name_suffix = 'Test'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'Weighted_x_entropy_loss'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -416,7 +419,8 @@ if __name__ == '__main__':
             's_lr_schedule': False,  # enables lr scheduler, takes s_learning_rate as initial rate
 
             # Loss
-            's_crps_loss': True,  # CRPS loss instead of X-entropy loss
+            's_crps_loss': False,  # CRPS loss instead of X-entropy loss
+            's_weighted_loss': True,  #Loss weighted acc. to inverse of class/bin frequency, ONLY WORKS FOR XENTROPY loss
 
             # Gaussian smoothing
             's_gaussian_smoothing_target': False,

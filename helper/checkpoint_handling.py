@@ -16,6 +16,7 @@ def load_from_checkpoint(runs_path, checkpoint_name, linspace_binning_params, se
                                            data_set_statistics_dict=data_set_statistics_dict,
                                            filter_and_normalization_params=filter_and_normalization_params,
                                            devices=ps_num_gpus,
+                                           training_mode=False,
                                            **settings)
     model = model.to(ps_device)
     return model

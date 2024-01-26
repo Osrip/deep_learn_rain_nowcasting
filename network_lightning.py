@@ -20,40 +20,62 @@ import warnings
 # Stuff for memory logging
 
 class Network_l(pl.LightningModule):
-    def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict, settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
+    def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict,
+                 settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
                  s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
-                 s_resnet, s_crps_loss, training_steps_per_epoch=None, filter_and_normalization_params=None, **__):
+                 s_resnet, s_crps_loss, s_weighted_loss,
+                 training_steps_per_epoch=None, filter_and_normalization_params=None, class_count_target=None, training_mode=True, **__):
         '''
-        Both data_set_statistics_dict and  sigma_schedule_mapping can be None if no training, but only forward pass is
+        Both data_set_statistics_dict and  sigma_schedule_mapping and class_count_target can be None if no training, but only forward pass is
         performed (for checkpoint loading)
+        Set training_mode to False for forward pass, when the upper variables are not available during initilization
         '''
 
         super().__init__()
         # self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
         #                      s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
 
-        if s_crps_loss and filter_and_normalization_params is None:
-            raise ValueError('When using CRPS loss mean_filtered_data and std_filtered_data have to be passed to Network_l')
+        if training_mode:
+            if s_crps_loss and filter_and_normalization_params is None:
+                raise ValueError('When using CRPS loss mean_filtered_data and std_filtered_data have to be passed to Network_l')
 
-        if s_crps_loss:
-            # Extract and inverse normalize linspace_binning_params:
-            _, mean_filtered_data, std_filtered_data, _, _ = filter_and_normalization_params
+            if s_crps_loss:
+                # Extract and inverse normalize linspace_binning_params:
+                _, mean_filtered_data, std_filtered_data, _, _ = filter_and_normalization_params
 
-            linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
-            linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
-                                                                                                linspace_binning_max,
-                                                                                                mean_filtered_data,
-                                                                                                std_filtered_data)
+                linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
+                linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
+                                                                                                    linspace_binning_max,
+                                                                                                    mean_filtered_data,
+                                                                                                    std_filtered_data)
 
-            self.loss_func = lambda pred, target: torch.mean(crps_vectorized(pred, target,
-                                                                  linspace_binning_inv_norm,
-                                                                  linspace_binning_max_inv_norm,
-                                                                             device))
-            # self.loss_func = crps_loss(linspace_binning_inv_norm, linspace_binning_max_inv_norm)
-        else:
-            self.loss_func = nn.CrossEntropyLoss()
+                self.loss_func = lambda pred, target: torch.mean(crps_vectorized(pred, target,
+                                                                      linspace_binning_inv_norm,
+                                                                      linspace_binning_max_inv_norm,
+                                                                                 device))
+                # self.loss_func = crps_loss(linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+            elif s_weighted_loss:
+                # Set all zeros to ones to avoid problems with softmax
+                class_count_target_no_zeros = class_count_target
+                class_count_target_no_zeros[class_count_target_no_zeros == 0] = 1
+                # Normalize by subtracting the max value. Otherwise we get an issue with softmax (values too large and as
+                # softmax works with exponent yields inaccurate result)
+
+                # class_count_target_no_zeros -= torch.max(class_count_target_no_zeros)
+                # class_weights = 1 / nn.Softmax(dim=0)(class_count_target_no_zeros.to(torch.float64))
+
+                # Normalizing (manual softmax as softmax does not do what it's supposed to)
+                class_count_target_no_zeros = class_count_target_no_zeros / torch.sum(class_count_target_no_zeros)
+                # TODO !!!!!!!!!!!
+                # TODO Currently Class weights look like this after dividing by sum () (see basecamp campfire)
+                # TODO Find better method!! Maybe somehow normalize in logspace
+                class_weights = 1 / class_count_target_no_zeros
+                self.loss_func = nn.CrossEntropyLoss(weight=class_weights)
+
+            else:
+                self.loss_func = nn.CrossEntropyLoss()
 
         if not s_resnet:
             self.model = Network(c_in=s_num_input_time_steps, **settings)
