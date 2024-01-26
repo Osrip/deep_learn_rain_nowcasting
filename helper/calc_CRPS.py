@@ -40,7 +40,8 @@ def crps_vectorized(pred: torch.Tensor, target: torch.Tensor,
     heavyside_step = (target <= bin_edges_right_c_h_w).float()
 
     # Do not use bin weighting as we are operating in lognorm space
-    # Without weighting, yields the same results as element-wise
+    # Without weighting, yields the same results as element-wise,
+    # with weighting in both functions we get differing results (no matter wheterh weighting is added before or after cumsum)
     # pred = pred * bin_sizes_unsqueezed_b_c_h_w
 
     # Calculate CDF

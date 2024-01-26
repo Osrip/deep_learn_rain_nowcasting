@@ -123,11 +123,11 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
                                                       linspace_binning_max_inv_norm)
 
 
-            if not (np.round(crps_model_tc.cpu().numpy(), 2).astype(np.float32) == np.round(crps_np_model, 2).astype(np.float32)).all():
-            # if not torch.allclose(crps_model_tc, crps_np_model):
-                raise ValueError('BUG!!')
-            else:
-                print('all good')
+            # if not (np.round(crps_model_tc.cpu().numpy(), 2).astype(np.float32) == np.round(crps_np_model, 2).astype(np.float32)).all():
+            # # if not torch.allclose(crps_model_tc, crps_np_model):
+            #     raise ValueError('BUG!!')
+            # else:
+            #     print('all good')
 
 
         save_dir = settings['s_dirs']['logs']

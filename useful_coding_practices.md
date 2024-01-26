@@ -78,7 +78,7 @@ scaler = GradScaler()
 
 
 
-########Remote session Pycharm:
+########Remote interactive session Pycharm:
 https://portal.mlcloud.uni-tuebingen.de/user-guide/tutorial/ 
 
 ###Installation stuff:
@@ -92,13 +92,17 @@ srun --gres=gpu:1 --pty bash
 
 then run on slurm:
 hostname
-this wil give you the value for num
+this will give you the value for num
 
 
 run on local:
 
 custom:
 ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-v100-6 bash"
+
+Galvani custom:
+ssh -AtL 6608:localhost:6608 bst981@134.2.168.43 "ssh -AtL 6608:localhost:22 bst981@galvani-cn201 bash"
+
 
 BEST improved
 num=1; ssh -AtL 6608:localhost:6608 bst981@134.2.168.72 "ssh -AtL 6608:localhost:22 bst981@slurm-v100-$num bash"

@@ -12,7 +12,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l,
     '''
 
     plot_metrics_settings = {
-        'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name']
+        'ps_sim_name': s_dirs['save_dir']  # settings['s_sim_name']
     }
 
     if not settings['s_gaussian_smoothing_multiple_sigmas']:
@@ -31,7 +31,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l,
     # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
 
     plot_lr_schedule_settings = {
-        'ps_sim_name': s_dirs['save_dir'] # settings['s_sim_name'], # TODO: Solve conflicting name convention
+        'ps_sim_name': s_dirs['save_dir']  # settings['s_sim_name'], # TODO: Solve conflicting name convention
     }
 
     if settings['s_lr_schedule'] and plot_lr_schedule_boo:
@@ -72,7 +72,8 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l,
     plot_crps_settings = {
         'crps_calc_on_every_n_th_batch': 10, #1,
         'crps_load_steps_crps_from_file': True,
-        'crps_steps_file_path': None
+        # leave away the .pickle.pgx extension
+        'crps_steps_file_path': '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/Run_20231211-213613_ID_4631443x_entropy_loss_vectorized_CRPS_eval_no_gaussian/logs/crps_steps'
     }
 
     steps_settings = {
@@ -82,6 +83,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l,
 
     if settings['s_local_machine_mode']:
         plot_crps_settings['crps_calc_on_every_n_th_batch'] = 100
+        # leave away the .pickle.pgx extension
         plot_crps_settings['crps_steps_file_path'] = '/home/jan/Programming/remote/first_CNN_on_radolan_remote/runs/Run_20240123-161505NO_bin_weighting/logs/crps_steps'
         plot_crps_settings['crps_load_steps_crps_from_file'] = True
         steps_settings['steps_n_ens_members'] = 10
