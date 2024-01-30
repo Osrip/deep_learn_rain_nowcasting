@@ -37,45 +37,45 @@ class Network_l(pl.LightningModule):
         # self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
         #                      s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
 
-        if training_mode:
-            if s_crps_loss and filter_and_normalization_params is None:
-                raise ValueError('When using CRPS loss mean_filtered_data and std_filtered_data have to be passed to Network_l')
+        # if training_mode:
+        if s_crps_loss and filter_and_normalization_params is None:
+            raise ValueError('When using CRPS loss mean_filtered_data and std_filtered_data have to be passed to Network_l')
 
-            if s_crps_loss:
-                # Extract and inverse normalize linspace_binning_params:
-                _, mean_filtered_data, std_filtered_data, _, _ = filter_and_normalization_params
+        if s_crps_loss:
+            # Extract and inverse normalize linspace_binning_params:
+            _, mean_filtered_data, std_filtered_data, _, _ = filter_and_normalization_params
 
-                linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
-                linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
-                                                                                                    linspace_binning_max,
-                                                                                                    mean_filtered_data,
-                                                                                                    std_filtered_data)
+            linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
+            linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
+                                                                                                linspace_binning_max,
+                                                                                                mean_filtered_data,
+                                                                                                std_filtered_data)
 
-                self.loss_func = lambda pred, target: torch.mean(crps_vectorized(pred, target,
-                                                                      linspace_binning_inv_norm,
-                                                                      linspace_binning_max_inv_norm,
-                                                                                 device))
-                # self.loss_func = crps_loss(linspace_binning_inv_norm, linspace_binning_max_inv_norm)
-            elif s_weighted_loss:
-                # Set all zeros to ones to avoid problems with softmax
-                class_count_target_no_zeros = class_count_target
-                class_count_target_no_zeros[class_count_target_no_zeros == 0] = 1
-                # Normalize by subtracting the max value. Otherwise we get an issue with softmax (values too large and as
-                # softmax works with exponent yields inaccurate result)
+            self.loss_func = lambda pred, target: torch.mean(crps_vectorized(pred, target,
+                                                                  linspace_binning_inv_norm,
+                                                                  linspace_binning_max_inv_norm,
+                                                                             device))
+            # self.loss_func = crps_loss(linspace_binning_inv_norm, linspace_binning_max_inv_norm)
+        elif s_weighted_loss:
+            # Set all zeros to ones to avoid problems with softmax
+            class_count_target_no_zeros = class_count_target
+            class_count_target_no_zeros[class_count_target_no_zeros == 0] = 1
+            # Normalize by subtracting the max value. Otherwise we get an issue with softmax (values too large and as
+            # softmax works with exponent yields inaccurate result)
 
-                # class_count_target_no_zeros -= torch.max(class_count_target_no_zeros)
-                # class_weights = 1 / nn.Softmax(dim=0)(class_count_target_no_zeros.to(torch.float64))
+            # class_count_target_no_zeros -= torch.max(class_count_target_no_zeros)
+            # class_weights = 1 / nn.Softmax(dim=0)(class_count_target_no_zeros.to(torch.float64))
 
-                # Normalizing (manual softmax as softmax does not do what it's supposed to)
-                class_count_target_no_zeros = class_count_target_no_zeros / torch.sum(class_count_target_no_zeros)
-                # TODO !!!!!!!!!!!
-                # TODO Currently Class weights look like this after dividing by sum () (see basecamp campfire)
-                # TODO Find better method!! Maybe somehow normalize in logspace
-                class_weights = 1 / class_count_target_no_zeros
-                self.loss_func = nn.CrossEntropyLoss(weight=class_weights)
+            # Normalizing (manual softmax as softmax does not do what it's supposed to)
+            class_count_target_no_zeros = class_count_target_no_zeros / torch.sum(class_count_target_no_zeros)
+            # TODO !!!!!!!!!!!
+            # TODO Currently Class weights look like this after dividing by sum () (see basecamp campfire)
+            # TODO Find better method!! Maybe somehow normalize in logspace
+            class_weights = 1 / class_count_target_no_zeros
+            self.loss_func = nn.CrossEntropyLoss(weight=class_weights)
 
-            else:
-                self.loss_func = nn.CrossEntropyLoss()
+        else:
+            self.loss_func = nn.CrossEntropyLoss()
 
         if not s_resnet:
             self.model = Network(c_in=s_num_input_time_steps, **settings)
@@ -123,6 +123,10 @@ class Network_l(pl.LightningModule):
 
         self.train_step_num = 0
         self.val_step_num = 0
+
+        # This saves the hyperparameters such that they are loaded by Network_l.load_from_checkpoint() directly
+        # without having to reinitialze, see https://github.com/Lightning-AI/pytorch-lightning/issues/4390
+        self.save_hyperparameters()
 
     def forward(self, x):
         output = self.model(x)

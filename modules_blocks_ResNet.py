@@ -84,6 +84,8 @@ class ResNetBlock(nn.Module):
     def forward(self, x: torch.Tensor):
         '''
         nicely described in: https://www.youtube.com/watch?v=o_3mboe1jYI&t=324s
+        TODO: Implement properly from:
+        https://wisdomml.in/understanding-resnet-50-in-depth-architecture-skip-connections-and-advantages-over-other-networks/
         '''
         out = x
         out = self.conv1(out)

@@ -11,13 +11,18 @@ def load_from_checkpoint(runs_path, checkpoint_name, linspace_binning_params, se
     filter_and_normalization_params is needed for crps loss in Network_l
     '''
     checkpoint_path = '{}/model/{}'.format(runs_path, checkpoint_name)
-    model = Network_l.load_from_checkpoint(checkpoint_path=checkpoint_path, linspace_binning_params=linspace_binning_params,
-                                           sigma_schedule_mapping=sigma_schedule_mapping, settings=settings,
-                                           data_set_statistics_dict=data_set_statistics_dict,
-                                           filter_and_normalization_params=filter_and_normalization_params,
-                                           devices=ps_num_gpus,
-                                           training_mode=False,
-                                           **settings)
+
+    print("Loading checkpoint '{}'".format(checkpoint_path))
+    # model = Network_l.load_from_checkpoint(checkpoint_path=checkpoint_path, linspace_binning_params=linspace_binning_params,
+    #                                        sigma_schedule_mapping=sigma_schedule_mapping, settings=settings,
+    #                                        data_set_statistics_dict=data_set_statistics_dict,
+    #                                        filter_and_normalization_params=filter_and_normalization_params,
+    #                                        devices=ps_num_gpus,
+    #                                        training_mode=False,
+    #                                        **settings)
+
+    model = Network_l.load_from_checkpoint(checkpoint_path=checkpoint_path)
+
     model = model.to(ps_device)
     return model
 
