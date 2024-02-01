@@ -342,7 +342,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = False
 
-    s_sim_name_suffix = 'ResNet_like_without_loss_weighting'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'weighted_binning_LOG_binning_adds_up_to_one'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -426,10 +426,10 @@ if __name__ == '__main__':
             's_gaussian_smoothing_target': False,
             's_sigma_target_smoothing': 0.1,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
-            's_gaussian_smoothing_multiple_sigmas': False, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing, s_schedule_multiple_sigmas activates scheduling for multiple sigmas
+            's_gaussian_smoothing_multiple_sigmas': True, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing, s_schedule_multiple_sigmas activates scheduling for multiple sigmas
             's_multiple_sigmas': [0.1, 0.5, 1, 2], # FOR SCHEDULING MAKE SURE LARGEST SIGMA IS LAST, List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
             # ! left most sigma prediction is the one that is plotted. Usually this is close to zero such that it is almost pixel-wise!
-            's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
+            's_schedule_multiple_sigmas': True, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
 
             # Logging
             's_calc_baseline': True, # Baselines are calculated and plotted --> Optical flow baseline
@@ -438,11 +438,11 @@ if __name__ == '__main__':
             's_calculate_quality_params': True, # Calculating quality params during training and validation
             's_calculate_fss': True, # Calculating fractions skill score during training and validation
             's_fss_scales': [2, 4, 8, 12], #[2, 16, 32], # Scales for which fss is calculated as a list
-            's_fss_threshold': 1, # Threshold in mm/h for which fss is calculated
+            's_fss_threshold': 1,  # Threshold in mm/h for which fss is calculated
 
             # Log transform input/ validation data --> log binning --> log(x+1)
-            's_log_transform': True,
-            's_normalize': True,
+            's_log_transform': True,  # False not tested, leave this true
+            's_normalize': True,  # False not tested, leave this true
 
             's_min_rain_ratio_target': 0.01,
             # Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its

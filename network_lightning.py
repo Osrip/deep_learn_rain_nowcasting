@@ -57,21 +57,20 @@ class Network_l(pl.LightningModule):
                                                                              device))
             # self.loss_func = crps_loss(linspace_binning_inv_norm, linspace_binning_max_inv_norm)
         elif s_weighted_loss:
-            # Set all zeros to ones to avoid problems with softmax
+            # Set all zeros and ones to two to avoid problems with log
             class_count_target_no_zeros = class_count_target
-            class_count_target_no_zeros[class_count_target_no_zeros == 0] = 1
+            class_count_target_no_zeros[class_count_target_no_zeros == 0] = 2
+            class_count_target_no_zeros[class_count_target_no_zeros == 1] = 2
             # Normalize by subtracting the max value. Otherwise we get an issue with softmax (values too large and as
             # softmax works with exponent yields inaccurate result)
 
-            # class_count_target_no_zeros -= torch.max(class_count_target_no_zeros)
-            # class_weights = 1 / nn.Softmax(dim=0)(class_count_target_no_zeros.to(torch.float64))
+            class_weights = class_count_target_no_zeros
 
-            # Normalizing (manual softmax as softmax does not do what it's supposed to)
-            class_count_target_no_zeros = class_count_target_no_zeros / torch.sum(class_count_target_no_zeros)
-            # TODO !!!!!!!!!!!
-            # TODO Currently Class weights look like this after dividing by sum () (see basecamp campfire)
-            # TODO Find better method!! Maybe somehow normalize in logspace
-            class_weights = 1 / class_count_target_no_zeros
+            class_weights = 1 / class_weights
+            class_weights = torch.log(class_weights)
+            class_weights -= torch.min(class_weights)
+
+            class_weights = class_weights / torch.sum(class_weights)
             self.loss_func = nn.CrossEntropyLoss(weight=class_weights)
 
         else:
