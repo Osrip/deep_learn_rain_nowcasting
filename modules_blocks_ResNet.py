@@ -10,25 +10,30 @@ class ResNet(nn.Module):
     def __init__(self, c_in: int, s_upscale_c_to, s_num_bins_crossentropy, s_width_height: int,
                     s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas, **__):
         """
-        s_upscale_c_to: the number of channels, that the first convolution scales up to
+        ResNet 34
+        The initial 7 x 7 layer has been skipped
+        s_upscale_c_to: (deactivated) the number of channels, that the first convolution scales up to
         """
         super().__init__()
+        downsample_at = [3, 6, 12]
         s_width_height_in = s_width_height
         self.conv1_1_upscale = nn.Conv2d(c_in, s_upscale_c_to, kernel_size=1, dilation=1, stride=1, padding=0)
         self.net_modules = nn.ModuleList()
         self.soft_max = nn.Softmax(dim=1)
-        test_list = []
-        c_curr = s_upscale_c_to
-        for i in range(5):
+        c_curr = c_in
+        # c_curr = s_upscale_c_to
+        for i in range(17):
             # We have to downsample 3 times to get from height of 256 to 32
             i += 1
-            if i % 2 == 1:
+            if i in downsample_at:
                 downsample = True
+                downsample_str = '_downsample'
             else:
                 downsample = False
+                downsample_str = ''
 
             self.net_modules.add_module(
-                name='resnet_module_{}'.format(i),
+                name='resnet_module_{}_{}'.format(i, downsample_str),
                 module=ResNetBlock(c_in=c_curr, kernel_size=3, downsample=downsample)
             )
             if downsample:
@@ -41,7 +46,7 @@ class ResNet(nn.Module):
         self.conv1_1_downscale = nn.Conv2d(c_curr, downscale_c_to, kernel_size=1, dilation=1, stride=1, padding=0)
 
     def forward(self, x: torch.Tensor):
-        x = self.conv1_1_upscale(x)
+        # x = self.conv1_1_upscale(x)
         for module in self.net_modules:
             x = module(x)
         x = self.conv1_1_downscale(x)

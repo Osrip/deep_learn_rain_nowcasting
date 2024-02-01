@@ -86,6 +86,23 @@ class Network_l(pl.LightningModule):
                 class_weights = 1 / class_weights
                 class_weights = class_weights / torch.sum(class_weights)
                 self.loss_func = nn.CrossEntropyLoss(weight=class_weights)
+            if False:
+                # exp looking weighting, no log kjust inverse class frequencies
+                class_count_target_no_zeros = class_count_target
+                class_count_target_no_zeros[class_count_target_no_zeros == 0] = 2
+                class_count_target_no_zeros[class_count_target_no_zeros == 1] = 2
+                # Normalize by subtracting the max value. Otherwise we get an issue with softmax (values too large and as
+                # softmax works with exponent yields inaccurate result)
+
+                class_weights = class_count_target_no_zeros
+
+                # This weird calculation makes the class weights look linear insstead of exponential
+                # (see comments of basecamp post https://3.basecamp.com/5660298/buckets/33695235/messages/6990085814 )
+
+                class_weights = 1 / class_weights
+
+                class_weights = class_weights / torch.sum(class_weights)
+                self.loss_func = nn.CrossEntropyLoss(weight=class_weights)
 
         else:
             self.loss_func = nn.CrossEntropyLoss()
