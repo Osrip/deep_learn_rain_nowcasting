@@ -170,7 +170,7 @@ class Network_l(pl.LightningModule):
         if self.s_lr_schedule:
             # Configure optimizer WITH lr_schedule
             if not self.training_steps_per_epoch is None:
-                optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+                optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.s_learning_rate)
                 lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
                 # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate,
                 #                                                    steps_per_epoch=self.training_steps_per_epoch,
@@ -197,7 +197,7 @@ class Network_l(pl.LightningModule):
                 # optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
 
         else:
-            optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
+            optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.s_learning_rate)
             return optimizer
 
 

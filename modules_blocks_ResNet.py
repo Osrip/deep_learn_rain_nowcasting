@@ -32,10 +32,16 @@ class ResNet(nn.Module):
                 downsample = False
                 downsample_str = ''
 
+            # self.net_modules.add_module(
+            #     name='resnet_module_{}_{}'.format(i, downsample_str),
+            #     module=ResNetBlock(c_in=c_curr, downsample=downsample)
+            # )
+
             self.net_modules.add_module(
-                name='resnet_module_{}_{}'.format(i, downsample_str),
-                module=ResNetBlock(c_in=c_curr, kernel_size=3, downsample=downsample)
+                name='convnext_module_{}_{}'.format(i, downsample_str),
+                module=ConvNeXtBlock(c_in=c_curr, downsample=downsample)
             )
+
             if downsample:
                 c_curr = c_curr * 2
         if not s_gaussian_smoothing_multiple_sigmas:
@@ -54,12 +60,8 @@ class ResNet(nn.Module):
         return x
 
 
-
 class ResNetBlock(nn.Module):
-    def __init__(self, c_in: int, kernel_size: int, downsample: bool):
-        '''
-        For
-        '''
+    def __init__(self, c_in: int, downsample: bool, kernel_size=3):
         super().__init__()
         if downsample:
             stride = 2
@@ -89,17 +91,73 @@ class ResNetBlock(nn.Module):
     def forward(self, x: torch.Tensor):
         '''
         nicely described in: https://www.youtube.com/watch?v=o_3mboe1jYI&t=324s
-        TODO: Implement properly from:
         https://wisdomml.in/understanding-resnet-50-in-depth-architecture-skip-connections-and-advantages-over-other-networks/
         '''
-        out = x
-        out = self.conv1(out)
-        out = self.bn1(out)
-        out = self.relu1(out)
-        out = self.conv2(out)
-        # Res connection has 1x1 conv to fit channel dimensions
+        res = x
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu1(x)
+        x = self.conv2(x)
+        # Res connection has 1x1 conv for down sampling to fit channel dimensions
         if self.downsample:
-            x = self.conv_res_connection(x)
-        out = x + out
-        out = self.relu2(out)
-        return out
+            res = self.conv_res_connection(res)
+        x = res + x
+        x = self.relu2(x)
+        return x
+
+
+class ConvNeXtBlock(nn.Module):
+    def __init__(self, c_in: int,  downsample: bool):
+        super().__init__()
+
+        self.downsample = downsample
+        c_in_of_block = c_in
+        # Conv 1 --> 7x7 depth wise convolution
+        c_out = c_in * 4
+        if downsample:
+            c_out *= 2
+            stride = 2
+        else:
+            stride = 1
+        kernel_size_1 = 7
+        padding_1 = (kernel_size_1 - 1) // 2
+        # Changing c_in to c_out by a factor K and groups = c_out convolution becomes depth wise convolution
+        # (see torch docu)
+        self.d_conv1 = nn.Conv2d(c_in, c_out, kernel_size=kernel_size_1, stride=stride, padding=padding_1,
+                                groups=c_in)
+
+        # TODO: implement Layernorm which requires dimensionality as input
+        # self.layer_norm = nn.Layernorm()
+        self.batch_norm = nn.BatchNorm2d(c_out)
+
+        #Conv 2 --> 1x1 conv
+        c_in = c_out
+        c_out = c_in // 4
+        self.conv2 = nn.Conv2d(c_in, c_out, kernel_size=1)
+
+        self.gelu = nn.GELU()
+
+        #Conv 3 --> 1x1 conv
+        c_in = c_out
+        self.conv3 = nn.Conv2d(c_in, c_out, kernel_size=1)
+
+        self.conv_res_connection = nn.Conv2d(c_in_of_block, c_out, stride=2, kernel_size=1)
+
+    def forward(self, x: torch.Tensor):
+        res = x
+        x = self.d_conv1(x)
+        # TODO: originally layernorm
+        x = self.batch_norm(x)
+        x = self.conv2(x)
+        x = self.gelu(x)
+        x = self.conv3(x)
+        # Res connection has 1x1 conv for down sampling to fit channel dimensions
+        if self.downsample:
+            res = self.conv_res_connection(res)
+        x += res
+        return x
+
+
+
+
+
