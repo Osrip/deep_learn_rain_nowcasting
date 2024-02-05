@@ -10,19 +10,20 @@ class ResNet(nn.Module):
     def __init__(self, c_in: int, s_upscale_c_to, s_num_bins_crossentropy, s_width_height: int,
                     s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas, **__):
         """
-        ResNet 34
+        ResNet
         The initial 7 x 7 layer has been skipped
         s_upscale_c_to: (deactivated) the number of channels, that the first convolution scales up to
         """
         super().__init__()
-        downsample_at = [3, 6, 12]
+        # downsample_at = [3, 6, 12] # For Resnet 34
+        downsample_at = [25, 50, 100]
         s_width_height_in = s_width_height
         self.conv1_1_upscale = nn.Conv2d(c_in, s_upscale_c_to, kernel_size=1, dilation=1, stride=1, padding=0)
         self.net_modules = nn.ModuleList()
         self.soft_max = nn.Softmax(dim=1)
         c_curr = c_in
         # c_curr = s_upscale_c_to
-        for i in range(17):
+        for i in range(150):
             # We have to downsample 3 times to get from height of 256 to 32
             i += 1
             if i in downsample_at:

@@ -145,7 +145,8 @@ class Network_l(pl.LightningModule):
             # Configure optimizer WITH lr_schedule
             if not self.training_steps_per_epoch is None:
                 optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.s_learning_rate)
-                lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 1 * (1 / self.s_max_epochs) * 10e-4)
+                lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer,
+                                    gamma=1 - 1 * (1 / self.s_max_epochs * (6000 / self.training_steps_per_epoch)) * 10e-4)
                 # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 1.5 * (1 / self.s_max_epochs) * 10e-4)
                 # 1 - 1.5 * (1 / self.s_max_epochs) * 10e-4 decreases lr 4 orders of magnitude, proven best performance in
                 # https://3.basecamp.com/5660298/buckets/33695235/messages/6386997982

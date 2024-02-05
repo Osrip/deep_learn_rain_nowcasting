@@ -69,13 +69,14 @@ def plot_sigma_schedule(sigma_schedule_mapping, ps_sim_name, save_name='sigma_sc
 if __name__ == '__main__':
     model = NullModule()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    epochs = 2
-
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 1 * (1/epochs) * 10e-4)
+    epochs = 20
+    training_steps_per_epoch = 6000
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 1 * (1/epochs * (6000/training_steps_per_epoch)) * 10e-4)
+    # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 1 * (1/epochs) * 10e-4)
     # Gamma = 1 - x * (1 / epochs) keeps exponential equal independently of value for epochs
 
     # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
     # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma = 1-2*10e-6)
     # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
-    plot_lr_schedule(lr_scheduler, training_steps_per_epoch=6000, epochs=epochs, ps_sim_name=None, save=False,
+    plot_lr_schedule(lr_scheduler, training_steps_per_epoch=training_steps_per_epoch, epochs=epochs, ps_sim_name=None, save=False,
                      ylog=True)

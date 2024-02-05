@@ -342,7 +342,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = 'orig_resnet_blocks_ResNet34_100_epochs'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'Conv_NeXt_ResNet_100_100_epochs'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -390,8 +390,8 @@ if __name__ == '__main__':
             's_check_val_every_n_epoch': 1, # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
-            's_num_gpus': 1,
-            's_batch_size': 32, #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
+            's_num_gpus': 2,
+            's_batch_size': 128, #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
             # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
             # Make this divisible by 8 or best 8 * 2^n
 
@@ -402,7 +402,7 @@ if __name__ == '__main__':
             # 'minutes_per_iteration': 5,
             's_width_height': 256,
             's_width_height_target': 32,
-            's_num_epochs': 1000,
+            's_num_epochs': 1000, # TODO: What does this do? Seems to be legacy and not in use anymore
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
             's_num_lead_time_steps': 3, # 0 --> 0 min prediction (target == last input) ; 1 --> 5 min predicition, 3 --> 15min etc
             # This is substracted by 2: settings['s_num_lead_time_steps'] = 's_num_lead_time_steps' -2 for following reasons:
@@ -416,7 +416,7 @@ if __name__ == '__main__':
             's_load_model_name': 'Run_·20230220-191041',
             's_dirs': s_dirs,
             'device': device,
-            's_learning_rate': 0.001,  # 0.0001
+            's_learning_rate': 0.0001,  # 0.0001
             # For some reason the lr scheduler starts one order of magitude below the given learning rate (10^-4, when 10^-3 is given)
             's_lr_schedule': True,  # enables lr scheduler, takes s_learning_rate as initial rate
 
