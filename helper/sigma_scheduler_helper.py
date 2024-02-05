@@ -6,6 +6,7 @@ class NullModule(torch.nn.Module):
         super().__init__()
         self.fc = torch.nn.Linear(1, 1)
 
+
 def create_scheduler_mapping(training_steps_per_epoch, epochs, init_sigma, s_multiple_sigmas, **__):
     model = NullModule()
     optimizer = torch.optim.Adam(model.parameters(), lr=init_sigma)
@@ -55,6 +56,7 @@ def bernstein_polynomial(i, n, x):
     bernstein_term = binomial_coefficient * (x ** i) * ((1 - x) ** (n - i))
     # Formula source: https://de.wikipedia.org/wiki/Bernsteinpolynom
     return bernstein_term
+
 
 def linear_schedule_0_to_1(curr_epoch, s_max_epochs, **__):
     x = (curr_epoch) / (s_max_epochs)

@@ -75,33 +75,7 @@ class Network_l(pl.LightningModule):
                 class_weights -= torch.min(class_weights)
 
                 class_weights = class_weights / torch.sum(class_weights)
-                self.loss_func = nn.CrossEntropyLoss(weight=class_weights)
-            if False:
-                # exponential looking weighting with log
-                class_count_target_no_zeros = class_count_target
-                class_count_target_no_zeros[class_count_target_no_zeros == 0] = 2
-                class_count_target_no_zeros[class_count_target_no_zeros == 1] = 2
-                class_count_target_no_zeros = class_count_target_no_zeros
-                class_weights = torch.log(class_count_target_no_zeros)
-                class_weights = 1 / class_weights
-                class_weights = class_weights / torch.sum(class_weights)
-                self.loss_func = nn.CrossEntropyLoss(weight=class_weights)
-            if False:
-                # exp looking weighting, no log kjust inverse class frequencies
-                class_count_target_no_zeros = class_count_target
-                class_count_target_no_zeros[class_count_target_no_zeros == 0] = 2
-                class_count_target_no_zeros[class_count_target_no_zeros == 1] = 2
-                # Normalize by subtracting the max value. Otherwise we get an issue with softmax (values too large and as
-                # softmax works with exponent yields inaccurate result)
 
-                class_weights = class_count_target_no_zeros
-
-                # This weird calculation makes the class weights look linear insstead of exponential
-                # (see comments of basecamp post https://3.basecamp.com/5660298/buckets/33695235/messages/6990085814 )
-
-                class_weights = 1 / class_weights
-
-                class_weights = class_weights / torch.sum(class_weights)
                 self.loss_func = nn.CrossEntropyLoss(weight=class_weights)
 
         else:
@@ -171,7 +145,12 @@ class Network_l(pl.LightningModule):
             # Configure optimizer WITH lr_schedule
             if not self.training_steps_per_epoch is None:
                 optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.s_learning_rate)
-                lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
+                lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 1 * (1 / self.s_max_epochs) * 10e-4)
+                # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 1.5 * (1 / self.s_max_epochs) * 10e-4)
+                # 1 - 1.5 * (1 / self.s_max_epochs) * 10e-4 decreases lr 4 orders of magnitude, proven best performance in
+                # https://3.basecamp.com/5660298/buckets/33695235/messages/6386997982
+                # Gamma = 1 - x * (1 / epochs) keeps exponential equal independently of value for epochs
+                # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
                 # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate,
                 #                                                    steps_per_epoch=self.training_steps_per_epoch,
                 #                                                    epochs=self.s_max_epochs)
