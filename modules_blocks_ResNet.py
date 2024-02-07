@@ -16,14 +16,14 @@ class ResNet(nn.Module):
         """
         super().__init__()
         # downsample_at = [3, 6, 12] # For Resnet 34
-        downsample_at = [25, 50, 100]
+        downsample_at = [6, 12, 20]
         s_width_height_in = s_width_height
         self.conv1_1_upscale = nn.Conv2d(c_in, s_upscale_c_to, kernel_size=1, dilation=1, stride=1, padding=0)
         self.net_modules = nn.ModuleList()
         self.soft_max = nn.Softmax(dim=1)
         c_curr = c_in
         # c_curr = s_upscale_c_to
-        for i in range(150):
+        for i in range(25):
             # We have to downsample 3 times to get from height of 256 to 32
             i += 1
             if i in downsample_at:
