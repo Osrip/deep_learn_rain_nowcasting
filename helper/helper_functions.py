@@ -215,7 +215,7 @@ def _create_save_name_for_data_loader_vars(s_folder_path, s_log_transform, s_nor
 
     original_file_name = s_folder_path.split('/')[-1]
 
-    return 'data_loader_vars_{}_{}_{}_{}'.format(log_transform_str, normalize_str, original_file_name, local_machine_str)
+    return 'data_loader_vars_{}_{}_{}_{}_ver_2'.format(log_transform_str, normalize_str, original_file_name, local_machine_str)
 
 
 def save_data_loader_vars(data_loader_vars, settings, s_data_loader_vars_path, **__):

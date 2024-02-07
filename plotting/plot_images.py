@@ -137,11 +137,18 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_binned, pred_m
                 cbar4.set_label(cbar_label, rotation=270, labelpad=12)
 
             elif (col == 4 + add_cols) and plot_argmax_probs:
-                pred_binned_argmax = torch.argmax(pred_binned, dim=1)
-                im5 = curr_ax.imshow(pred_binned_argmax[row, :, :].cpu().numpy(), vmin=vmin, vmax=vmax, norm='linear')
+                pred_binned_max, _ = torch.max(pred_binned, dim=1)
+
+                if torch.max(pred_binned_max[row, :, :]).cpu().numpy() > 1:
+                    raise ValueError('Max of binned output should not be larger than 1')
+
+                im5 = curr_ax.imshow(pred_binned_max[row, :, :].cpu().numpy(),
+                                     vmin=0,
+                                     vmax=1,
+                                     norm='linear')
                 cbar5 = plt.colorbar(im5, cmap='jet')
 
-                cbar5.set_label(cbar_label, rotation=270, labelpad=12)
+                cbar5.set_label('Certainty', rotation=270, labelpad=12)
 
             if row == 0:
                 if add_input_sequence and col in range(add_cols):
@@ -155,7 +162,7 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_binned, pred_m
                 elif (col == 3 + add_cols) and plot_baseline:
                     curr_ax.set_title('Baseline')
                 elif (col == 4 + add_cols) and plot_argmax_probs:
-                    curr_ax.set_title('Argmax Probabilities')
+                    curr_ax.set_title('Certainty\nArgmax Probabilities')
 
     # plt.colorbar(fig)
     fig.suptitle(title)

@@ -33,14 +33,16 @@ def data_loading(settings, **__):
     else:
         transform_f = lambda x: x
     # Try to load data loader vars, if not possible preprocess data
-    try:
-        # When loading data loader vars, the file name is checked for wether log transform was used
-        print('Loading data loader vars from file!')
-        data_loader_vars = load_data_loader_vars(settings, **settings)
-    except FileNotFoundError:
-        print('Data loader vars not found, preprocessing data!')
-        data_loader_vars = preprocess_data(transform_f, settings, **settings)
-        save_data_loader_vars(data_loader_vars, settings, **settings)
+    # If structure of data_loader_vars is changed, change name in _create_save_name_for_data_loader_vars,
+
+    # try:
+    #     # When loading data loader vars, the file name is checked for wether log transform was used
+    #     print('Loading data loader vars from file!')
+    #     data_loader_vars = load_data_loader_vars(settings, **settings)
+    # except FileNotFoundError:
+    print('Data loader vars not found, preprocessing data!')
+    data_loader_vars = preprocess_data(transform_f, settings, **settings)
+    save_data_loader_vars(data_loader_vars, settings, **settings)
 
     data_set_vars = create_data_loaders(transform_f, *data_loader_vars, settings,  **settings)
     return data_set_vars
@@ -66,23 +68,8 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_ti
     filter_and_normalization_params = filtered_indecies, mean_filtered_data, std_filtered_data,\
         linspace_binning_min_unnormalized, linspace_binning_max_unnormalized
 
-    ###############
-    # LINSPACE BINNING
-    # Normalize linspace binning thresholds now that data is available
-    linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized, mean_filtered_data, std_filtered_data,
-                                             transform_f, s_normalize)
-    # Subtract a small number to account for rounding errors made in the normalization process
-    linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_data, std_filtered_data,
-                                             transform_f, s_normalize)
-
-    linspace_binning_min = linspace_binning_min - 0.1
-    linspace_binning_max = linspace_binning_max + 0.1
-
-    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=s_num_bins_crossentropy,
-                                   endpoint=False)  # num_indecies + 1 as the very last entry will never be used
-
-    ###############
-
+    ############
+    # SPLITTING
     # Defining and splitting into training and validation data set
     num_training_samples = int(len(filtered_indecies) * s_ratio_training_data)
     num_validation_samples = len(filtered_indecies) - num_training_samples
@@ -92,19 +79,23 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_ti
     filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
         filtered_indecies, num_training_samples, num_validation_samples, s_data_loader_chunk_size)
 
+    ###############
+    # LINSPACE BINNING
+    # Normalize linspace binning thresholds now that data is available
+    linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized, mean_filtered_data, std_filtered_data,
+                                             transform_f, s_normalize)
+    # Subtract a small number to account for rounding errors made in the normalization process
+    linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_data, std_filtered_data,
+                                             transform_f, s_normalize)
 
-    print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
-                                                                                                 num_training_samples,
-                                                                                                 num_validation_samples))
+    linspace_binning_min = linspace_binning_min  # - 0.1
+    linspace_binning_max = linspace_binning_max + 0.1
 
-    return (filtered_indecies_training, filtered_indecies_validation, mean_filtered_data, std_filtered_data,
-            linspace_binning_min, linspace_binning_max, linspace_binning, filter_and_normalization_params)
+    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=s_num_bins_crossentropy,
+                                   endpoint=False)  # num_indecies + 1 as the very last entry will never be used
 
-
-def create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation, mean_filtered_data, std_filtered_data,
-                        linspace_binning_min, linspace_binning_max, linspace_binning, filter_and_normalization_params, settings,
-                        s_batch_size, s_num_workers_data_loader, **__):
-
+    ##############
+    # WEIGHTING / CLASS FREQUENCIES
     # We calculate the weights of each class which is = 1 / number of samples (pixels) in class
     # class_weights_target has length and order of bins
     # The class weights don't sum to one --> Why don't I take the softmax of the weights? --> WeightedRandomsampler doesn't care
@@ -118,6 +109,18 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
                                                    mean_filtered_data, std_filtered_data, transform_f, settings,
                                                    normalize=True)
 
+    print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
+                                                                                                 num_training_samples,
+                                                                                                 num_validation_samples))
+
+    return (filtered_indecies_training, filtered_indecies_validation, mean_filtered_data, std_filtered_data,
+            linspace_binning_min, linspace_binning_max, linspace_binning, filter_and_normalization_params,
+            target_mean_weights, class_count_target)
+
+
+def create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation, mean_filtered_data, std_filtered_data,
+                        linspace_binning_min, linspace_binning_max, linspace_binning, filter_and_normalization_params,
+                        target_mean_weights, class_count_target, settings, s_batch_size, s_num_workers_data_loader, **__):
 
     # TODO: RETURN filtered indecies instead of data set
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
