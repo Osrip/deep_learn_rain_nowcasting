@@ -162,7 +162,7 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_binned, pred_m
                 elif (col == 3 + add_cols) and plot_baseline:
                     curr_ax.set_title('Baseline')
                 elif (col == 4 + add_cols) and plot_argmax_probs:
-                    curr_ax.set_title('Certainty\nArgmax Probabilities')
+                    curr_ax.set_title('Certainty\nMax Probabilities')
 
     # plt.colorbar(fig)
     fig.suptitle(title)
