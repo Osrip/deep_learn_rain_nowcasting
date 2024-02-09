@@ -136,6 +136,69 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
     return input_sequence, target_one_hot, target, target_one_hot_extended
 
 
+def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_data, std_filtered_data,
+                                 transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
+                                 s_num_bins_crossentropy, s_folder_path,
+                                 normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
+                                 ):
+    filtered_data_loader_indecies_dict = filtered_data_loader_indecies[idx]
+    file = filtered_data_loader_indecies_dict['file']
+    first_idx_input_sequence = filtered_data_loader_indecies_dict['first_idx_input_sequence']
+    # The last index is not included!!! (np.arange(1:5) = [1,2,3,4]
+    last_idx_input_sequence = filtered_data_loader_indecies_dict['last_idx_input_sequence']
+    target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
+    data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, file))
+
+    if load_input_sequence:
+        # input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence,
+        #                                               last_idx_input_sequence))  # last_idx_input_sequence + 1 like in np! Did I already do that prior?
+
+        input_data_set = data_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence))
+        # Using arange leads to same result as slice() (tested)
+
+        input_sequence = input_data_set[s_data_variable_name].values
+        # Get rid of steps dimension
+        input_sequence = input_sequence[:, 0, :, :]
+
+
+        input_sequence = np.array(T.CenterCrop(size=s_width_height)(torch.from_numpy(input_sequence)))
+        if normalize:
+            input_sequence = lognormalize_data(input_sequence, mean_filtered_data, std_filtered_data,
+                                               transform_f, s_normalize)
+    else:
+        input_sequence = None
+
+    if load_target:
+        target_data_set = data_dataset.isel(time=target_idx_input_sequence)
+        target = target_data_set[s_data_variable_name].values
+        del data_dataset
+        # Get rid of steps dimension as we only have one index anyways
+        # TODO: Check what this does on Slurm with non-test data!
+        target = target[0]
+        # target used to be converted to np array
+
+        target = T.CenterCrop(size=extended_target_size)(torch.from_numpy(target))
+        # target = torch.from_numpy(target)
+        if normalize:
+            target = lognormalize_data(target, mean_filtered_data, std_filtered_data, transform_f,
+                                       s_normalize)
+
+        target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
+        target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
+
+        # This ugly bs added for the extended version of target_one_hot required for gaussian smoothing
+        target_one_hot_extended = target_one_hot
+
+        target = np.array(T.CenterCrop(size=s_width_height_target)(target))
+        target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
+
+    else:
+        target = None
+        target_one_hot = None
+
+    return input_sequence, target_one_hot, target, target_one_hot_extended
+
+
 def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
     data = transform_f(data)
     if s_normalize:
@@ -270,7 +333,7 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_da
     class_weights = 1 / class_count
 
     # TODO: How to handle class_count == 0 ? At the moment --> inf
-    # HHowever those classes that do not appear are never used, therefore it does not really matter what the
+    # However those classes that do not appear are never used, therefore it does not really matter what the
     # Entries for those classes are.
     # Is this correct (from https://discuss.pytorch.org/t/how-to-handle-imbalanced-classes/11264/2 )
 
@@ -297,6 +360,35 @@ def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning,
     return target_mean_weights
 
 
+def quantile_binning(filtered_indecies, linspace_binning, mean_filtered_data, std_filtered_data, transform_f,
+                           settings, s_num_bins_crossentropy, normalize=True, **__):
+    '''
+    The more often class occurs, the lower the weight value
+    TODO: However observed, that classes with lower mean and max precipitation have higher weight ??!!
+    '''
+
+    class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64)
+
+    for idx in range(len(filtered_indecies)):
+        _, target_one_hot, target, _ = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
+                                                                 mean_filtered_data, std_filtered_data,
+                                                                 transform_f,
+                                                                 normalize=normalize, load_input_sequence=False,
+                                                                 load_target=True, **settings)
+
+        class_count += torch.sum(target_one_hot, (1, 2)).type(torch.int64)
+
+    sample_num = torch.sum(class_count)
+
+    # class_weights = sample_num / class_count
+    class_weights = 1 / class_count
+
+    # TODO: How to handle class_count == 0 ? At the moment --> inf
+    # However those classes that do not appear are never used, therefore it does not really matter what the
+    # Entries for those classes are.
+    # Is this correct (from https://discuss.pytorch.org/t/how-to-handle-imbalanced-classes/11264/2 )
+
+    return class_weights, class_count, sample_num
 
 
 def filter(input_sequence, target, s_min_rain_ratio_target, percentage=0.5, min_amount_rain=0.05):
