@@ -379,6 +379,7 @@ if __name__ == '__main__':
             # TODO: Implement!!
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20240126-224535_ID_51437Weighted_x_entropy_loss', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            's_save_prefix_data_loader_vars':
 
             's_max_epochs': 100 ,#10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
