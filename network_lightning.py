@@ -39,17 +39,17 @@ class Network_l(pl.LightningModule):
 
         # if training_mode:
         if s_crps_loss and filter_and_normalization_params is None:
-            raise ValueError('When using CRPS loss mean_filtered_data and std_filtered_data have to be passed to Network_l')
+            raise ValueError('When using CRPS loss mean_filtered_log_data and std_filtered_log_data have to be passed to Network_l')
 
         if s_crps_loss:
             # Extract and inverse normalize linspace_binning_params:
-            _, mean_filtered_data, std_filtered_data, _, _ = filter_and_normalization_params
+            _, mean_filtered_log_data, std_filtered_log_data, _, _, _, _ = filter_and_normalization_params
 
             linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
             linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
                                                                                                 linspace_binning_max,
-                                                                                                mean_filtered_data,
-                                                                                                std_filtered_data)
+                                                                                                mean_filtered_log_data,
+                                                                                                std_filtered_log_data)
 
             self.loss_func = lambda pred, target: torch.mean(crps_vectorized(pred, target,
                                                                   linspace_binning_inv_norm,

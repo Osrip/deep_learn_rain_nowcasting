@@ -39,7 +39,7 @@ def print_ram_usage():
 
 
 def validate(model, validation_data_loader, linspace_binning, linspace_binning_max, linspace_binning_min,
-             epoch, mean_filtered_data, std_filtered_data, s_width_height_target, device, s_plot_target_vs_pred_boo,**__):
+             epoch, mean_filtered_log_data, std_filtered_log_data, s_width_height_target, device, s_plot_target_vs_pred_boo,**__):
 
     with torch.no_grad():
         criterion = nn.CrossEntropyLoss()
@@ -73,7 +73,7 @@ def validate(model, validation_data_loader, linspace_binning, linspace_binning_m
             if i == 0:
                 # Imshow plots
                 if s_plot_target_vs_pred_boo:
-                    inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
+                    inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_log_data, std_filtered_log_data, inverse_log=False,
                                                                 inverse_normalize=True)
 
                     plot_target_vs_pred(inv_norm(target), inv_norm(pred_mm), vmin=inv_norm(linspace_binning_min),
@@ -125,15 +125,15 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
     # TODO: Enable saving to pickle at some point
     print('Load Data', flush=True)
 
-    filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized =\
+    filtered_indecies, mean_filtered_log_data, std_filtered_log_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized =\
         filtering_data_scraper(transform_f=transform_f, last_input_rel_idx=last_input_rel_idx, target_rel_idx=target_rel_idx,
                                **settings)
 
     # Normalize linspace binning thresholds now that data is available
-    linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized, mean_filtered_data, std_filtered_data,
+    linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized, mean_filtered_log_data, std_filtered_log_data,
                                              transform_f, s_normalize) - 0.00001
     # Subtract a small number to account for rounding errors made in the normalization process
-    linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_data, std_filtered_data,
+    linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_log_data, std_filtered_log_data,
                                              transform_f, s_normalize)
 
     linspace_binning_min = linspace_binning_min - 0.1
@@ -149,14 +149,14 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
     filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
         filtered_indecies, num_training_samples, num_validation_samples, s_data_loader_chunk_size)
 
-    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
+    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_log_data, std_filtered_log_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning, transform_f, **settings)
 
-    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_data, std_filtered_data,
+    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_log_data, std_filtered_log_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning, transform_f, **settings)
 
 
-    # full_data_set = PrecipitationFilteredDataset(filtered_indecies, mean_filtered_data, std_filtered_data,
+    # full_data_set = PrecipitationFilteredDataset(filtered_indecies, mean_filtered_log_data, std_filtered_log_data,
     #                                               linspace_binning_min, linspace_binning_max, linspace_binning, transform_f, **settings)
     #
 
@@ -246,11 +246,11 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
                 for k in range(pred_mm.shape[0]):
 
                     pred_mm_arr = pred_mm.detach().cpu().numpy()
-                    pred_mm_arr = inverse_normalize_data(pred_mm_arr, mean_filtered_data, std_filtered_data)
+                    pred_mm_arr = inverse_normalize_data(pred_mm_arr, mean_filtered_log_data, std_filtered_log_data)
                     all_pred_mm.append(pred_mm_arr[k, :, :])
 
                     target_arr = target.detach().cpu().numpy()
-                    target_arr = inverse_normalize_data(target_arr, mean_filtered_data, std_filtered_data)
+                    target_arr = inverse_normalize_data(target_arr, mean_filtered_log_data, std_filtered_log_data)
                     all_target_mm.append(target_arr[k, :, :])
 
             inner_loss = float(loss.detach().cpu().numpy())
@@ -278,7 +278,7 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
             # TODO: Currently Target is baseline for test purposes. Change that for obvious reasons!!!
             if i == 0:
 
-                inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=False,
+                inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_log_data, std_filtered_log_data, inverse_log=False,
                                                             inverse_normalize=True)
 
                 if s_plot_target_vs_pred_boo:
@@ -306,7 +306,7 @@ def train(model, s_sim_name, device, s_learning_rate: int, s_num_epochs: int, s_
 
         inner_validation_losses, inner_val_mse_zeros_target, inner_val_mse_model_target\
             = validate(model, validation_data_loader, linspace_binning, linspace_binning_max, linspace_binning_min,
-             epoch, mean_filtered_data, std_filtered_data, **settings)
+             epoch, mean_filtered_log_data, std_filtered_log_data, **settings)
 
         val_mses_zeros_target.append(inner_val_mse_zeros_target)
         val_mses_model_target.append(inner_val_mse_model_target)

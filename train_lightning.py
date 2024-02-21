@@ -35,14 +35,14 @@ def data_loading(settings, **__):
     # Try to load data loader vars, if not possible preprocess data
     # If structure of data_loader_vars is changed, change name in _create_save_name_for_data_loader_vars,
 
-    try:
-        # When loading data loader vars, the file name is checked for wether log transform was used
-        print('Loading data loader vars from file!')
-        data_loader_vars = load_data_loader_vars(settings, **settings)
-    except FileNotFoundError:
-        print('Data loader vars not found, preprocessing data!')
-        data_loader_vars = preprocess_data(transform_f, settings, **settings)
-        save_data_loader_vars(data_loader_vars, settings, **settings)
+    # try:
+    #     # When loading data loader vars, the file name is checked for wether log transform was used
+    #     print('Loading data loader vars from file!')
+    #     data_loader_vars = load_data_loader_vars(settings, **settings)
+    # except FileNotFoundError:
+    print('Data loader vars not found, preprocessing data!')
+    data_loader_vars = preprocess_data(transform_f, settings, **settings)
+    save_data_loader_vars(data_loader_vars, settings, **settings)
 
     data_set_vars = create_data_loaders(transform_f, *data_loader_vars, settings,  **settings)
     return data_set_vars
@@ -61,12 +61,13 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_ti
     # Save all index chunks that passed filter in filtered_indecies together with normalization statistics and
     # linspace_binning
 
-    filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized =\
+    (filtered_indecies, mean_filtered_log_data, std_filtered_log_data, mean_filtered_data, std_filtered_data,
+     linspace_binning_min_unnormalized, linspace_binning_max_unnormalized) =\
         filtering_data_scraper(transform_f=transform_f, last_input_rel_idx=last_input_rel_idx, target_rel_idx=target_rel_idx,
                                **settings)
 
-    filter_and_normalization_params = filtered_indecies, mean_filtered_data, std_filtered_data,\
-        linspace_binning_min_unnormalized, linspace_binning_max_unnormalized
+    filter_and_normalization_params = (filtered_indecies, mean_filtered_log_data, std_filtered_log_data, mean_filtered_data,
+                                       std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized)
 
     ############
     # SPLITTING
@@ -82,16 +83,29 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_ti
     ###############
     # LINSPACE BINNING
     # Normalize linspace binning thresholds now that data is available
-    linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized, mean_filtered_data, std_filtered_data,
+    linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized, mean_filtered_log_data, std_filtered_log_data,
                                              transform_f, s_normalize)
     # Subtract a small number to account for rounding errors made in the normalization process
-    linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_data, std_filtered_data,
+    linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_log_data, std_filtered_log_data,
+                                             transform_f, s_normalize)
+    # Watch out! mean_filtered_log_data and std_filtered_log_data have been calculated in the log space, as we first take log,
+    # then do z normalization!
+
+    # The virtual linspace binning max is used to create the linspace binning, such that the right most bin simply covers all outliers
+     # This includes 95% of the data
+
+
+    linspace_binning_virtual_max_unnormalized = 100  # Let's cut that off ad-hoc at 130mm/h, everything obove is sorted into one bin
+
+    linspace_binning_virtual_max = lognormalize_data(linspace_binning_virtual_max_unnormalized, mean_filtered_log_data,
+                                             std_filtered_log_data,
                                              transform_f, s_normalize)
 
     linspace_binning_min = linspace_binning_min  # - 0.1
     linspace_binning_max = linspace_binning_max + 0.1
 
-    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=s_num_bins_crossentropy,
+    # linspace_binning only includes left bin edges. The rightmost bin egde is given by linspace binning max
+    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_virtual_max, num=s_num_bins_crossentropy,
                                    endpoint=False)  # num_indecies + 1 as the very last entry will never be used
 
     ##############
@@ -100,43 +114,43 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_ti
     # class_weights_target has length and order of bins
     # The class weights don't sum to one --> Why don't I take the softmax of the weights? --> WeightedRandomsampler doesn't care
     class_weights_target, class_count_target, sample_num_target = calc_class_frequencies(filtered_indecies_training, linspace_binning,
-                                                                                  mean_filtered_data, std_filtered_data,
+                                                                                  mean_filtered_log_data, std_filtered_log_data,
                                                                                   transform_f, settings, normalize=True,
                                                                                   **settings)
     # This calculates the mean weight of each sample, meaning the mean of all pixel weights in the sample are taken
     # target_mean_weights has length and order of targets
     target_mean_weights = class_weights_per_sample(filtered_indecies_training, class_weights_target, linspace_binning,
-                                                   mean_filtered_data, std_filtered_data, transform_f, settings,
+                                                   mean_filtered_log_data, std_filtered_log_data, transform_f, settings,
                                                    normalize=True)
 
     print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
                                                                                                  num_training_samples,
                                                                                                  num_validation_samples))
 
-    return (filtered_indecies_training, filtered_indecies_validation, mean_filtered_data, std_filtered_data,
+    return (filtered_indecies_training, filtered_indecies_validation, mean_filtered_log_data, std_filtered_log_data,
             linspace_binning_min, linspace_binning_max, linspace_binning, filter_and_normalization_params,
             target_mean_weights, class_count_target)
 
 
-def create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation, mean_filtered_data, std_filtered_data,
+def create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation, mean_filtered_log_data, std_filtered_log_data,
                         linspace_binning_min, linspace_binning_max, linspace_binning, filter_and_normalization_params,
                         target_mean_weights, class_count_target, settings, s_batch_size, s_num_workers_data_loader, **__):
 
     # TODO: RETURN filtered indecies instead of data set
-    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
+    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_log_data, std_filtered_log_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning,
                                                   transform_f, **settings)
 
-    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_data,
-                                                       std_filtered_data,
+    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_log_data,
+                                                       std_filtered_log_data,
                                                        linspace_binning_min, linspace_binning_max, linspace_binning,
                                                        transform_f, **settings)
 
-    mean_train_data_set = train_data_set.mean_filtered_data
-    std_train_data_set = train_data_set.std_filtered_data
+    mean_train_data_set = train_data_set.mean_filtered_log_data
+    std_train_data_set = train_data_set.std_filtered_log_data
 
-    mean_val_data_set = validation_data_set.mean_filtered_data
-    std_val_data_set = validation_data_set.std_filtered_data
+    mean_val_data_set = validation_data_set.mean_filtered_log_data
+    std_val_data_set = validation_data_set.std_filtered_log_data
 
     data_set_statistics_dict = {'mean_train_data_set': mean_train_data_set,
                                 'std_train_data_set': std_train_data_set,
@@ -169,8 +183,8 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
     # training_steps_per_epoch only needed for lr_schedule_plotting
 
 
-def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_type_list, mean_filtered_data_list,
-                   std_filtered_data_list, settings, s_epoch_repetitions_baseline, **__):
+def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_type_list, mean_filtered_log_data_list,
+                   std_filtered_log_data_list, settings, s_epoch_repetitions_baseline, **__):
     '''
     Goes into train_wrapper
     data_loader_list, logs_callback_list, logger_list, logging_type_list have to be in according order
@@ -178,14 +192,14 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
     '''
 
 
-    for data_loader, logs_callback, logger, logging_type, mean_filtered_data, std_filtered_data in \
-            zip(data_loader_list, logs_callback_list, logger_list, logging_type_list, mean_filtered_data_list,
-                std_filtered_data_list):
+    for data_loader, logs_callback, logger, logging_type, mean_filtered_log_data, std_filtered_log_data in \
+            zip(data_loader_list, logs_callback_list, logger_list, logging_type_list, mean_filtered_log_data_list,
+                std_filtered_log_data_list):
         # Create callback list in the form of [BaselineTrainingLogsCallback(base_train_logger)]
         callback_list_base = [logs_callback(logger)]
 
 
-        lk_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, **settings)
+        lk_baseline = LKBaseline(logging_type, mean_filtered_log_data, std_filtered_log_data, **settings)
 
         trainer = pl.Trainer(callbacks=callback_list_base, max_epochs=s_epoch_repetitions_baseline, log_every_n_steps=1,
                              check_val_every_n_epoch=1)
@@ -263,9 +277,9 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
                        logs_callback_list=[BaselineTrainingLogsCallback, BaselineValidationLogsCallback],
                        logger_list=[base_train_logger, base_val_logger],
                        logging_type_list=['train', 'val'],
-                       mean_filtered_data_list=[data_set_statistics_dict['mean_train_data_set'],
+                       mean_filtered_log_data_list=[data_set_statistics_dict['mean_train_data_set'],
                                                 data_set_statistics_dict['mean_val_data_set']],
-                       std_filtered_data_list=[data_set_statistics_dict['std_train_data_set'],
+                       std_filtered_log_data_list=[data_set_statistics_dict['std_train_data_set'],
                                                   data_set_statistics_dict['std_val_data_set']],
                        settings=settings
                        )
@@ -343,7 +357,7 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_sim_name_suffix = 'Default'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
@@ -379,7 +393,7 @@ if __name__ == '__main__':
             # TODO: Implement!!
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20240126-224535_ID_51437Weighted_x_entropy_loss', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
-            's_save_prefix_data_loader_vars': 's_save_prefix_data_loader_vars_ver_4',
+            's_save_prefix_data_loader_vars': 's_save_prefix_data_loader_vars_2_std_linspace_binning',
 
             's_max_epochs': 100 ,#10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
@@ -502,7 +516,7 @@ if __name__ == '__main__':
         # settings['s_data_file_names'] = ['RV_recalc_data_2019-01_subset_bigger.nc']
 
         # settings['s_choose_time_span'] = True
-        settings['s_choose_time_span'] = False
+        settings['s_choose_time_span'] = False  # DO NOT USE, screws up indecies for data loading
         # settings['s_time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
         settings['s_time_span'] = (67, 150)  # Only used when s_choose_time_span == True; now done according to index (isel instead of sel)
         settings['s_upscale_c_to'] = 32  # 8

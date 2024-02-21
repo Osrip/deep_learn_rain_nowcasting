@@ -33,13 +33,13 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
         if crps_calc_on_every_n_th_batch > len(data_loader):
             crps_calc_on_every_n_th_batch = len(data_loader)
 
-        filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
+        filtered_indecies, mean_filtered_log_data, std_filtered_log_data, _, _, linspace_binning_min_unnormalized,\
             linspace_binning_max_unnormalized = filter_and_normalization_params
 
         linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
 
-        inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_data, std_filtered_data, inverse_log=True,
+        inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_log_data, std_filtered_log_data, inverse_log=True,
                                                                inverse_normalize=True)
 
 
@@ -51,7 +51,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
         preds_and_targets['target_inv_normed'] = []
 
         logging_type = None
-        steps_baseline = LKBaseline(logging_type, mean_filtered_data, std_filtered_data, use_steps=True,
+        steps_baseline = LKBaseline(logging_type, mean_filtered_log_data, std_filtered_log_data, use_steps=True,
                                     steps_settings=steps_settings, **settings)
 
 
@@ -79,8 +79,8 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
 
             linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
                                                                                                 linspace_binning_max,
-                                                                                                mean_filtered_data,
-                                                                                                std_filtered_data)
+                                                                                                mean_filtered_log_data,
+                                                                                                std_filtered_log_data)
 
             # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
             target_inv_normed = inv_norm(target)

@@ -12,7 +12,7 @@ class LKBaseline(pl.LightningModule):
     '''
     Optical Flow baseline (PySteps)
     '''
-    def __init__(self, logging_type, mean_filtered_data, std_filtered_data, s_num_lead_time_steps, s_calculate_fss,
+    def __init__(self, logging_type, mean_filtered_log_data, std_filtered_log_data, s_num_lead_time_steps, s_calculate_fss,
                  s_fss_scales, s_fss_threshold, device, use_steps=False, steps_settings=None, **__):
         '''
         logging_type depending on data loader either: 'train' or 'val' or None if no logging is desired
@@ -27,8 +27,8 @@ class LKBaseline(pl.LightningModule):
         self.method_calc_motionfield = motion.get_method("LK")
 
         self.logging_type = logging_type
-        self.mean_filtered_data = mean_filtered_data
-        self.std_filtered_data = std_filtered_data
+        self.mean_filtered_log_data = mean_filtered_log_data
+        self.std_filtered_log_data = std_filtered_log_data
 
         # Settings
         self.s_num_lead_time_steps = s_num_lead_time_steps
@@ -152,7 +152,7 @@ class LKBaseline(pl.LightningModule):
 
         # TODO: Converting to numpy, as torch inverse normalization does not work
         target_np = target.detach().cpu().numpy()
-        target_np = inverse_normalize_data(target_np, self.mean_filtered_data, self.std_filtered_data)
+        target_np = inverse_normalize_data(target_np, self.mean_filtered_log_data, self.std_filtered_log_data)
         target = torch.from_numpy(target_np).to(self.s_device)
 
         pred, _, _ = self(input_sequence)

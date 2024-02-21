@@ -32,15 +32,15 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
 
     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
-    filtered_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
+    filtered_indecies, mean_filtered_log_data, std_filtered_log_data, _, _, linspace_binning_min_unnormalized,\
         linspace_binning_max_unnormalized = filter_and_normalization_params
 
-    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_data, std_filtered_data,
+    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_log_data, std_filtered_log_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning,
                                                   transform_f, **settings)
 
-    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_data,
-                                                       std_filtered_data,
+    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_log_data,
+                                                       std_filtered_log_data,
                                                        linspace_binning_min, linspace_binning_max, linspace_binning,
                                                        transform_f, **settings)
 

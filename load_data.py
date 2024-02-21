@@ -15,7 +15,7 @@ import einops
 # Remember to install package netCDF4 !!
 
 class PrecipitationFilteredDataset(Dataset):
-    def __init__(self, filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min, linspace_binning_max, linspace_binning, transform_f,
+    def __init__(self, filtered_data_loader_indecies, mean_filtered_log_data, std_filtered_log_data, linspace_binning_min, linspace_binning_max, linspace_binning, transform_f,
                  s_num_bins_crossentropy, s_folder_path, s_width_height, s_width_height_target, s_data_variable_name,
                  s_local_machine_mode, s_normalize=True, **__):
         """
@@ -44,8 +44,8 @@ class PrecipitationFilteredDataset(Dataset):
         self.s_num_bins_crossentropy = s_num_bins_crossentropy
         self.linspace_binning_min = linspace_binning_min
         self.linspace_binning_max = linspace_binning_max
-        self.mean_filtered_data = mean_filtered_data
-        self.std_filtered_data = std_filtered_data
+        self.mean_filtered_log_data = mean_filtered_log_data
+        self.std_filtered_log_data = std_filtered_log_data
         self.s_data_variable_name = s_data_variable_name
         self.s_local_machine_mode = s_local_machine_mode
 
@@ -60,7 +60,7 @@ class PrecipitationFilteredDataset(Dataset):
         # Returns the first pictures as input data and the last picture as training picture
         input_sequence, target_one_hot, target, target_one_hot_extended = \
             load_input_target_from_index(idx, self.filtered_data_loader_indecies, self.linspace_binning,
-                                     self.mean_filtered_data, self.std_filtered_data, self.transform_f,
+                                     self.mean_filtered_log_data, self.std_filtered_log_data, self.transform_f,
                                      self.s_width_height, self.s_width_height_target, self.s_data_variable_name,
                                      self.s_normalize, self.s_num_bins_crossentropy, self.s_folder_path,
                                      normalize=True, load_input_sequence=True, load_target=True
@@ -73,7 +73,7 @@ class PrecipitationFilteredDataset(Dataset):
 
 
 # TODO: !!!! rewrite this such that it only loads extended target if we are really doing gausian soomthing! !!!
-def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_data, std_filtered_data,
+def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data,
                                  transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
                                  s_num_bins_crossentropy, s_folder_path,
                                  normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
@@ -100,7 +100,7 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
 
         input_sequence = np.array(T.CenterCrop(size=s_width_height)(torch.from_numpy(input_sequence)))
         if normalize:
-            input_sequence = lognormalize_data(input_sequence, mean_filtered_data, std_filtered_data,
+            input_sequence = lognormalize_data(input_sequence, mean_filtered_log_data, std_filtered_log_data,
                                                transform_f, s_normalize)
     else:
         input_sequence = None
@@ -117,7 +117,7 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         target = T.CenterCrop(size=extended_target_size)(torch.from_numpy(target))
         # target = torch.from_numpy(target)
         if normalize:
-            target = lognormalize_data(target, mean_filtered_data, std_filtered_data, transform_f,
+            target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
                                        s_normalize)
 
         target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
@@ -136,7 +136,7 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
     return input_sequence, target_one_hot, target, target_one_hot_extended
 
 
-def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_data, std_filtered_data,
+def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data,
                                  transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
                                  s_num_bins_crossentropy, s_folder_path,
                                  normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
@@ -163,7 +163,7 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
 
         input_sequence = np.array(T.CenterCrop(size=s_width_height)(torch.from_numpy(input_sequence)))
         if normalize:
-            input_sequence = lognormalize_data(input_sequence, mean_filtered_data, std_filtered_data,
+            input_sequence = lognormalize_data(input_sequence, mean_filtered_log_data, std_filtered_log_data,
                                                transform_f, s_normalize)
     else:
         input_sequence = None
@@ -180,7 +180,7 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         target = T.CenterCrop(size=extended_target_size)(torch.from_numpy(target))
         # target = torch.from_numpy(target)
         if normalize:
-            target = lognormalize_data(target, mean_filtered_data, std_filtered_data, transform_f,
+            target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
                                        s_normalize)
 
         target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
@@ -200,6 +200,11 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
 
 
 def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
+    """
+    We take log first, then do z normalization!
+    mean_data and std_data therefore have to be calculated in log space!
+    (This has been implemented correctly in filtering_data_scraper)
+    """
     data = transform_f(data)
     if s_normalize:
         data, _, _ = normalize_data(data, mean_data=mean_data, std_data=std_data)
@@ -217,8 +222,11 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
     # num_x and sum_x as well as sum_x_squared are used to calculate the first and second momentum for data normalization
     num_x = 0  # num_x is the number of data points, meaning the TOTAL NUMBER OF PIXELS, that have passed the filter
-    sum_x = 0     # sum_x and sum_x squared are the sums of all data points / the squres of all datapoints
+    sum_log_x = 0     # sum_x and sum_x squared are the sums of all data points / the squres of all datapoints
+    sum_log_x_squared = 0
+    sum_x = 0
     sum_x_squared = 0
+
     num_frames_passed_filter = 0
 
     num_frames_total = 0
@@ -226,7 +234,7 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
     linspace_binning_min_unnormalized = np.inf
     linspace_binning_max_unnormalized = -np.inf
 
-
+    TEST_all_input_sequences_cropped = []
 
     for data_file_name in s_data_file_names:
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -255,16 +263,18 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
                 filtered_data_loader_indecies_dict['target_idx_input_sequence'] = target_idx_input_sequence
                 filtered_data_loader_indecies.append(filtered_data_loader_indecies_dict)
 
-
                 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 # ! IGNORES FIRST ENTRIES: For means and std to normalize data only the values of the target sequence are taken !
                 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+                TEST_all_input_sequences_cropped.append(curr_input_sequence_cropped.flatten())
                 # We are iterating through all 256x256 target frames that have been accepted by the filter
                 # TODO: !!!!! Only normalizing on target frames at the moment !!!!!!
                 num_x += np.shape(curr_input_sequence_cropped.flatten())[0]
-                sum_x += np.sum(transform_f(curr_input_sequence_cropped.flatten()))
-                sum_x_squared += np.sum(transform_f(curr_input_sequence_cropped.flatten()) ** 2)
+                sum_log_x += np.sum(transform_f(curr_input_sequence_cropped.flatten()))
+                sum_log_x_squared += np.sum(transform_f(curr_input_sequence_cropped.flatten()) ** 2)
+
+                sum_x += np.sum(curr_input_sequence_cropped.flatten())
+                sum_x_squared += np.sum(curr_input_sequence_cropped.flatten() ** 2)
 
                 # linspace binning min and max have to be normalized later as the means and stds are available
 
@@ -303,13 +313,20 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
             print('{} data points out of a total of {} scanned data points'
                   ' passed the filter condition of s_min_rain_ratio_target={}'.format(
                 num_frames_passed_filter, num_frames_total, s_min_rain_ratio_target))
+
+        # We need to calculate the mean and std of the log data, as we are first taking log, then z normalizing in log space
+        mean_filtered_log_data = sum_log_x / num_x
+        std_filtered_log_data = np.sqrt((sum_log_x_squared / num_x) - mean_filtered_log_data ** 2)
+
+        # These are the means and stds for the unnormalized data, which we need to select data in certain z ranges
         mean_filtered_data = sum_x / num_x
         std_filtered_data = np.sqrt((sum_x_squared / num_x) - mean_filtered_data ** 2)
-    return filtered_data_loader_indecies, mean_filtered_data, std_filtered_data, linspace_binning_min_unnormalized,\
-        linspace_binning_max_unnormalized
+
+    return (filtered_data_loader_indecies, mean_filtered_log_data, std_filtered_log_data, mean_filtered_data, std_filtered_data,
+            linspace_binning_min_unnormalized, linspace_binning_max_unnormalized)
 
 
-def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_data, std_filtered_data, transform_f,
+def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data, transform_f,
                            settings, s_num_bins_crossentropy, normalize=True, **__):
     '''
     The more often class occurs, the lower the weight value
@@ -320,7 +337,7 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_da
 
     for idx in range(len(filtered_indecies)):
         _, target_one_hot, target, _ = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
-                                                                 mean_filtered_data, std_filtered_data,
+                                                                 mean_filtered_log_data, std_filtered_log_data,
                                                                  transform_f,
                                                                  normalize=normalize, load_input_sequence=False,
                                                                  load_target=True, **settings)
@@ -340,14 +357,14 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_da
     return class_weights, class_count, sample_num
 
 
-def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning, mean_filtered_data, std_filtered_data,
+def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning, mean_filtered_log_data, std_filtered_log_data,
                                 transform_f, settings, normalize=True):
 
     target_mean_weights = []
 
     for idx in range(len(filtered_indecies)):
         _, target_one_hot, target, _ = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
-                                                                 mean_filtered_data, std_filtered_data,
+                                                                 mean_filtered_log_data, std_filtered_log_data,
                                                                  transform_f,
                                                                  normalize=normalize, load_input_sequence=False,
                                                                  load_target=True, **settings)
@@ -360,7 +377,7 @@ def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning,
     return target_mean_weights
 
 
-def quantile_binning(filtered_indecies, linspace_binning, mean_filtered_data, std_filtered_data, transform_f,
+def quantile_binning(filtered_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data, transform_f,
                            settings, s_num_bins_crossentropy, normalize=True, **__):
     '''
     The more often class occurs, the lower the weight value
@@ -371,7 +388,7 @@ def quantile_binning(filtered_indecies, linspace_binning, mean_filtered_data, st
 
     for idx in range(len(filtered_indecies)):
         _, target_one_hot, target, _ = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
-                                                                 mean_filtered_data, std_filtered_data,
+                                                                 mean_filtered_log_data, std_filtered_log_data,
                                                                  transform_f,
                                                                  normalize=normalize, load_input_sequence=False,
                                                                  load_target=True, **settings)
@@ -587,12 +604,12 @@ if __name__ == '__main__':
     pass
 
 
-def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filtered_data, std_filtered_data):
+def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filtered_log_data, std_filtered_log_data):
     '''
     Inverse normalizes linspace binning
     By default the linspace binning only includes the lower bounds#
     Therefore the highest upper bound is missing which is given by linspace_binning_max
     '''
-    linspace_binning_inv_norm = inverse_normalize_data(np.array(linspace_binning), mean_filtered_data, std_filtered_data)
-    linspace_binning_max_inv_norm = inverse_normalize_data(np.array(linspace_binning_max), mean_filtered_data, std_filtered_data, inverse_log=True)
+    linspace_binning_inv_norm = inverse_normalize_data(np.array(linspace_binning), mean_filtered_log_data, std_filtered_log_data)
+    linspace_binning_max_inv_norm = inverse_normalize_data(np.array(linspace_binning_max), mean_filtered_log_data, std_filtered_log_data, inverse_log=True)
     return linspace_binning_inv_norm, linspace_binning_max_inv_norm.item()
