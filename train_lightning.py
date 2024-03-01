@@ -35,14 +35,14 @@ def data_loading(settings, **__):
     # Try to load data loader vars, if not possible preprocess data
     # If structure of data_loader_vars is changed, change name in _create_save_name_for_data_loader_vars,
 
-    try:
-        # When loading data loader vars, the file name is checked for wether log transform was used
-        print('Loading data loader vars from file!')
-        data_loader_vars = load_data_loader_vars(settings, **settings)
-    except FileNotFoundError:
-        print('Data loader vars not found, preprocessing data!')
-        data_loader_vars = preprocess_data(transform_f, settings, **settings)
-        save_data_loader_vars(data_loader_vars, settings, **settings)
+    # try:
+    #     When loading data loader vars, the file name is checked for wether log transform was used
+    #     print('Loading data loader vars from file!')
+    #     data_loader_vars = load_data_loader_vars(settings, **settings)
+    # except FileNotFoundError:
+    print('Data loader vars not found, preprocessing data!')
+    data_loader_vars = preprocess_data(transform_f, settings, **settings)
+    save_data_loader_vars(data_loader_vars, settings, **settings)
 
     data_set_vars = create_data_loaders(transform_f, *data_loader_vars, settings,  **settings)
     return data_set_vars

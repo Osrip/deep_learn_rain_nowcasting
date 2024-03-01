@@ -67,8 +67,6 @@ class PrecipitationFilteredDataset(Dataset):
                                      )
 
 
-        # Float conversion should
-
         return input_sequence, target_one_hot, target, target_one_hot_extended
 
 
@@ -95,70 +93,8 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
 
         input_sequence = input_data_set[s_data_variable_name].values
         # Get rid of steps dimension
-        input_sequence = input_sequence[:, 0, :, :]
-
-
-        input_sequence = np.array(T.CenterCrop(size=s_width_height)(torch.from_numpy(input_sequence)))
-        if normalize:
-            input_sequence = lognormalize_data(input_sequence, mean_filtered_log_data, std_filtered_log_data,
-                                               transform_f, s_normalize)
-    else:
-        input_sequence = None
-
-    if load_target:
-        target_data_set = data_dataset.isel(time=target_idx_input_sequence)
-        target = target_data_set[s_data_variable_name].values
-        del data_dataset
-        # Get rid of steps dimension as we only have one index anyways
-        # TODO: Check what this does on Slurm with non-test data!
-        target = target[0]
-        # target used to be converted to np array
-
-        target = T.CenterCrop(size=extended_target_size)(torch.from_numpy(target))
-        # target = torch.from_numpy(target)
-        if normalize:
-            target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
-                                       s_normalize)
-
-        target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
-        target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
-
-        # This ugly bs added for the extended version of target_one_hot required for gaussian smoothing
-        target_one_hot_extended = target_one_hot
-
-        target = np.array(T.CenterCrop(size=s_width_height_target)(target))
-        target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
-
-    else:
-        target = None
-        target_one_hot = None
-
-    return input_sequence, target_one_hot, target, target_one_hot_extended
-
-
-def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data,
-                                 transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
-                                 s_num_bins_crossentropy, s_folder_path,
-                                 normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
-                                 ):
-    filtered_data_loader_indecies_dict = filtered_data_loader_indecies[idx]
-    file = filtered_data_loader_indecies_dict['file']
-    first_idx_input_sequence = filtered_data_loader_indecies_dict['first_idx_input_sequence']
-    # The last index is not included!!! (np.arange(1:5) = [1,2,3,4]
-    last_idx_input_sequence = filtered_data_loader_indecies_dict['last_idx_input_sequence']
-    target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
-    data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, file))
-
-    if load_input_sequence:
-        # input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence,
-        #                                               last_idx_input_sequence))  # last_idx_input_sequence + 1 like in np! Did I already do that prior?
-
-        input_data_set = data_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence))
-        # Using arange leads to same result as slice() (tested)
-
-        input_sequence = input_data_set[s_data_variable_name].values
-        # Get rid of steps dimension
-        input_sequence = input_sequence[:, 0, :, :]
+        # input_sequence = input_sequence[:, 0, :, :]
+        input_sequence = input_sequence[0, :, :, :]
 
 
         input_sequence = np.array(T.CenterCrop(size=s_width_height)(torch.from_numpy(input_sequence)))
@@ -558,7 +494,11 @@ def load_data_sequence_preliminary(s_folder_path, data_file_name, s_width_height
         data_dataset = data_dataset.isel(time=slice(s_time_span[0], s_time_span[1]))
         # data_dataset = data_dataset.sel(time=slice(s_time_span[0], s_time_span[1]))
     data_arr = data_dataset[s_data_variable_name].values
-    data_arr = data_arr[:, 0, :, :]
+
+    # This has to be enabled, when loading the nc netCDF data set
+    # data_arr = data_arr[:, 0, :, :]
+    data_arr = data_arr[0, :, :, :]
+
     # Get rid of steps dimension
     # if s_local_machine_mode:
     #     data_arr = data_arr[:, 0, :, :]
