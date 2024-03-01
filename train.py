@@ -488,18 +488,12 @@ if __name__ == '__main__':
         # settings['s_data_variable_name'] = 'WN_forecast'
         settings['s_data_variable_name'] = 'RV_recalc'
 
-        # settings['s_folder_path'] = 'dwd_nc/test_data'
-        # settings['s_folder_path'] = '/mnt/common/Jan/Programming/weather_data/dwd_nc/rv_recalc_months'
-        # settings['s_folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
-        # settings['s_folder_path'] = '/mnt/common/Jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data'
-        settings['s_folder_path'] = 'dwd_nc/own_test_data'
+        # settings['s_folder_path'] = 'dwd_nc/own_test_data'
+        settings['s_folder_path'] = 'dwd_nc/benchmark_set_test_data'
 
-        # settings['s_data_file_names'] = ['DE1200_RV_Recalc_20190101.nc']
-        # settings['s_data_file_names'] = ['RV_recalc_data_2019-01.nc']
-        settings['s_data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
-        # settings['s_data_file_names'] = ['RV_recalc_data_2019-01_subset_bigger.nc']
+        # settings['s_data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
+        settings['s_data_file_names'] = ['yw_2019_6_11.zarr']
 
-        # settings['s_choose_time_span'] = True
         settings['s_choose_time_span'] = False
         # settings['s_time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
         settings['s_time_span'] = (67, 150)  # <-- now done according to index (isel instead of sel)
