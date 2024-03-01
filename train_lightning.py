@@ -35,21 +35,21 @@ def data_loading(settings, **__):
     # Try to load data loader vars, if not possible preprocess data
     # If structure of data_loader_vars is changed, change name in _create_save_name_for_data_loader_vars,
 
-    # try:
-    #     # When loading data loader vars, the file name is checked for wether log transform was used
-    #     print('Loading data loader vars from file!')
-    #     data_loader_vars = load_data_loader_vars(settings, **settings)
-    # except FileNotFoundError:
-    print('Data loader vars not found, preprocessing data!')
-    data_loader_vars = preprocess_data(transform_f, settings, **settings)
-    save_data_loader_vars(data_loader_vars, settings, **settings)
+    try:
+        # When loading data loader vars, the file name is checked for wether log transform was used
+        print('Loading data loader vars from file!')
+        data_loader_vars = load_data_loader_vars(settings, **settings)
+    except FileNotFoundError:
+        print('Data loader vars not found, preprocessing data!')
+        data_loader_vars = preprocess_data(transform_f, settings, **settings)
+        save_data_loader_vars(data_loader_vars, settings, **settings)
 
     data_set_vars = create_data_loaders(transform_f, *data_loader_vars, settings,  **settings)
     return data_set_vars
 
 
 def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
-                s_num_bins_crossentropy, s_data_loader_chunk_size, **__):
+                s_num_bins_crossentropy, s_data_loader_chunk_size, s_linspace_binning_cut_off_unnormalized, **__):
 
     # relative index of last input picture (starting from first input picture as idx 1)
     last_input_rel_idx = s_num_input_time_steps
@@ -95,9 +95,9 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_ti
      # This includes 95% of the data
 
 
-    linspace_binning_virtual_max_unnormalized = 100  # Let's cut that off ad-hoc at 130mm/h, everything obove is sorted into one bin
+    # s_linspace_binning_cut_off_unnormalized = 100  # Let's cut that off ad-hoc at 130mm/h, everything obove is sorted into one bin
 
-    linspace_binning_virtual_max = lognormalize_data(linspace_binning_virtual_max_unnormalized, mean_filtered_log_data,
+    linspace_binning_virtual_max = lognormalize_data(s_linspace_binning_cut_off_unnormalized, mean_filtered_log_data,
                                              std_filtered_log_data,
                                              transform_f, s_normalize)
 
@@ -110,7 +110,7 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_ti
 
     ##############
     # WEIGHTING / CLASS FREQUENCIES
-    # We calculate the weights of each class which is = 1 / number of samples (pixels) in class
+    # We calculate the weights of each class which is = `1 / number of samples (pixels)` in class
     # class_weights_target has length and order of bins
     # The class weights don't sum to one --> Why don't I take the softmax of the weights? --> WeightedRandomsampler doesn't care
     class_weights_target, class_count_target, sample_num_target = calc_class_frequencies(filtered_indecies_training, linspace_binning,
@@ -359,7 +359,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = 'Default'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'default_32_bins_50mm_h_cut_off'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -395,7 +395,7 @@ if __name__ == '__main__':
             's_plot_sim_name': 'Run_20240126-224535_ID_51437Weighted_x_entropy_loss', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             's_save_prefix_data_loader_vars': 's_save_prefix_data_loader_vars_2_std_linspace_binning',
 
-            's_max_epochs': 100 ,#10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 30 ,#10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
             's_data_file_names': ['RV_recalc_data_2019-{:02d}.nc'.format(i + 1) for i in range(12)],
             # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
@@ -416,7 +416,11 @@ if __name__ == '__main__':
 
             # Parameters that give the network architecture
             's_upscale_c_to': 32,  # 64, #128, # 512,
-            's_num_bins_crossentropy': 64, # 64, #256,
+            's_num_bins_crossentropy': 32,  # 64, #256,
+
+            # Parameters that give binning
+            's_linspace_binning_cut_off_unnormalized': 50,
+            # Let's cut that off ad-hoc (in mm/h) , everything obove is sorted into the last bin
 
             # 'minutes_per_iteration': 5,
             's_width_height': 256,

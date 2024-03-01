@@ -197,7 +197,7 @@ def save_whole_project(save_folder):
 
 
 def _create_save_name_for_data_loader_vars(s_folder_path, s_log_transform, s_normalize, s_local_machine_mode,
-                                           s_save_prefix_data_loader_vars, s_num_bins_crossentropy, **__):
+                                           s_save_prefix_data_loader_vars, s_num_bins_crossentropy, s_linspace_binning_cut_off_unnormalized, **__):
     if s_log_transform:
         log_transform_str = 'log_transform'
     else:
@@ -216,8 +216,9 @@ def _create_save_name_for_data_loader_vars(s_folder_path, s_log_transform, s_nor
 
     original_file_name = s_folder_path.split('/')[-1]
 
-    return '{}_{}_{}_{}_{}_{}'.format(s_save_prefix_data_loader_vars, log_transform_str,
-                                      normalize_str, original_file_name, local_machine_str, s_num_bins_crossentropy)
+    return '{}_{}_{}_{}_{}_{}_{}'.format(s_save_prefix_data_loader_vars, log_transform_str,
+                                      normalize_str, original_file_name, local_machine_str, s_num_bins_crossentropy,
+                                         s_linspace_binning_cut_off_unnormalized)
 
 
 def save_data_loader_vars(data_loader_vars, settings, s_data_loader_vars_path, **__):
