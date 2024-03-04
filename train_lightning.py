@@ -504,7 +504,7 @@ if __name__ == '__main__':
             settings[en] = False
 
     if settings['s_local_machine_mode']:
-        # settings['s_data_variable_name'] = 'WN_forecast'
+        # settings['s_data_variable_name'] = 'WN_forecast'`
         settings['s_data_variable_name'] = 'RV_recalc'
 
         # settings['s_folder_path'] = 'dwd_nc/test_data'
