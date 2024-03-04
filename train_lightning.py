@@ -350,6 +350,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
+
     #  Training data
     # num_training_samples = 20  # 1000  # Number of loaded pictures (first pics not used for training but only input)
     # num_validation_samples = 20  # 600

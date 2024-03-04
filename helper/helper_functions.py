@@ -74,7 +74,7 @@ def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning) -> torch.Ten
         err_message = 'ERROR: ONE HOT ENCODING: data_arr_indexed had values below zero.' \
                       ' Set all vlas < 0 to 0. data_arr < min_linspace_binning: {},' \
                       ' min of linspace_binning: {}, (all vals lognormalized) data_arr_index <0: {}'\
-            .format(data_arr[data_arr<np.min(linspace_binning)], np.min(linspace_binning), data_arr_indexed[data_arr_indexed<0])
+            .format(data_arr[data_arr < np.min(linspace_binning)], np.min(linspace_binning), data_arr_indexed[data_arr_indexed<0])
         warnings.warn(err_message)
         print(err_message)
 
