@@ -101,8 +101,8 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_ti
                                              std_filtered_log_data,
                                              transform_f, s_normalize)
 
-    linspace_binning_min = linspace_binning_min  # - 0.1
-    linspace_binning_max = linspace_binning_max + 0.1
+    linspace_binning_min -= 0.001 # Subtract a small number to account for rounding errors made in the normalization process
+    linspace_binning_max += 0.001
 
     # linspace_binning only includes left bin edges. The rightmost bin egde is given by linspace binning max
     linspace_binning = np.linspace(linspace_binning_min, linspace_binning_virtual_max, num=s_num_bins_crossentropy,
