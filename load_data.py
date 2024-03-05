@@ -149,7 +149,7 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
 
 def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_folder_path, s_data_file_names, s_width_height,
                            s_data_variable_name, s_time_span, s_local_machine_mode, s_width_height_target, s_min_rain_ratio_target,
-                           s_choose_time_span=False, **__):
+                           s_num_samples_per_frame, s_choose_time_span=False, **__):
     '''
     time span only refers to a single file
     '''
@@ -179,69 +179,94 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
         curr_data_sequence = load_data_sequence_preliminary(s_folder_path, data_file_name, s_width_height, s_data_variable_name,
                                                        s_choose_time_span, s_time_span, s_local_machine_mode)
         for i in range(np.shape(curr_data_sequence)[0] - target_rel_idx):
-            num_frames_total += 1
             first_idx_input_sequence = i
             last_idx_input_sequence = i + last_input_rel_idx
             target_idx_input_sequence = i + target_rel_idx
+            j = 0
+            while j < s_num_samples_per_frame:
 
-            curr_target = curr_data_sequence[target_idx_input_sequence]
-            curr_target_cropped = np.array(T.CenterCrop(size=s_width_height_target)(curr_target))
-            curr_input_sequence = curr_data_sequence[first_idx_input_sequence:last_idx_input_sequence, :, :]
-            # Cropping here
-            curr_input_sequence_cropped = np.array(T.CenterCrop(size=s_width_height)(curr_input_sequence))
+                # Randomly choose a picture position on the complete frame of the data sequence
+                # The upper left corner of the crop is our reference
+                height_data_sequence = curr_data_sequence.shape[-2]
+                width_data_sequence = curr_data_sequence.shape[-1]
+                random_upper_left_pixel = (np.random.randint(0, height_data_sequence - s_width_height),
+                                           np.random.randint(0, width_data_sequence - s_width_height))
 
-            if filter(curr_input_sequence_cropped, curr_target_cropped, s_min_rain_ratio_target):
-                num_frames_passed_filter += 1
-                filtered_data_loader_indecies_dict = {}
-                filtered_data_loader_indecies_dict['file'] = data_file_name
-                filtered_data_loader_indecies_dict['first_idx_input_sequence'] = first_idx_input_sequence
-                filtered_data_loader_indecies_dict['last_idx_input_sequence'] = last_idx_input_sequence
-                filtered_data_loader_indecies_dict['target_idx_input_sequence'] = target_idx_input_sequence
-                filtered_data_loader_indecies.append(filtered_data_loader_indecies_dict)
+                # Do the cropping based on the random upper left pixel
+                curr_input_sequence_cropped = curr_data_sequence[first_idx_input_sequence:last_idx_input_sequence,
+                              random_upper_left_pixel[0]: random_upper_left_pixel[0] + s_width_height,
+                              random_upper_left_pixel[1]: random_upper_left_pixel[1] + s_width_height,]
 
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                # ! IGNORES FIRST ENTRIES: For means and std to normalize data only the values of the target sequence are taken !
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                TEST_all_input_sequences_cropped.append(curr_input_sequence_cropped.flatten())
-                # We are iterating through all 256x256 target frames that have been accepted by the filter
-                # TODO: !!!!! Only normalizing on target frames at the moment !!!!!!
-                num_x += np.shape(curr_input_sequence_cropped.flatten())[0]
-                sum_log_x += np.sum(transform_f(curr_input_sequence_cropped.flatten()))
-                sum_log_x_squared += np.sum(transform_f(curr_input_sequence_cropped.flatten()) ** 2)
+                # For the target we do the cropping based on the wisth and height of the input...
+                curr_target_cropped = curr_data_sequence[target_idx_input_sequence,
+                              random_upper_left_pixel[0]: random_upper_left_pixel[0] + s_width_height,
+                              random_upper_left_pixel[1]: random_upper_left_pixel[1] + s_width_height,]
+                # ... and then center crop it to the target size
+                curr_target_cropped = T.CenterCrop(size=s_width_height_target)(curr_target_cropped)
 
-                sum_x += np.sum(curr_input_sequence_cropped.flatten())
-                sum_x_squared += np.sum(curr_input_sequence_cropped.flatten() ** 2)
+                # Check whether there are any nans in the frame (whether frame is outside of the radar coverage)
+                if not torch.isnan(curr_input_sequence_cropped).any() and not torch.isnan(curr_target_cropped).any():
 
-                # linspace binning min and max have to be normalized later as the means and stds are available
+                    # TODO: Write all code beloqw for torch instead of numpy
+                    curr_target_cropped = curr_target_cropped.cpu().numpy()
+                    curr_input_sequence_cropped = curr_input_sequence_cropped.cpu().numpy()
 
-                # min_curr_input_and_target = np.min(
-                #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
-                # TODO: previously min was taken from 256x256 target instead of 36x36. Is Bug now fixed?
-                min_input = np.min(curr_input_sequence_cropped)
-                max_input = np.max(curr_input_sequence_cropped)
-                # TODO: Could it be that bug with min is introduced because double center cropping as done here
-                # yields a different result from single center cropping to target (shift by a pixel or sth?)?
-                min_target = np.min(curr_target_cropped)
-                max_target = np.max(curr_target_cropped)
+                    num_frames_total += 1
+                    j += 1
 
-                min_curr_input_and_target = np.min([min_input, min_target])
-                max_curr_input_and_target = np.max([max_input, max_target])
+                    if filter(curr_input_sequence_cropped, curr_target_cropped, s_min_rain_ratio_target):
+                        num_frames_passed_filter += 1
+                        filtered_data_loader_indecies_dict = {}
+                        filtered_data_loader_indecies_dict['file'] = data_file_name
+                        filtered_data_loader_indecies_dict['first_idx_input_sequence'] = first_idx_input_sequence
+                        filtered_data_loader_indecies_dict['last_idx_input_sequence'] = last_idx_input_sequence
+                        filtered_data_loader_indecies_dict['target_idx_input_sequence'] = target_idx_input_sequence
+                        filtered_data_loader_indecies_dict['random_upper_left_pixel'] = random_upper_left_pixel
+                        filtered_data_loader_indecies.append(filtered_data_loader_indecies_dict)
 
-                if min_curr_input_and_target < 0:
-                    # This should never occur as Filter should filter out all negative values
-                    raise Exception('Values smaller than 0 within the test and validation dataset. Probably NaNs')
+                        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                        # ! IGNORES FIRST ENTRIES: For means and std to normalize data only the values of the target sequence are taken !
+                        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                        TEST_all_input_sequences_cropped.append(curr_input_sequence_cropped.flatten())
+                        # We are iterating through all 256x256 target frames that have been accepted by the filter
+                        # TODO: !!!!! Only normalizing on target frames at the moment !!!!!!
+                        num_x += np.shape(curr_input_sequence_cropped.flatten())[0]
+                        sum_log_x += np.sum(transform_f(curr_input_sequence_cropped.flatten()))
+                        sum_log_x_squared += np.sum(transform_f(curr_input_sequence_cropped.flatten()) ** 2)
 
-                # max_curr_input_and_target = np.max(
-                #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+                        sum_x += np.sum(curr_input_sequence_cropped.flatten())
+                        sum_x_squared += np.sum(curr_input_sequence_cropped.flatten() ** 2)
 
-                if linspace_binning_min_unnormalized > min_curr_input_and_target:
-                    linspace_binning_min_unnormalized = min_curr_input_and_target
+                        # linspace binning min and max have to be normalized later as the means and stds are available
 
-                if linspace_binning_max_unnormalized < max_curr_input_and_target:
-                    linspace_binning_max_unnormalized = max_curr_input_and_target
+                        # min_curr_input_and_target = np.min(
+                        #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+                        # TODO: previously min was taken from 256x256 target instead of 36x36. Is Bug now fixed?
+                        min_input = np.min(curr_input_sequence_cropped)
+                        max_input = np.max(curr_input_sequence_cropped)
+                        # TODO: Could it be that bug with min is introduced because double center cropping as done here
+                        # yields a different result from single center cropping to target (shift by a pixel or sth?)?
+                        min_target = np.min(curr_target_cropped)
+                        max_target = np.max(curr_target_cropped)
 
-            # TODO: Write a test for this!!
-            # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
+                        min_curr_input_and_target = np.min([min_input, min_target])
+                        max_curr_input_and_target = np.max([max_input, max_target])
+
+                        if min_curr_input_and_target < 0:
+                            # This should never occur as Filter should filter out all negative values
+                            raise Exception('Values smaller than 0 within the test and validation dataset. Probably NaNs')
+
+                        # max_curr_input_and_target = np.max(
+                        #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+
+                        if linspace_binning_min_unnormalized > min_curr_input_and_target:
+                            linspace_binning_min_unnormalized = min_curr_input_and_target
+
+                        if linspace_binning_max_unnormalized < max_curr_input_and_target:
+                            linspace_binning_max_unnormalized = max_curr_input_and_target
+
+                    # TODO: Write a test for this!!
+                    # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
         if num_x == 0:
             raise Exception('No data passed the filter conditions of s_min_rain_ratio_target={}, such that there is no '
                             'data for training and validation.'.format(s_min_rain_ratio_target))
