@@ -10,6 +10,7 @@ import datetime
 from exceptions import CountException
 from torch.utils.data import Dataset
 import einops
+import random
 
 
 # Remember to install package netCDF4 !!
@@ -147,7 +148,7 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
     return data
 
 
-def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_folder_path, s_data_file_names, s_width_height,
+def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_folder_path, s_data_file_name, s_width_height,
                            s_data_variable_name, s_time_span, s_local_machine_mode, s_width_height_target, s_min_rain_ratio_target,
                            s_num_samples_per_frame, s_choose_time_span=False, **__):
     '''
@@ -170,103 +171,111 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
     linspace_binning_min_unnormalized = np.inf
     linspace_binning_max_unnormalized = -np.inf
 
-    TEST_all_input_sequences_cropped = []
 
-    for data_file_name in s_data_file_names:
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # TODO: DONT ALLOW s_time_span CHOOSING, SCREWS UP INDECIES WHEN LOADING DATA
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        curr_data_sequence = load_data_sequence_preliminary(s_folder_path, data_file_name, s_width_height, s_data_variable_name,
-                                                       s_choose_time_span, s_time_span, s_local_machine_mode)
-        for i in range(np.shape(curr_data_sequence)[0] - target_rel_idx):
+
+
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # TODO: DONT ALLOW s_time_span CHOOSING, SCREWS UP INDECIES WHEN LOADING DATA
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # Loading complete data into ram. At the moment 142 GB
+    data_sequence_t_h_w = load_data_sequence_preliminary(s_folder_path, s_data_file_name, s_width_height, s_data_variable_name,
+                                                   s_choose_time_span, s_time_span, s_local_machine_mode)
+
+    # Cut off all extensive nans at the edges:
+    data_sequence_t_h_w = truncate_nan_padding(data_sequence_t_h_w)
+    # THIS DATA HAS NANS IN IT!
+
+    # Iterate through the time steps (up until out of bounds depending on lead time)
+    for i in range(np.shape(data_sequence_t_h_w)[0] - target_rel_idx):
+
+        # Create the height and width for input frames indecies by gridding data_sequence with random offset
+        # (new random offset for each input, target chunk)
+        input_indecies_upper_left_h_w = gridding_data_sequence_indicies(data_sequence_t_h_w.shape[1:3], s_width_height)
+
+        for input_idx_upper_left_h_w in input_indecies_upper_left_h_w:
+
             first_idx_input_sequence = i
             last_idx_input_sequence = i + last_input_rel_idx
             target_idx_input_sequence = i + target_rel_idx
-            j = 0
-            while j < s_num_samples_per_frame:
 
-                # Randomly choose a picture position on the complete frame of the data sequence
-                # The upper left corner of the crop is our reference
-                height_data_sequence = curr_data_sequence.shape[-2]
-                width_data_sequence = curr_data_sequence.shape[-1]
-                random_upper_left_pixel = (np.random.randint(0, height_data_sequence - s_width_height),
-                                           np.random.randint(0, width_data_sequence - s_width_height))
+            # Do the cropping based on the upper left pixel
+            input_sequence = data_sequence_t_h_w[first_idx_input_sequence:last_idx_input_sequence,
+                          input_idx_upper_left_h_w[0]: input_idx_upper_left_h_w[0] + s_width_height,
+                          input_idx_upper_left_h_w[1]: input_idx_upper_left_h_w[1] + s_width_height,]
 
-                # Do the cropping based on the random upper left pixel
-                curr_input_sequence_cropped = curr_data_sequence[first_idx_input_sequence:last_idx_input_sequence,
-                              random_upper_left_pixel[0]: random_upper_left_pixel[0] + s_width_height,
-                              random_upper_left_pixel[1]: random_upper_left_pixel[1] + s_width_height,]
+            # For the target we do the cropping based on the wisth and height of the input...
+            target = data_sequence_t_h_w[target_idx_input_sequence,
+                          input_idx_upper_left_h_w[0]: input_idx_upper_left_h_w[0] + s_width_height,
+                          input_idx_upper_left_h_w[1]: input_idx_upper_left_h_w[1] + s_width_height,]
+            # ... and then center crop it to the target size
+            target = T.CenterCrop(size=s_width_height_target)(target)
 
-                # For the target we do the cropping based on the wisth and height of the input...
-                curr_target_cropped = curr_data_sequence[target_idx_input_sequence,
-                              random_upper_left_pixel[0]: random_upper_left_pixel[0] + s_width_height,
-                              random_upper_left_pixel[1]: random_upper_left_pixel[1] + s_width_height,]
-                # ... and then center crop it to the target size
-                curr_target_cropped = T.CenterCrop(size=s_width_height_target)(curr_target_cropped)
+            # Set all nans to zero in the input_sequence:
+            input_sequence = torch.nan_to_num(input_sequence, nan=0.0)
 
-                # Check whether there are any nans in the frame (whether frame is outside of the radar coverage)
-                if not torch.isnan(curr_input_sequence_cropped).any() and not torch.isnan(curr_target_cropped).any():
 
-                    # TODO: Write all code beloqw for torch instead of numpy
-                    curr_target_cropped = curr_target_cropped.cpu().numpy()
-                    curr_input_sequence_cropped = curr_input_sequence_cropped.cpu().numpy()
+            # TODO: Write all code beloqw for torch instead of numpy
+            target = target.cpu().numpy()
+            input_sequence = input_sequence.cpu().numpy()
 
-                    num_frames_total += 1
-                    j += 1
+            num_frames_total += 1
 
-                    if filter(curr_input_sequence_cropped, curr_target_cropped, s_min_rain_ratio_target):
-                        num_frames_passed_filter += 1
-                        filtered_data_loader_indecies_dict = {}
-                        filtered_data_loader_indecies_dict['file'] = data_file_name
-                        filtered_data_loader_indecies_dict['first_idx_input_sequence'] = first_idx_input_sequence
-                        filtered_data_loader_indecies_dict['last_idx_input_sequence'] = last_idx_input_sequence
-                        filtered_data_loader_indecies_dict['target_idx_input_sequence'] = target_idx_input_sequence
-                        filtered_data_loader_indecies_dict['random_upper_left_pixel'] = random_upper_left_pixel
-                        filtered_data_loader_indecies.append(filtered_data_loader_indecies_dict)
 
-                        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                        # ! IGNORES FIRST ENTRIES: For means and std to normalize data only the values of the target sequence are taken !
-                        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                        TEST_all_input_sequences_cropped.append(curr_input_sequence_cropped.flatten())
-                        # We are iterating through all 256x256 target frames that have been accepted by the filter
-                        # TODO: !!!!! Only normalizing on target frames at the moment !!!!!!
-                        num_x += np.shape(curr_input_sequence_cropped.flatten())[0]
-                        sum_log_x += np.sum(transform_f(curr_input_sequence_cropped.flatten()))
-                        sum_log_x_squared += np.sum(transform_f(curr_input_sequence_cropped.flatten()) ** 2)
+            if filter(input_sequence, target, s_min_rain_ratio_target):
+                # TODO: Fit loading to new sampling method
+                num_frames_passed_filter += 1
+                filtered_data_loader_indecies_dict = {}
+                filtered_data_loader_indecies_dict['file'] = s_data_file_name
+                filtered_data_loader_indecies_dict['first_idx_input_sequence'] = first_idx_input_sequence
+                filtered_data_loader_indecies_dict['last_idx_input_sequence'] = last_idx_input_sequence
+                filtered_data_loader_indecies_dict['target_idx_input_sequence'] = target_idx_input_sequence
+                filtered_data_loader_indecies_dict['input_idx_upper_left_h_w'] = input_idx_upper_left_h_w
+                filtered_data_loader_indecies_dict['time_span'] = s_time_span if s_choose_time_span else None
+                filtered_data_loader_indecies.append(filtered_data_loader_indecies_dict)
 
-                        sum_x += np.sum(curr_input_sequence_cropped.flatten())
-                        sum_x_squared += np.sum(curr_input_sequence_cropped.flatten() ** 2)
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # ! IGNORES FIRST ENTRIES: For means and std to normalize data only the values of the target sequence are taken !
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # We are iterating through all 256x256 target frames that have been accepted by the filter
+                # TODO: !!!!! Only normalizing on target frames at the moment !!!!!!
+                num_x += np.shape(input_sequence.flatten())[0]
+                sum_log_x += np.sum(transform_f(input_sequence.flatten()))
+                sum_log_x_squared += np.sum(transform_f(input_sequence.flatten()) ** 2)
 
-                        # linspace binning min and max have to be normalized later as the means and stds are available
+                sum_x += np.sum(input_sequence.flatten())
+                sum_x_squared += np.sum(input_sequence.flatten() ** 2)
 
-                        # min_curr_input_and_target = np.min(
-                        #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
-                        # TODO: previously min was taken from 256x256 target instead of 36x36. Is Bug now fixed?
-                        min_input = np.min(curr_input_sequence_cropped)
-                        max_input = np.max(curr_input_sequence_cropped)
-                        # TODO: Could it be that bug with min is introduced because double center cropping as done here
-                        # yields a different result from single center cropping to target (shift by a pixel or sth?)?
-                        min_target = np.min(curr_target_cropped)
-                        max_target = np.max(curr_target_cropped)
+                # linspace binning min and max have to be normalized later as the means and stds are available
 
-                        min_curr_input_and_target = np.min([min_input, min_target])
-                        max_curr_input_and_target = np.max([max_input, max_target])
+                # min_curr_input_and_target = np.min(
+                #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+                # TODO: previously min was taken from 256x256 target instead of 36x36. Is Bug now fixed?
+                min_input = np.min(input_sequence)
+                max_input = np.max(input_sequence)
+                # TODO: Could it be that bug with min is introduced because double center cropping as done here
+                # yields a different result from single center cropping to target (shift by a pixel or sth?)?
+                min_target = np.min(target)
+                max_target = np.max(target)
 
-                        if min_curr_input_and_target < 0:
-                            # This should never occur as Filter should filter out all negative values
-                            raise Exception('Values smaller than 0 within the test and validation dataset. Probably NaNs')
+                min_curr_input_and_target = np.min([min_input, min_target])
+                max_curr_input_and_target = np.max([max_input, max_target])
 
-                        # max_curr_input_and_target = np.max(
-                        #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+                if min_curr_input_and_target < 0:
+                    # This should never occur as Filter should filter out all negative values
+                    raise Exception('Values smaller than 0 within the test and validation dataset. Probably NaNs')
 
-                        if linspace_binning_min_unnormalized > min_curr_input_and_target:
-                            linspace_binning_min_unnormalized = min_curr_input_and_target
+                # max_curr_input_and_target = np.max(
+                #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
 
-                        if linspace_binning_max_unnormalized < max_curr_input_and_target:
-                            linspace_binning_max_unnormalized = max_curr_input_and_target
+                if linspace_binning_min_unnormalized > min_curr_input_and_target:
+                    linspace_binning_min_unnormalized = min_curr_input_and_target
 
-                    # TODO: Write a test for this!!
-                    # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
+                if linspace_binning_max_unnormalized < max_curr_input_and_target:
+                    linspace_binning_max_unnormalized = max_curr_input_and_target
+
+
+        # TODO: Write a test for this!!
+        # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
         if num_x == 0:
             raise Exception('No data passed the filter conditions of s_min_rain_ratio_target={}, such that there is no '
                             'data for training and validation.'.format(s_min_rain_ratio_target))
@@ -285,6 +294,84 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
     return (filtered_data_loader_indecies, mean_filtered_log_data, std_filtered_log_data, mean_filtered_data, std_filtered_data,
             linspace_binning_min_unnormalized, linspace_binning_max_unnormalized)
+
+
+def gridding_data_sequence_indicies(data_sequence_height_width: tuple, grid_parcel_height_width: int):
+    '''
+    This function creates the indecies to get the height and width for the input frames
+    (from which also the targets can be created by center cropping)
+
+    A grid is simply layed on top of the data sequence. Each time this function is called, the grid is also
+    moived randomly (uniform random) in the magnitude of grid_parcel_height_width
+
+    Output: List of indecies of the upper left corners (height, width) of the grid cells that can be used as the input
+    for the network (to get the target simply center crop)
+
+    data_sequence_height_width: (h,w) height and width of the data sequence that the grid is layed on top to
+    grid_parcel_height_width: height and width of the grid parcels (one int), corresponds to input height width
+    h --> height
+    w --> width
+    '''
+
+    # Grid offset to move the grip randomly
+    grid_offset_h = random.randint(0, grid_parcel_height_width)
+    grid_offset_w = random.randint(0, grid_parcel_height_width)
+
+    input_indecies_h_w_upper_left = []
+
+    parcel_num_h = 0
+    parcel_num_w = 0
+
+    # Iterating through the height up until out of bounds
+    while True:
+        index_h_top = grid_offset_h + parcel_num_h * grid_parcel_height_width
+        index_h_bottom = index_h_top + grid_parcel_height_width
+        parcel_num_h += 1
+
+        if index_h_bottom > data_sequence_height_width[0]:
+            break
+
+        # Iterating through the width up until out of bounds
+        while True:
+            index_w_left = grid_offset_w + parcel_num_w * grid_parcel_height_width
+            index_w_right = index_w_left + grid_parcel_height_width
+            parcel_num_w += 1
+
+            if index_w_right > data_sequence_height_width[1]:
+                break
+            else:
+                input_indecies_h_w_upper_left.append((index_h_top, index_w_left))
+
+    return input_indecies_h_w_upper_left
+
+
+def truncate_nan_padding(data_tensor):
+    """
+    Efficiently truncates the sides of the 3D tensor to remove NaNs without cutting off any non-NaNs.
+
+    Parameters:
+    - data_tensor: A torch.Tensor object with shape [time, height, width].
+
+    Returns:
+    - A truncated version of data_tensor.
+    """
+    # Create a mask of non-NaNs
+    valid_mask = ~torch.isnan(data_tensor)
+
+    # Aggregate mask along the height and width dimensions to find valid rows and columns
+    valid_rows = valid_mask.any(dim=2)  # Check each row for any non-NaN across all widths
+    valid_cols = valid_mask.any(dim=1)  # Check each column for any non-NaN across all heights
+
+    # Find the min and max indices for valid rows and columns
+    min_row_idx = valid_rows.any(dim=0).nonzero().min()
+    max_row_idx = valid_rows.any(dim=0).nonzero().max()
+    min_col_idx = valid_cols.any(dim=0).nonzero().min()
+    max_col_idx = valid_cols.any(dim=0).nonzero().max()
+
+    # Use these indices to slice the tensor, adjust max indices to include the boundary values
+    truncated_tensor = data_tensor[:, min_row_idx:max_row_idx+1, min_col_idx:max_col_idx+1]
+
+    return truncated_tensor
 
 
 def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data, transform_f,

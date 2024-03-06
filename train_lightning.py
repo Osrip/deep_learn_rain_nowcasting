@@ -397,9 +397,8 @@ if __name__ == '__main__':
             's_save_prefix_data_loader_vars': 's_save_prefix_data_loader_vars_2_std_linspace_binning',
 
             's_max_epochs': 30 ,#10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
-            's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
-            's_data_file_names': ['RV_recalc_data_2019-{:02d}.nc'.format(i + 1) for i in range(12)],
-            # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
+            's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
+            's_data_file_name': 'yw_done.zarr',
             's_data_variable_name': 'RV_recalc',
             's_choose_time_span': False,
             's_time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
@@ -514,7 +513,7 @@ if __name__ == '__main__':
         settings['s_folder_path'] = 'dwd_nc/benchmark_set_test_data'
 
         # settings['s_data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
-        settings['s_data_file_names'] = ['yw_2019_6_11.zarr']
+        settings['s_data_file_name'] = 'yw_2019_6_11.zarr'
 
         # settings['s_choose_time_span'] = True
         settings['s_choose_time_span'] = False  # DO NOT USE, screws up indecies for data loading
