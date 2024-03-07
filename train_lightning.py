@@ -491,7 +491,6 @@ if __name__ == '__main__':
 
             # Save data loader variables
             's_data_loader_vars_path': '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
-
         }
 
     if not settings['s_plotting_only']:

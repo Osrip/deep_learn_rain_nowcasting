@@ -93,8 +93,8 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         # Using arange leads to same result as slice() (tested)
 
         input_sequence = input_data_set[s_data_variable_name].values
-        # Get rid of steps dimension
-        # input_sequence = input_sequence[:, 0, :, :]
+
+        # Get rid of steps dimension (nothing to do with pysteps)
         input_sequence = input_sequence[0, :, :, :]
 
 
@@ -172,18 +172,23 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
     linspace_binning_max_unnormalized = -np.inf
 
 
-
-
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # TODO: DONT ALLOW s_time_span CHOOSING, SCREWS UP INDECIES WHEN LOADING DATA
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # Loading complete data into ram. At the moment 142 GB
     data_sequence_t_h_w = load_data_sequence_preliminary(s_folder_path, s_data_file_name, s_width_height, s_data_variable_name,
                                                    s_choose_time_span, s_time_span, s_local_machine_mode)
+    # THIS DATA HAS NANS IN IT!
+    # For some reason the 5 min Radolan data has some few negative values that are extremely close to zero. For
+    # an analysis see comments of https://3.basecamp.com/5660298/buckets/35200082/messages/7121548207
 
     # Cut off all extensive nans at the edges:
-    data_sequence_t_h_w = truncate_nan_padding(data_sequence_t_h_w)
-    # THIS DATA HAS NANS IN IT!
+    data_sequence_t_h_w, (upper_left_truncation_coordinate_h_w) = truncate_nan_padding(data_sequence_t_h_w)
+    # upper_left_truncation_coordinate give h, w of the upper left truncation point
+
+    # replace all negative data with zeros
+    zero_mask = data_sequence_t_h_w < 0
+    data_sequence_t_h_w[zero_mask] = 0
 
     # Iterate through the time steps (up until out of bounds depending on lead time)
     for i in range(np.shape(data_sequence_t_h_w)[0] - target_rel_idx):
@@ -213,6 +218,11 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
             # Set all nans to zero in the input_sequence:
             input_sequence = torch.nan_to_num(input_sequence, nan=0.0)
 
+            # Set all nans to zero in the target.
+            # This is only done for filtering purposes! When loading the target we will keep the nans and simply
+            # not include them in the loss calculation, such that they do not affect the gradient
+            input_sequence = torch.nan_to_num(input_sequence, nan=0.0)
+
 
             # TODO: Write all code beloqw for torch instead of numpy
             target = target.cpu().numpy()
@@ -221,7 +231,8 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
             num_frames_total += 1
 
 
-            if filter(input_sequence, target, s_min_rain_ratio_target):
+            # if filter(input_sequence, target, s_min_rain_ratio_target):
+            if True:
                 # TODO: Fit loading to new sampling method
                 num_frames_passed_filter += 1
                 filtered_data_loader_indecies_dict = {}
@@ -229,7 +240,11 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
                 filtered_data_loader_indecies_dict['first_idx_input_sequence'] = first_idx_input_sequence
                 filtered_data_loader_indecies_dict['last_idx_input_sequence'] = last_idx_input_sequence
                 filtered_data_loader_indecies_dict['target_idx_input_sequence'] = target_idx_input_sequence
-                filtered_data_loader_indecies_dict['input_idx_upper_left_h_w'] = input_idx_upper_left_h_w
+                # input_idx_upper_left_h_w gives the upper left point of our input frame. However this has to be transferred
+                # from the truncated coordinate system to the original coordinate system of the data_sequence, therefore
+                # we add by upper_left_truncation_coordinate_h_w
+                filtered_data_loader_indecies_dict['input_idx_upper_left_h_w'] = (
+                        input_idx_upper_left_h_w + upper_left_truncation_coordinate_h_w)
                 filtered_data_loader_indecies_dict['time_span'] = s_time_span if s_choose_time_span else None
                 filtered_data_loader_indecies.append(filtered_data_loader_indecies_dict)
 
@@ -359,19 +374,19 @@ def truncate_nan_padding(data_tensor):
     valid_mask = ~torch.isnan(data_tensor)
 
     # Aggregate mask along the height and width dimensions to find valid rows and columns
-    valid_rows = valid_mask.any(dim=2)  # Check each row for any non-NaN across all widths
-    valid_cols = valid_mask.any(dim=1)  # Check each column for any non-NaN across all heights
+    valid_heights = valid_mask.any(dim=2)  # Check each height for any non-NaN across all widths
+    valid_widths = valid_mask.any(dim=1)  # Check each widthumn for any non-NaN across all heights
 
-    # Find the min and max indices for valid rows and columns
-    min_row_idx = valid_rows.any(dim=0).nonzero().min()
-    max_row_idx = valid_rows.any(dim=0).nonzero().max()
-    min_col_idx = valid_cols.any(dim=0).nonzero().min()
-    max_col_idx = valid_cols.any(dim=0).nonzero().max()
+    # Find the min and max indices for valid heights and widthumns
+    min_height_idx = valid_heights.any(dim=0).nonzero().min()
+    max_height_idx = valid_heights.any(dim=0).nonzero().max()
+    min_width_idx = valid_widths.any(dim=0).nonzero().min()
+    max_width_idx = valid_widths.any(dim=0).nonzero().max()
 
     # Use these indices to slice the tensor, adjust max indices to include the boundary values
-    truncated_tensor = data_tensor[:, min_row_idx:max_row_idx+1, min_col_idx:max_col_idx+1]
+    truncated_tensor = data_tensor[:, min_height_idx:max_height_idx+1, min_width_idx:max_width_idx+1]
 
-    return truncated_tensor
+    return truncated_tensor, min_height_idx, min_width_idx
 
 
 def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data, transform_f,

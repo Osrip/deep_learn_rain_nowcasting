@@ -193,8 +193,7 @@ class Network_l(pl.LightningModule):
         # Todo: get rid of float conversion? do this in filter already?
 
         # TODO: Should this be done in data loading such that workers can distribute compute?
-        global_training_step = self.trainer.global_step  # Does this include validation steps?
-        #  SEE: https://github.com/Lightning-AI/lightning/discussions/8007
+
 
         if self.s_gaussian_smoothing_multiple_sigmas:
             smoothed_targets = []
