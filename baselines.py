@@ -120,7 +120,7 @@ class LKBaseline(pl.LightningModule):
             motion_field = self.method_calc_motionfield(frames_np[batch_idx, :, :, :])
 
             if self.inference_method == 'extrapolation':
-                precip_forecast = self._infer_by_extrapolation(frames_np[batch_idx, -1, :, :], motion_field)
+                    precip_forecast = self._infer_by_extrapolation(frames_np[batch_idx, -1, :, :], motion_field)
             elif self.inference_method == 'steps':
                 if self.steps_settings is None:
                     raise ValueError('When using STEPS, steps settings have to be set with '

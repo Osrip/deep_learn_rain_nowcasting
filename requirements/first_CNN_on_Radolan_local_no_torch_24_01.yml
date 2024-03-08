@@ -1,0 +1,25 @@
+name: /home/jan/mambaforge/envs/first_CNN_on_Radolan
+channels:
+  - defaults
+dependencies:
+  - ipython
+  - python=3.10
+  - matplotlib
+  - einops
+  - tqdm
+  - h5py
+  - ca-certificates
+  - openssl
+  - xarray
+  - dask
+  - netcdf4
+  - bottleneck
+  - certifi
+  - jupyter
+  - hurry.filesize
+  - scipy
+  - memory_profiler
+  - pytorch-lightning
+  - mlflow
+  - seaborn
+prefix: /home/jan/mambaforge/envs/first_CNN_on_Radolan

@@ -12,9 +12,9 @@ def print_gpu_memory():
 
         # Get current memory usage
         # current_memory = torch.cuda.memory_allocated(device)
-        current_memory = torch.cuda.max_memory_allocated(device)
+        max_memory = torch.cuda.max_memory_allocated(device)
 
-        print(f"\nCUDA device {device} Total memory : {size(total_memory)} Max memory used: {size(current_memory)}")
+        print(f"\nCUDA device {device} Total memory : {size(total_memory)} Max memory used: {size(max_memory)}")
 
 
 def print_ram_usage():
