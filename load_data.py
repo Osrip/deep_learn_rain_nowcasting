@@ -96,8 +96,8 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
 
         input_sequence = input_data_set[s_data_variable_name].values
 
-        input_sequence = torch.from_numpy(input_sequence)
-        input_sequence = input_sequence.to(device)
+        # input_sequence = torch.from_numpy(input_sequence)
+        # input_sequence = input_sequence.to(device)
 
         # Get rid of steps dimension (nothing to do with pysteps)
         input_sequence = input_sequence[0, :, :, :]
