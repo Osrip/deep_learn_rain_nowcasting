@@ -18,7 +18,7 @@ import random
 class PrecipitationFilteredDataset(Dataset):
     def __init__(self, filtered_data_loader_indecies, mean_filtered_log_data, std_filtered_log_data, linspace_binning_min, linspace_binning_max, linspace_binning, transform_f,
                  s_num_bins_crossentropy, s_folder_path, s_width_height, s_width_height_target, s_data_variable_name,
-                 s_local_machine_mode, s_sigma_target_smoothing, s_gaussian_smoothing_multiple_sigmas, device, s_normalize=True, **__):
+                 s_local_machine_mode, s_gaussian_smoothing_target, s_gaussian_smoothing_multiple_sigmas, device, s_normalize=True, **__):
         """
         Attributes:
         self.data_sequence --> log normalized data sequence
@@ -49,7 +49,7 @@ class PrecipitationFilteredDataset(Dataset):
         self.std_filtered_log_data = std_filtered_log_data
         self.s_data_variable_name = s_data_variable_name
         self.s_local_machine_mode = s_local_machine_mode
-        self.s_sigma_target_smoothing = s_sigma_target_smoothing
+        self.s_gaussian_smoothing_target = s_gaussian_smoothing_target
         self.s_gaussian_smoothing_multiple_sigmas = s_gaussian_smoothing_multiple_sigmas
         self.s_device = device
         # log transform
@@ -66,7 +66,7 @@ class PrecipitationFilteredDataset(Dataset):
                                      self.mean_filtered_log_data, self.std_filtered_log_data, self.transform_f,
                                      self.s_width_height, self.s_width_height_target, self.s_data_variable_name,
                                      self.s_normalize, self.s_num_bins_crossentropy, self.s_folder_path,
-                                     self.s_sigma_target_smoothing,
+                                     self.s_gaussian_smoothing_target,
                                      self.s_gaussian_smoothing_multiple_sigmas, device='cpu',
                                          # Loading on CPU to prevent pin_memory error (DataLoader operates on CPU, then pushes to GPU)
                                      normalize=True, load_input_sequence=True, load_target=True
@@ -78,7 +78,7 @@ class PrecipitationFilteredDataset(Dataset):
 # TODO: !!!! rewrite this such that it only loads extended target if we are really doing gausian smoothing! !!!
 def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data,
                                  transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
-                                 s_num_bins_crossentropy, s_folder_path, s_sigma_target_smoothing, s_gaussian_smoothing_multiple_sigmas,
+                                 s_num_bins_crossentropy, s_folder_path, s_gaussian_smoothing_target, s_gaussian_smoothing_multiple_sigmas,
                                  device,
                                  normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
                                  ):
@@ -128,7 +128,12 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
             target = torch.from_numpy(target)
             target = target.to(device)
 
-            target = T.CenterCrop(size=extended_target_size)(target)
+            # extended target is only needed in case of gaussian smoothing.
+            # Cut either right to default target size or extended target size
+            if s_gaussian_smoothing_target or s_gaussian_smoothing_multiple_sigmas:
+                target = T.CenterCrop(size=extended_target_size)(target)
+            else:
+                target = T.CenterCrop(size=s_width_height_target)(target)
 
             if normalize:
                 target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
@@ -138,15 +143,17 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
             target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
 
             # This ugly bs added for the extended version of target_one_hot required for gaussian smoothing
-            if s_sigma_target_smoothing or s_gaussian_smoothing_multiple_sigmas:
+            if s_gaussian_smoothing_target or s_gaussian_smoothing_multiple_sigmas:
                 target_one_hot_extended = target_one_hot
-
-            target = T.CenterCrop(size=s_width_height_target)(target)
-            target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
+                target = T.CenterCrop(size=s_width_height_target)(target)
+                target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
+            else:
+                # Return empty tensor instead of None as torch.DataLoader cannot handle None
+                target_one_hot_extended = torch.Tensor([])
 
     else:
-        target = None
-        target_one_hot = None
+        target = torch.Tensor([])
+        target_one_hot = torch.Tensor([])
 
     return input_sequence, target_one_hot, target, target_one_hot_extended
 
