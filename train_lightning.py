@@ -29,7 +29,7 @@ import warnings
 def data_loading(settings, **__):
 
     if settings['s_log_transform']:
-        transform_f = lambda x: np.log(x + 1)
+        transform_f = lambda x: torch.log(x + 1) if isinstance(x, torch.Tensor) else np.log(x + 1)
     else:
         transform_f = lambda x: x
     # Try to load data loader vars, if not possible preprocess data

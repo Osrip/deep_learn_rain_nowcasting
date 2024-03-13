@@ -96,7 +96,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
                 # Calculate CRPS for baseline
                 pred_ensemble_steps_baseline = pred_ensemble_steps_baseline.cpu().detach().numpy()
                 steps_binning_tc = create_binning_from_ensemble(pred_ensemble_steps_baseline, linspace_binning, **settings)
-                # steps_binning_np = steps_binning_torch.cpu().detach().numpy()
+
 
                 # crps_np_steps = iterate_crps_element_wise(steps_binning_np, target_inv_normed, linspace_binning_inv_norm, linspace_binning_max_inv_norm)
                 crps_steps_tc = crps_vectorized(steps_binning_tc, target_inv_normed, linspace_binning_inv_norm,
@@ -149,7 +149,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
             save_zipped_pickle('{}/{}'.format(save_dir, save_name_steps), crps_steps_all_tc)
 
 
-def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_bins_crossentropy, device, **__):
+def create_binning_from_ensemble(ensemble: torch.Tensor, linspace_binning, s_num_bins_crossentropy, device, **__):
     '''
     expects **settings kwargs
     Use the NORMALIZED LINSPACE_BINNING
@@ -158,8 +158,7 @@ def create_binning_from_ensemble(ensemble: np.ndarray, linspace_binning, s_num_b
     #
     num_ensemble_member = ensemble.shape[1]
 
-    ensembles_one_hot = img_one_hot(ensemble, s_num_bins_crossentropy, linspace_binning)
-    ensembles_one_hot = ensembles_one_hot.to(device)
+    ensembles_one_hot = img_one_hot(ensemble, s_num_bins_crossentropy, torch.from_numpy(linspace_binning).to(device))
     ensembles_one_hot = einops.rearrange(ensembles_one_hot, 'b e w h c -> b e c w h')
     # Dimensions now: batch x ensemble_members x channel (one hot binning) x width x height
     # Summing along ensemble dimension in order to get unnormalized binning

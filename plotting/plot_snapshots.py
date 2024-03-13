@@ -51,10 +51,10 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
                     pred_mm_baseline = lognormalize_data(pred_mm_baseline, mean_filtered_log_data, std_filtered_log_data,
                                                          transform_f, settings['s_normalize'])
 
-                pred_mm_baseline = convert_to_binning_and_back(pred_mm_baseline, linspace_binning, linspace_binning_max)
+                # pred_mm_baseline = convert_to_binning_and_back(pred_mm_baseline, linspace_binning, linspace_binning_max)
 
-            target = convert_to_binning_and_back(target.detach().cpu().numpy(), linspace_binning, linspace_binning_max)
-            target = torch.from_numpy(target).to(ps_device)
+            # target = convert_to_binning_and_back(target.detach().cpu().numpy(), linspace_binning, linspace_binning_max)
+            # target = torch.from_numpy(target).to(ps_device)
 
             if not ps_gaussian_smoothing_multiple_sigmas:
                 preds = [pred]

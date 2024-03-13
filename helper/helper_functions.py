@@ -26,66 +26,49 @@ def create_dilation_list(s_width_height, inverse_ratio=4):
     return out
 
 
-# def map_mm_to_one_hot_index(mm, num_indecies, mm_min, mm_max):
+# def bin_to_one_hot_index(mm_data, linspace_binning):
 #     '''
-#     !!! OLD !!!
-#     This is older version --> Use bin_to_one_hot_index_linear
-#     index starts counting at 0 and has max index at max_index --> length of indecies is max_index + 1 !!!
+#     Can directly handle log data
+#     In practice gets passed log transformed data
+#     --> linspace_binning_min, linspace_binning_max have to be in log transformed space
 #     '''
-#     # TODO: Use logarithmic binning to account for long tailed data distribution of precipitation???
-#     # Add tiny number, such that np. floor always accounts for next lower number
-#     if mm < mm_min or mm > mm_max:
-#         raise IndexError('The input is outside of the given bounds min {} and max {}'.format(mm_min, mm_max))
-#     mm_max = mm_max + sys.float_info.min
-#     bin_size = (mm_max - mm_min) / num_indecies
-#     index = int(np.floor(mm / bin_size))
-#     # Covering the case that mm == mm_max in which case np.floor would exceed num indecies
-#     if mm_max == mm:
-#         index -= 1
-#     # np ceil rounds down. In principle we need to round up as all the rest above an integer would fill the next bin
-#     # But as the indexing starts at Zero we round down instead
-#     return index
+#     # Linspace binning always annotates the lowest value of the bin. The very last value (whoich is linspacebinning_max) is
+#     # not included in the linspace binning, such that the number of entries in linspace binning correstponts to the number of bins
+#     # Indecies start counting at 1, therefore - 1
+#     indecies = np.digitize(mm_data, linspace_binning, right=False) - 1
+#     return indecies
 
 
-def bin_to_one_hot_index(mm_data, linspace_binning):
-    '''
-    Can directly handle log data
-    In practice gets passed log transformed data
-    --> linspace_binning_min, linspace_binning_max have to be in log transformed space
-    '''
-    # Linspace binning always annotates the lowest value of the bin. The very last value (whoich is linspacebinning_max) is
-    # not included in the linspace binning, such that the number of entries in linspace binning correstponts to the number of bins
-    # Indecies start counting at 1, therefore - 1
-    indecies = np.digitize(mm_data, linspace_binning, right=False) - 1
+# Same function in torch (to be tested):
+def bin_to_one_hot_index(mm_data: torch.Tensor, linspace_binning):
+    if isinstance(linspace_binning, np.ndarray):
+        linspace_binning = torch.from_numpy(linspace_binning).to()
+    # For some reason we need right = True here instead of right = False as in np digitize to get the same behaviour
+    indecies = torch.bucketize(mm_data, linspace_binning, right=True) - 1
     return indecies
 
 
-def img_one_hot(data_arr: np.ndarray, num_c: int, linspace_binning) -> torch.Tensor:
+def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: torch.Tensor) -> torch.Tensor:
     '''
     Adds one hot encoded channel dimension
     Channel dimension is added as -1st dimension, so rearrange dimensions!
+    linspace_binning can be either torch.Tensor or np.ndarray
+
     '''
-    data_arr_indexed = bin_to_one_hot_index(data_arr, linspace_binning) # -0.00000001
+    # TODO: Write the digitize line in torch!
+    data_indexed = bin_to_one_hot_index(data_arr, linspace_binning)  # -0.00000001
 
-
-    if np.min(data_arr_indexed) < 0:
-        # Handling Values below 0.
-        # If warning is encountered fix cause!
+    if torch.min(data_indexed) < 0:
         err_message = 'ERROR: ONE HOT ENCODING: data_arr_indexed had values below zero.' \
-                      ' Set all vals < 0 to 0. data_arr < min_linspace_binning: {},' \
                       ' min of linspace_binning: {}, (all vals lognormalized) data_arr_index <0: {}'\
             .format(data_arr[data_arr < np.min(linspace_binning)], np.min(linspace_binning), data_arr_indexed[data_arr_indexed<0])
-        warnings.warn(err_message)
-        print(err_message)
-
-        print('One hot conversion encountered error --> Set data_arr_indexed[data_arr_indexed < 0] = 0\nTHIS IS BAD, FIX THIS')
-        data_arr_indexed[data_arr_indexed < 0] = 0
-        data_indexed = torch.from_numpy(data_arr_indexed)
-        data_hot = F.one_hot(data_indexed.long(), num_c)
+        raise ValueError(err_message)
 
     else:
-        data_indexed = torch.from_numpy(data_arr_indexed)
         data_hot = F.one_hot(data_indexed.long(), num_c)
+        # Handle nans --> Simply set one hot to zeros at each nan
+        nan_mask = torch.isnan(data_arr)
+        data_hot[nan_mask] = torch.zeros(num_c, dtype=torch.long).to(data_hot.device)
 
     return data_hot
 
@@ -115,7 +98,7 @@ def one_hot_to_lognorm_mm(one_hot_tensor: torch.Tensor, linspace_binning, linspa
     return mm_data
 
 
-def convert_to_binning_and_back(data_arr: np.ndarray, linspace_binning, linspace_binning_max):
+def convert_to_binning_and_back(data_arr: torch.Tensor, linspace_binning, linspace_binning_max):
     '''
     This function converts to binning and back to mm
     This way the data exhibits the same discrete properties as the binned data

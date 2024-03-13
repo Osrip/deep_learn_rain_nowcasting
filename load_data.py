@@ -18,7 +18,7 @@ import random
 class PrecipitationFilteredDataset(Dataset):
     def __init__(self, filtered_data_loader_indecies, mean_filtered_log_data, std_filtered_log_data, linspace_binning_min, linspace_binning_max, linspace_binning, transform_f,
                  s_num_bins_crossentropy, s_folder_path, s_width_height, s_width_height_target, s_data_variable_name,
-                 s_local_machine_mode, device, s_normalize=True, **__):
+                 s_local_machine_mode, s_sigma_target_smoothing, s_gaussian_smoothing_multiple_sigmas, device, s_normalize=True, **__):
         """
         Attributes:
         self.data_sequence --> log normalized data sequence
@@ -49,6 +49,8 @@ class PrecipitationFilteredDataset(Dataset):
         self.std_filtered_log_data = std_filtered_log_data
         self.s_data_variable_name = s_data_variable_name
         self.s_local_machine_mode = s_local_machine_mode
+        self.s_sigma_target_smoothing = s_sigma_target_smoothing
+        self.s_gaussian_smoothing_multiple_sigmas = s_gaussian_smoothing_multiple_sigmas
         self.s_device = device
         # log transform
         # Errors encountered!
@@ -63,7 +65,10 @@ class PrecipitationFilteredDataset(Dataset):
             load_input_target_from_index(idx, self.filtered_data_loader_indecies, self.linspace_binning,
                                      self.mean_filtered_log_data, self.std_filtered_log_data, self.transform_f,
                                      self.s_width_height, self.s_width_height_target, self.s_data_variable_name,
-                                     self.s_normalize, self.s_num_bins_crossentropy, self.s_folder_path, self.s_device,
+                                     self.s_normalize, self.s_num_bins_crossentropy, self.s_folder_path,
+                                     self.s_sigma_target_smoothing,
+                                     self.s_gaussian_smoothing_multiple_sigmas, device='cpu',
+                                         # Loading on CPU to prevent pin_memory error (DataLoader operates on CPU, then pushes to GPU)
                                      normalize=True, load_input_sequence=True, load_target=True
                                      )
 
@@ -73,9 +78,11 @@ class PrecipitationFilteredDataset(Dataset):
 # TODO: !!!! rewrite this such that it only loads extended target if we are really doing gausian smoothing! !!!
 def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data,
                                  transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
-                                 s_num_bins_crossentropy, s_folder_path, device,
+                                 s_num_bins_crossentropy, s_folder_path, s_sigma_target_smoothing, s_gaussian_smoothing_multiple_sigmas,
+                                 device,
                                  normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
                                  ):
+
     filtered_data_loader_indecies_dict = filtered_data_loader_indecies[idx]
     file = filtered_data_loader_indecies_dict['file']
     first_idx_input_sequence = filtered_data_loader_indecies_dict['first_idx_input_sequence']
@@ -117,20 +124,25 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         # Get rid of steps dimension as we only have one index anyways
         target = target[0]
 
-        target = T.CenterCrop(size=extended_target_size)(torch.from_numpy(target))
+        with torch.no_grad():
+            target = torch.from_numpy(target)
+            target = target.to(device)
 
-        if normalize:
-            target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
-                                       s_normalize)
+            target = T.CenterCrop(size=extended_target_size)(target)
 
-        target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
-        target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
+            if normalize:
+                target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
+                                           s_normalize)
 
-        # This ugly bs added for the extended version of target_one_hot required for gaussian smoothing
-        target_one_hot_extended = target_one_hot
+            target_one_hot = img_one_hot(target, s_num_bins_crossentropy, torch.from_numpy(linspace_binning).to(device))
+            target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
 
-        target = np.array(T.CenterCrop(size=s_width_height_target)(target))
-        target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
+            # This ugly bs added for the extended version of target_one_hot required for gaussian smoothing
+            if s_sigma_target_smoothing or s_gaussian_smoothing_multiple_sigmas:
+                target_one_hot_extended = target_one_hot
+
+            target = T.CenterCrop(size=s_width_height_target)(target)
+            target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
 
     else:
         target = None
@@ -147,7 +159,7 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
     """
     data = transform_f(data)
     if s_normalize:
-        data, _, _ = normalize_data(data, mean_data=mean_data, std_data=std_data)
+        data = normalize_data(data, mean_data=mean_data, std_data=std_data)
     return data
 
 
@@ -401,13 +413,13 @@ def truncate_nan_padding(data_tensor):
 
 
 def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data, transform_f,
-                           settings, s_num_bins_crossentropy, normalize=True, **__):
+                           settings, s_num_bins_crossentropy, device, normalize=True, **__):
     '''
     The more often class occurs, the lower the weight value
     TODO: However observed, that classes with lower mean and max precipitation have higher weight ??!!
     '''
 
-    class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64)
+    class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64).to(device)
 
     for idx in range(len(filtered_indecies)):
         _, target_one_hot, target, _ = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
@@ -498,16 +510,11 @@ def filter(input_sequence, target, s_min_rain_ratio_target, percentage=0.5, min_
         return False
 
 
-def normalize_data(data_sequence, mean_data=None, std_data=None):
+def normalize_data(data_sequence, mean_data, std_data):
     '''
     Normalizing data, NO LOG TRANSFORMATION
     '''
-    flattened_data = data_sequence.flatten()
-    if mean_data is None:
-        mean_data = np.mean(flattened_data)
-    if std_data is None:
-        std_data = np.std(flattened_data)
-    return (data_sequence - mean_data) / std_data, mean_data, std_data
+    return (data_sequence - mean_data) / std_data
 
 
 def inverse_normalize_data(data_sequence, mean_orig_data, std_orig_data, inverse_log=True, inverse_normalize=True):
@@ -544,12 +551,6 @@ def inverse_normalize_data(data_sequence, mean_orig_data, std_orig_data, inverse
     #     return data_sequence * std_orig_data + mean_orig_data
 
 
-def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',
-                flag_keys='/origin1/grid1/category1/entity1/data1/flag_matrix1/flag'):
-    hf = h5py.File(input_path)
-    data_dataset = hf.get(data_keys)
-    flag_dataset = hf.get(flag_keys)
-    return data_dataset, flag_dataset
 
 
 def iterate_through_data_names(start_date_time, future_iterations_from_start: int, minutes_per_iteration: int):
@@ -622,7 +623,6 @@ def load_data_sequence_preliminary(s_folder_path, data_file_name, s_width_height
     '''
     This function loads one file and has the option to load a subset of the file instead by setting s_choose_time_span to true
     '''
-    # TODO: Continue here!
 
     load_path = '{}/{}'.format(s_folder_path, data_file_name)
     print('Loading training/validation data from {}'.format(load_path))
@@ -663,6 +663,26 @@ def random_splitting_filtered_indecies(indecies, num_training_samples, num_valid
     return training_indecies, validation_indecies
 
 
+def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filtered_log_data, std_filtered_log_data):
+    '''
+    Inverse normalizes linspace binning
+    By default the linspace binning only includes the lower bounds#
+    Therefore the highest upper bound is missing which is given by linspace_binning_max
+    '''
+    linspace_binning_inv_norm = inverse_normalize_data(np.array(linspace_binning), mean_filtered_log_data, std_filtered_log_data)
+    linspace_binning_max_inv_norm = inverse_normalize_data(np.array(linspace_binning_max), mean_filtered_log_data, std_filtered_log_data, inverse_log=True)
+    return linspace_binning_inv_norm, linspace_binning_max_inv_norm.item()
+
+
+def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',
+                flag_keys='/origin1/grid1/category1/entity1/data1/flag_matrix1/flag'):
+    hf = h5py.File(input_path)
+    data_dataset = hf.get(data_keys)
+    flag_dataset = hf.get(flag_keys)
+    return data_dataset, flag_dataset
+
+
+
 if __name__ == '__main__':
     input_folder = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
     input_file = 'DE1200_RV_Recalc_20201201_0000_+000000.hdf'
@@ -682,12 +702,4 @@ if __name__ == '__main__':
     pass
 
 
-def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filtered_log_data, std_filtered_log_data):
-    '''
-    Inverse normalizes linspace binning
-    By default the linspace binning only includes the lower bounds#
-    Therefore the highest upper bound is missing which is given by linspace_binning_max
-    '''
-    linspace_binning_inv_norm = inverse_normalize_data(np.array(linspace_binning), mean_filtered_log_data, std_filtered_log_data)
-    linspace_binning_max_inv_norm = inverse_normalize_data(np.array(linspace_binning_max), mean_filtered_log_data, std_filtered_log_data, inverse_log=True)
-    return linspace_binning_inv_norm, linspace_binning_max_inv_norm.item()
+

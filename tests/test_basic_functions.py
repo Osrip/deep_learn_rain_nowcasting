@@ -1,4 +1,4 @@
-from helper.helper_functions import one_hot_to_lognorm_mm, img_one_hot
+from helper.helper_functions import one_hot_to_lognorm_mm, img_one_hot, bin_to_one_hot_index
 from load_data import normalize_data, inverse_normalize_data
 import numpy as np
 import torch
@@ -69,6 +69,30 @@ def test_one_hot_converting():
     validate_data_mean_bounds = v_mean_of_bounds(test_data)
     assert (data_binned_mean_of_bounds_mm == validate_data_mean_bounds).all()
 
+def test_torch_bin_to_one_hot_index():
+
+    # Define the two functions to be tested
+    def bin_to_one_hot_index_np(mm_data, linspace_binning):
+        indecies = np.digitize(mm_data, linspace_binning, right=False) - 1
+        return indecies
+
+    bin_to_one_hot_index_torch = bin_to_one_hot_index
+
+    # Test data
+    mm_data_np = np.array([0.0, 0.1, 0.5, 0.9, 1.5, 2.0, 2.5])
+    linspace_binning_np = np.array([0, 1, 2])
+    mm_data_torch = torch.tensor(mm_data_np)
+    linspace_binning_torch = torch.tensor(linspace_binning_np)
+    # Expected device
+    device = 'cpu'
+    # Execute both functions
+    result_np = bin_to_one_hot_index_np(mm_data_np, linspace_binning_np)
+    result_torch = bin_to_one_hot_index_torch(mm_data_torch, linspace_binning_torch, device)
+    # Convert Torch result to NumPy for comparison
+    result_torch_np = result_torch.numpy()
+    # Compare
+    assert np.allclose(result_np, result_torch_np)
+
 
 def next_smallest(x, linspace_binning):
     '''
@@ -93,10 +117,13 @@ def mean_of_bounds(x, linspace_binning, linspace_binning_max):
 
 def test_normalize_inverse_normalize():
     '''
-    Integration test checking whether inverse_normalize can reconstruct the data that has been normalized by normlaiz()
+    Integration test checking whether inverse_normalize can reconstruct the data that has been normalized by normalize()
     '''
-    test_data_set = np.random.rand(5,256,256)*5+432
-    normalized_test_data, mean, std = normalize_data(test_data_set)
+    test_data_set = np.random.rand(5, 256, 256) * 5 + 432
+    mean = np.mean(test_data_set)
+    std = np.std(test_data_set)
+    normalized_test_data = normalize_data(test_data_set, mean, std)
+    mean = test_data_set
     reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=False)
     assert (reconstructed_test_data == test_data_set).all()
 
@@ -106,7 +133,9 @@ def test_normalize_inverse_normalize_log():
     '''
     test_data_set = np.random.rand(5, 256, 256) * 5 + 432
     log_test_data = np.log(test_data_set+1)
-    normalized_test_data, mean, std = normalize_data(log_test_data)
+    mean = np.mean(log_test_data)
+    std = np.std(log_test_data)
+    normalized_test_data = normalize_data(log_test_data)
     reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=True)
     assert (np.round(reconstructed_test_data, 5) == np.round(test_data_set, 5)).all()
 
@@ -121,6 +150,7 @@ def test_all():
     test_one_hot_converting()
     test_normalize_inverse_normalize()
     test_normalize_inverse_normalize_log()
+    test_torch_bin_to_one_hot_index()
     print('All tests successfull')
 
 

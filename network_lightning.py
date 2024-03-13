@@ -34,9 +34,8 @@ class Network_l(pl.LightningModule):
         '''
 
         super().__init__()
-        # self.model = Network(c_in=s_num_input_time_steps, s_upscale_c_to=s_upscale_c_to,
-        #                      s_num_bins_crossentropy=s_num_bins_crossentropy, s_width_height_in=s_width_height)
 
+        # Set up loss function
         # if training_mode:
         if s_crps_loss and filter_and_normalization_params is None:
             raise ValueError('When using CRPS loss mean_filtered_log_data and std_filtered_log_data have to be passed to Network_l')
@@ -175,7 +174,6 @@ class Network_l(pl.LightningModule):
             else:
                 raise ValueError('Optional training_steps_per_epoch not initialized in Network_l object.'
                                  ' Cannot proceed without it.')
-                # optimizer = torch.optim.Adam(self.model.parameters(), lr=self.s_learning_rate)
 
         else:
             optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.s_learning_rate)
@@ -183,16 +181,11 @@ class Network_l(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
-        # TODO: DOES THIS BS WORKAROUND WORK??
         self.train_step_num += 1
         input_sequence, target_binned, target, target_one_hot_extended = batch
 
         input_sequence = inverse_normalize_data(input_sequence, self.mean_train_data_set, self.std_train_data_set)
         target = inverse_normalize_data(target, self.mean_train_data_set, self.std_train_data_set)
-
-        # Todo: get rid of float conversion? do this in filter already?
-
-        # TODO: Should this be done in data loading such that workers can distribute compute?
 
 
         if self.s_gaussian_smoothing_multiple_sigmas:
@@ -210,8 +203,6 @@ class Network_l(pl.LightningModule):
 
             target_binned = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
                                                        kernel_size=128)
-
-
 
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()

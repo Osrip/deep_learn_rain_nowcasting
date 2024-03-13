@@ -45,10 +45,13 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
                                                        transform_f, **settings)
 
     train_data_loader = DataLoader(train_data_set, batch_size=settings['s_batch_size'], shuffle=True, drop_last=True,
-                                   num_workers=settings['s_num_workers_data_loader'])
+                                   num_workers=settings['s_num_workers_data_loader'], pin_memory=True)
 
     validation_data_loader = DataLoader(validation_data_set, batch_size=settings['s_batch_size'], shuffle=True, drop_last=True,
-                                   num_workers=settings['s_num_workers_data_loader'])
+                                   num_workers=settings['s_num_workers_data_loader'], pin_memory=True)
+
+    # Pin Memory: If you load your samples in the Dataset on CPU and would like to push it during training to the GPU, you can speed
+    # up the host to device transfer by enabling pin_memory.
 
     return train_data_loader, validation_data_loader
 
