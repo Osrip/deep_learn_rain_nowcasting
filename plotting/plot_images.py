@@ -5,6 +5,8 @@ from helper.helper_functions import convert_tensor_to_np
 import torch
 import gc
 import torchvision.transforms as T
+from helper.missing_nan_operations_torch import nanmax
+
 # import matplotlib
 # matplotlib.use('agg')
 
@@ -137,7 +139,7 @@ def plot_target_vs_pred_with_likelihood(target_img, pred_mm, pred_binned, pred_m
                 cbar4.set_label(cbar_label, rotation=270, labelpad=12)
 
             elif (col == 4 + add_cols) and plot_argmax_probs:
-                pred_binned_max, _ = torch.max(pred_binned, dim=1)
+                pred_binned_max, _ = nanmax(pred_binned, dim=1)
 
                 if torch.max(pred_binned_max[row, :, :]).cpu().numpy() > 1:
                     raise ValueError('Max of binned output should not be larger than 1')

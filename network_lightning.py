@@ -206,13 +206,7 @@ class Network_l(pl.LightningModule):
 
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
-        # TODO targets already cropped??
 
-
-        # loss = nn.KLDivLoss(reduction='batchmean')(pred, target_binned)
-        # Reduction= batchmean because:
-        # reduction= “mean” (default) doesn’t return the true KL divergence value, please use reduction= “batchmean”
-        # which aligns with the mathematical definition.
 
         # We use cross entropy loss, for both gaussian smoothed and normal one_hot target
         if not self.s_gaussian_smoothing_multiple_sigmas:
@@ -253,7 +247,10 @@ class Network_l(pl.LightningModule):
                 target_mm_sig = inverse_normalize_data(target_mm_sig, self.mean_train_data_set, self.std_train_data_set)
 
                 target_mm_sig = torch.tensor(target_mm_sig, device=self.s_device)
+
                 # Calculate MSE for each blurred target
+                # Non nan-handling needed, as the DLBD targets have been calculated from the one hot targets, which
+                # have a [0,0,0,0,0] encoding for nans
                 mse_pred_target = torch.nn.MSELoss()(pred_mm, target_mm_sig)
                 self.log('train_{}mse_pred_target'.format(log_prefix), mse_pred_target.item(), on_step=False,
                          on_epoch=True, sync_dist=True)
@@ -277,17 +274,8 @@ class Network_l(pl.LightningModule):
 
         # lognormalisierte preds!!
         if not self.s_gaussian_smoothing_multiple_sigmas:
+
             for pred, log_prefix in zip(preds, log_prefixes):  # Iterating through predictions and log prefixes for the case of multiple sigmas, which correspinds to multiple predictions
-
-                # self.log('train_loss', loss, on_step=False, on_epoch=True)
-
-                # Added sync_dist=True because of:
-                # PossibleUserWarning: It is recommended to use `self.log('val_loss', ..., sync_dist=True)`
-                # when logging on epoch level in distributed setting to accumulate the metric across devices.
-
-                # MLFlow
-                # mlflow.log_metric('train_loss', loss.item())
-                ### Additional quality metrics: ###
 
                 if self.s_calculate_quality_params or self.s_log_precipitation_difference or self.s_calculate_fss:
                     linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
@@ -299,19 +287,21 @@ class Network_l(pl.LightningModule):
                     pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
                 if self.s_calculate_quality_params or self.s_calculate_fss:
+                    target_nan_mask = torch.isnan(target)
                     # MSE
-                    mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
+                    mse_pred_target = torch.nn.MSELoss()(pred_mm[~target_nan_mask], target[~target_nan_mask])
                     self.log('train_{}mse_pred_target'.format(log_prefix), mse_pred_target.item(), on_step=False, on_epoch=True, sync_dist=True)
                     # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item())
 
                     # MSE zeros
-                    mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device), target)
+                    mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device)[~target_nan_mask],
+                                                          target[~target_nan_mask])
                     self.log('train_{}mse_zeros_target'.format(log_prefix), mse_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
                     # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item())
 
                     persistence = input_sequence[:, -1, :, :]
                     persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
-                    mse_persistence_target = torch.nn.MSELoss()(persistence, target)
+                    mse_persistence_target = torch.nn.MSELoss()(persistence[~target_nan_mask], target[~target_nan_mask])
                     self.log('train_{}mse_persistence_target'.format(log_prefix), mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
                     # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
 
@@ -351,9 +341,10 @@ class Network_l(pl.LightningModule):
 
         if self.s_log_precipitation_difference:
             with torch.no_grad():
-                mean_pred_diff = torch.mean(pred_mm - target).item()
-                mean_pred = torch.mean(pred_mm).item()
-                mean_target = torch.mean(target).item()
+                target_nan_mask = torch.isnan(target)
+                mean_pred_diff = torch.mean(pred_mm[~target_nan_mask] - target[~target_nan_mask]).item()
+                mean_pred = torch.mean(pred_mm[~target_nan_mask]).item()
+                mean_target = torch.mean(target[~target_nan_mask]).item()
 
             self.log('train_{}mean_diff_pred_target_mm'.format(log_prefix), mean_pred_diff, on_step=False, on_epoch=True, sync_dist=True)
             self.log('train_{}mean_pred_mm'.format(log_prefix), mean_pred, on_step=False, on_epoch=True, sync_dist=True)

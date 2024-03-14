@@ -14,7 +14,7 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
                    ps_runs_path, ps_run_name, ps_checkpoint_name, ps_device, ps_inv_normalize,
                    ps_gaussian_smoothing_multiple_sigmas, ps_multiple_sigmas, prefix='', plot_baseline=True, **__):
 
-    with torch.no_grad():
+    with (torch.no_grad()):
 
         filtered_indecies, mean_filtered_log_data, std_filtered_log_data, _, _, linspace_binning_min_unnormalized,\
             linspace_binning_max_unnormalized = filter_and_normalization_params
@@ -67,13 +67,14 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
             for pred, sigma_str in zip(preds, sigma_strs):
                 pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
 
-                # vmin = torch.mean(inv_norm_or_not(input_sequence)) - 3 * torch.std(inv_norm_or_not(input_sequence))
-                vmin = min(torch.min(inv_norm_or_not(target)).item(), torch.min(inv_norm_or_not(input_sequence)))
-                # vmin = inv_norm_or_not(linspace_binning_min)
+                # min and max for the snapshots. Max is 4 x std. Masking Nans
+                nan_mask_target = torch.isnan(target)
+                nan_mask_input_seq = torch.isnan(input_sequence)
+                vmin = min(torch.min(inv_norm_or_not(target[~nan_mask_target])).item(),
+                           torch.min(inv_norm_or_not(input_sequence[~nan_mask_input_seq])))
 
-                vmax = torch.mean(inv_norm_or_not(input_sequence)) + 4 * torch.std(inv_norm_or_not(input_sequence))
-                # vmax = max(torch.max(inv_norm_or_not(target)).item(), torch.max(inv_norm_or_not(input_sequence)))
-                # vmax = inv_norm_or_not(linspace_binning_max)
+                vmax = torch.mean(inv_norm_or_not(input_sequence[~nan_mask_input_seq]))
+                + 4 * torch.std(inv_norm_or_not(input_sequence[~nan_mask_input_seq]))
 
                 if i == 0:
                     # !!! Can also be plotted without input sequence by just leaving input_sequence=None !!!

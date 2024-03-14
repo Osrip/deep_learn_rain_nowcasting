@@ -458,12 +458,12 @@ if __name__ == '__main__':
             's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
 
             # Logging
-            's_calc_baseline': True, # Baselines are calculated and plotted --> Optical flow baseline
-            's_epoch_repetitions_baseline': 1000 , # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
+            's_calc_baseline': True,  # Baselines are calculated and plotted --> Optical flow baseline
+            's_epoch_repetitions_baseline': 1000 ,  # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
             's_log_precipitation_difference': True,
-            's_calculate_quality_params': True, # Calculating quality params during training and validation
-            's_calculate_fss': True, # Calculating fractions skill score during training and validation
-            's_fss_scales': [2, 4, 8, 12], #[2, 16, 32], # Scales for which fss is calculated as a list
+            's_calculate_quality_params': True,  # Calculating quality params during training and validation
+            's_calculate_fss': True,  # Calculating fractions skill score during training and validation
+            's_fss_scales': [2, 4, 8, 12],  #[2, 16, 32], # Scales for which fss is calculated as a list
             's_fss_threshold': 1,  # Threshold in mm/h for which fss is calculated
 
             # Log transform input/ validation data --> log binning --> log(x+1)
