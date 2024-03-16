@@ -1,4 +1,4 @@
-import h5py
+# import h5py
 import xarray as xr
 import numpy as np
 import torch
@@ -407,12 +407,12 @@ def inverse_normalize_data(data_sequence, mean_orig_data, std_orig_data, inverse
     #     return data_sequence * std_orig_data + mean_orig_data
 
 
-def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',
-                flag_keys='/origin1/grid1/category1/entity1/data1/flag_matrix1/flag'):
-    hf = h5py.File(input_path)
-    data_dataset = hf.get(data_keys)
-    flag_dataset = hf.get(flag_keys)
-    return data_dataset, flag_dataset
+# def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',
+#                 flag_keys='/origin1/grid1/category1/entity1/data1/flag_matrix1/flag'):
+#     hf = h5py.File(input_path)
+#     data_dataset = hf.get(data_keys)
+#     flag_dataset = hf.get(flag_keys)
+#     return data_dataset, flag_dataset
 
 
 def iterate_through_data_names(start_date_time, future_iterations_from_start: int, minutes_per_iteration: int):
