@@ -20,6 +20,7 @@ For some reason has to be started without sudo!
 
 Old:
 % rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc' -e ssh $(pwd)/* bst981@134.2.168.52:/mnt/qb/butz/bst981/first_CNN_on_Radolan
+ifoe
 
 ##### Upload code to remote
 rsync -auvh --info=progress2 --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc' --exclude 'mlruns' --exclude 'lightning_logs' -e ssh $(pwd)/* bst981@134.2.168.52:/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan

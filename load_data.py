@@ -1,4 +1,4 @@
-import h5py
+# import h5py
 import xarray as xr
 import numpy as np
 import torch
@@ -681,12 +681,12 @@ def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filter
     return linspace_binning_inv_norm, linspace_binning_max_inv_norm.item()
 
 
-def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',
-                flag_keys='/origin1/grid1/category1/entity1/data1/flag_matrix1/flag'):
-    hf = h5py.File(input_path)
-    data_dataset = hf.get(data_keys)
-    flag_dataset = hf.get(flag_keys)
-    return data_dataset, flag_dataset
+# def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',
+#                 flag_keys='/origin1/grid1/category1/entity1/data1/flag_matrix1/flag'):
+#     hf = h5py.File(input_path)
+#     data_dataset = hf.get(data_keys)
+#     flag_dataset = hf.get(flag_keys)
+#     return data_dataset, flag_dataset
 
 
 
