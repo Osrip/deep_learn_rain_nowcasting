@@ -217,8 +217,8 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
     # Iterate through the time steps (up until out of bounds depending on lead time)
     # TODO: !!!!!!! ONLY DEBUG PURPOSE UNDO THIS!!!!!!!!!
-    # for i in range(np.shape(data_sequence_t_h_w)[0] - target_rel_idx):
-    for i in range(16):
+    for i in range(np.shape(data_sequence_t_h_w)[0] - target_rel_idx):
+    # for i in range(16):
 
         # Create the height and width for input frames indecies by gridding data_sequence with random offset
         # (new random offset for each input, target chunk)
@@ -264,8 +264,8 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
             num_frames_total += 1
 
             # TODO: !!!!!!! ONLY DEBUG PURPOSE UNDO THIS!!!!!!!!!
-            # if filter(input_sequence, target, s_min_rain_ratio_target):
-            if True:
+            if filter(input_sequence, target, s_min_rain_ratio_target):
+            # if True:
                 num_frames_passed_filter += 1
                 filtered_data_loader_indecies_dict = {}
                 filtered_data_loader_indecies_dict['file'] = s_data_file_name

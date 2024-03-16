@@ -35,14 +35,14 @@ def data_loading(settings, **__):
     # Try to load data loader vars, if not possible preprocess data
     # If structure of data_loader_vars is changed, change name in _create_save_name_for_data_loader_vars,
 
-    # try:
-    #     When loading data loader vars, the file name is checked for wether log transform was used
-    #     print('Loading data loader vars from file!')
-    #     data_loader_vars = load_data_loader_vars(settings, **settings)
-    # except FileNotFoundError:
-    print('Data loader vars not found, preprocessing data!')
-    data_loader_vars = preprocess_data(transform_f, settings, **settings)
-    save_data_loader_vars(data_loader_vars, settings, **settings)
+    try:
+        # When loading data loader vars, the file name is checked for wether log transform was used
+        print('Loading data loader vars from file!')
+        data_loader_vars = load_data_loader_vars(settings, **settings)
+    except FileNotFoundError:
+        print('Data loader vars not found, preprocessing data!')
+        data_loader_vars = preprocess_data(transform_f, settings, **settings)
+        save_data_loader_vars(data_loader_vars, settings, **settings)
 
     data_set_vars = create_data_loaders(transform_f, *data_loader_vars, settings,  **settings)
     return data_set_vars
@@ -358,9 +358,9 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
-    s_sim_name_suffix = 'default_32_bins_50mm_h_cut_off'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'random_spatial_sampling_default_16_bins_100mm_h_cut_off'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -396,9 +396,9 @@ if __name__ == '__main__':
             's_plot_sim_name': 'Run_20240126-224535_ID_51437Weighted_x_entropy_loss', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             's_save_prefix_data_loader_vars': 's_save_prefix_data_loader_vars_2_std_linspace_binning',
 
-            's_max_epochs': 30 ,#10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
-            's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
-            's_data_file_name': 'yw_done.zarr',
+            's_max_epochs': 10,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
+            's_data_file_name': 'RV_recalc.zarr',  #'yw_done.zarr',
             's_data_variable_name': 'RV_recalc',
             's_choose_time_span': False,
             's_time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
@@ -409,17 +409,17 @@ if __name__ == '__main__':
             's_check_val_every_n_epoch': 1, # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
-            's_num_gpus': 2,
+            's_num_gpus': 4,
             's_batch_size': 64, #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
             # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
             # Make this divisible by 8 or best 8 * 2^n
 
             # Parameters that give the network architecture
             's_upscale_c_to': 32,  # 64, #128, # 512,
-            's_num_bins_crossentropy': 32,  # 64, #256,
+            's_num_bins_crossentropy': 16,  # 64, #256,
 
             # Parameters that give binning
-            's_linspace_binning_cut_off_unnormalized': 50,
+            's_linspace_binning_cut_off_unnormalized': 100,
             # Let's cut that off ad-hoc (in mm/h) , everything obove is sorted into the last bin
 
             # 'minutes_per_iteration': 5,
