@@ -172,7 +172,7 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
 
 def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_folder_path, s_data_file_name, s_width_height,
                            s_data_variable_name, s_time_span, s_local_machine_mode, s_width_height_target, s_min_rain_ratio_target,
-                           s_num_samples_per_frame, s_choose_time_span=False, **__):
+                           s_num_samples_per_frame, s_data_preprocessing_chunk_num, s_choose_time_span=False, **__):
     '''
     time span only refers to a single file
     '''
@@ -194,132 +194,151 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
     linspace_binning_max_unnormalized = -np.inf
 
 
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # TODO: DONT ALLOW s_time_span CHOOSING, SCREWS UP INDECIES WHEN LOADING DATA
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # Loading complete data into ram. At the moment 142 GB
-    data_sequence_t_h_w = load_data_sequence_preliminary(s_folder_path, s_data_file_name, s_width_height, s_data_variable_name,
-                                                   s_choose_time_span, s_time_span, s_local_machine_mode)
-    # THIS DATA HAS NANS IN IT!
-    # For some reason the 5 min Radolan data has some few negative values that are extremely close to zero. For
-    # an analysis see comments of https://3.basecamp.com/5660298/buckets/35200082/messages/7121548207
+    # Loading data into xarray
+    load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
+    print('Loading training/validation data from {}'.format(load_path))
+    dataset = xr.open_dataset(load_path)
+    num_time_steps = dataset.sizes['time']
 
-    data_sequence_t_h_w_not_truncated = data_sequence_t_h_w
-    # Cut off all extensive nans at the edges:
-    data_sequence_t_h_w, upper_left_truncation_coordinate_h, upper_left_truncation_coordinate_w = truncate_nan_padding(data_sequence_t_h_w)
-    upper_left_truncation_coordinate_h_w = np.array((upper_left_truncation_coordinate_h.item(),
-                                                         upper_left_truncation_coordinate_w.item()))
-    # upper_left_truncation_coordinate give h, w of the upper left truncation point
+    # chunk_time_indecies gives start and stop indecies in time dimension
+    chunk_time_indecies, chunk_size = create_chunk_indices(num_time_steps, s_data_preprocessing_chunk_num)
 
-    # replace all negative data with zeros
-    zero_mask = data_sequence_t_h_w < 0
-    data_sequence_t_h_w[zero_mask] = 0
+    # Iterate through chunks, that get loaded into ram
+    for chunk_num in range(len(chunk_time_indecies) - 1):
+        chunk_start_idx = chunk_time_indecies[chunk_num]
+        chunk_end_idx = chunk_time_indecies[chunk_num + 1]
+        dataset_chunk = dataset.isel(time=slice(chunk_start_idx, chunk_end_idx))
+        # Load into ram
+        data_chunk_t_h_w_np = dataset_chunk[s_data_variable_name].values
+        # Convert into torch tensor ON CPU
+        # TODO convert into numpy later on, rewrite this in torch!
+        with torch.no_grad():
+            data_chunk_t_h_w = torch.from_numpy(data_chunk_t_h_w_np).to('cpu')
 
-    # Iterate through the time steps (up until out of bounds depending on lead time)
-    # TODO: !!!!!!! ONLY DEBUG PURPOSE UNDO THIS!!!!!!!!!
-    for i in range(np.shape(data_sequence_t_h_w)[0] - target_rel_idx):
-    # for i in range(16):
+            # Get rid of prediction steps dimension
+            data_chunk_t_h_w = data_chunk_t_h_w[0, :, :, :]
 
-        # Create the height and width for input frames indecies by gridding data_sequence with random offset
-        # (new random offset for each input, target chunk)
-        input_indecies_upper_left_h_w = gridding_data_sequence_indicies(data_sequence_t_h_w.shape[1:3], s_width_height)
+            # THIS DATA HAS NANS IN IT!
+            # For some reason the 5 min Radolan data has some few negative values that are extremely close to zero. For
+            # an analysis see comments of https://3.basecamp.com/5660298/buckets/35200082/messages/7121548207
 
-        # iterate through pictures
-        for input_idx_upper_left_h_w in input_indecies_upper_left_h_w:
+            data_sequence_t_h_w_not_truncated = data_chunk_t_h_w
+            # Cut off all extensive nans at the edges:
+            data_chunk_t_h_w, upper_left_truncation_coordinate_h, upper_left_truncation_coordinate_w = truncate_nan_padding(data_chunk_t_h_w)
+            upper_left_truncation_coordinate_h_w = np.array((upper_left_truncation_coordinate_h.item(),
+                                                                 upper_left_truncation_coordinate_w.item()))
+            # upper_left_truncation_coordinate give h, w of the upper left truncation point
 
-            first_idx_input_sequence = i
-            last_idx_input_sequence = i + last_input_rel_idx
-            target_idx_input_sequence = i + target_rel_idx
+            # replace all negative data with zeros
+            zero_mask = data_chunk_t_h_w < 0
+            data_chunk_t_h_w[zero_mask] = 0
 
-            # Do the cropping based on the upper left pixel
-            input_sequence = data_sequence_t_h_w[first_idx_input_sequence:last_idx_input_sequence,
-                          input_idx_upper_left_h_w[0]: input_idx_upper_left_h_w[0] + s_width_height,
-                          input_idx_upper_left_h_w[1]: input_idx_upper_left_h_w[1] + s_width_height,]
+            # Iterate through the time steps (up until out of bounds depending on lead time)
+            if (np.shape(data_chunk_t_h_w)[0] - target_rel_idx) < 1:
+                raise ValueError(f'Preprocessing failed! Reduce s_data_preprocessing_chunk_num!'
+                                 f' Chunk size is {chunk_size}, whereas '
+                                 f'target_rel_idx which results from lead time is {target_rel_idx}.')
+            for time_idx_in_chunk in range(np.shape(data_chunk_t_h_w)[0] - target_rel_idx):
+            # for i in range(16):
 
-            # For the target we do the cropping based on the wisth and height of the input...
-            target = data_sequence_t_h_w[target_idx_input_sequence,
-                          input_idx_upper_left_h_w[0]: input_idx_upper_left_h_w[0] + s_width_height,
-                          input_idx_upper_left_h_w[1]: input_idx_upper_left_h_w[1] + s_width_height,]
+                # Create the height and width for input frames indecies by gridding data_sequence with random offset
+                # (new random offset for each input, target chunk)
+                input_indecies_upper_left_h_w = gridding_data_sequence_indicies(data_chunk_t_h_w.shape[1:3], s_width_height)
 
-            # Throwing out all frames with nans only in them (in input sequence along time dimension)
-            if torch.isnan(target).all() or torch.isnan(input_sequence).all(dim=-2).all(dim=-1).any(dim=0):
-                continue
+                # iterate through pictures
+                for input_idx_upper_left_h_w in input_indecies_upper_left_h_w:
+                    # Calculate the indecies relative to the start of the chunk:
+                    first_idx_chunk = time_idx_in_chunk
+                    last_idx_chunk = first_idx_chunk + last_input_rel_idx
+                    target_idx_chunk = first_idx_chunk + target_rel_idx
 
-            # ... and then center crop it to the target size
-            target = T.CenterCrop(size=s_width_height_target)(target)
+                    # Calculate the indecies relative to the whole data set
+                    first_idx_input_sequence = time_idx_in_chunk + chunk_size * chunk_num
+                    last_idx_input_sequence = first_idx_input_sequence + last_input_rel_idx
+                    target_idx_input_sequence = first_idx_input_sequence + target_rel_idx
 
-            # Set all nans to zero in the input_sequence:
-            input_sequence = torch.nan_to_num(input_sequence, nan=0.0)
+                    # Do the cropping based on the upper left pixel
+                    input_sequence = data_chunk_t_h_w[first_idx_chunk:last_idx_chunk,
+                                  input_idx_upper_left_h_w[0]: input_idx_upper_left_h_w[0] + s_width_height,
+                                  input_idx_upper_left_h_w[1]: input_idx_upper_left_h_w[1] + s_width_height,]
 
-            # Set all nans to zero in the target.
-            # This is only done for filtering purposes! When loading the target we will keep the nans and simply
-            # not include them in the loss calculation, such that they do not affect the gradient
-            input_sequence = torch.nan_to_num(input_sequence, nan=0.0)
+                    # For the target we do the cropping based on the wisth and height of the input...
+                    target = data_chunk_t_h_w[target_idx_chunk,
+                                  input_idx_upper_left_h_w[0]: input_idx_upper_left_h_w[0] + s_width_height,
+                                  input_idx_upper_left_h_w[1]: input_idx_upper_left_h_w[1] + s_width_height,]
 
+                    # Throwing out all frames with nans only in them (in input sequence along time dimension)
+                    if torch.isnan(target).all() or torch.isnan(input_sequence).all(dim=-2).all(dim=-1).any(dim=0):
+                        continue
 
-            # TODO: Write all code beloqw for torch instead of numpy
-            target = target.cpu().numpy()
-            input_sequence = input_sequence.cpu().numpy()
+                    # ... and then center crop it to the target size
+                    target = T.CenterCrop(size=s_width_height_target)(target)
 
-            num_frames_total += 1
+                    # Set all nans to zero in the input_sequence:
+                    input_sequence = torch.nan_to_num(input_sequence, nan=0.0)
 
-            # TODO: !!!!!!! ONLY DEBUG PURPOSE UNDO THIS!!!!!!!!!
-            if filter(input_sequence, target, s_min_rain_ratio_target):
-            # if True:
-                num_frames_passed_filter += 1
-                filtered_data_loader_indecies_dict = {}
-                filtered_data_loader_indecies_dict['file'] = s_data_file_name
-                filtered_data_loader_indecies_dict['first_idx_input_sequence'] = first_idx_input_sequence
-                filtered_data_loader_indecies_dict['last_idx_input_sequence'] = last_idx_input_sequence
-                filtered_data_loader_indecies_dict['target_idx_input_sequence'] = target_idx_input_sequence
-                # input_idx_upper_left_h_w gives the upper left point of our input frame. However this has to be transferred
-                # from the truncated coordinate system to the original coordinate system of the data_sequence, therefore
-                # we add by upper_left_truncation_coordinate_h_w; plotted this and works as intended!
-                filtered_data_loader_indecies_dict['input_idx_upper_left_h_w'] = (
-                        np.array(input_idx_upper_left_h_w) + upper_left_truncation_coordinate_h_w)
-                filtered_data_loader_indecies_dict['time_span'] = s_time_span if s_choose_time_span else None
-                filtered_data_loader_indecies.append(filtered_data_loader_indecies_dict)
-
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                # ! IGNORES FIRST ENTRIES: For means and std to normalize data only the values of the target sequence are taken !
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                # We are iterating through all 256x256 target frames that have been accepted by the filter
-                # TODO: !!!!! Only normalizing on target frames at the moment !!!!!!
-                num_x += np.shape(input_sequence.flatten())[0]
-                sum_log_x += np.sum(transform_f(input_sequence.flatten()))
-                sum_log_x_squared += np.sum(transform_f(input_sequence.flatten()) ** 2)
-
-                sum_x += np.sum(input_sequence.flatten())
-                sum_x_squared += np.sum(input_sequence.flatten() ** 2)
-
-                # linspace binning min and max have to be normalized later as the means and stds are available
+                    # Set all nans to zero in the target.
+                    # This is only done for filtering purposes! When loading the target we will keep the nans and simply
+                    # not include them in the loss calculation, such that they do not affect the gradient
+                    input_sequence = torch.nan_to_num(input_sequence, nan=0.0)
 
 
-                min_input = np.min(input_sequence)
-                max_input = np.max(input_sequence)
-                # TODO: Could it be that bug with min is introduced because double center cropping as done here
-                # yields a different result from single center cropping to target (shift by a pixel or sth?)?
-                min_target = np.min(target)
-                max_target = np.max(target)
+                    # TODO: Write all code beloqw for torch instead of numpy
+                    target = target.cpu().numpy()
+                    input_sequence = input_sequence.cpu().numpy()
 
-                min_curr_input_and_target = np.min([min_input, min_target])
-                max_curr_input_and_target = np.max([max_input, max_target])
+                    num_frames_total += 1
 
-                if min_curr_input_and_target < 0:
-                    # This should never occur as Filter should filter out all negative values
-                    raise Exception('Values smaller than 0 within the test and validation dataset. Probably NaNs')
+                    # TODO: !!!!!!! ONLY DEBUG PURPOSE UNDO THIS!!!!!!!!!
+                    if filter(input_sequence, target, s_min_rain_ratio_target):
+                    # if True:
+                        num_frames_passed_filter += 1
+                        filtered_data_loader_indecies_dict = {}
+                        filtered_data_loader_indecies_dict['file'] = s_data_file_name
+                        filtered_data_loader_indecies_dict['first_idx_input_sequence'] = first_idx_input_sequence
+                        filtered_data_loader_indecies_dict['last_idx_input_sequence'] = last_idx_input_sequence
+                        filtered_data_loader_indecies_dict['target_idx_input_sequence'] = target_idx_input_sequence
+                        # input_idx_upper_left_h_w gives the upper left point of our input frame. However this has to be transferred
+                        # from the truncated coordinate system to the original coordinate system of the data_sequence, therefore
+                        # we add by upper_left_truncation_coordinate_h_w; plotted this and works as intended!
+                        filtered_data_loader_indecies_dict['input_idx_upper_left_h_w'] = (
+                                np.array(input_idx_upper_left_h_w) + upper_left_truncation_coordinate_h_w)
+                        filtered_data_loader_indecies_dict['time_span'] = s_time_span if s_choose_time_span else None
+                        filtered_data_loader_indecies.append(filtered_data_loader_indecies_dict)
 
-                # max_curr_input_and_target = np.max(
-                #         curr_data_sequence[np.r_[i:last_idx_input_sequence, target_idx_input_sequence]])
+                        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                        # ! IGNORES FIRST ENTRIES: For means and std to normalize data only the values of the target sequence are taken !
+                        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                        # We are iterating through all 256x256 target frames that have been accepted by the filter
+                        # TODO: !!!!! Only normalizing on target frames at the moment !!!!!!
+                        num_x += np.shape(input_sequence.flatten())[0]
+                        sum_log_x += np.sum(transform_f(input_sequence.flatten()))
+                        sum_log_x_squared += np.sum(transform_f(input_sequence.flatten()) ** 2)
 
-                if linspace_binning_min_unnormalized > min_curr_input_and_target:
-                    linspace_binning_min_unnormalized = min_curr_input_and_target
+                        sum_x += np.sum(input_sequence.flatten())
+                        sum_x_squared += np.sum(input_sequence.flatten() ** 2)
 
-                if linspace_binning_max_unnormalized < max_curr_input_and_target:
-                    linspace_binning_max_unnormalized = max_curr_input_and_target
+                        # linspace binning min and max have to be normalized later as the means and stds are available
 
 
-        # TODO: Write a test for this!!
+                        min_input = np.min(input_sequence)
+                        max_input = np.max(input_sequence)
+                        min_target = np.min(target)
+                        max_target = np.max(target)
+
+                        min_curr_input_and_target = np.min([min_input, min_target])
+                        max_curr_input_and_target = np.max([max_input, max_target])
+
+                        if min_curr_input_and_target < 0:
+                            # This should never occur as Filter should filter out all negative values
+                            raise Exception('Values smaller than 0 within the test and validation dataset. Probably NaNs')
+
+                        if linspace_binning_min_unnormalized > min_curr_input_and_target:
+                            linspace_binning_min_unnormalized = min_curr_input_and_target
+
+                        if linspace_binning_max_unnormalized < max_curr_input_and_target:
+                            linspace_binning_max_unnormalized = max_curr_input_and_target
+
         # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
         if num_x == 0:
             raise Exception('No data passed the filter conditions of s_min_rain_ratio_target={}, such that there is no '
@@ -339,6 +358,34 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
     return (filtered_data_loader_indecies, mean_filtered_log_data, std_filtered_log_data, mean_filtered_data, std_filtered_data,
             linspace_binning_min_unnormalized, linspace_binning_max_unnormalized)
+
+
+def create_chunk_indices(num_time_steps, num_chunks):
+    """
+    Splits num_time_steps into num_chunks equally sized chunks (as much as possible).
+    Returns an array where each pair of consecutive elements represent the start (inclusive)
+    and end (exclusive) indices for slicing with xarray's isel.
+
+    Parameters:
+    - num_time_steps: Total number of time steps to split.
+    - num_chunks: Number of chunks to split the time steps into.
+
+    Returns:
+    - A list of indices for direct use with isel slice().
+    """
+    # Calculate chunk size
+    chunk_size = num_time_steps // num_chunks
+    remainder = num_time_steps % num_chunks
+
+    indices = [0]  # Start with the initial index
+    for i in range(num_chunks):
+        # Calculate the next start index
+        next_index = indices[-1] + chunk_size + (1 if i < remainder else 0)
+        indices.append(next_index)
+
+    return indices, chunk_size
+
+
 
 
 def gridding_data_sequence_indicies(data_sequence_height_width: tuple, grid_parcel_height_width: int):
@@ -681,32 +728,8 @@ def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filter
     return linspace_binning_inv_norm, linspace_binning_max_inv_norm.item()
 
 
-# def import_data(input_path, data_keys='/origin1/grid1/category1/entity1/data1/data_matrix1/data',
-#                 flag_keys='/origin1/grid1/category1/entity1/data1/flag_matrix1/flag'):
-#     hf = h5py.File(input_path)
-#     data_dataset = hf.get(data_keys)
-#     flag_dataset = hf.get(flag_keys)
-#     return data_dataset, flag_dataset
 
 
-
-if __name__ == '__main__':
-    input_folder = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
-    input_file = 'DE1200_RV_Recalc_20201201_0000_+000000.hdf'
-    input_path = input_folder + input_file
-    data_dataset, flag_dataset = import_data(input_path)
-    data_arr = flag_data(data_dataset, flag_dataset)
-    plot_data(data_arr)
-    plot_data(np.array(flag_dataset), flag_naming=True)
-    plot_data_log(data_arr)
-    plot_data_boo(data_arr)
-    start_date_time = datetime.datetime(2020, 12, 20)
-    # iterate_through_data_names(start_date, future_iterations_from_start=3, minutes_per_iteration=5)
-    data_sequence = load_data_sequence(start_date_time, input_folder, future_iterations_from_start=3,
-                                       minutes_per_iteration=5, s_width_height=256)
-
-    blub = img_one_hot(data_arr, 64)
-    pass
 
 
 

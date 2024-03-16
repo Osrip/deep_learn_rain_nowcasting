@@ -26,7 +26,7 @@ import copy
 import warnings
 
 
-def data_loading(settings, **__):
+def data_loading(settings, s_force_data_preprocessing, **__):
 
     if settings['s_log_transform']:
         transform_f = lambda x: torch.log(x + 1) if isinstance(x, torch.Tensor) else np.log(x + 1)
@@ -37,6 +37,9 @@ def data_loading(settings, **__):
 
     try:
         # When loading data loader vars, the file name is checked for wether log transform was used
+        if s_force_data_preprocessing:
+            warnings.warn('Forced preprocessing of data as s_force_data_preprocessing == True')
+            raise FileNotFoundError('Forced preprocessing of data as s_force_data_preprocessing == True')
         print('Loading data loader vars from file!')
         data_loader_vars = load_data_loader_vars(settings, **settings)
     except FileNotFoundError:
@@ -359,6 +362,7 @@ if __name__ == '__main__':
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
     s_local_machine_mode = False
+    s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
     s_sim_name_suffix = 'random_spatial_sampling_default_16_bins_100mm_h_cut_off'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
@@ -386,6 +390,7 @@ if __name__ == '__main__':
     settings = \
         {
             's_local_machine_mode': s_local_machine_mode,
+            's_force_data_preprocessing': s_force_data_preprocessing,
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
@@ -400,6 +405,7 @@ if __name__ == '__main__':
             's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
             's_data_file_name': 'RV_recalc.zarr',  #'yw_done.zarr',
             's_data_variable_name': 'RV_recalc',
+            's_data_preprocessing_chunk_num': 50, #Number of chunks that are loaded into ram during pre-processing --> Number of chunks that the above data set is split into 2 year radolan zarr dataset is about 1 tb as np array
             's_choose_time_span': False,
             's_time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
             's_ratio_training_data': 0.6,
