@@ -96,7 +96,7 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         # input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence,
         #                                               last_idx_input_sequence))  # last_idx_input_sequence + 1 like in np! Did I already do that prior?
 
-        input_data_set = data_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence),
+        input_data_set = data_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence+1),
                                            x=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
                                            y=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
         # Using arange leads to same result as slice() (tested)
@@ -170,9 +170,9 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
     return data
 
 
-def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_folder_path, s_data_file_name, s_width_height,
-                           s_data_variable_name, s_time_span, s_local_machine_mode, s_width_height_target, s_min_rain_ratio_target,
-                           s_num_samples_per_frame, s_data_preprocessing_chunk_num, s_choose_time_span=False, **__):
+def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width_height,
+                           s_data_variable_name, s_time_span, s_width_height_target, s_min_rain_ratio_target,
+                           s_data_preprocessing_chunk_num, s_num_input_time_steps, s_num_lead_time_steps, s_choose_time_span=False, **__):
     '''
     time span only refers to a single file
     '''
@@ -234,11 +234,12 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
             data_chunk_t_h_w[zero_mask] = 0
 
             # Iterate through the time steps (up until out of bounds depending on lead time)
-            if (np.shape(data_chunk_t_h_w)[0] - target_rel_idx) < 1:
+            total_lead = s_num_lead_time_steps + s_num_input_time_steps
+            if (np.shape(data_chunk_t_h_w)[0] - total_lead) < 1:
                 raise ValueError(f'Preprocessing failed! Reduce s_data_preprocessing_chunk_num!'
                                  f' Chunk size is {chunk_size}, whereas '
-                                 f'target_rel_idx which results from lead time is {target_rel_idx}.')
-            for time_idx_in_chunk in range(np.shape(data_chunk_t_h_w)[0] - target_rel_idx):
+                                 f'total lead (s_num_lead_time_steps + s_num_input_time_steps) is {total_lead}.')
+            for time_idx_in_chunk in range(np.shape(data_chunk_t_h_w)[0] - total_lead):
             # for i in range(16):
 
                 # Create the height and width for input frames indecies by gridding data_sequence with random offset
@@ -247,18 +248,19 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
 
                 # iterate through pictures
                 for input_idx_upper_left_h_w in input_indecies_upper_left_h_w:
+
                     # Calculate the indecies relative to the start of the chunk:
                     first_idx_chunk = time_idx_in_chunk
-                    last_idx_chunk = first_idx_chunk + last_input_rel_idx
-                    target_idx_chunk = first_idx_chunk + target_rel_idx
+                    last_idx_chunk = first_idx_chunk + s_num_input_time_steps - 1
+                    target_idx_chunk = last_idx_chunk + s_num_lead_time_steps
 
                     # Calculate the indecies relative to the whole data set
                     first_idx_input_sequence = time_idx_in_chunk + chunk_size * chunk_num
-                    last_idx_input_sequence = first_idx_input_sequence + last_input_rel_idx
-                    target_idx_input_sequence = first_idx_input_sequence + target_rel_idx
+                    last_idx_input_sequence = first_idx_input_sequence + s_num_input_time_steps - 1
+                    target_idx_input_sequence = last_idx_input_sequence + s_num_lead_time_steps
 
                     # Do the cropping based on the upper left pixel
-                    input_sequence = data_chunk_t_h_w[first_idx_chunk:last_idx_chunk,
+                    input_sequence = data_chunk_t_h_w[first_idx_chunk:last_idx_chunk+1,
                                   input_idx_upper_left_h_w[0]: input_idx_upper_left_h_w[0] + s_width_height,
                                   input_idx_upper_left_h_w[1]: input_idx_upper_left_h_w[1] + s_width_height,]
 

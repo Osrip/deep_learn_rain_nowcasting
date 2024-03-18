@@ -51,13 +51,9 @@ def data_loading(settings, s_force_data_preprocessing, **__):
     return data_set_vars
 
 
-def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_time_steps, s_num_lead_time_steps, s_normalize,
-                s_num_bins_crossentropy, s_data_loader_chunk_size, s_linspace_binning_cut_off_unnormalized, **__):
+def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s_num_bins_crossentropy,
+                    s_data_loader_chunk_size, s_linspace_binning_cut_off_unnormalized, **__):
 
-    # relative index of last input picture (starting from first input picture as idx 1)
-    last_input_rel_idx = s_num_input_time_steps
-    #  relative index of target picture (starting from first input picture as idx 1)
-    target_rel_idx = s_num_input_time_steps + 1 + s_num_lead_time_steps
 
     ###############
     # FILTER
@@ -66,8 +62,7 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_num_input_ti
 
     (filtered_indecies, mean_filtered_log_data, std_filtered_log_data, mean_filtered_data, std_filtered_data,
      linspace_binning_min_unnormalized, linspace_binning_max_unnormalized) =\
-        filtering_data_scraper(transform_f=transform_f, last_input_rel_idx=last_input_rel_idx, target_rel_idx=target_rel_idx,
-                               **settings)
+        filtering_data_scraper(transform_f=transform_f, **settings)
 
     filter_and_normalization_params = (filtered_indecies, mean_filtered_log_data, std_filtered_log_data, mean_filtered_data,
                                        std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized)
@@ -512,14 +507,15 @@ if __name__ == '__main__':
 
     if settings['s_local_machine_mode']:
 
-        # settings['s_data_variable_name'] = 'RV_recalc'
-        settings['s_data_variable_name'] = 'yw_radolan'
+        settings['s_data_variable_name'] = 'RV_recalc'
+        # settings['s_data_variable_name'] = 'yw_radolan'
 
-        # settings['s_folder_path'] = 'dwd_nc/own_test_data'
-        settings['s_folder_path'] = 'dwd_nc/benchmark_set_test_data'
+        settings['s_folder_path'] = 'dwd_nc/own_test_data'
+        # settings['s_folder_path'] = 'dwd_nc/benchmark_set_test_data'
 
         # settings['s_data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
-        settings['s_data_file_name'] = 'yw_2019_6_11.zarr'
+        # settings['s_data_file_name'] = 'yw_2019_6_11.zarr'
+        settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
 
         settings['s_data_preprocessing_chunk_num'] = 2
 
@@ -539,8 +535,6 @@ if __name__ == '__main__':
         settings['s_multiple_sigmas'] = [2, 16]
         settings['s_data_loader_vars_path'] = '/home/jan/Programming/weather_data/data_loader_vars' #'/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars' #
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
-
-    settings['s_num_lead_time_steps'] = settings['s_num_lead_time_steps'] - 2
 
     # mlflow.create_experiment(settings['s_sim_name'])
     # mlflow.set_tag("mlflow.runName", settings['s_sim_name'])
