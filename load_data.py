@@ -552,14 +552,16 @@ def quantile_binning(filtered_indecies, linspace_binning, mean_filtered_log_data
 def filter(input_sequence, target, s_min_rain_ratio_target, percentage=0.5, min_amount_rain=0.05):
 
     '''
+    In 50% of the target there has to be at least some rain (>0.05 mm),
+    No values below zero in target or input_sequence
     reasonable amount of data passes: percentage=0.5, min_amount_rain=0.05
     '''
 
     # I used to check for not (target == -1000000000.0).any() and \ not (input_sequence == -1000000000.0).any() to throw out
     # NaNs. However somewhere in data set there seem to be values that are < 0 and != 10000000000.0, TODO no idea what that is..
-    if (target[target > min_amount_rain].size > percentage * target.size) and \
-            not (target < 0).any() and \
-            not (input_sequence < 0).any():
+    if (target[target > min_amount_rain].size > percentage * target.size):
+        # and not (target < 0).any() and \
+        # not (input_sequence < 0).any()):
         return True
     else:
         return False
