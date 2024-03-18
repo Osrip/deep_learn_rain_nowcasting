@@ -280,7 +280,8 @@ def filtering_data_scraper(transform_f, last_input_rel_idx, target_rel_idx, s_fo
                     # Set all nans to zero in the target.
                     # This is only done for filtering purposes! When loading the target we will keep the nans and simply
                     # not include them in the loss calculation, such that they do not affect the gradient
-                    input_sequence = torch.nan_to_num(input_sequence, nan=0.0)
+
+                    target = torch.nan_to_num(target, nan=0.0)
 
 
                     # TODO: Write all code beloqw for torch instead of numpy

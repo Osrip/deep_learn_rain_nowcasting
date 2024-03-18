@@ -361,7 +361,7 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
     s_sim_name_suffix = 'random_spatial_sampling_default_16_bins_100mm_h_cut_off'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
@@ -519,6 +519,8 @@ if __name__ == '__main__':
 
         # settings['s_data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
         settings['s_data_file_name'] = 'yw_2019_6_11.zarr'
+
+        settings['s_data_preprocessing_chunk_num'] = 2
 
         # settings['s_choose_time_span'] = True
         settings['s_choose_time_span'] = False  # DO NOT USE, screws up indecies for data loading
