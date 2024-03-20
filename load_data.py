@@ -11,6 +11,7 @@ from exceptions import CountException
 from torch.utils.data import Dataset
 import einops
 import random
+import warnings
 
 
 # Remember to install package netCDF4 !!
@@ -212,14 +213,14 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
         data_chunk_t_h_w_np = dataset_chunk[s_data_variable_name].values
         # Convert into torch tensor ON CPU
         # TODO convert into numpy later on, rewrite this in torch!
-        with torch.no_grad():
+        with (torch.no_grad()):
             data_chunk_t_h_w = torch.from_numpy(data_chunk_t_h_w_np).to('cpu')
 
             # Get rid of prediction steps dimension
             data_chunk_t_h_w = data_chunk_t_h_w[0, :, :, :]
 
             # THIS DATA HAS NANS IN IT!
-            # For some reason the 5 min Radolan data has some few negative values that are extremely close to zero. For
+            # For some reason the 5 min non-dwd Radolan data has some few negative values that are extremely close to zero. For
             # an analysis see comments of https://3.basecamp.com/5660298/buckets/35200082/messages/7121548207
 
             data_sequence_t_h_w_not_truncated = data_chunk_t_h_w
@@ -232,6 +233,8 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
             # replace all negative data with zeros
             zero_mask = data_chunk_t_h_w < 0
             data_chunk_t_h_w[zero_mask] = 0
+            if zero_mask.any():
+                warnings.warn('There are values below zero in data_set')
 
             # Iterate through the time steps (up until out of bounds depending on lead time)
             total_lead = s_num_lead_time_steps + s_num_input_time_steps
@@ -239,14 +242,16 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                 raise ValueError(f'Preprocessing failed! Reduce s_data_preprocessing_chunk_num!'
                                  f' Chunk size is {chunk_size}, whereas '
                                  f'total lead (s_num_lead_time_steps + s_num_input_time_steps) is {total_lead}.')
+            # iterate through time
             for time_idx_in_chunk in range(np.shape(data_chunk_t_h_w)[0] - total_lead):
             # for i in range(16):
 
                 # Create the height and width for input frames indecies by gridding data_sequence with random offset
                 # (new random offset for each input, target chunk)
-                input_indecies_upper_left_h_w = gridding_data_sequence_indicies(data_chunk_t_h_w.shape[1:3], s_width_height)
+                input_indecies_upper_left_h_w = gridding_data_sequence_indecies(data_chunk_t_h_w.shape[1:3],
+                                                                                s_width_height)
 
-                # iterate through pictures
+                # iterate through crops
                 for input_idx_upper_left_h_w in input_indecies_upper_left_h_w:
 
                     # Calculate the indecies relative to the start of the chunk:
@@ -323,7 +328,6 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
 
                         # linspace binning min and max have to be normalized later as the means and stds are available
 
-
                         min_input = np.min(input_sequence)
                         max_input = np.max(input_sequence)
                         min_target = np.min(target)
@@ -391,7 +395,7 @@ def create_chunk_indices(num_time_steps, num_chunks):
 
 
 
-def gridding_data_sequence_indicies(data_sequence_height_width: tuple, grid_parcel_height_width: int):
+def gridding_data_sequence_indecies(data_sequence_height_width: tuple, grid_parcel_height_width: int):
     '''
     This function creates the indecies to get the height and width for the input frames
     (from which also the targets can be created by center cropping)
@@ -457,7 +461,7 @@ def truncate_nan_padding(data_tensor):
     valid_heights = valid_mask.any(dim=2)  # Check each height for any non-NaN across all widths
     valid_widths = valid_mask.any(dim=1)  # Check each widthumn for any non-NaN across all heights
 
-    # Find the min and max indices for valid heights and widthumns
+    # Find the min and max indices for valid heights and widths
     min_height_idx = valid_heights.any(dim=0).nonzero().min()
     max_height_idx = valid_heights.any(dim=0).nonzero().max()
     min_width_idx = valid_widths.any(dim=0).nonzero().min()
