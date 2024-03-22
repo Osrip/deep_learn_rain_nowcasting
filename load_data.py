@@ -97,9 +97,11 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         # input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence,
         #                                               last_idx_input_sequence))  # last_idx_input_sequence + 1 like in np! Did I already do that prior?
 
+        # !!!! ATTENTION Y --> HEIGHT --> Dim [0] x--> WIDTH --> Dim [1]
+        # TESTED, NOW cuts the expected crop!
         input_data_set = data_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence+1),
-                                           x=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
-                                           y=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
+                                           y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
+                                           x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
         # Using arange leads to same result as slice() (tested)
 
         input_sequence = input_data_set[s_data_variable_name].values
@@ -175,7 +177,21 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                            s_data_variable_name, s_time_span, s_width_height_target, s_min_rain_ratio_target,
                            s_data_preprocessing_chunk_num, s_num_input_time_steps, s_num_lead_time_steps, s_choose_time_span=False, **__):
     '''
-    time span only refers to a single file
+    This huge ass function is doing all the filtering of the data and returns a list of indecies for the final data that
+    is used for training and validation (both temporal and spatial indecies). This way the data can be directly loaded from the original data set using these
+    indecies by the dataloader
+    What does this function do?
+    - Processes the data in chunks, that get laoded into the memory (Number of chunks given by s_data_preprocessing_chunk_num,
+      which has to be adjusted to available memory
+    - Iterates through all 5 min time steps, then processes all input frames and the target that belong to this time step
+    - For each of these input - target segments a gridding with random offset is applied to create crops of the input size (s_width_height)
+      (only one random grid per segment / time step in the data, such that there is no overlap between the crops in one time step
+    - Iterates through these crops (all crops with nans only are removed)
+    In the upcoming steps all nans (both input and target are treated as zeros)
+    (! Attention ! For final training input nans are set to zero and target nans are disregarded for loss calc, as one-hot is set to [0,0,0,...] (as of March 2024))
+    - Filter condition is applied (currently to the target only) - nans treated as zero
+    - For all cropped input-target segments that pass the filter condition, the spatio-temporal indecies are returned,
+      additionally the normalization parameters are calculated based on the targets of the filtered cropped segments - nans treated as zeros
     '''
 
     filtered_data_loader_indecies = []
@@ -211,8 +227,8 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
         dataset_chunk = dataset.isel(time=slice(chunk_start_idx, chunk_end_idx))
         # Load into ram
         data_chunk_t_h_w_np = dataset_chunk[s_data_variable_name].values
+
         # Convert into torch tensor ON CPU
-        # TODO convert into numpy later on, rewrite this in torch!
         with (torch.no_grad()):
             data_chunk_t_h_w = torch.from_numpy(data_chunk_t_h_w_np).to('cpu')
 
@@ -234,7 +250,8 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
             zero_mask = data_chunk_t_h_w < 0
             data_chunk_t_h_w[zero_mask] = 0
             if zero_mask.any():
-                warnings.warn('There are values below zero in data_set')
+                warnings.warn(f'There are values below zero in data_set,'
+                              f' lowest value: {torch.min(data_chunk_t_h_w[zero_mask])}')
 
             # Iterate through the time steps (up until out of bounds depending on lead time)
             total_lead = s_num_lead_time_steps + s_num_input_time_steps
@@ -242,7 +259,8 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                 raise ValueError(f'Preprocessing failed! Reduce s_data_preprocessing_chunk_num!'
                                  f' Chunk size is {chunk_size}, whereas '
                                  f'total lead (s_num_lead_time_steps + s_num_input_time_steps) is {total_lead}.')
-            # iterate through time
+
+            # iterate through time - For each time step in the data set an input - target segment is created
             for time_idx_in_chunk in range(np.shape(data_chunk_t_h_w)[0] - total_lead):
             # for i in range(16):
 
@@ -251,7 +269,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                 input_indecies_upper_left_h_w = gridding_data_sequence_indecies(data_chunk_t_h_w.shape[1:3],
                                                                                 s_width_height)
 
-                # iterate through crops
+                # iterate through crops of the grid
                 for input_idx_upper_left_h_w in input_indecies_upper_left_h_w:
 
                     # Calculate the indecies relative to the start of the chunk:
@@ -290,17 +308,18 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
 
                     target = torch.nan_to_num(target, nan=0.0)
 
-
                     # TODO: Write all code beloqw for torch instead of numpy
                     target = target.cpu().numpy()
                     input_sequence = input_sequence.cpu().numpy()
 
                     num_frames_total += 1
-
-                    # TODO: !!!!!!! ONLY DEBUG PURPOSE UNDO THIS!!!!!!!!!
+                    # TODO:!!!!!!!! DEBUG ONLY, IMPLEMENT AS FLAG !!!!!!!
+                    max_num_filter_hits = 4
+                    # Filter data
                     if filter(input_sequence, target, s_min_rain_ratio_target):
                     # if True:
                         num_frames_passed_filter += 1
+
                         filtered_data_loader_indecies_dict = {}
                         filtered_data_loader_indecies_dict['file'] = s_data_file_name
                         filtered_data_loader_indecies_dict['first_idx_input_sequence'] = first_idx_input_sequence
@@ -311,6 +330,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                         # we add by upper_left_truncation_coordinate_h_w; plotted this and works as intended!
                         filtered_data_loader_indecies_dict['input_idx_upper_left_h_w'] = (
                                 np.array(input_idx_upper_left_h_w) + upper_left_truncation_coordinate_h_w)
+                        filtered_data_loader_indecies_dict['input_idx_upper_left_h_w_cropped_coordinates_DEBUG'] = np.array(input_idx_upper_left_h_w)
                         filtered_data_loader_indecies_dict['time_span'] = s_time_span if s_choose_time_span else None
                         filtered_data_loader_indecies.append(filtered_data_loader_indecies_dict)
 
@@ -346,22 +366,32 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                         if linspace_binning_max_unnormalized < max_curr_input_and_target:
                             linspace_binning_max_unnormalized = max_curr_input_and_target
 
-        # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
-        if num_x == 0:
-            raise Exception('No data passed the filter conditions of s_min_rain_ratio_target={}, such that there is no '
-                            'data for training and validation.'.format(s_min_rain_ratio_target))
-        else:
-            print('{} data points out of a total of {} scanned data points'
-                  ' passed the filter condition of s_min_rain_ratio_target={}'.format(
-                num_frames_passed_filter, num_frames_total, s_min_rain_ratio_target))
 
-        # We need to calculate the mean and std of the log data, as we are first taking log, then z normalizing in log space
-        mean_filtered_log_data = sum_log_x / num_x
-        std_filtered_log_data = np.sqrt((sum_log_x_squared / num_x) - mean_filtered_log_data ** 2)
+                        if num_frames_passed_filter >= max_num_filter_hits:
+                            break
+                    if num_frames_passed_filter >= max_num_filter_hits:
+                        break
+                if num_frames_passed_filter >= max_num_filter_hits:
+                    break
+            if num_frames_passed_filter >= max_num_filter_hits:
+                break
 
-        # These are the means and stds for the unnormalized data, which we need to select data in certain z ranges
-        mean_filtered_data = sum_x / num_x
-        std_filtered_data = np.sqrt((sum_x_squared / num_x) - mean_filtered_data ** 2)
+
+    # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
+    if num_x == 0:
+        raise Exception('No data passed the filter conditions of s_min_rain_ratio_target={}, such that there is no '
+                        'data for training and validation.'.format(s_min_rain_ratio_target))
+    else:
+        print(f'{num_frames_passed_filter} data points out of a total of {num_frames_total} scanned data points'
+              ' passed the filter condition of s_min_rain_ratio_target={s_min_rain_ratio_target}')
+
+    # We need to calculate the mean and std of the log data, as we are first taking log, then z normalizing in log space
+    mean_filtered_log_data = sum_log_x / num_x
+    std_filtered_log_data = np.sqrt((sum_log_x_squared / num_x) - mean_filtered_log_data ** 2)
+
+    # These are the means and stds for the unnormalized data, which we need to select data in certain z ranges
+    mean_filtered_data = sum_x / num_x
+    std_filtered_data = np.sqrt((sum_x_squared / num_x) - mean_filtered_data ** 2)
 
     return (filtered_data_loader_indecies, mean_filtered_log_data, std_filtered_log_data, mean_filtered_data, std_filtered_data,
             linspace_binning_min_unnormalized, linspace_binning_max_unnormalized)
@@ -391,8 +421,6 @@ def create_chunk_indices(num_time_steps, num_chunks):
         indices.append(next_index)
 
     return indices, chunk_size
-
-
 
 
 def gridding_data_sequence_indecies(data_sequence_height_width: tuple, grid_parcel_height_width: int):
@@ -476,7 +504,7 @@ def truncate_nan_padding(data_tensor):
 def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data, transform_f,
                            settings, s_num_bins_crossentropy, device, normalize=True, **__):
     '''
-    The more often class occurs, the lower the weight value
+    The more often class occurs, the lower the weight value : class_weights = 1 / class_count
     TODO: However observed, that classes with lower mean and max precipitation have higher weight ??!!
     '''
 
@@ -713,10 +741,14 @@ def load_data_sequence_preliminary(s_folder_path, data_file_name, s_width_height
     return data_tensor
 
 
-def random_splitting_filtered_indecies(indecies, num_training_samples, num_validation_samples, chunk_size):
+def random_splitting_filtered_indecies(indecies, num_training_samples, chunk_size):
+    '''
+    This randomly splits training and validation data
+    Chunk size: Size that consecutive data is chunked in when performing random splitting
+    '''
     chunked_indecies = chunk_list(indecies, chunk_size)
     num_chunks_training = int(num_training_samples / chunk_size)
-    num_chunks_validation = len(chunked_indecies) - num_chunks_training
+
     chunk_idxs = np.arange(len(chunked_indecies))
     np.random.shuffle(chunk_idxs)
     training_chunks = [chunked_indecies[i] for i in chunk_idxs[0:num_chunks_training]]

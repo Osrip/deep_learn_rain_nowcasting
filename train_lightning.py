@@ -36,7 +36,7 @@ def data_loading(settings, s_force_data_preprocessing, **__):
     # If structure of data_loader_vars is changed, change name in _create_save_name_for_data_loader_vars,
 
     try:
-        # When loading data loader vars, the file name is checked for wether log transform was used
+        # When loading data loader vars, the file name is checked for whether log transform was used
         if s_force_data_preprocessing:
             warnings.warn('Forced preprocessing of data as s_force_data_preprocessing == True')
             raise FileNotFoundError('Forced preprocessing of data as s_force_data_preprocessing == True')
@@ -56,7 +56,7 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
 
 
     ###############
-    # FILTER
+    # FILTER, calculation normalization params (mean, std) from filtered targets
     # Save all index chunks that passed filter in filtered_indecies together with normalization statistics and
     # linspace_binning
 
@@ -76,7 +76,7 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     # Randomly split indecies into training and validation indecies, conserving a chunk size of s_data_loader_chunk_size
     # to prevent that validation data can be solved by overfitting / learning by heart
     filtered_indecies_training, filtered_indecies_validation = random_splitting_filtered_indecies(
-        filtered_indecies, num_training_samples, num_validation_samples, s_data_loader_chunk_size)
+        filtered_indecies, num_training_samples, s_data_loader_chunk_size)
 
     ###############
     # LINSPACE BINNING
@@ -525,7 +525,7 @@ if __name__ == '__main__':
         settings['s_time_span'] = (67, 150)  # Only used when s_choose_time_span == True; now done according to index (isel instead of sel)
         settings['s_upscale_c_to'] = 32  # 8
         settings['s_batch_size'] = 2
-        settings['s_data_loader_chunk_size'] = 2
+        settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
