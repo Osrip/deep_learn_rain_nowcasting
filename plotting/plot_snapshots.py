@@ -71,7 +71,7 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
                 nan_mask_target = torch.isnan(target)
                 nan_mask_input_seq = torch.isnan(input_sequence)
                 vmin = min(torch.min(inv_norm_or_not(target[~nan_mask_target])).item(),
-                           torch.min(inv_norm_or_not(input_sequence[~nan_mask_input_seq])))
+                           torch.min(inv_norm_or_not(input_sequence[~nan_mask_input_seq])).item())
 
                 vmax = float(torch.mean(inv_norm_or_not(input_sequence[~nan_mask_input_seq]))
                 + 4 * torch.std(inv_norm_or_not(input_sequence[~nan_mask_input_seq])))
