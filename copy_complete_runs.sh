@@ -26,7 +26,7 @@
 
 # Function to find the checkpoint with the lowest loss
 get_lowest_loss_checkpoint() {
-  ssh bst981@134.2.168.52 "
+  ssh bst981@134.2.168.43 "
     ls /mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/$1/model/*.ckpt |
     sort -t '=' -k3,3 -n |
     head -n 1
@@ -49,18 +49,18 @@ for sim_name in "$@"; do
 
   # Rsync everything except the model dir
 
-  rsync -avz -e "ssh" --exclude='/model/' bst981@134.2.168.52:"/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/$sim_name/" "$local_base_dir/$sim_name/" &&
+  rsync -avz -e "ssh" --exclude='/model/' bst981@134.2.168.43:"/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/$sim_name/" "$local_base_dir/$sim_name/" &&
 
 
   # Rsync everything in the model directory
-  rsync -avz -e "ssh" --include='*/' --include='model_epoch=0010_*.ckpt' --include='model_epoch=0049_*.ckpt' --exclude='*.ckpt' bst981@134.2.168.52:"/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/$sim_name/model/" "$local_base_dir/$sim_name/model" &&
+  rsync -avz -e "ssh" --include='*/' --include='model_epoch=0010_*.ckpt' --include='model_epoch=0049_*.ckpt' --exclude='*.ckpt' bst981@134.2.168.43:"/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/$sim_name/model/" "$local_base_dir/$sim_name/model" &&
 
   # Get the checkpoint with the lowest loss
   lowest_loss_checkpoint=$(get_lowest_loss_checkpoint "$sim_name") &&
 
   # If a checkpoint with the lowest loss exists, rsync it
   if [[ -n "$lowest_loss_checkpoint" ]]; then
-    rsync -avz -e "ssh" bst981@134.2.168.52:"$lowest_loss_checkpoint" "$local_base_dir/$sim_name/model/"
+    rsync -avz -e "ssh" bst981@134.2.168.43:"$lowest_loss_checkpoint" "$local_base_dir/$sim_name/model/"
   fi
 
   echo "Copied complete folder of $sim_name with selected checkpoints"

@@ -120,8 +120,8 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
 
     if load_target:
         target_data_set = data_dataset.isel(time=target_idx_input_sequence,
-                                            x=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
-                                            y=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
+                                            y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
+                                            x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
         target = target_data_set[s_data_variable_name].values
         del data_dataset
         # Get rid of steps dimension as we only have one index anyways
@@ -175,7 +175,8 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
 
 def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width_height,
                            s_data_variable_name, s_time_span, s_width_height_target, s_min_rain_ratio_target,
-                           s_data_preprocessing_chunk_num, s_num_input_time_steps, s_num_lead_time_steps, s_choose_time_span=False, **__):
+                           s_data_preprocessing_chunk_num, s_num_input_time_steps, s_num_lead_time_steps, s_max_num_filter_hits,
+                           s_choose_time_span=False, **__):
     '''
     This huge ass function is doing all the filtering of the data and returns a list of indecies for the final data that
     is used for training and validation (both temporal and spatial indecies). This way the data can be directly loaded from the original data set using these
@@ -294,7 +295,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
 
                     # Throwing out all frames with nans only in them (in input sequence along time dimension)
                     if torch.isnan(target).all() or torch.isnan(input_sequence).all(dim=-2).all(dim=-1).any(dim=0):
-                        continue
+                        continue  # Skip code below and proceed right to next loop iteration
 
                     # ... and then center crop it to the target size
                     target = T.CenterCrop(size=s_width_height_target)(target)
@@ -313,8 +314,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                     input_sequence = input_sequence.cpu().numpy()
 
                     num_frames_total += 1
-                    # TODO:!!!!!!!! DEBUG ONLY, IMPLEMENT AS FLAG !!!!!!!
-                    max_num_filter_hits = 4
+
                     # Filter data
                     if filter(input_sequence, target, s_min_rain_ratio_target):
                     # if True:
@@ -366,15 +366,19 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                         if linspace_binning_max_unnormalized < max_curr_input_and_target:
                             linspace_binning_max_unnormalized = max_curr_input_and_target
 
-
-                        if num_frames_passed_filter >= max_num_filter_hits:
+                        # This BS reduces number of hits in local mode:
+                        if s_max_num_filter_hits:
+                            if num_frames_passed_filter >= s_max_num_filter_hits:
+                                break
+                    if s_max_num_filter_hits:
+                        if num_frames_passed_filter >= s_max_num_filter_hits:
                             break
-                    if num_frames_passed_filter >= max_num_filter_hits:
+                if s_max_num_filter_hits:
+                    if num_frames_passed_filter >= s_max_num_filter_hits:
                         break
-                if num_frames_passed_filter >= max_num_filter_hits:
+            if s_max_num_filter_hits:
+                if num_frames_passed_filter >= s_max_num_filter_hits:
                     break
-            if num_frames_passed_filter >= max_num_filter_hits:
-                break
 
 
     # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
