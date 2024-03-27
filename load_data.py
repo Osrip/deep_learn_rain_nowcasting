@@ -117,6 +117,8 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         target = T.CenterCrop(size=extended_target_size)(torch.from_numpy(target))
         # target = torch.from_numpy(target)
         if normalize:
+            # !TODO: DIRECTLY LOAD RIGHT CROP WITH XARRAY TO SAVE BANDWIDTH FROM HARD DRIVE!
+            # MAKE SURE THAT HEIGHT (dim 0) --> Y, WIDTH (dim 1) --> X
             target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
                                        s_normalize)
 
