@@ -531,12 +531,12 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
-        settings['s_max_epochs'] = 1  # 3
+        settings['s_max_epochs'] = 50  # 3
         settings['s_num_gpus'] = 1
 
         settings['s_multiple_sigmas'] = [2, 16]
         settings['s_data_loader_vars_path'] = '/home/jan/Programming/weather_data/data_loader_vars' #'/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars' #
-        settings['s_max_num_filter_hits'] = None  # 4
+        settings['s_max_num_filter_hits'] = None  # 4 # None or int
         # FILTER NOT WORKING YET, ALWAYS RETURNS TRUE FOR TEST PURPOSES!!
 
     # mlflow.create_experiment(settings['s_sim_name'])
