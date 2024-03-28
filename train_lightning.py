@@ -359,7 +359,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_sim_name_suffix = 'default_32_bins_50mm_h_cut_off'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'default_64_bins_100mm_h_cut_off_10_epochs_fixed_region'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -395,7 +395,7 @@ if __name__ == '__main__':
             's_plot_sim_name': 'Run_20240126-224535_ID_51437Weighted_x_entropy_loss', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             's_save_prefix_data_loader_vars': 's_save_prefix_data_loader_vars_2_std_linspace_binning',
 
-            's_max_epochs': 30 ,#10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 10 ,#10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/butz/bst981/weather_data/dwd_nc/rv_recalc_months/rv_recalc_months',
             's_data_file_names': ['RV_recalc_data_2019-{:02d}.nc'.format(i + 1) for i in range(12)],
             # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],# ['RV_recalc_data_2019-01.nc'], # ['RV_recalc_data_2019-01.nc', 'RV_recalc_data_2019-02.nc', 'RV_recalc_data_2019-03.nc'], #   # ['RV_recalc_data_2019-0{}.nc'.format(i+1) for i in range(9)],
@@ -416,10 +416,10 @@ if __name__ == '__main__':
 
             # Parameters that give the network architecture
             's_upscale_c_to': 32,  # 64, #128, # 512,
-            's_num_bins_crossentropy': 32,  # 64, #256,
+            's_num_bins_crossentropy': 64,  # 64, #256,
 
             # Parameters that give binning
-            's_linspace_binning_cut_off_unnormalized': 50,
+            's_linspace_binning_cut_off_unnormalized': 100,
             # Let's cut that off ad-hoc (in mm/h) , everything obove is sorted into the last bin
 
             # 'minutes_per_iteration': 5,
