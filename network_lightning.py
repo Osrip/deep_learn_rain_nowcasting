@@ -186,6 +186,7 @@ class Network_l(pl.LightningModule):
         nan_mask = torch.isnan(input_sequence)
         input_sequence[nan_mask] = 0
 
+        # Replace nans with 0s
         input_sequence = inverse_normalize_data(input_sequence, self.mean_train_data_set, self.std_train_data_set)
         target = inverse_normalize_data(target, self.mean_train_data_set, self.std_train_data_set)
 
@@ -210,9 +211,12 @@ class Network_l(pl.LightningModule):
         target_binned = target_binned.float()
 
 
+
         # We use cross entropy loss, for both gaussian smoothed and normal one_hot target
         if not self.s_gaussian_smoothing_multiple_sigmas:
             pred = self(input_sequence)
+            if torch.isnan(pred).any():
+                raise ValueError('NAN in prediction (also leading to nan in loss)')
             loss = self.loss_func(pred, target_binned)
 
             preds = [pred]
@@ -364,6 +368,10 @@ class Network_l(pl.LightningModule):
         # TODO: Does this work??
         self.val_step_num += 1
         input_sequence, target_binned, target, target_one_hot_extended = val_batch
+
+        # Replace all nans with zero
+        nan_mask = torch.isnan(input_sequence)
+        input_sequence[nan_mask] = 0
 
         input_sequence = inverse_normalize_data(input_sequence, self.mean_val_data_set, self.std_val_data_set)
         target = inverse_normalize_data(target, self.mean_val_data_set, self.std_val_data_set)
