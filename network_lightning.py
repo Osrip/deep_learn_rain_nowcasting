@@ -369,9 +369,6 @@ class Network_l(pl.LightningModule):
         self.val_step_num += 1
         input_sequence, target_binned, target, target_one_hot_extended = val_batch
 
-        # Replace all nans with zero
-        nan_mask = torch.isnan(input_sequence)
-        input_sequence[nan_mask] = 0
 
         input_sequence = inverse_normalize_data(input_sequence, self.mean_val_data_set, self.std_val_data_set)
         target = inverse_normalize_data(target, self.mean_val_data_set, self.std_val_data_set)

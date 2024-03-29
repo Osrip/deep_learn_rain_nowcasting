@@ -112,6 +112,10 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         # Get rid of steps dimension (nothing to do with pysteps)
         input_sequence = input_sequence[0, :, :, :]
 
+        # setting all nan s to zero (this is only done to input sequence, not to target!)
+        nan_mask = np.isnan(input_sequence)
+        input_sequence[nan_mask] = 0
+
         if normalize:
             input_sequence = lognormalize_data(input_sequence, mean_filtered_log_data, std_filtered_log_data,
                                                transform_f, s_normalize)

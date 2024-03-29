@@ -36,11 +36,6 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
         for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
             input_sequence = input_sequence.to(ps_device)
 
-            # Set input nans to zeros like the network normally gets
-            # TODO: Do this directly in data loader!
-            nan_mask = torch.isnan(input_sequence)
-            input_sequence[nan_mask] = 0
-
             model = model.to(ps_device)
             pred = model(input_sequence)
 
