@@ -131,6 +131,10 @@ def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_bi
         # Get rid of steps dimension as we only have one index anyways
         target = target[0]
 
+        # setting all nan s to zero (this is only done to input sequence, not to target!)
+        nan_mask = np.isnan(target)
+        target[nan_mask] = 0
+
         with torch.no_grad():
             target = torch.from_numpy(target)
             target = target.to(device)
@@ -300,6 +304,9 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                     # Throwing out all frames with nans only in them (in input sequence along time dimension)
                     if torch.isnan(target).all() or torch.isnan(input_sequence).all(dim=-2).all(dim=-1).any(dim=0):
                         continue  # Skip code below and proceed right to next loop iteration
+
+                    if torch.isnan(target).sum().item() / target.numel() > 0.05:
+                        continue
 
                     # ... and then center crop it to the target size
                     target = T.CenterCrop(size=s_width_height_target)(target)
