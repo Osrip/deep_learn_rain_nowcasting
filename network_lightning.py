@@ -183,6 +183,8 @@ class Network_l(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         self.train_step_num += 1
         input_sequence, target_binned, target, target_one_hot_extended = batch
+        nan_mask = torch.isnan(input_sequence)
+        input_sequence[nan_mask] = 0
 
         input_sequence = inverse_normalize_data(input_sequence, self.mean_train_data_set, self.std_train_data_set)
         target = inverse_normalize_data(target, self.mean_train_data_set, self.std_train_data_set)

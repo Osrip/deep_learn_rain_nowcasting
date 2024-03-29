@@ -394,7 +394,7 @@ if __name__ == '__main__':
 
             # TODO: Implement!!
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
-            's_plot_sim_name': 'Run_20240126-224535_ID_51437Weighted_x_entropy_loss', #_2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            's_plot_sim_name': 'Run_20240126-224535_ID_51437Weighted_x_entropy_loss',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             's_save_prefix_data_loader_vars': 's_save_prefix_data_loader_vars_2_std_linspace_binning',
 
             's_max_epochs': 7,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
