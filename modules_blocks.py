@@ -48,7 +48,6 @@ class Network(nn.Module):
         self.conv1_1_downscale = nn.Conv2d(c_curr, downscale_c_to, kernel_size=1, dilation=1, stride=1, padding=0)
 
 
-
     def forward(self, x: torch.Tensor):
         x = self.conv1_1_upscale(x)
         for module in self.net_modules:
@@ -112,18 +111,18 @@ class MetDilBlock(nn.Module):
 
         padding = 'same'
         self.dilation1 = nn.Conv2d(c_num, c_num, kernel_size, dilation=dilation, stride=stride, padding=padding)
-        self.layer_norm1 = nn.LayerNorm(s_width_height)
+        self.group_norm1 = nn.GroupNorm(1, c_num)
         self.dilation2 = nn.Conv2d(c_num, c_num, kernel_size, dilation=dilation, stride=stride, padding=padding)
-        self.layer_norm2 = nn.LayerNorm(s_width_height)
+        self.group_norm2 = nn.GroupNorm(1, c_num)
 
     def forward(self, x: torch.Tensor):
 
         out = x
         out = self.dilation1(out)
-        out = self.layer_norm1(out)
+        out = self.group_norm1(out)
         out = F.relu(out)
         out = self.dilation2(out)
-        out = self.layer_norm2(out)
+        out = self.group_norm2(out)
         out = F.relu(out)
 
         return x + out
