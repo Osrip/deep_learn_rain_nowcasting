@@ -102,4 +102,4 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
                                                                                                              ,sigma_str
                                                                                                              ,ps_checkpoint_name),
                 )
-            break
+            # break

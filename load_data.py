@@ -602,7 +602,6 @@ def filter(input_sequence, target, s_min_rain_ratio_target, percentage=0.5, min_
     No values below zero in target or input_sequence
     reasonable amount of data passes: percentage=0.5, min_amount_rain=0.05
     '''
-
     if (target[target > min_amount_rain].size > percentage * target.size):
         return True
     else:

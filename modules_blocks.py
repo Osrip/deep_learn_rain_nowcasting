@@ -1,3 +1,4 @@
+import einops
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -111,24 +112,34 @@ class MetDilBlock(nn.Module):
 
         padding = 'same'
         self.dilation1 = nn.Conv2d(c_num, c_num, kernel_size, dilation=dilation, stride=stride, padding=padding)
-        self.layer_norm1_wrong = nn.LayerNorm(s_width_height)
+        # self.layer_norm1_wrong = nn.LayerNorm(s_width_height)
         # self.layer_norm1 = nn.LayerNorm([c_num, s_width_height, s_width_height])
+        # self.layer_norm_c_wise1 = nn.LayerNorm(c_num, eps=1e-6)
+        self.instance_norm1 = nn.InstanceNorm2d(c_num)
         # self.group_norm1 = nn.GroupNorm(1, c_num)
         self.dilation2 = nn.Conv2d(c_num, c_num, kernel_size, dilation=dilation, stride=stride, padding=padding)
-        self.layer_norm2_wrong = nn.LayerNorm(s_width_height)
+        # self.layer_norm2_wrong = nn.LayerNorm(s_width_height)
         # self.layer_norm2 = nn.LayerNorm([c_num, s_width_height, s_width_height])
+        # self.layer_norm_c_wise2 = nn.LayerNorm(c_num, eps=1e-6)
+        self.instance_norm2 = nn.InstanceNorm2d(c_num)
         # self.group_norm2 = nn.GroupNorm(1, c_num)
 
     def forward(self, x: torch.Tensor):
 
         out = x
         out = self.dilation1(out)
-        out = self.layer_norm1_wrong(out)
-        # out = self.group_norm1(out)
+        # out = self.layer_norm1_wrong(out)
+        # out = einops.rearrange(out, 'b c h w -> b h w c')
+        # out = self.layer_norm_c_wise1(out)
+        # out = einops.rearrange(out, 'b h w c -> b c h w')
+        out = self.instance_norm1(out)
         out = F.relu(out)
         out = self.dilation2(out)
-        out = self.layer_norm2_wrong(out)
-        # out = self.group_norm2(out)
+        # out = self.layer_norm2_wrong(out)
+        # out = einops.rearrange(out, 'b c h w -> b h w c')
+        # out = self.layer_norm_c_wise2(out)
+        # out = einops.rearrange(out, 'b h w c -> b c h w')
+        out = self.instance_norm2(out)
         out = F.relu(out)
 
         return x + out

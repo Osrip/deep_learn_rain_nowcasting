@@ -45,7 +45,7 @@ def gaussian_smoothing_target(target_one_hot_extended, sigma, kernel_size, devic
     # Gaussian Kernel:
     kernel = create_gaussian_kernel_4d(kernel_shape, sigma, device)
 
-    target_one_hot = convolution_no_channel_sum(target_one_hot_extended, kernel, device)
+    target_one_hot = convolution_no_channel_sum(target_one_hot_extended, kernel, device, center_crop_size=target_size)
     return target_one_hot
 
 
