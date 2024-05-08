@@ -5,7 +5,7 @@ from helper.calc_CRPS import crps_vectorized
 from load_data import inverse_normalize_data, invnorm_linspace_binning
 from helper.memory_logging import print_gpu_memory, print_ram_usage
 from modules_blocks import Network
-from modules_blocks_ResNet import ResNet
+from modules_blocks_convnext import UNet
 import torch.nn as nn
 from helper.helper_functions import one_hot_to_lognorm_mm
 from helper.gaussian_smoothing_helper import gaussian_smoothing_target
@@ -83,7 +83,7 @@ class Network_l(pl.LightningModule):
         if not s_resnet:
             self.model = Network(c_in=s_num_input_time_steps, **settings)
         else:
-            self.model = ResNet(c_in=s_num_input_time_steps, **settings)
+            self.model = UNet(c_in=s_num_input_time_steps)
 
         self.model.to(device)
 
