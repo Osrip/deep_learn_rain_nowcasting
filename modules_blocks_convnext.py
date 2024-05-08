@@ -116,10 +116,11 @@ class ConvNext(nn.Module):
     """
     ConvNext Block
     c: num of channels
+    num of input and output channels are equal
     """
     def __init__(self, c: int):
         super().__init__()
-        self.conv_1 = nn.Conv2d(c, c*4, kernel_size=7, groups=c, padding='same')  # groups=c makes this a depth wise convolution
+        self.conv_1 = nn.Conv2d(c, c*4, kernel_size=7, groups=c, stride=1, padding='same')  # groups=c makes this a depth wise convolution
         self.layer_norm = LayerNormChannelOnly(c*4)
         self.conv_2 = nn.Conv2d(c*4, c, kernel_size=1)
         self.conv_3 = nn.Conv2d(c, c, kernel_size=1)
@@ -139,17 +140,16 @@ class ConvNextDownScale(nn.Module):
     """
     Downscaling ConvNext block
     """
-    def __init__(self, c: int, c_factor: int, spatial_factor: int):
+    def __init__(self, c_in: int, c_out: int, spatial_factor: int):
         super().__init__()
         #Does the conv 2 2 with stride 2 cause image patching? If so try conv 3x3 with padding
-        self.conv = nn.Conv2d(c, int(c * c_factor), kernel_size=spatial_factor, stride=spatial_factor)
-        self.layer_norm = LayerNormChannelOnly(int(c * c_factor))
-        self.skip = nn.Conv2d(c, int(c * c_factor), kernel_size=1, stride=spatial_factor)
-        self.skip = SkipConnection(c, int(c * c_factor), 1/spatial_factor)
+        self.conv = nn.Conv2d(c_in, c_out, kernel_size=spatial_factor, stride=spatial_factor)
+        self.layer_norm = LayerNormChannelOnly(c_out)
+        # self.skip = nn.Conv2d(c_in, c_out, kernel_size=1, stride=spatial_factor)
+        self.skip = SkipConnection(c_in, c_out, 1/spatial_factor)
 
     def forward(self, x: torch.Tensor):
-        skip = x
-        skip = self.skip(skip)
+        skip = self.skip(x)
 
         x = self.conv(x)
         x = self.layer_norm(x)
@@ -162,21 +162,18 @@ class ConvNextUpScale(nn.Module):
     """
     Upscaling ConvNext block
     """
-
-    def __init__(self, c: int, c_factor: int, spatial_factor: int):
+    def __init__(self, c_in: int, c_out: int, spatial_factor: int):
         super().__init__()
-        if c % c_factor != 0:
-            raise ValueError('Channel number has to divisible by scale_factor.')
-        # Does the conv 2 2 with stride 2 cause image patching? If so try conv 3x3 with padding
-        self.conv_transposed = nn.ConvTranspose2d(c, c//c_factor, kernel_size=spatial_factor, stride=spatial_factor,)
-        self.layer_norm = LayerNormChannelOnly(c//c_factor)
-        self.skip = nn.ConvTranspose2d(c, c//c_factor, kernel_size=1, stride=spatial_factor)
-        self.skip = SkipConnection(c, c//c_factor, spatial_factor)
-
+        if c_in % c_out != 0:
+            raise ValueError('Channel number must be divisible by c_out.')
+        # Upscaling using transposed convolution
+        self.conv_transposed = nn.ConvTranspose2d(c_in, c_out, kernel_size=spatial_factor, stride=spatial_factor)
+        self.layer_norm = LayerNormChannelOnly(c_out)
+        # Adding a skip connection
+        self.skip = SkipConnection(c_in, c_out, spatial_factor)
 
     def forward(self, x: torch.Tensor):
-        skip = x
-        skip = self.skip(skip)
+        skip = self.skip(x)
 
         x = self.conv_transposed(x)
         x = self.layer_norm(x)
@@ -185,37 +182,37 @@ class ConvNextUpScale(nn.Module):
         return x
 
 
+
 class EncoderModule(nn.Module):
     """
     One block of the Encoder that includes two ConvNext Block and a downsampling block
+
+    num_blocks: number of ConvNext blocks in the module (0 means only downsampling)
     """
-    # Potentially implement this with nn.Sequencial to make number of blocks per module as well as c_in and c_out variable
-    def __init__(self, c: int, c_factor: int, spatial_factor: int):
+    def __init__(self, c_in: int, c_out: int, spatial_factor: int, num_blocks: int):
         super().__init__()
-        self.conv_next_1 = ConvNext(c)
-        self.conv_next_2 = ConvNext(c)
-        self.conv_next_down_scale = ConvNextDownScale(c, c_factor, spatial_factor)
+        self.conv_next_blocks = nn.Sequential(*[ConvNext(c_in) for _ in range(num_blocks)])
+        self.conv_next_down_scale = ConvNextDownScale(c_in, c_out, spatial_factor)
 
     def forward(self, x: torch.Tensor):
-        x = self.conv_next_1(x)
-        x = self.conv_next_2(x)
+        x = self.conv_next_blocks(x)
         x = self.conv_next_down_scale(x)
         return x
 
 
 class DecoderModule(nn.Module):
     """
-    One block of the Decoder that includes two ConvNext Block and an upsampling block
+    One block of the Decoder that includes two ConvNext Block and an upsampling block.
+
+    num_blocks: number of ConvNext blocks in the module (0 means only upsampling).
     """
-    def __init__(self, c: int, c_factor: int, spatial_factor: int):
+    def __init__(self, c_in: int, c_out: int, spatial_factor: int, num_blocks: int):
         super().__init__()
-        self.conv_next_1 = ConvNext(c)
-        self.conv_next_2 = ConvNext(c)
-        self.conv_next_up_scale = ConvNextUpScale(c, c_factor, spatial_factor)
+        self.conv_next_blocks = nn.Sequential(*[ConvNext(c_in) for _ in range(num_blocks)])
+        self.conv_next_up_scale = ConvNextUpScale(c_in, c_out, spatial_factor)
 
     def forward(self, x: torch.Tensor):
-        x = self.conv_next_1(x)
-        x = self.conv_next_2(x)
+        x = self.conv_next_blocks(x)
         x = self.conv_next_up_scale(x)
         return x
 
@@ -225,21 +222,19 @@ class Encoder(nn.Module):
     Encoder
     This returns the whole list for the skip connections
     """
-    def __init__(self, c_in: int, num_downscales: int, c_factor: int, spatial_factor: int):
+    def __init__(self, c_list: list[int], spatial_factor_list: list[int], num_blocks_list: list[int]):
         super().__init__()
 
         self.module_list = nn.ModuleList()
-        c_curr = c_in
-        for i in range(num_downscales):
+
+        for i, (c_in, c_out, spatial_factor, num_blocks) \
+                in enumerate(zip(c_list[:-1], c_list[1:], spatial_factor_list, num_blocks_list)):
             # 256 / 2 ** 5 = 8
             i += 1
             self.module_list.add_module(
                 name='encoder_module_{}'.format(i),
-                module=EncoderModule(c_curr, c_factor, spatial_factor)
+                module=EncoderModule(c_in, c_out, spatial_factor, num_blocks)
             )
-            c_curr = int(c_curr * c_factor)
-
-
 
     def forward(self, x: torch.Tensor):
         skip_list = []
@@ -252,44 +247,52 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
     """
-    Decoder
+    Encoder
+    This returns the whole list for the skip connections
     """
-    def __init__(self, c: int, num_upscales: int, c_factor: int, spatial_factor: int):
+    def __init__(self, c_list: list[int], spatial_factor_list: list[int], num_blocks_list: list[int]):
         super().__init__()
 
         self.module_list = nn.ModuleList()
-        c_curr = c
-        for i in range(num_upscales):
+
+        reversed_c_list = list(reversed(c_list))
+        reversed_spatial_factors = list(reversed(spatial_factor_list))
+        reversed_num_blocks = list(reversed(num_blocks_list))
+
+        for i, (c_in, c_out, spatial_factor, num_blocks) in enumerate(zip(reversed_c_list[:-1],
+                                                                          reversed_c_list[1:],
+                                                                          reversed_spatial_factors,
+                                                                          reversed_num_blocks)):
             # 256 / 2 ** 5 = 8
             i += 1
             self.module_list.add_module(
-                name=r'decoder_module_{i}',
-                module=DecoderModule(c_curr, c_factor, spatial_factor)
+                name='decoder_module_{}'.format(i),
+                module=DecoderModule(c_in, c_out, spatial_factor, num_blocks)
             )
-            c_curr = c_curr // c_factor
 
     def forward(self, skip_list: list):
-        x = skip_list[0]
-        test_list = []
-        for i, (module, skip) in enumerate(zip(self.module_list, reversed(skip_list[1:]))):
+        x = skip_list[-1]  # Start with the first element from the skip connections
+        reversed_skips = reversed(skip_list[:-1])
+        for module, skip in zip(self.module_list, reversed_skips):
             x = module(x)
-            test_list.append(x)
-            # x += skip
+            x += skip  # Add the skip connection to the output of the current module
         return x
 
 
 class UNet(nn.Module):
     def __init__(self,
                  c_in: int,
-                 num_scalings: int = 4,
-                 c_factor: int = 2,
-                 spatial_factor: int = 2):
+                 c_list: list[int] = [4, 32, 64, 128, 256],
+                 spatial_factor_list: list[int] = [2, 2, 2, 2],
+                 num_blocks_list: list[int] = [2, 2, 2, 2]):
         super().__init__()
-        self.encoder = Encoder(c_in, num_scalings, c_factor, spatial_factor)
-        # TODO: is num_scalings -1 correct?
-        c_latent = c_in * c_factor ** (num_scalings - 1)
-        self.decoder = Decoder(c_latent, num_scalings, c_factor, spatial_factor)
-        self.spatial_downscaling = nn.Sequential(*[ConvNextDownScale(c_in)])
+        if not len(c_list) - 1 == len(spatial_factor_list) == len(num_blocks_list):
+            raise ValueError('The length of c_list - 1 and  length of spatial_factor_list have to be equal as they correspond to'
+                             'the number of downscalings in our network')
+
+        self.encoder = Encoder(c_list, spatial_factor_list, num_blocks_list)
+        self.decoder = Decoder(c_list, spatial_factor_list, num_blocks_list)
+        # self.spatial_downscaling = nn.Sequential(*[ConvNextDownScale(c_in)])
 
     def forward(self, x: torch.Tensor):
         skip_list = self.encoder(x)

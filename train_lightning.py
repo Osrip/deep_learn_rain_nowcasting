@@ -528,7 +528,7 @@ if __name__ == '__main__':
         # settings['s_time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
         settings['s_time_span'] = (67, 150)  # Only used when s_choose_time_span == True; now done according to index (isel instead of sel)
         settings['s_upscale_c_to'] = 32  # 8
-        settings['s_batch_size'] = 8 # 2
+        settings['s_batch_size'] = 8  # 2
         settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
