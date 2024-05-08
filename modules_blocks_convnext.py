@@ -239,6 +239,8 @@ class Encoder(nn.Module):
             )
             c_curr = int(c_curr * c_factor)
 
+
+
     def forward(self, x: torch.Tensor):
         skip_list = []
         skip_list.append(x)  # A skip connection right from the input to the output
@@ -287,6 +289,7 @@ class UNet(nn.Module):
         # TODO: is num_scalings -1 correct?
         c_latent = c_in * c_factor ** (num_scalings - 1)
         self.decoder = Decoder(c_latent, num_scalings, c_factor, spatial_factor)
+        self.spatial_downscaling = nn.Sequential(*[ConvNextDownScale(c_in)])
 
     def forward(self, x: torch.Tensor):
         skip_list = self.encoder(x)
