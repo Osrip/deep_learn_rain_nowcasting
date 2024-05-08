@@ -279,12 +279,30 @@ class Decoder(nn.Module):
         return x
 
 
+# TODO: Also imple
+class DownScaleToTarget(nn.Module):
+    '''
+    Simply enter cropping and downscaling channels
+    '''
+    def __init__(self, c_in, c_out, height_width_target):
+        super().__init__()
+        self.center_crop = T.CenterCrop(size=height_width_target)
+        self.down_scale = ConvNextDownScale(c_in, c_out, spatial_factor=1)
+
+    def forward(self, x: torch.Tensor):
+        x = self.center_crop(x)
+        x = self.down_scale(x)
+        return x
+
+
 class UNet(nn.Module):
     def __init__(self,
-                 c_in: int,
                  c_list: list[int] = [4, 32, 64, 128, 256],
                  spatial_factor_list: list[int] = [2, 2, 2, 2],
-                 num_blocks_list: list[int] = [2, 2, 2, 2]):
+                 num_blocks_list: list[int] = [2, 2, 2, 2],
+                 c_target: int = 64,
+                 height_width_target: int = 32,
+                 ):
         super().__init__()
         if not len(c_list) - 1 == len(spatial_factor_list) == len(num_blocks_list):
             raise ValueError('The length of c_list - 1 and  length of spatial_factor_list have to be equal as they correspond to'
@@ -292,11 +310,14 @@ class UNet(nn.Module):
 
         self.encoder = Encoder(c_list, spatial_factor_list, num_blocks_list)
         self.decoder = Decoder(c_list, spatial_factor_list, num_blocks_list)
-        # self.spatial_downscaling = nn.Sequential(*[ConvNextDownScale(c_in)])
+        self.center_crop = DownScaleToTarget(c_in=c_list[0], c_out=c_target, height_width_target=height_width_target)
+        self.soft_max = nn.Softmax(dim=1)
 
     def forward(self, x: torch.Tensor):
         skip_list = self.encoder(x)
         x = self.decoder(skip_list)
+        x = self.center_crop(x)
+        x = self.soft_max(x)
         return x
 
 

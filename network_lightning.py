@@ -83,7 +83,7 @@ class Network_l(pl.LightningModule):
         if not s_resnet:
             self.model = Network(c_in=s_num_input_time_steps, **settings)
         else:
-            self.model = UNet(c_in=s_num_input_time_steps)
+            self.model = UNet()
 
         self.model.to(device)
 
