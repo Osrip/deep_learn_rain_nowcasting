@@ -265,9 +265,8 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
         sigma_schedule_mapping, sigma_scheduler = (None, None)
 
     model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-                      data_set_statistics_dict, s_max_epochs, linspace_binning_params, s_dirs['data_dir'], s_num_gpus,
-                      sigma_schedule_mapping, s_check_val_every_n_epoch, filer_and_normalization_params,
-                      class_count_target, settings)
+                      data_set_statistics_dict, linspace_binning_params,sigma_schedule_mapping, filer_and_normalization_params,
+                      class_count_target, settings, **settings)
 
     if s_calc_baseline:
         calc_baselines(**settings,
@@ -290,8 +289,8 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
 
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-            data_set_statistics_dict, max_epochs, linspace_binning_params, data_dir, num_gpus, sigma_schedule_mapping,
-            check_val_every_n_epoch, filter_and_normalization_params, class_count_target, settings):
+            data_set_statistics_dict, linspace_binning_params, sigma_schedule_mapping, filter_and_normalization_params,
+            class_count_target, settings, s_max_epochs, s_num_gpus, s_check_val_every_n_epoch, s_resnet, **__):
     '''
     Train loop, keep this clean!
     '''
@@ -303,17 +302,17 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
                         class_count_target=class_count_target,
                         **settings)
 
-    # save_zipped_pickle('{}/Network_l_class'.format(data_dir), model_l)
-
-    if settings['s_resnet']:
+    if s_resnet:
         # Used due to bug
         strategy = 'ddp_find_unused_parameters_true'
     else:
         strategy = 'ddp'
 
-    trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=max_epochs, log_every_n_steps=1,
-                         logger=logger, devices=num_gpus, check_val_every_n_epoch=check_val_every_n_epoch,
-                         strategy=strategy) # on mac: , accelerator='cpu'
+
+
+    trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=s_max_epochs, log_every_n_steps=1,
+                         logger=logger, devices=s_num_gpus, check_val_every_n_epoch=s_check_val_every_n_epoch,
+                         strategy=strategy)  # on mac: , accelerator='cpu'
     # strategy="ddp", # precision='16-mixed'
     # 'devices' argument is ignored when device == 'cpu'
     # Speed up advice: https://pytorch-lightning.readthedocs.io/en/1.8.6/guides/speed.html
@@ -356,11 +355,11 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'default_switching_region_64_bins_100mm_25_epochs_instancenorm'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'default_switching_region_64_bins_100mm_25_ConvNeXt_Centercrop_128_batch_size'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -402,7 +401,7 @@ if __name__ == '__main__':
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 25,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 15,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
             's_data_file_name': 'RV_recalc.zarr',  #'yw_done.zarr',
             's_data_variable_name': 'RV_recalc',
@@ -416,8 +415,8 @@ if __name__ == '__main__':
             's_check_val_every_n_epoch': 1, # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
-            's_num_gpus': 4,
-            's_batch_size': 64, #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
+            's_num_gpus': 1,
+            's_batch_size': 128, #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
             # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
             # Make this divisible by 8 or best 8 * 2^n
 

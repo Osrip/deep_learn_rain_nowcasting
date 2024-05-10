@@ -319,8 +319,3 @@ class UNet(nn.Module):
         x = self.center_crop(x)
         x = self.soft_max(x)
         return x
-
-
-
-
-
