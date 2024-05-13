@@ -279,7 +279,6 @@ class Decoder(nn.Module):
         return x
 
 
-# TODO: Also imple
 class DownScaleToTarget(nn.Module):
     '''
     Simply enter cropping and downscaling channels

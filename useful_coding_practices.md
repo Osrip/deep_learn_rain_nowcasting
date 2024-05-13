@@ -1,7 +1,7 @@
 
 #### Slurm
 scontrol show job $SLURM_JOB_ID
-scancel -jobid-
+scancel -jobid- 
 
 SSD direktory to work on!
 /mnt/qb/work2/butz1/bst981
