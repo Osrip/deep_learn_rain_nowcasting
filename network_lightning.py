@@ -24,8 +24,8 @@ class Network_l(pl.LightningModule):
                  settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
-                 s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
-                 s_convnext, s_crps_loss, s_weighted_loss,
+                 s_lr_schedule, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
+                 s_convnext, s_crps_loss,
                  training_steps_per_epoch=None, filter_and_normalization_params=None, class_count_target=None, training_mode=True, **__):
         '''
         Both data_set_statistics_dict and  sigma_schedule_mapping and class_count_target can be None if no training, but only forward pass is
@@ -58,9 +58,7 @@ class Network_l(pl.LightningModule):
         else:
             self.loss_func = nn.CrossEntropyLoss()
 
-        if not s_convnext:
-            self.model = Network(c_in=s_num_input_time_steps, **settings)
-        else:
+        if s_convnext:
             self.model = ConvNeXtUNet(
                 c_list=[4, 32, 64, 128, 256],
                 spatial_factor_list=[2, 2, 2, 2],
@@ -68,6 +66,8 @@ class Network_l(pl.LightningModule):
                 c_target=s_num_bins_crossentropy,
                 height_width_target=s_width_height_target
             )
+        else:
+            self.model = Network(c_in=s_num_input_time_steps, **settings)
 
         self.model.to(device)
 
@@ -93,12 +93,11 @@ class Network_l(pl.LightningModule):
         self.s_max_epochs = s_max_epochs
         self.s_gaussian_smoothing_target = s_gaussian_smoothing_target
         self.s_log_precipitation_difference = s_log_precipitation_difference
-        self.s_lr_schedule = s_lr_schedule
-        self.s_calculate_fss = s_calculate_fss
         self.s_fss_scales = s_fss_scales
         self.s_fss_threshold = s_fss_threshold
         self.s_gaussian_smoothing_multiple_sigmas = s_gaussian_smoothing_multiple_sigmas
         self.s_multiple_sigmas = s_multiple_sigmas
+        self.s_lr_schedule = s_lr_schedule
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
@@ -267,7 +266,7 @@ class Network_l(pl.LightningModule):
 
             for pred, log_prefix in zip(preds, log_prefixes):  # Iterating through predictions and log prefixes for the case of multiple sigmas, which correspinds to multiple predictions
 
-                if self.s_calculate_quality_params or self.s_log_precipitation_difference or self.s_calculate_fss:
+                if self.s_calculate_quality_params or self.s_log_precipitation_difference:
                     linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
                     pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                                     mean_bin_vals=True)
@@ -276,7 +275,7 @@ class Network_l(pl.LightningModule):
 
                     pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
-                if self.s_calculate_quality_params or self.s_calculate_fss:
+                if self.s_calculate_quality_params:
                     target_nan_mask = torch.isnan(target)
                     # MSE
                     mse_pred_target = torch.nn.MSELoss()(pred_mm[~target_nan_mask], target[~target_nan_mask])
@@ -294,39 +293,6 @@ class Network_l(pl.LightningModule):
                     mse_persistence_target = torch.nn.MSELoss()(persistence[~target_nan_mask], target[~target_nan_mask])
                     self.log('train_{}mse_persistence_target'.format(log_prefix), mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
                     # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
-
-        if self.s_calculate_fss:
-            if self.s_gaussian_smoothing_multiple_sigmas:
-                # Only calculate FSS for the prediction with the smallest sigma
-                pred = preds[np.argmin(self.s_multiple_sigmas)]
-
-            # TODO: UNNORMALIZE THIS BEFORE CALCULATING QUALITY METRICS!!! NOT IMPORTANT FOR MSE BUT FOR FSS (--> Threshold)!!!!!!
-            # TODO ALTERRNATIVELY USE LOGNORMALIZED THRESHOLD!!!
-
-            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-                                            mean_bin_vals=True)
-
-            pred_mm = inverse_normalize_data(pred_mm, self.mean_train_data_set, self.std_train_data_set)
-
-            pred_mm = torch.tensor(pred_mm, device=self.s_device)
-
-            fss = verification.get_method("FSS")
-            target_np = target.detach().cpu().numpy()
-            pred_mm_np = pred_mm.detach().cpu().numpy()
-
-            for fss_scale in self.s_fss_scales:
-
-                fss_pred_target = np.nanmean([fss(pred_mm_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
-                                           for batch_num in range(np.shape(target_np)[0])])
-                self.log('train_{}fss_scale_{:03d}_pred_target'.format(log_prefix, fss_scale), fss_pred_target, on_step=False, on_epoch=True, sync_dist=True)
-
-                fss_persistence_target = np.nanmean([fss(persistence[batch_num, :, :].detach().cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
-                                                  for batch_num in range(np.shape(target_np)[0])])
-                self.log('train_{}fss_scale_{:03d}_persistence_target'.format(log_prefix, fss_scale), fss_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
-
-                fss_zeros_target = np.nanmean([fss(np.zeros(target_np[batch_num, :, :].shape), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
-                                            for batch_num in range(np.shape(target_np)[0])])
-                self.log('train_{}fss_scale_{:03d}_zeros_target'.format(log_prefix, fss_scale), fss_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
 
 
         if self.s_log_precipitation_difference:
@@ -453,14 +419,14 @@ class Network_l(pl.LightningModule):
         if not self.s_gaussian_smoothing_multiple_sigmas:
             for pred, log_prefix in zip(preds, log_prefixes):  # Iterating through predictions and log prefixes for the case of multiple sigmas
 
-                if self.s_calculate_quality_params or self.s_log_precipitation_difference or self.s_calculate_fss:
+                if self.s_calculate_quality_params or self.s_log_precipitation_difference:
                     linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
                     pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
                                                     mean_bin_vals=True)
                     pred_mm = inverse_normalize_data(pred_mm, self.mean_val_data_set, self.std_val_data_set)
                     pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
-                if self.s_calculate_quality_params or self.s_calculate_fss:
+                if self.s_calculate_quality_params:
                     # MSE
                     mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
                     self.log('val_{}mse_pred_target'.format(log_prefix), mse_pred_target.item(), on_step=False, on_epoch=True, sync_dist=True)
@@ -477,33 +443,6 @@ class Network_l(pl.LightningModule):
                     self.log('val_{}mse_persistence_target'.format(log_prefix), mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
                     # mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item())
 
-        if self.s_calculate_fss:
-            if self.s_gaussian_smoothing_multiple_sigmas:
-                # Only calculate FSS for the prediction with the smallest sigma
-                pred = preds[np.argmin(self.s_multiple_sigmas)]
-
-            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-                                            mean_bin_vals=True)
-            pred_mm = inverse_normalize_data(pred_mm, self.mean_val_data_set, self.std_val_data_set)
-            pred_mm = torch.tensor(pred_mm, device=self.s_device)
-
-            fss = verification.get_method("FSS")
-            target_np = target.detach().cpu().numpy()
-            pred_mm_np = pred_mm.detach().cpu().numpy()
-
-            for fss_scale in self.s_fss_scales:
-
-                fss_pred_target = np.nanmean([fss(pred_mm_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
-                                           for batch_num in range(np.shape(target_np)[0])])
-                self.log('val_{}fss_scale_{:03d}_pred_target'.format(log_prefix, fss_scale), fss_pred_target, on_step=False, on_epoch=True, sync_dist=True)
-
-                fss_persistence_target = np.nanmean([fss(persistence[batch_num, :, :].cpu().numpy(), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
-                                                  for batch_num in range(np.shape(target_np)[0])])
-                self.log('val_{}fss_scale_{:03d}_persistence_target'.format(log_prefix, fss_scale), fss_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
-
-                fss_zeros_target = np.nanmean([fss(np.zeros(target_np[batch_num, :, :].shape), target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
-                                            for batch_num in range(np.shape(target_np)[0])])
-                self.log('val_{}fss_scale_{:03d}_zeros_target'.format(log_prefix, fss_scale), fss_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
 
         if self.s_log_precipitation_difference:
             with torch.no_grad():

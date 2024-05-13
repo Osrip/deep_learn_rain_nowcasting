@@ -320,7 +320,7 @@ def line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train, key_
 
 
 def plot_qualities_main_several_sigmas(plot_settings, ps_sim_name, s_gaussian_smoothing_target, s_fss_scales, s_calc_baseline,
-                                       s_multiple_sigmas, s_calculate_fss, **__):
+                                       s_multiple_sigmas, **__):
     '''
     Plots both mse vals and loss. Adjust loss according to what is calculated
     (xentropy or kl divergence dependong on whether s_gaussian_smoothing_target is active)
@@ -363,22 +363,6 @@ def plot_qualities_main_several_sigmas(plot_settings, ps_sim_name, s_gaussian_sm
               base_linestyle_list=['-', '--'],
               title='MSE on lognorm data', **plot_settings,)
 
-    if s_calculate_fss:
-        # This does not yet work with s_gaussian_smoothing_multiple_sigmas
-        for scale in s_fss_scales:
-            key_list_train_fss = ['train_fss_scale_{:03d}_pred_target'.format(scale), 'train_fss_scale_{:03d}_zeros_target'.format(scale),
-                                'train_fss_scale_{:03d}_persistence_target'.format(scale)]
-            key_list_val_fss = ['val_fss_scale_{:03d}_pred_target'.format(scale), 'val_fss_scale_{:03d}_zeros_target'.format(scale),
-                                'val_fss_scale_{:03d}_persistence_target'.format(scale)]
-            key_list_base_train_fss = ['base_train_fss_scale_{:03d}_pred_target'.format(scale)]
-            key_list_base_val_fss = ['base_val_fss_scale_{:03d}_pred_target'.format(scale)]
-            line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train_fss, key_list_val_fss, key_list_base_train_fss,
-                      key_list_base_val_fss, save_name='fss_scale_{:03d}'.format(scale), ylog=False, ylabel='FSS',
-                        color_list=['g', 'y', 'b', 'g', 'y', 'b'], base_color_list=['red', 'red'],
-                        linestyle_list=['-', '-', '-', '--', '--', '--'],
-                        base_linestyle_list=['-', '--'],
-                        title='FSS scale {:03d} on lognorm data'.format(scale), **plot_settings)
-
     key_list_train_xentropy = ['train_loss']
     key_list_val_xentropy = ['val_loss']
 
@@ -395,7 +379,7 @@ def plot_qualities_main_several_sigmas(plot_settings, ps_sim_name, s_gaussian_sm
               ylabel=loss_ylabel, ylog=loss_ylog, save_name='xentropy_loss', title=loss_title, **plot_settings)
 
 
-def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target, s_fss_scales, s_calc_baseline, s_calculate_fss,
+def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target, s_fss_scales, s_calc_baseline,
                         **__):
     '''
     Plots both mse vals and loss. Adjust loss according to what is calculated
@@ -417,20 +401,6 @@ def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target,
               base_linestyle_list=['-', '--'],
               title='MSE on lognorm data', **plot_settings,)
 
-    if s_calculate_fss:
-        for scale in s_fss_scales:
-            key_list_train_fss = ['train_fss_scale_{:03d}_pred_target'.format(scale), 'train_fss_scale_{:03d}_zeros_target'.format(scale),
-                                'train_fss_scale_{:03d}_persistence_target'.format(scale)]
-            key_list_val_fss = ['val_fss_scale_{:03d}_pred_target'.format(scale), 'val_fss_scale_{:03d}_zeros_target'.format(scale),
-                                'val_fss_scale_{:03d}_persistence_target'.format(scale)]
-            key_list_base_train_fss = ['base_train_fss_scale_{:03d}_pred_target'.format(scale)]
-            key_list_base_val_fss = ['base_val_fss_scale_{:03d}_pred_target'.format(scale)]
-            line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train_fss, key_list_val_fss, key_list_base_train_fss,
-                      key_list_base_val_fss, save_name='fss_scale_{:03d}'.format(scale), ylog=False, ylabel='FSS',
-                        color_list=['g', 'y', 'b', 'g', 'y', 'b'], base_color_list=['red', 'red'],
-                        linestyle_list=['-', '-', '-', '--', '--', '--'],
-                        base_linestyle_list=['-', '--'],
-                        title='FSS scale {:03d} on lognorm data'.format(scale), **plot_settings)
 
     key_list_train_xentropy = ['train_loss']
     key_list_val_xentropy = ['val_loss']

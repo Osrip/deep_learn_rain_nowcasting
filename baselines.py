@@ -12,7 +12,7 @@ class LKBaseline(pl.LightningModule):
     '''
     Optical Flow baseline (PySteps)
     '''
-    def __init__(self, logging_type, mean_filtered_log_data, std_filtered_log_data, s_num_lead_time_steps, s_calculate_fss,
+    def __init__(self, logging_type, mean_filtered_log_data, std_filtered_log_data, s_num_lead_time_steps,
                  s_fss_scales, s_fss_threshold, device, use_steps=False, steps_settings=None, **__):
         '''
         logging_type depending on data loader either: 'train' or 'val' or None if no logging is desired
@@ -32,7 +32,6 @@ class LKBaseline(pl.LightningModule):
 
         # Settings
         self.s_num_lead_time_steps = s_num_lead_time_steps
-        self.s_calculate_fss = s_calculate_fss
         self.s_fss_scales = s_fss_scales
         self.s_fss_threshold = s_fss_threshold
         self.s_device = device
@@ -165,17 +164,18 @@ class LKBaseline(pl.LightningModule):
             self.log('base_{}_mse_pred_target'.format(self.logging_type), mse_pred_target.item(), on_step=False,
                      on_epoch=True, sync_dist=True)
 
-        if self.s_calculate_fss:
-            fss = verification.get_method("FSS")
-            pred_np = pred.detach().cpu().numpy()
-            target_np = target.cpu().numpy()
 
-            for fss_scale in self.s_fss_scales:
-                fss_pred_target = np.nanmean(
-                    [fss(pred_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
-                     for batch_num in range(np.shape(target_np)[0])]
-                )
-                if self.logging_type is not None:
-                    self.log('base_{}_fss_scale_{:03d}_pred_target'.format(self.logging_type, fss_scale), fss_pred_target,
-                             on_step=False, on_epoch=True, sync_dist=True)
+        # Calculate FSS
+        fss = verification.get_method("FSS")
+        pred_np = pred.detach().cpu().numpy()
+        target_np = target.cpu().numpy()
+
+        for fss_scale in self.s_fss_scales:
+            fss_pred_target = np.nanmean(
+                [fss(pred_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
+                 for batch_num in range(np.shape(target_np)[0])]
+            )
+            if self.logging_type is not None:
+                self.log('base_{}_fss_scale_{:03d}_pred_target'.format(self.logging_type, fss_scale), fss_pred_target,
+                         on_step=False, on_epoch=True, sync_dist=True)
 
