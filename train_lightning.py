@@ -340,14 +340,6 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-
-    #  Training data
-    # num_training_samples = 20  # 1000  # Number of loaded pictures (first pics not used for training but only input)
-    # num_validation_samples = 20  # 600
-
-    # train_start_date_time = datetime.datetime(2020, 12, 1)
-    # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
-
     s_local_machine_mode = True
 
     s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
@@ -399,8 +391,6 @@ if __name__ == '__main__':
             's_data_file_name': 'RV_recalc.zarr',  #'yw_done.zarr',
             's_data_variable_name': 'RV_recalc',
             's_data_preprocessing_chunk_num': 50, #Number of chunks that are loaded into ram during pre-processing --> Number of chunks that the above data set is split into 2 year radolan zarr dataset is about 1 tb as np array
-            's_choose_time_span': False,
-            's_time_span': (datetime.datetime(2020, 12, 1), datetime.datetime(2020, 12, 1)),
             's_ratio_training_data': 0.6,
             's_data_loader_chunk_size': 288,  # 20, #  Chunk size, that consecutive data is chunked in when performing random splitting
             # Changed on 9.2.24 from 20 to 288 (corresponds to 24h)
@@ -481,9 +471,7 @@ if __name__ == '__main__':
             's_plot_img_histogram_boo': True,
 
             # Logging Stuff
-            's_model_every_n_epoch': 1, # Save model every nth epoch
-
-
+            's_model_every_n_epoch': 1,  # Save model every nth epoch
         }
 
     if not settings['s_plotting_only']:
@@ -499,19 +487,11 @@ if __name__ == '__main__':
     if settings['s_local_machine_mode']:
 
         settings['s_data_variable_name'] = 'RV_recalc'
-
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
-
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
-
         settings['s_data_preprocessing_chunk_num'] = 2
-
-        settings['s_choose_time_span'] = False  # DO NOT USE, screws up indecies for data loading
-
-        settings['s_time_span'] = (67, 150)  # Only used when s_choose_time_span == True; now done according to index (isel instead of sel)
-
         settings['s_upscale_c_to'] = 32  # 8
-        settings['s_batch_size'] = 8  # 2
+        settings['s_batch_size'] = 8  # our net: 8
         settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter

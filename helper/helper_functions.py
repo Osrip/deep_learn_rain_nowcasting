@@ -26,20 +26,6 @@ def create_dilation_list(s_width_height, inverse_ratio=4):
     return out
 
 
-# def bin_to_one_hot_index(mm_data, linspace_binning):
-#     '''
-#     Can directly handle log data
-#     In practice gets passed log transformed data
-#     --> linspace_binning_min, linspace_binning_max have to be in log transformed space
-#     '''
-#     # Linspace binning always annotates the lowest value of the bin. The very last value (whoich is linspacebinning_max) is
-#     # not included in the linspace binning, such that the number of entries in linspace binning correstponts to the number of bins
-#     # Indecies start counting at 1, therefore - 1
-#     indecies = np.digitize(mm_data, linspace_binning, right=False) - 1
-#     return indecies
-
-
-# Same function in torch (to be tested):
 def bin_to_one_hot_index(mm_data: torch.Tensor, linspace_binning):
     if isinstance(linspace_binning, np.ndarray):
         linspace_binning = torch.from_numpy(linspace_binning).to()
@@ -137,34 +123,6 @@ def save_tuple_pickle_csv(save_dict, folder, file_name):
     save_zipped_pickle('{}/{}'.format(folder, file_name), save_dict)
 
 
-# def save_whole_project(save_folder):
-#     '''
-#     Copies complete code into simulation folder
-#     Todo: does not copy subfolders for some reason!
-#     '''
-#     cwd = os.getcwd()
-#
-#     onlyfiles = []
-#     for path, subdirs, files in os.walk(cwd):
-#         for name in files:
-#             if (isfile(join(cwd, name)) and (not 'venv' in path) and (not 'runs' in path) and (name.endswith('.py') or name.endswith('.txt')
-#                                                                       or name.endswith('.ipynb') or name.endswith('.sh'))):
-#                 onlyfiles.append(os.path.relpath(os.path.join(path, name), cwd))
-#
-#     # onlyfiles = [f for f in listdir(cwd) if (isfile(join(cwd, f)) and (f.endswith('.py') or f.endswith('.txt') or f.endswith('.ipynb')))]
-#     for file in onlyfiles:
-#         save_code(save_folder, file)
-#
-#
-# def save_code(save_folder, filename):
-#     src = filename
-#     dst = save_folder + '/' + src
-#     try:
-#         copyfile(src, dst)
-#     except FileNotFoundError:
-#         os.makedirs(dst[0:dst.rfind('/')])
-
-
 def save_whole_project(save_folder):
     cwd = os.getcwd()
 
@@ -245,6 +203,7 @@ def flatten_list(lst):
     '''
     return [item for sublist in lst for item in sublist]
 
+
 def no_special_characters(str):
     str_new = ''
     for char in str:
@@ -265,6 +224,3 @@ def df_cols_to_list_of_lists(keys, df):
 def convert_list_of_lists_to_lists_of_lists_with_means(list_of_lists):
     mean_f = lambda x: np.mean(x)
     return [[mean_f(l)] for l in list_of_lists]
-
-
-

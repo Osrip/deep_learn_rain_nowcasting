@@ -178,9 +178,9 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
 
 
 def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width_height,
-                           s_data_variable_name, s_time_span, s_width_height_target, s_min_rain_ratio_target,
+                           s_data_variable_name, s_width_height_target, s_min_rain_ratio_target,
                            s_data_preprocessing_chunk_num, s_num_input_time_steps, s_num_lead_time_steps, s_max_num_filter_hits,
-                           s_choose_time_span=False, **__):
+                        **__):
     '''
     This huge ass function is doing all the filtering of the data and returns a list of indecies for the final data that
     is used for training and validation (both temporal and spatial indecies). This way the data can be directly loaded from the original data set using these
@@ -338,7 +338,6 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                         filtered_data_loader_indecies_dict['input_idx_upper_left_h_w'] = (
                                 np.array(input_idx_upper_left_h_w) + upper_left_truncation_coordinate_h_w)
                         filtered_data_loader_indecies_dict['input_idx_upper_left_h_w_cropped_coordinates_DEBUG'] = np.array(input_idx_upper_left_h_w)
-                        filtered_data_loader_indecies_dict['time_span'] = s_time_span if s_choose_time_span else None
                         filtered_data_loader_indecies.append(filtered_data_loader_indecies_dict)
 
                         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -641,16 +640,6 @@ def inverse_normalize_data(data_sequence, mean_orig_data, std_orig_data, inverse
     return data_sequence
 
 
-
-    # if inverse_log:
-    #     inverse_normalized = data_sequence * std_orig_data + mean_orig_data
-    #     return np.exp(inverse_normalized) - 1
-    # else:
-    #     return data_sequence * std_orig_data + mean_orig_data
-
-
-
-
 def iterate_through_data_names(start_date_time, future_iterations_from_start: int, minutes_per_iteration: int):
     '''
     start_date_time_ datetime object
@@ -683,37 +672,6 @@ def flag_data(data_dataset, flag_dataset, nan_letter=0):
     # data_arr[~flag_bool] = np.NAN
     data_arr[~flag_bool] = nan_letter
     return data_arr
-
-
-def plot_data(data_arr, flag_naming=False):
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
-    pixel_plot = plt.imshow(data_arr, cmap='Greens', interpolation='nearest', origin='lower')
-    plt.colorbar(pixel_plot)
-    if flag_naming:
-        plt.savefig('misc/flag.png', dpi=300, bbox_inches='tight')
-    else:
-        plt.savefig('misc/data.png', dpi=300, bbox_inches='tight')
-    plt.show()
-
-
-def plot_data_log(data_arr):
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
-    # pixel_plot = plt.imshow(data_arr, cmap='Greens', interpolation='nearest', origin='lower')
-    pixel_plot = plt.matshow(data_arr, cmap='Greens', norm=LogNorm(vmin=0.01, vmax=1), interpolation='nearest',
-                             origin='lower')
-    plt.colorbar(pixel_plot)
-    plt.savefig('misc/log_data.png', dpi=300, bbox_inches='tight')
-    plt.show()
-
-
-def plot_data_boo(data_arr):
-    boo_data = data_arr < 0.001
-    pixel_plot = plt.plot(boo_data)
-    # plt.colorbar(pixel_plot)
-    plt.savefig('misc/data_close_to_zero.png', dpi=300, bbox_inches='tight')
-    plt.show()
 
 
 def random_splitting_filtered_indecies(indecies, num_training_samples, chunk_size):

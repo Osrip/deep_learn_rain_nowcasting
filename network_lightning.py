@@ -120,7 +120,6 @@ class Network_l(pl.LightningModule):
                             gamma=1 - 1.5 * (1 / self.s_max_epochs * (6000 / self.training_steps_per_epoch)) * 10e-4)
                 # https://3.basecamp.com/5660298/buckets/33695235/messages/6386997982
 
-
                 self.optimizer = optimizer
                 self.lr_scheduler = copy.deepcopy(lr_scheduler)
 
@@ -142,14 +141,13 @@ class Network_l(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         self.train_step_num += 1
         input_sequence, target_binned, target, target_one_hot_extended = batch
-        nan_mask = torch.isnan(input_sequence)
 
         # Replace nans with 0s
+        nan_mask = torch.isnan(input_sequence)
         input_sequence[nan_mask] = 0
 
         input_sequence = inverse_normalize_data(input_sequence, self.mean_train_data_set, self.std_train_data_set)
         target = inverse_normalize_data(target, self.mean_train_data_set, self.std_train_data_set)
-
 
         if self.s_gaussian_smoothing_target:
             if self.s_schedule_sigma_smoothing:
@@ -176,10 +174,8 @@ class Network_l(pl.LightningModule):
         self.val_step_num += 1
         input_sequence, target_binned, target, target_one_hot_extended = val_batch
 
-
         input_sequence = inverse_normalize_data(input_sequence, self.mean_val_data_set, self.std_val_data_set)
         target = inverse_normalize_data(target, self.mean_val_data_set, self.std_val_data_set)
-
 
         if self.s_gaussian_smoothing_target:
             if self.s_schedule_sigma_smoothing:
@@ -188,7 +184,7 @@ class Network_l(pl.LightningModule):
                 curr_sigma = self.s_sigma_target_smoothing
 
             target_binned = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
-                                                       kernel_size=128)
+                                                      kernel_size=128)
 
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
