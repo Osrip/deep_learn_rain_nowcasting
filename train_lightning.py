@@ -445,7 +445,6 @@ if __name__ == '__main__':
 
             # Loss
             's_crps_loss': False,  # CRPS loss instead of X-entropy loss
-            's_weighted_loss': False,  #Loss weighted acc. to inverse of class/bin frequency, ONLY WORKS FOR XENTROPY loss
 
             # DLBD, Gaussian smoothing
             's_gaussian_smoothing_target': False,
