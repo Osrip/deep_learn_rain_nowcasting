@@ -7,8 +7,7 @@ from helper.helper_functions import create_dilation_list
 
 # TODO: This Resnet has 5 Residual Blocks. ResNet50 has 16 residual blocks. ResNet101 has 33 residual blocks
 class ResNet(nn.Module):
-    def __init__(self, c_in: int, s_upscale_c_to, s_num_bins_crossentropy, s_width_height: int,
-                    s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas, **__):
+    def __init__(self, c_in: int, s_upscale_c_to, s_num_bins_crossentropy, s_width_height: int, s_multiple_sigmas, **__):
         """
         ResNet
         The initial 7 x 7 layer has been skipped
@@ -45,10 +44,8 @@ class ResNet(nn.Module):
 
             if downsample:
                 c_curr = c_curr * 2
-        if not s_gaussian_smoothing_multiple_sigmas:
-            downscale_c_to = s_num_bins_crossentropy
-        else:
-            downscale_c_to = s_num_bins_crossentropy * len(s_multiple_sigmas)
+
+        downscale_c_to = s_num_bins_crossentropy
 
         self.conv1_1_downscale = nn.Conv2d(c_curr, downscale_c_to, kernel_size=1, dilation=1, stride=1, padding=0)
 

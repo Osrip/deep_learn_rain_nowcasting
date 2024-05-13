@@ -80,7 +80,8 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
             if ps_gaussian_smoothing_multiple_sigmas:
                 pred = pred[0].detach().cpu()
 
-            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
+            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                            mean_bin_vals=True)
             del pred
             pred_mm_inv_normed = inv_norm(pred_mm)
             # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
@@ -110,7 +111,7 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
                                                                                       preds_and_targets['target_inv_normed']):
 
                     # Works up until here! predictions of baseline and model have been calculated
-                    # TODO: Calculate FSS: Write loop that iterates over different thersholds (x-axis) and different scales (several plots or differently colored lines? Or movie?)
+                    # TODO: Calculate FSS: Write loop that iterates over different thresholds (x-axis) and different scales (several plots or differently colored lines? Or movie?)
 
                     for batch_num in range(np.shape(target_inv_normed)[0]):
                         fss_model = fss_calc(pred_mm_inv_normed[batch_num, :, :], target_inv_normed[batch_num, :, :], threshold, scale)
@@ -246,7 +247,6 @@ def plot_fss_by_scales_one_plot(s_dirs, fss_log_thresholds, num_lines, **__):
     # Adding colorbars for the scales
     scalar_mappable = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=sampled_scales.min(), vmax=sampled_scales.max()))
     scalar_mappable.set_array([])
-
 
     # Add the colorbars to the figure
     cbar = plt.colorbar(scalar_mappable, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)

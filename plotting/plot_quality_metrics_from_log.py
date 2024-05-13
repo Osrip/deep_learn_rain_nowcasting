@@ -424,14 +424,6 @@ def plot_precipitation_diff(plot_settings, ps_sim_name, **__):
     (xentropy or kl divergence dependong on whether s_gaussian_smoothing_target is active)
     This requires both **plot_settings and **settings as input
     '''
-    train_df, val_df, _, _ = load_data(s_calc_baseline=False ,**plot_settings)
-    key_list_train_diff = ['train_mean_diff_pred_target_mm']
-    key_list_val_diff = ['val_mean_diff_pred_target_mm']
-
-    line_plot(train_df, val_df, None, None, key_list_train_diff, key_list_val_diff, None, None, save_name='mean_diff_mm',
-              color_list=['b', 'y'], linestyle_list=['-', '--'],
-              title='Mean Precipitation difference prediciton - target', ylabel='Mean Difference (lognormalized data)', ylog=False,
-              **plot_settings,)
 
     key_list_train_mm = ['train_mean_pred_mm', 'train_mean_target_mm']
     key_list_val_mm = ['val_mean_pred_mm', 'val_mean_target_mm']

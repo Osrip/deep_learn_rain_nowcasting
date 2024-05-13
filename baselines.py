@@ -165,17 +165,4 @@ class LKBaseline(pl.LightningModule):
                      on_epoch=True, sync_dist=True)
 
 
-        # Calculate FSS
-        fss = verification.get_method("FSS")
-        pred_np = pred.detach().cpu().numpy()
-        target_np = target.cpu().numpy()
-
-        for fss_scale in self.s_fss_scales:
-            fss_pred_target = np.nanmean(
-                [fss(pred_np[batch_num, :, :], target_np[batch_num, :, :], self.s_fss_threshold, fss_scale)
-                 for batch_num in range(np.shape(target_np)[0])]
-            )
-            if self.logging_type is not None:
-                self.log('base_{}_fss_scale_{:03d}_pred_target'.format(self.logging_type, fss_scale), fss_pred_target,
-                         on_step=False, on_epoch=True, sync_dist=True)
 

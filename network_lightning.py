@@ -21,10 +21,10 @@ import warnings
 
 class Network_l(pl.LightningModule):
     def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict,
-                 settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
-                 s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
+                 settings, device, s_num_input_time_steps, s_num_bins_crossentropy,
+                 s_learning_rate, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
-                 s_lr_schedule, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
+                 s_lr_schedule,
                  s_convnext, s_crps_loss,
                  training_steps_per_epoch=None, filter_and_normalization_params=None, class_count_target=None, training_mode=True, **__):
         '''
@@ -89,14 +89,11 @@ class Network_l(pl.LightningModule):
 
         self.s_learning_rate = s_learning_rate
         self.s_width_height_target = s_width_height_target
-        self.s_calculate_quality_params = s_calculate_quality_params
         self.s_max_epochs = s_max_epochs
         self.s_gaussian_smoothing_target = s_gaussian_smoothing_target
         self.s_log_precipitation_difference = s_log_precipitation_difference
-        self.s_fss_scales = s_fss_scales
-        self.s_fss_threshold = s_fss_threshold
-        self.s_gaussian_smoothing_multiple_sigmas = s_gaussian_smoothing_multiple_sigmas
-        self.s_multiple_sigmas = s_multiple_sigmas
+
+
         self.s_lr_schedule = s_lr_schedule
 
         self._linspace_binning_params = linspace_binning_params
@@ -116,10 +113,7 @@ class Network_l(pl.LightningModule):
 
     def forward(self, x):
         output = self.model(x)
-        if self.s_gaussian_smoothing_multiple_sigmas:
-            # chunk output tensor into $num_sigma equal parts along channel dimension, each chunk corresponding to the prediction
-            # of one sigma
-            output = output.chunk(len(self.s_multiple_sigmas), dim=1)
+
         return output
 
     def configure_optimizers(self):
@@ -128,20 +122,9 @@ class Network_l(pl.LightningModule):
             if not self.training_steps_per_epoch is None:
                 optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.s_learning_rate)
                 lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer,
-                                    gamma=1 - 1.5 * (1 / self.s_max_epochs * (6000 / self.training_steps_per_epoch)) * 10e-4)
+                            gamma=1 - 1.5 * (1 / self.s_max_epochs * (6000 / self.training_steps_per_epoch)) * 10e-4)
                 # https://3.basecamp.com/5660298/buckets/33695235/messages/6386997982
-                # Gamma = 1 - x * (1 / epochs) keeps exponential equal independently of value for epochs
-                # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 1.5 * (1 / self.s_max_epochs) * 10e-4)
-                # 1 - 1.5 * (1 / self.s_max_epochs) * 10e-4 decreases lr 4 orders of magnitude, proven best performance in
 
-                # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1 - 3 * 10e-6)
-                # lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.s_learning_rate,
-                #                                                    steps_per_epoch=self.training_steps_per_epoch,
-                #                                                    epochs=self.s_max_epochs)
-                # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
-                #                                 T_0 = self.training_steps_per_epoch * 10,# Number of iterations for the first restart
-                #                                 T_mult = 1, # A factor increases TiTi after a restart
-                #                                 eta_min = 1e-5) # Minimum learning rate
 
                 self.optimizer = optimizer
                 self.lr_scheduler = copy.deepcopy(lr_scheduler)
@@ -150,7 +133,6 @@ class Network_l(pl.LightningModule):
                     'optimizer': optimizer,
                     'lr_scheduler': {
                         'scheduler': lr_scheduler,
-                        # 'monitor': 'val_loss',  # The metric to monitor for scheduling
                         }
                 }
 
@@ -167,21 +149,15 @@ class Network_l(pl.LightningModule):
         self.train_step_num += 1
         input_sequence, target_binned, target, target_one_hot_extended = batch
         nan_mask = torch.isnan(input_sequence)
-        input_sequence[nan_mask] = 0
 
         # Replace nans with 0s
+        input_sequence[nan_mask] = 0
+
         input_sequence = inverse_normalize_data(input_sequence, self.mean_train_data_set, self.std_train_data_set)
         target = inverse_normalize_data(target, self.mean_train_data_set, self.std_train_data_set)
 
 
-        if self.s_gaussian_smoothing_multiple_sigmas:
-            smoothed_targets = []
-            for sigma in self.s_multiple_sigmas:
-                smoothed_targets.append(gaussian_smoothing_target(target_one_hot_extended, device=self.s_device,
-                                                          sigma=sigma,
-                                                          kernel_size=128).float())
-
-        elif self.s_gaussian_smoothing_target:
+        if self.s_gaussian_smoothing_target:
             if self.s_schedule_sigma_smoothing:
                 curr_sigma = self.sigma_schedule_mapping[self.train_step_num]
             else:
@@ -193,129 +169,16 @@ class Network_l(pl.LightningModule):
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
 
+        pred = self(input_sequence)
+        if torch.isnan(pred).any():
+            raise ValueError('NAN in prediction (also leading to nan in loss)')
+        loss = self.loss_func(pred, target_binned)
 
-
-        # We use cross entropy loss, for both gaussian smoothed and normal one_hot target
-        if not self.s_gaussian_smoothing_multiple_sigmas:
-            pred = self(input_sequence)
-            if torch.isnan(pred).any():
-                raise ValueError('NAN in prediction (also leading to nan in loss)')
-            loss = self.loss_func(pred, target_binned)
-
-            preds = [pred]
-            log_prefixes = ['']
-        else:
-            log_prefixes = ['sigma_' + str(i) + '_' for i in self.s_multiple_sigmas]
-
-            preds = self(input_sequence)
-            losses = []
-            for i, (pred_sig, target_binned_sig, log_prefix) in enumerate(zip(preds, smoothed_targets, log_prefixes)):
-                # Invert i to start with large value in schedule of the largest sigma
-                inverted_i = len(self.s_multiple_sigmas) - i - 1
-                if self.s_schedule_sigma_smoothing:
-                    loss = self.loss_func(pred_sig, target_binned_sig)
-                    x = linear_schedule_0_to_1(self.current_epoch, self.s_max_epochs)
-                    weight_curr_sigma = bernstein_polynomial(inverted_i, len(self.s_multiple_sigmas), x)
-                    losses.append(loss * weight_curr_sigma)
-                else:
-                    losses.append(self.loss_func(pred_sig, target_binned_sig))
-
-
-                linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
-
-                pred_mm = one_hot_to_lognorm_mm(pred_sig, linspace_binning, linspace_binning_max, channel_dim=1,
-                                                mean_bin_vals=True)
-
-                # Inverse normalize data
-                pred_mm = inverse_normalize_data(pred_mm, self.mean_train_data_set, self.std_train_data_set)
-
-                pred_mm = torch.tensor(pred_mm, device=self.s_device)
-
-                target_mm_sig = one_hot_to_lognorm_mm(target_binned_sig, linspace_binning, linspace_binning_max, channel_dim=1,
-                                                      mean_bin_vals=True)
-                target_mm_sig = inverse_normalize_data(target_mm_sig, self.mean_train_data_set, self.std_train_data_set)
-
-                target_mm_sig = torch.tensor(target_mm_sig, device=self.s_device)
-
-                # Calculate MSE for each blurred target
-                # Non nan-handling needed, as the DLBD targets have been calculated from the one hot targets, which
-                # have a [0,0,0,0,0] encoding for nans
-                mse_pred_target = torch.nn.MSELoss()(pred_mm, target_mm_sig)
-                self.log('train_{}mse_pred_target'.format(log_prefix), mse_pred_target.item(), on_step=False,
-                         on_epoch=True, sync_dist=True)
-
-                mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device), target_mm_sig)
-                self.log('train_{}mse_zeros_target'.format(log_prefix), mse_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
-
-                persistence = input_sequence[:, -1, :, :]
-                persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
-                mse_persistence_target = torch.nn.MSELoss()(persistence, target_mm_sig)
-                self.log('train_{}mse_persistence_target'.format(log_prefix), mse_persistence_target, on_step=False,
-                         on_epoch=True, sync_dist=True)
-
-                # losses = [nn.CrossEntropyLoss()(pred, target_binned) for target_binned in smoothed_targets] #  Old implementation with only one target
-            loss = torch.sum(torch.stack(losses))
-
-        log_prefix = ''
-        self.log('train_{}loss'.format(log_prefix), loss, on_step=False,
-                on_epoch=True, sync_dist=True)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
-
-
-        # lognormalisierte preds!!
-        if not self.s_gaussian_smoothing_multiple_sigmas:
-
-            for pred, log_prefix in zip(preds, log_prefixes):  # Iterating through predictions and log prefixes for the case of multiple sigmas, which correspinds to multiple predictions
-
-                if self.s_calculate_quality_params or self.s_log_precipitation_difference:
-                    linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
-                    pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-                                                    mean_bin_vals=True)
-
-                    pred_mm = inverse_normalize_data(pred_mm, self.mean_train_data_set, self.std_train_data_set)
-
-                    pred_mm = torch.tensor(pred_mm, device=self.s_device)
-
-                if self.s_calculate_quality_params:
-                    target_nan_mask = torch.isnan(target)
-                    # MSE
-                    mse_pred_target = torch.nn.MSELoss()(pred_mm[~target_nan_mask], target[~target_nan_mask])
-                    self.log('train_{}mse_pred_target'.format(log_prefix), mse_pred_target.item(), on_step=False, on_epoch=True, sync_dist=True)
-                    # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item())
-
-                    # MSE zeros
-                    mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device)[~target_nan_mask],
-                                                          target[~target_nan_mask])
-                    self.log('train_{}mse_zeros_target'.format(log_prefix), mse_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
-                    # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item())
-
-                    persistence = input_sequence[:, -1, :, :]
-                    persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
-                    mse_persistence_target = torch.nn.MSELoss()(persistence[~target_nan_mask], target[~target_nan_mask])
-                    self.log('train_{}mse_persistence_target'.format(log_prefix), mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
-                    # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
-
-
-        if self.s_log_precipitation_difference:
-            with torch.no_grad():
-                target_nan_mask = torch.isnan(target)
-                mean_pred_diff = torch.mean(pred_mm[~target_nan_mask] - target[~target_nan_mask]).item()
-                mean_pred = torch.mean(pred_mm[~target_nan_mask]).item()
-                mean_target = torch.mean(target[~target_nan_mask]).item()
-
-            self.log('train_{}mean_diff_pred_target_mm'.format(log_prefix), mean_pred_diff, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('train_{}mean_pred_mm'.format(log_prefix), mean_pred, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('train_{}mean_target_mm'.format(log_prefix), mean_target, on_step=False, on_epoch=True, sync_dist=True)
-
-            # self.log('') =
-
-
-        print_gpu_memory()
-        print_ram_usage()
+        self.logging(loss, pred, target, input_sequence, prefix_train_val='train')
 
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        # TODO: Does this work??
         self.val_step_num += 1
         input_sequence, target_binned, target, target_one_hot_extended = val_batch
 
@@ -323,14 +186,8 @@ class Network_l(pl.LightningModule):
         input_sequence = inverse_normalize_data(input_sequence, self.mean_val_data_set, self.std_val_data_set)
         target = inverse_normalize_data(target, self.mean_val_data_set, self.std_val_data_set)
 
-        if self.s_gaussian_smoothing_multiple_sigmas:
-            smoothed_targets = []
-            for sigma in self.s_multiple_sigmas:
-                smoothed_targets.append(gaussian_smoothing_target(target_one_hot_extended, device=self.s_device,
-                                                          sigma=sigma,
-                                                          kernel_size=128).float())
 
-        elif self.s_gaussian_smoothing_target:
+        if self.s_gaussian_smoothing_target:
             if self.s_schedule_sigma_smoothing:
                 curr_sigma = self.sigma_schedule_mapping[self.val_step_num]
             else:
@@ -339,130 +196,69 @@ class Network_l(pl.LightningModule):
             target_binned = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
                                                        kernel_size=128)
 
-
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
 
+        pred = self(input_sequence)
+        loss = self.loss_func(pred, target_binned)
 
-        if not self.s_gaussian_smoothing_multiple_sigmas:
-            pred = self(input_sequence)
-            loss = self.loss_func(pred, target_binned)
+        self.logging(loss, pred, target, input_sequence, prefix_train_val='val')
 
-            preds = [pred]
-            log_prefixes = ['']
-        else:
-            log_prefixes = ['sigma_' + str(i) + '_' for i in self.s_multiple_sigmas]
+    def logging(self, loss, pred, target, input_sequence, prefix_train_val, prefix_instance=''):
+        """
+        This does all the logging during the training / validation loop
+        prefix_train_val has to be either 'train' or 'val'
+        """
 
-            preds = self(input_sequence)
-            losses = []
-            for i, (pred_sig, target_binned_sig, log_prefix) in enumerate(zip(preds, smoothed_targets, log_prefixes)):
-                # Invert i to start with large value in schedule of the largest sigma
-                inverted_i = len(self.s_multiple_sigmas) - i - 1
-                if self.s_schedule_sigma_smoothing:
-                    loss = self.loss_func(pred_sig, target_binned_sig)
-                    x = linear_schedule_0_to_1(self.current_epoch, self.s_max_epochs)
-                    weight_curr_sigma = bernstein_polynomial(inverted_i, len(self.s_multiple_sigmas), x)
-                    losses.append(loss * weight_curr_sigma)
-                else:
-                    losses.append(self.loss_func(pred_sig, target_binned_sig))
+        if prefix_train_val not in ['train', 'val']:
+            raise ValueError('prefix_train_val has to be either "train" or "val"')
 
+        with torch.no_grad():
+            prefix_instance = ''
+            self.log('{}_{}loss'.format(prefix_train_val, prefix_instance), loss, on_step=False,
+                     on_epoch=True,
+                     sync_dist=True)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
 
-                linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
+            linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
+            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
+                                            mean_bin_vals=True)
 
-                pred_mm = one_hot_to_lognorm_mm(pred_sig, linspace_binning, linspace_binning_max, channel_dim=1,
-                                                mean_bin_vals=True)
+            pred_mm = inverse_normalize_data(pred_mm, self.mean_train_data_set, self.std_train_data_set)
 
-                # Inverse normalize data
-                pred_mm = inverse_normalize_data(pred_mm, self.mean_val_data_set, self.std_val_data_set)
+            pred_mm = torch.tensor(pred_mm, device=self.s_device)
 
-                pred_mm = torch.tensor(pred_mm, device=self.s_device)
+            target_nan_mask = torch.isnan(target)
+            # MSE
+            mse_pred_target = torch.nn.MSELoss()(pred_mm[~target_nan_mask], target[~target_nan_mask])
+            self.log('{}_{}mse_pred_target'.format(prefix_train_val, prefix_instance), mse_pred_target.item(), on_step=False, on_epoch=True,
+                     sync_dist=True)
+            # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item())
 
+            # MSE zeros
+            mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device)[~target_nan_mask],
+                                                  target[~target_nan_mask])
+            self.log('{}_{}mse_zeros_target'.format(prefix_train_val, prefix_instance), mse_zeros_target, on_step=False, on_epoch=True,
+                     sync_dist=True)
+            # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item())
 
+            persistence = input_sequence[:, -1, :, :]
+            persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
+            mse_persistence_target = torch.nn.MSELoss()(persistence[~target_nan_mask], target[~target_nan_mask])
+            self.log('{}_{}mse_persistence_target'.format(prefix_train_val, prefix_instance), mse_persistence_target, on_step=False,
+                     on_epoch=True, sync_dist=True)
+            # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
 
-                target_mm_sig = one_hot_to_lognorm_mm(target_binned_sig, linspace_binning, linspace_binning_max, channel_dim=1,
-                                                      mean_bin_vals=True)
-                target_mm_sig = inverse_normalize_data(target_mm_sig, self.mean_val_data_set, self.std_val_data_set)
-                target_mm_sig = torch.tensor(target_mm_sig, device=self.s_device)
+            if self.s_log_precipitation_difference:
+                target_nan_mask = torch.isnan(target)
+                mean_pred = torch.mean(pred_mm[~target_nan_mask]).item()
+                mean_target = torch.mean(target[~target_nan_mask]).item()
 
-                # MSE
-                mse_pred_target = torch.nn.MSELoss()(pred_mm, target_mm_sig)
-                self.log('val_{}mse_pred_target'.format(log_prefix), mse_pred_target.item(), on_step=False,
-                         on_epoch=True, sync_dist=True)
-                # mlflow.log_metric('val_mse_pred_target', mse_pred_target.item())
-
-                # MSE zeros
-                mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device), target_mm_sig)
-                self.log('val_{}mse_zeros_target'.format(log_prefix), mse_zeros_target, on_step=False, on_epoch=True,
+                self.log('{}_{}mean_pred_mm'.format(prefix_train_val, prefix_instance), mean_pred, on_step=False, on_epoch=True,
                          sync_dist=True)
-                # mlflow.log_metric('val_mse_zeros_target', mse_zeros_target.item())
+                self.log('{}_{}mean_target_mm'.format(prefix_train_val, prefix_instance), mean_target, on_step=False, on_epoch=True,
+                         sync_dist=True)
 
-                persistence = input_sequence[:, -1, :, :]
-                persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
-                mse_persistence_target = torch.nn.MSELoss()(persistence, target_mm_sig)
-                self.log('val_{}mse_persistence_target'.format(log_prefix), mse_persistence_target, on_step=False,
-                         on_epoch=True, sync_dist=True)
-                # mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item())
-
-
-            # losses = [nn.CrossEntropyLoss()(pred, target_binned) for target_binned in smoothed_targets]
-            loss = torch.sum(torch.stack(losses))
-
-        log_prefix = ''
-
-        self.log('val_{}loss'.format(log_prefix), loss, on_step=False, on_epoch=True,
-                 sync_dist=True)  # , on_step=True
-        # mlflow logging without autolog
-        # self.logger.experiment.log_metric(self.logger.run_id, 'val_loss', loss.item())
-
-        # mlflow.log_metric('val_loss', loss.item())
-
-        if not self.s_gaussian_smoothing_multiple_sigmas:
-            for pred, log_prefix in zip(preds, log_prefixes):  # Iterating through predictions and log prefixes for the case of multiple sigmas
-
-                if self.s_calculate_quality_params or self.s_log_precipitation_difference:
-                    linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
-                    pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-                                                    mean_bin_vals=True)
-                    pred_mm = inverse_normalize_data(pred_mm, self.mean_val_data_set, self.std_val_data_set)
-                    pred_mm = torch.tensor(pred_mm, device=self.s_device)
-
-                if self.s_calculate_quality_params:
-                    # MSE
-                    mse_pred_target = torch.nn.MSELoss()(pred_mm, target)
-                    self.log('val_{}mse_pred_target'.format(log_prefix), mse_pred_target.item(), on_step=False, on_epoch=True, sync_dist=True)
-                    # mlflow.log_metric('val_mse_pred_target', mse_pred_target.item())
-
-                    # MSE zeros
-                    mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device), target)
-                    self.log('val_{}mse_zeros_target'.format(log_prefix), mse_zeros_target, on_step=False, on_epoch=True, sync_dist=True)
-                    # mlflow.log_metric('val_mse_zeros_target', mse_zeros_target.item())
-
-                    persistence = input_sequence[:, -1, :, :]
-                    persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
-                    mse_persistence_target = torch.nn.MSELoss()(persistence, target)
-                    self.log('val_{}mse_persistence_target'.format(log_prefix), mse_persistence_target, on_step=False, on_epoch=True, sync_dist=True)
-                    # mlflow.log_metric('val_mse_persistence_target', mse_persistence_target.item())
-
-
-        if self.s_log_precipitation_difference:
-            with torch.no_grad():
-                mean_pred_diff = torch.mean(pred_mm - target).item()
-                mean_pred = torch.mean(pred_mm).item()
-                mean_target = torch.mean(target).item()
-
-            self.log('val_{}mean_diff_pred_target_mm'.format(log_prefix), mean_pred_diff, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('val_{}mean_pred_mm'.format(log_prefix), mean_pred, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('val_{}mean_target_mm'.format(log_prefix), mean_target, on_step=False, on_epoch=True, sync_dist=True)
-
-        # pred_mm = one_hot_to_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1, mean_bin_vals=True)
-        # pred_mm = torch.from_numpy(pred_mm).detach()
-
-        # MSE
-        # mse_pred_target = torch.nn.MSELoss()(pred, target)
-        # self.log('val_mse_pred_target', mse_pred_target)
-
-        # MSE zeros
-        # mse_zeros_target= torch.nn.MSELoss()(torch.zeros(target.shape), target)
-        # self.log('val_mse_zeros_target', mse_zeros_target)
+        print_gpu_memory()
+        print_ram_usage()
 
 
