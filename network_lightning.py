@@ -113,7 +113,6 @@ class Network_l(pl.LightningModule):
 
     def forward(self, x):
         output = self.model(x)
-
         return output
 
     def configure_optimizers(self):

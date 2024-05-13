@@ -182,7 +182,6 @@ class ConvNextUpScale(nn.Module):
         return x
 
 
-
 class EncoderModule(nn.Module):
     """
     One block of the Encoder that includes two ConvNext Block and a downsampling block
