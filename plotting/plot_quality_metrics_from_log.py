@@ -319,7 +319,7 @@ def line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train, key_
                    title=title)
 
 
-def plot_qualities_main_several_sigmas(plot_settings, ps_sim_name, s_gaussian_smoothing_target, s_fss_scales, s_calc_baseline,
+def plot_qualities_main_several_sigmas(plot_settings, ps_sim_name, s_gaussian_smoothing_target, s_calc_baseline,
                                        s_multiple_sigmas, **__):
     '''
     Plots both mse vals and loss. Adjust loss according to what is calculated
@@ -379,7 +379,7 @@ def plot_qualities_main_several_sigmas(plot_settings, ps_sim_name, s_gaussian_sm
               ylabel=loss_ylabel, ylog=loss_ylog, save_name='xentropy_loss', title=loss_title, **plot_settings)
 
 
-def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target, s_fss_scales, s_calc_baseline,
+def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target, s_calc_baseline,
                         **__):
     '''
     Plots both mse vals and loss. Adjust loss according to what is calculated

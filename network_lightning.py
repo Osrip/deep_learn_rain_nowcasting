@@ -13,11 +13,7 @@ from helper.sigma_scheduler_helper import bernstein_polynomial, linear_schedule_
 import torchvision.transforms as T
 import copy
 from pysteps import verification
-import numpy as np
 
-
-import warnings
-# Stuff for memory logging
 
 class Network_l(pl.LightningModule):
     def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict,
@@ -142,7 +138,6 @@ class Network_l(pl.LightningModule):
         else:
             optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.s_learning_rate)
             return optimizer
-
 
     def training_step(self, batch, batch_idx):
         self.train_step_num += 1
