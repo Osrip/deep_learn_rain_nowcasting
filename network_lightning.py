@@ -5,7 +5,7 @@ from helper.calc_CRPS import crps_vectorized
 from load_data import inverse_normalize_data, invnorm_linspace_binning
 from helper.memory_logging import print_gpu_memory, print_ram_usage
 from modules_blocks import Network
-from modules_blocks_convnext import UNet
+from modules_blocks_convnext import ConvNeXtUNet
 import torch.nn as nn
 from helper.helper_functions import one_hot_to_lognorm_mm
 from helper.gaussian_smoothing_helper import gaussian_smoothing_target
@@ -25,7 +25,7 @@ class Network_l(pl.LightningModule):
                  s_width_height, s_learning_rate, s_calculate_quality_params, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
                  s_lr_schedule, s_calculate_fss, s_fss_scales, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
-                 s_resnet, s_crps_loss, s_weighted_loss,
+                 s_convnext, s_crps_loss, s_weighted_loss,
                  training_steps_per_epoch=None, filter_and_normalization_params=None, class_count_target=None, training_mode=True, **__):
         '''
         Both data_set_statistics_dict and  sigma_schedule_mapping and class_count_target can be None if no training, but only forward pass is
@@ -80,10 +80,16 @@ class Network_l(pl.LightningModule):
         else:
             self.loss_func = nn.CrossEntropyLoss()
 
-        if not s_resnet:
+        if not s_convnext:
             self.model = Network(c_in=s_num_input_time_steps, **settings)
         else:
-            self.model = UNet()
+            self.model = ConvNeXtUNet(
+                c_list=[4, 32, 64, 128, 256],
+                spatial_factor_list=[2, 2, 2, 2],
+                num_blocks_list=[2, 2, 2, 2],
+                c_target=s_num_bins_crossentropy,
+                height_width_target=s_width_height_target
+            )
 
         self.model.to(device)
 

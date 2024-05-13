@@ -290,7 +290,7 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
             data_set_statistics_dict, linspace_binning_params, sigma_schedule_mapping, filter_and_normalization_params,
-            class_count_target, settings, s_max_epochs, s_num_gpus, s_check_val_every_n_epoch, s_resnet, **__):
+            class_count_target, settings, s_max_epochs, s_num_gpus, s_check_val_every_n_epoch, s_convnext, **__):
     '''
     Train loop, keep this clean!
     '''
@@ -302,17 +302,10 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
                         class_count_target=class_count_target,
                         **settings)
 
-    if s_resnet:
-        # Used due to bug
-        strategy = 'ddp_find_unused_parameters_true'
-    else:
-        strategy = 'ddp'
-
-
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=s_max_epochs, log_every_n_steps=1,
                          logger=logger, devices=s_num_gpus, check_val_every_n_epoch=s_check_val_every_n_epoch,
-                         strategy=strategy)  # on mac: , accelerator='cpu'
+                         strategy='ddp')  # on mac: , accelerator='cpu'
     # strategy="ddp", # precision='16-mixed'
     # 'devices' argument is ignored when device == 'cpu'
     # Speed up advice: https://pytorch-lightning.readthedocs.io/en/1.8.6/guides/speed.html
@@ -355,7 +348,7 @@ if __name__ == '__main__':
     # train_start_date_time = datetime.datetime(2020, 12, 1)
     # s_folder_path = '/media/jan/54093204402DAFBA/Jan/Programming/Butz_AG/weather_data/dwd_datensatz_bits/rv_recalc/RV_RECALC/hdf/'
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
 
@@ -389,7 +382,7 @@ if __name__ == '__main__':
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
-            's_resnet': True,  # Use ResNet instead of ours
+            's_convnext': True,  # Use ResNet instead of ours
 
             # TODO: Implement!!
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline

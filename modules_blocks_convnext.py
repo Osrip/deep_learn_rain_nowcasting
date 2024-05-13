@@ -294,11 +294,22 @@ class DownScaleToTarget(nn.Module):
         return x
 
 
-class UNet(nn.Module):
+class ConvNeXtUNet(nn.Module):
+    """
+    ConvNeXt Unet
+    c_list: list that includes the number of channels that each scaling module should input / output
+            The length of the list corresponds to the (number of downscalings = number of upscalings) + 1
+            in the UNet. So the first list entry is the number of input channels
+    spatial_factor_list: list that includes the spatial downscaling / upscaling factors for ech down / upscaling
+            module. The length of the list corresponds to the number of downscalings = number of upscalings
+    num_blocks_list: List of the number of ConvNeXt blocks for each downscaling / upscaling. The downsampling / upsampling
+            block itself is not included in the number. The length of the list corresponds to the number of
+            downscalings = number of upscalings
+    """
     def __init__(self,
-                 c_list: list[int] = [4, 32, 64, 128, 256],
-                 spatial_factor_list: list[int] = [2, 2, 2, 2],
-                 num_blocks_list: list[int] = [2, 2, 2, 2],
+                 c_list: list[int],
+                 spatial_factor_list: list[int],
+                 num_blocks_list: list[int],
                  c_target: int = 64,
                  height_width_target: int = 32,
                  ):
@@ -309,12 +320,12 @@ class UNet(nn.Module):
 
         self.encoder = Encoder(c_list, spatial_factor_list, num_blocks_list)
         self.decoder = Decoder(c_list, spatial_factor_list, num_blocks_list)
-        self.center_crop = DownScaleToTarget(c_in=c_list[0], c_out=c_target, height_width_target=height_width_target)
+        self.center_crop_downscale = DownScaleToTarget(c_in=c_list[0], c_out=c_target, height_width_target=height_width_target)
         self.soft_max = nn.Softmax(dim=1)
 
     def forward(self, x: torch.Tensor):
         skip_list = self.encoder(x)
         x = self.decoder(skip_list)
-        x = self.center_crop(x)
+        x = self.center_crop_downscale(x)
         x = self.soft_max(x)
         return x
