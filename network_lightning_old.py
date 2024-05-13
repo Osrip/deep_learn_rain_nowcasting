@@ -24,7 +24,7 @@ class Network_l(pl.LightningModule):
                  settings, device, s_num_input_time_steps, s_upscale_c_to, s_num_bins_crossentropy,
                  s_width_height, s_learning_rate, s_width_height_target, s_max_epochs,
                  s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
-                 s_lr_schedule, s_fss_threshold, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
+                 s_lr_schedule, s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas,
                  s_convnext, s_crps_loss,
                  training_steps_per_epoch=None, filter_and_normalization_params=None, class_count_target=None, training_mode=True, **__):
         '''
@@ -92,7 +92,6 @@ class Network_l(pl.LightningModule):
         self.s_max_epochs = s_max_epochs
         self.s_gaussian_smoothing_target = s_gaussian_smoothing_target
         self.s_log_precipitation_difference = s_log_precipitation_difference
-        self.s_fss_threshold = s_fss_threshold
         self.s_gaussian_smoothing_multiple_sigmas = s_gaussian_smoothing_multiple_sigmas
         self.s_multiple_sigmas = s_multiple_sigmas
         self.s_lr_schedule = s_lr_schedule

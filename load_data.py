@@ -716,38 +716,6 @@ def plot_data_boo(data_arr):
     plt.show()
 
 
-def load_data_sequence_preliminary(s_folder_path, data_file_name, s_width_height, s_data_variable_name, s_choose_time_span,
-                                   s_time_span, s_local_machine_mode, **__):
-    '''
-    This function loads one file and has the option to load a subset of the file instead by setting s_choose_time_span to true
-    '''
-
-    load_path = '{}/{}'.format(s_folder_path, data_file_name)
-    print('Loading training/validation data from {}'.format(load_path))
-    data_dataset = xr.open_dataset(load_path)
-    if s_choose_time_span:
-        # TODO Change this back, only for test purposes!!
-        data_dataset = data_dataset.isel(time=slice(s_time_span[0], s_time_span[1]))
-        # data_dataset = data_dataset.sel(time=slice(s_time_span[0], s_time_span[1]))
-    data_arr = data_dataset[s_data_variable_name].values
-
-    # This has to be enabled, when loading the nc netCDF data set
-    # data_arr = data_arr[:, 0, :, :]
-    data_arr = data_arr[0, :, :, :]
-
-    # Get rid of steps dimension
-    # if s_local_machine_mode:
-    #     data_arr = data_arr[:, 0, :, :]
-    # else:
-    #     data_arr = data_arr[0, :, :, :]
-    data_tensor = torch.from_numpy(data_arr)
-
-    # Crop --> TODO: Implement this with x y variables of NetCDF in future!
-    # Doing cropping in filtering_data_scraper therefore commented out
-    # data_tensor = T.CenterCrop(size=s_width_height)(data_tensor)
-    return data_tensor
-
-
 def random_splitting_filtered_indecies(indecies, num_training_samples, chunk_size):
     '''
     This randomly splits training and validation data

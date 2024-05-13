@@ -459,7 +459,6 @@ if __name__ == '__main__':
             's_calc_baseline': True,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000,  # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
             's_log_precipitation_difference': True,
-            's_fss_threshold': 1,  # Threshold in mm/h for which fss is calculated
 
             # Log transform input/ validation data --> log binning --> log(x+1)
             's_log_transform': True,  # False not tested, leave this true
@@ -500,21 +499,17 @@ if __name__ == '__main__':
     if settings['s_local_machine_mode']:
 
         settings['s_data_variable_name'] = 'RV_recalc'
-        # settings['s_data_variable_name'] = 'yw_radolan'
 
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
-        # settings['s_folder_path'] = 'dwd_nc/benchmark_set_test_data'
 
-        # settings['s_data_file_names'] = ['RV_recalc_data_2019-01_subset.nc']
-        # settings['s_data_file_name'] = 'yw_2019_6_11.zarr'
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
 
         settings['s_data_preprocessing_chunk_num'] = 2
 
-        # settings['s_choose_time_span'] = True
         settings['s_choose_time_span'] = False  # DO NOT USE, screws up indecies for data loading
-        # settings['s_time_span'] = (datetime.datetime(2019, 1, 1, 0), datetime.datetime(2019, 1, 1, 5))
+
         settings['s_time_span'] = (67, 150)  # Only used when s_choose_time_span == True; now done according to index (isel instead of sel)
+
         settings['s_upscale_c_to'] = 32  # 8
         settings['s_batch_size'] = 8  # 2
         settings['s_data_loader_chunk_size'] = 1

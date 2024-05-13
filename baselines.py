@@ -13,7 +13,7 @@ class LKBaseline(pl.LightningModule):
     Optical Flow baseline (PySteps)
     '''
     def __init__(self, logging_type, mean_filtered_log_data, std_filtered_log_data, s_num_lead_time_steps,
-                 s_fss_threshold, device, use_steps=False, steps_settings=None, **__):
+                 device, use_steps=False, steps_settings=None, **__):
         '''
         logging_type depending on data loader either: 'train' or 'val' or None if no logging is desired
         This is used by both,
@@ -32,7 +32,6 @@ class LKBaseline(pl.LightningModule):
 
         # Settings
         self.s_num_lead_time_steps = s_num_lead_time_steps
-        self.s_fss_threshold = s_fss_threshold
         self.s_device = device
 
         self.steps_settings = steps_settings
