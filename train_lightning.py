@@ -117,7 +117,7 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     # target_mean_weights has length and order of targets
     target_mean_weights = class_weights_per_sample(filtered_indecies_training, class_weights_target, linspace_binning,
                                                    mean_filtered_log_data, std_filtered_log_data, transform_f, settings,
-                                                   normalize=True)
+                                                   normalize=True, **settings)
 
     print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
                                                                                                  num_training_samples,
