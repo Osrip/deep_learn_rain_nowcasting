@@ -19,7 +19,8 @@ import warnings
 class PrecipitationFilteredDataset(Dataset):
     def __init__(self, filtered_data_loader_indecies, mean_filtered_log_data, std_filtered_log_data, linspace_binning_min, linspace_binning_max, linspace_binning, transform_f,
                  s_num_bins_crossentropy, s_folder_path, s_width_height, s_width_height_target, s_data_variable_name,
-                 s_local_machine_mode, s_gaussian_smoothing_target, s_gaussian_smoothing_multiple_sigmas, device, s_normalize=True, **__):
+                 s_local_machine_mode, s_gaussian_smoothing_target, s_gaussian_smoothing_multiple_sigmas, s_data_file_name,
+                 device, s_normalize=True, **__):
         """
         Attributes:
         self.data_sequence --> log normalized data sequence
@@ -53,9 +54,11 @@ class PrecipitationFilteredDataset(Dataset):
         self.s_gaussian_smoothing_target = s_gaussian_smoothing_target
         self.s_gaussian_smoothing_multiple_sigmas = s_gaussian_smoothing_multiple_sigmas
         self.s_device = device
-        # log transform
-        # Errors encountered!
 
+        # Initialize xr dataset
+        file = s_data_file_name
+        self.data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, file))
+        # TODO: chunks = None?
     def __len__(self):
         return len(self.filtered_data_loader_indecies)
 
@@ -63,106 +66,99 @@ class PrecipitationFilteredDataset(Dataset):
         # Loading everything directly from the disc
         # Returns the first pictures as input data and the last picture as training picture
         input_sequence, target_one_hot, target, target_one_hot_extended = \
-            load_input_target_from_index(idx, self.filtered_data_loader_indecies, self.linspace_binning,
+            self.load_input_target_from_index(idx, self.filtered_data_loader_indecies, self.linspace_binning,
                                      self.mean_filtered_log_data, self.std_filtered_log_data, self.transform_f,
                                      self.s_width_height, self.s_width_height_target, self.s_data_variable_name,
                                      self.s_normalize, self.s_num_bins_crossentropy, self.s_folder_path,
                                      self.s_gaussian_smoothing_target,
                                      self.s_gaussian_smoothing_multiple_sigmas, device='cpu',
-                                         # Loading on CPU to prevent pin_memory error (DataLoader operates on CPU, then pushes to GPU)
+                                     # Loading on CPU to prevent pin_memory error (DataLoader operates on CPU, then pushes to GPU)
                                      normalize=True, load_input_sequence=True, load_target=True
                                      )
 
         return input_sequence, target_one_hot, target, target_one_hot_extended
 
+    # TODO: !!!! rewrite this such that it only loads extended target if we are really doing gausian smoothing! !!!
+    def load_input_target_from_index(self, idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data,
+                                     transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
+                                     s_num_bins_crossentropy, s_folder_path, s_gaussian_smoothing_target, s_gaussian_smoothing_multiple_sigmas,
+                                     device,
+                                     normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
+                                     ):
 
-# TODO: !!!! rewrite this such that it only loads extended target if we are really doing gausian smoothing! !!!
-def load_input_target_from_index(idx, filtered_data_loader_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data,
-                                 transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
-                                 s_num_bins_crossentropy, s_folder_path, s_gaussian_smoothing_target, s_gaussian_smoothing_multiple_sigmas,
-                                 device,
-                                 normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
-                                 ):
+        filtered_data_loader_indecies_dict = filtered_data_loader_indecies[idx]
 
-    filtered_data_loader_indecies_dict = filtered_data_loader_indecies[idx]
-    file = filtered_data_loader_indecies_dict['file']
-    first_idx_input_sequence = filtered_data_loader_indecies_dict['first_idx_input_sequence']
-    # The last index is included! (np.arange(1,5) = [1,2,3,4]
-    last_idx_input_sequence = filtered_data_loader_indecies_dict['last_idx_input_sequence']
-    target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
-    input_idx_upper_left = filtered_data_loader_indecies_dict['input_idx_upper_left_h_w']
-    data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, file))
+        first_idx_input_sequence = filtered_data_loader_indecies_dict['first_idx_input_sequence']
+        # The last index is included! (np.arange(1,5) = [1,2,3,4]
+        last_idx_input_sequence = filtered_data_loader_indecies_dict['last_idx_input_sequence']
+        target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
+        input_idx_upper_left = filtered_data_loader_indecies_dict['input_idx_upper_left_h_w']
 
-    if load_input_sequence:
-        # input_data_set = data_dataset.isel(time=slice(first_idx_input_sequence,
-        #                                               last_idx_input_sequence))  # last_idx_input_sequence + 1 like in np! Did I already do that prior?
+        if load_input_sequence:
 
-        # !!!! ATTENTION Y --> HEIGHT --> Dim [0] x--> WIDTH --> Dim [1]
-        # TESTED, NOW cuts the expected crop!
-        input_data_set = data_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence+1),
-                                           y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
-                                           x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
-        # Using arange leads to same result as slice() (tested)
+            # !!!! ATTENTION Y --> HEIGHT --> Dim [0] x--> WIDTH --> Dim [1]
+            # TESTED, NOW cuts the expected crop!
+            input_data_set = self.data_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence+1),
+                                               y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
+                                               x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
+            # Using arange leads to same result as slice() (tested)
 
-        input_sequence = input_data_set[s_data_variable_name].values
+            input_sequence = input_data_set[s_data_variable_name].values
 
-        # input_sequence = torch.from_numpy(input_sequence)
-        # input_sequence = input_sequence.to(device)
+            # Get rid of steps dimension (nothing to do with pysteps)
+            input_sequence = input_sequence[0, :, :, :]
 
-        # Get rid of steps dimension (nothing to do with pysteps)
-        input_sequence = input_sequence[0, :, :, :]
-
-        # setting all nan s to zero (this is only done to input sequence, not to target!)
-        nan_mask = np.isnan(input_sequence)
-        input_sequence[nan_mask] = 0
-
-        if normalize:
-            input_sequence = lognormalize_data(input_sequence, mean_filtered_log_data, std_filtered_log_data,
-                                               transform_f, s_normalize)
-    else:
-        input_sequence = None
-
-    if load_target:
-        target_data_set = data_dataset.isel(time=target_idx_input_sequence,
-                                            y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
-                                            x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
-        target = target_data_set[s_data_variable_name].values
-        del data_dataset
-        # Get rid of steps dimension as we only have one index anyways
-        target = target[0]
-
-        with torch.no_grad():
-            target = torch.from_numpy(target)
-            target = target.to(device)
-
-            # extended target is only needed in case of gaussian smoothing.
-            # Cut either right to default target size or extended target size
-            if s_gaussian_smoothing_target or s_gaussian_smoothing_multiple_sigmas:
-                target = T.CenterCrop(size=extended_target_size)(target)
-            else:
-                target = T.CenterCrop(size=s_width_height_target)(target)
+            # setting all nan s to zero (this is only done to input sequence, not to target!)
+            nan_mask = np.isnan(input_sequence)
+            input_sequence[nan_mask] = 0
 
             if normalize:
-                target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
-                                           s_normalize)
+                input_sequence = lognormalize_data(input_sequence, mean_filtered_log_data, std_filtered_log_data,
+                                                   transform_f, s_normalize)
+        else:
+            input_sequence = None
 
-            target_one_hot = img_one_hot(target, s_num_bins_crossentropy, torch.from_numpy(linspace_binning).to(device))
-            target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
+        if load_target:
+            target_data_set = self.data_dataset.isel(time=target_idx_input_sequence,
+                                                y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
+                                                x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
+            target = target_data_set[s_data_variable_name].values
+            # Get rid of steps dimension as we only have one index anyway
+            target = target[0]
 
-            # This ugly bs added for the extended version of target_one_hot required for gaussian smoothing
-            if s_gaussian_smoothing_target or s_gaussian_smoothing_multiple_sigmas:
-                target_one_hot_extended = target_one_hot
-                target = T.CenterCrop(size=s_width_height_target)(target)
-                target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
-            else:
-                # Return empty tensor instead of None as torch.DataLoader cannot handle None
-                target_one_hot_extended = torch.Tensor([])
+            with torch.no_grad():
+                target = torch.from_numpy(target)
+                target = target.to(device)
 
-    else:
-        target = torch.Tensor([])
-        target_one_hot = torch.Tensor([])
+                # extended target is only needed in case of gaussian smoothing.
+                # Cut either right to default target size or extended target size
+                if s_gaussian_smoothing_target or s_gaussian_smoothing_multiple_sigmas:
+                    target = T.CenterCrop(size=extended_target_size)(target)
+                else:
+                    target = T.CenterCrop(size=s_width_height_target)(target)
 
-    return input_sequence, target_one_hot, target, target_one_hot_extended
+                if normalize:
+                    target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
+                                               s_normalize)
+
+                target_one_hot = img_one_hot(target, s_num_bins_crossentropy, torch.from_numpy(linspace_binning).to(device))
+                target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
+
+                # This ugly bs added for the extended version of target_one_hot required for gaussian smoothing
+                # TODO Only load this if required!
+                if s_gaussian_smoothing_target or s_gaussian_smoothing_multiple_sigmas:
+                    target_one_hot_extended = target_one_hot
+                    target = T.CenterCrop(size=s_width_height_target)(target)
+                    target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
+                else:
+                    # Return empty tensor instead of None as torch.DataLoader cannot handle None
+                    target_one_hot_extended = torch.Tensor([])
+
+        else:
+            target = torch.Tensor([])
+            target_one_hot = torch.Tensor([])
+
+        return input_sequence, target_one_hot, target, target_one_hot_extended
 
 
 def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
@@ -328,7 +324,6 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                         num_frames_passed_filter += 1
 
                         filtered_data_loader_indecies_dict = {}
-                        filtered_data_loader_indecies_dict['file'] = s_data_file_name
                         filtered_data_loader_indecies_dict['first_idx_input_sequence'] = first_idx_input_sequence
                         filtered_data_loader_indecies_dict['last_idx_input_sequence'] = last_idx_input_sequence
                         filtered_data_loader_indecies_dict['target_idx_input_sequence'] = target_idx_input_sequence
@@ -372,7 +367,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                         if linspace_binning_max_unnormalized < max_curr_input_and_target:
                             linspace_binning_max_unnormalized = max_curr_input_and_target
 
-                        # This reduces number of hits in local mode:
+                        # This limits number of hits according to num_frames_passed_filter (introduced for local mode)
                         if s_max_num_filter_hits:
                             if num_frames_passed_filter >= s_max_num_filter_hits:
                                 break
@@ -560,38 +555,6 @@ def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning,
         mean_weight = torch.mean(target_class_weighted).item()
         target_mean_weights.append(mean_weight)
     return target_mean_weights
-
-
-def quantile_binning(filtered_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data, transform_f,
-                           settings, s_num_bins_crossentropy, normalize=True, **__):
-    '''
-    The more often class occurs, the lower the weight value
-    TODO: However observed, that classes with lower mean and max precipitation have higher weight ??!!
-    '''
-
-    class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64)
-
-    for idx in range(len(filtered_indecies)):
-        _, target_one_hot, target, _ = load_input_target_from_index(idx, filtered_indecies, linspace_binning,
-                                                                 mean_filtered_log_data, std_filtered_log_data,
-                                                                 transform_f,
-                                                                 normalize=normalize, load_input_sequence=False,
-                                                                 load_target=True, **settings)
-
-        class_count += torch.sum(target_one_hot, (1, 2)).type(torch.int64)
-
-    sample_num = torch.sum(class_count)
-
-    # class_weights = sample_num / class_count
-    class_weights = 1 / class_count
-
-    # TODO: How to handle class_count == 0 ? At the moment --> inf
-    # However those classes that do not appear are never used, therefore it does not really matter what the
-    # Entries for those classes are.
-    # Is this correct (from https://discuss.pytorch.org/t/how-to-handle-imbalanced-classes/11264/2 )
-
-    return class_weights, class_count, sample_num
-
 
 def filter(input_sequence, target, s_min_rain_ratio_target, percentage=0.5, min_amount_rain=0.2):
 

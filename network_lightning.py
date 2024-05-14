@@ -15,7 +15,7 @@ import copy
 from pysteps import verification
 
 
-class Network_l(pl.LightningModule):
+class NetworkL(pl.LightningModule):
     def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict,
                  settings, device, s_num_input_time_steps, s_num_bins_crossentropy,
                  s_learning_rate, s_width_height_target, s_max_epochs,
@@ -194,10 +194,17 @@ class Network_l(pl.LightningModule):
 
         self.logging(loss, pred, target, input_sequence, prefix_train_val='val')
 
-    def logging(self, loss, pred, target, input_sequence, prefix_train_val, prefix_instance=''):
+    def logging(self, loss, pred, target, input_sequence, prefix_train_val, prefix_instance='', on_step=False,
+                on_epoch=True, sync_dist=True):
         """
         This does all the logging during the training / validation loop
         prefix_train_val has to be either 'train' or 'val'
+
+        epoch-wise logging: on_step=False, on_epoch=True, sync_dist=True
+
+        Per default Lightning first runs training, then logs training
+        then runs validation, then logs validation.
+        Sanity check runs two batches through validation without logging
         """
 
         if prefix_train_val not in ['train', 'val']:
@@ -205,9 +212,8 @@ class Network_l(pl.LightningModule):
 
         with torch.no_grad():
             prefix_instance = ''
-            self.log('{}_{}loss'.format(prefix_train_val, prefix_instance), loss, on_step=False,
-                     on_epoch=True,
-                     sync_dist=True)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
+            self.log('{}_{}loss'.format(prefix_train_val, prefix_instance), loss, on_step=on_step,
+                     on_epoch=on_epoch, sync_dist=sync_dist)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
 
             linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
             pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
@@ -220,22 +226,22 @@ class Network_l(pl.LightningModule):
             target_nan_mask = torch.isnan(target)
             # MSE
             mse_pred_target = torch.nn.MSELoss()(pred_mm[~target_nan_mask], target[~target_nan_mask])
-            self.log('{}_{}mse_pred_target'.format(prefix_train_val, prefix_instance), mse_pred_target.item(), on_step=False, on_epoch=True,
-                     sync_dist=True)
+            self.log('{}_{}mse_pred_target'.format(prefix_train_val, prefix_instance), mse_pred_target.item(),
+                     on_step=on_step, on_epoch=on_epoch, sync_dist=sync_dist)
             # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item())
 
             # MSE zeros
             mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device)[~target_nan_mask],
                                                   target[~target_nan_mask])
-            self.log('{}_{}mse_zeros_target'.format(prefix_train_val, prefix_instance), mse_zeros_target, on_step=False, on_epoch=True,
-                     sync_dist=True)
+            self.log('{}_{}mse_zeros_target'.format(prefix_train_val, prefix_instance), mse_zeros_target,
+                     on_step=on_step, on_epoch=on_epoch, sync_dist=sync_dist)
             # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item())
 
             persistence = input_sequence[:, -1, :, :]
             persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
             mse_persistence_target = torch.nn.MSELoss()(persistence[~target_nan_mask], target[~target_nan_mask])
-            self.log('{}_{}mse_persistence_target'.format(prefix_train_val, prefix_instance), mse_persistence_target, on_step=False,
-                     on_epoch=True, sync_dist=True)
+            self.log('{}_{}mse_persistence_target'.format(prefix_train_val, prefix_instance), mse_persistence_target,
+                     on_step=on_step, on_epoch=on_epoch, sync_dist=sync_dist)
             # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
 
             if self.s_log_precipitation_difference:
@@ -243,10 +249,10 @@ class Network_l(pl.LightningModule):
                 mean_pred = torch.mean(pred_mm[~target_nan_mask]).item()
                 mean_target = torch.mean(target[~target_nan_mask]).item()
 
-                self.log('{}_{}mean_pred_mm'.format(prefix_train_val, prefix_instance), mean_pred, on_step=False, on_epoch=True,
-                         sync_dist=True)
-                self.log('{}_{}mean_target_mm'.format(prefix_train_val, prefix_instance), mean_target, on_step=False, on_epoch=True,
-                         sync_dist=True)
+                self.log('{}_{}mean_pred_mm'.format(prefix_train_val, prefix_instance), mean_pred,
+                         on_step=on_step, on_epoch=on_epoch, sync_dist=sync_dist)
+                self.log('{}_{}mean_target_mm'.format(prefix_train_val, prefix_instance), mean_target,
+                         on_step=on_step, on_epoch=on_epoch, sync_dist=sync_dist)
 
         print_gpu_memory()
         print_ram_usage()

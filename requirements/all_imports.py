@@ -69,7 +69,7 @@ import numpy as np
 
 
 
-from network_lightning import Network_l
+from network_lightning import NetworkL
 import datetime
 
 from torch.utils.data import DataLoader, WeightedRandomSampler

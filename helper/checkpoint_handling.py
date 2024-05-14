@@ -1,4 +1,4 @@
-from network_lightning import Network_l
+from network_lightning import NetworkL
 from helper.helper_functions import load_zipped_pickle
 from torch.utils.data import DataLoader
 from load_data import PrecipitationFilteredDataset
@@ -21,7 +21,7 @@ def load_from_checkpoint(runs_path, checkpoint_name, linspace_binning_params, se
     #                                        training_mode=False,
     #                                        **settings)
 
-    model = Network_l.load_from_checkpoint(checkpoint_path=checkpoint_path)
+    model = NetworkL.load_from_checkpoint(checkpoint_path=checkpoint_path)
 
     model = model.to(ps_device)
     return model
