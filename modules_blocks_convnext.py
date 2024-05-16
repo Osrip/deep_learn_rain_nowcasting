@@ -157,7 +157,6 @@ class ConvNextDownScale(nn.Module):
         x = self.layer_norm(x)
         x = self.conv(x)
 
-
         x += skip
         return x
 
@@ -185,7 +184,6 @@ class ConvNextUpScale(nn.Module):
         x = self.layer_norm(x)
         x = self.conv_transposed(x)
 
-
         x += skip
         return x
 
@@ -193,34 +191,36 @@ class ConvNextUpScale(nn.Module):
 class EncoderModule(nn.Module):
     """
     One block of the Encoder that includes two ConvNext Block and a downsampling block
-
     num_blocks: number of ConvNext blocks in the module (0 means only downsampling)
+    First down-scaling block is applied, then the given number of convnext blocks
+    This way Skip connections are applied right before the down sampling after the latent space processing by the
+    ConvNeXt blocks
     """
     def __init__(self, c_in: int, c_out: int, spatial_factor: int, num_blocks: int):
         super().__init__()
-        self.conv_next_blocks = nn.Sequential(*[ConvNext(c_in) for _ in range(num_blocks)])
         self.conv_next_down_scale = ConvNextDownScale(c_in, c_out, spatial_factor)
+        self.conv_next_blocks = nn.Sequential(*[ConvNext(c_out) for _ in range(num_blocks)])
 
     def forward(self, x: torch.Tensor):
-        x = self.conv_next_blocks(x)
         x = self.conv_next_down_scale(x)
+        x = self.conv_next_blocks(x)
         return x
 
 
 class DecoderModule(nn.Module):
     """
     One block of the Decoder that includes two ConvNext Block and an upsampling block.
-
     num_blocks: number of ConvNext blocks in the module (0 means only upsampling).
+    First up-scaling block is applied, then the given number of convnext blocks
     """
     def __init__(self, c_in: int, c_out: int, spatial_factor: int, num_blocks: int):
         super().__init__()
-        self.conv_next_blocks = nn.Sequential(*[ConvNext(c_in) for _ in range(num_blocks)])
         self.conv_next_up_scale = ConvNextUpScale(c_in, c_out, spatial_factor)
+        self.conv_next_blocks = nn.Sequential(*[ConvNext(c_out) for _ in range(num_blocks)])
 
     def forward(self, x: torch.Tensor):
-        x = self.conv_next_blocks(x)
         x = self.conv_next_up_scale(x)
+        x = self.conv_next_blocks(x)
         return x
 
 
@@ -312,6 +312,8 @@ class ConvNeXtUNet(nn.Module):
     num_blocks_list: List of the number of ConvNeXt blocks for each downscaling / upscaling. The downsampling / upsampling
             block itself is not included in the number. The length of the list corresponds to the number of
             downscalings = number of upscalings
+    Just like in the paper the skip connections are applied right before the down sampling
+    As of now we also implement a skip connection right from input to output (unlike paper)
     """
     def __init__(self,
                  c_list: list[int],
