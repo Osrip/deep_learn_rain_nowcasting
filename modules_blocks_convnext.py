@@ -139,6 +139,7 @@ class ConvNext(nn.Module):
 class ConvNextDownScale(nn.Module):
     """
     Downscaling ConvNext block
+    First normalize, then downscale acc to paper
     """
     def __init__(self, c_in: int, c_out: int, spatial_factor: int):
         super().__init__()
@@ -151,8 +152,9 @@ class ConvNextDownScale(nn.Module):
     def forward(self, x: torch.Tensor):
         skip = self.skip(x)
 
-        x = self.conv(x)
         x = self.layer_norm(x)
+        x = self.conv(x)
+
 
         x += skip
         return x
@@ -175,8 +177,9 @@ class ConvNextUpScale(nn.Module):
     def forward(self, x: torch.Tensor):
         skip = self.skip(x)
 
-        x = self.conv_transposed(x)
         x = self.layer_norm(x)
+        x = self.conv_transposed(x)
+
 
         x += skip
         return x
