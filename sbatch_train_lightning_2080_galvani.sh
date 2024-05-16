@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --ntasks=1                # Number of tasks (see below)
 #SBATCH --nodes=1                 # Ensure that all cores are on one machine
-#SBATCH --time=1-12:00            # Runtime in D-HH:MM
+#SBATCH --time=3-00:00            # Runtime in D-HH:MM
 #SBATCH --gres=gpu:1    # optionally type and number of gpus
 #SBATCH --partition=2080-galvani
 #SBATCH --output=out_%j.out  # File to which STDOUT will be written - make sure this is not on $HOME
