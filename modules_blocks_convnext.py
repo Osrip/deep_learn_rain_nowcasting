@@ -139,13 +139,15 @@ class ConvNext(nn.Module):
 class ConvNextDownScale(nn.Module):
     """
     Downscaling ConvNext block
-    First normalize, then downscale acc to paper
+    First normalize, then downscale acc to paper.
+    In original paper, they do not implement a skip connection here.
+    I implemented Manu's skip connection with avg pool for downsampling / duplication for upsampling
     """
     def __init__(self, c_in: int, c_out: int, spatial_factor: int):
         super().__init__()
         #Does the conv 2 2 with stride 2 cause image patching? If so try conv 3x3 with padding
+        self.layer_norm = LayerNormChannelOnly(c_in)
         self.conv = nn.Conv2d(c_in, c_out, kernel_size=spatial_factor, stride=spatial_factor)
-        self.layer_norm = LayerNormChannelOnly(c_out)
         # self.skip = nn.Conv2d(c_in, c_out, kernel_size=1, stride=spatial_factor)
         self.skip = SkipConnection(c_in, c_out, 1/spatial_factor)
 
@@ -163,14 +165,17 @@ class ConvNextDownScale(nn.Module):
 class ConvNextUpScale(nn.Module):
     """
     Upscaling ConvNext block
+    First normalize, then downscale acc to paper.
+    In original paper, they do not implement a skip connection here.
+    I implemented Manu's skip connection with avg pool for downsampling / duplication for upsampling
     """
     def __init__(self, c_in: int, c_out: int, spatial_factor: int):
         super().__init__()
         if c_in % c_out != 0:
             raise ValueError('Channel number must be divisible by c_out.')
         # Upscaling using transposed convolution
+        self.layer_norm = LayerNormChannelOnly(c_in)
         self.conv_transposed = nn.ConvTranspose2d(c_in, c_out, kernel_size=spatial_factor, stride=spatial_factor)
-        self.layer_norm = LayerNormChannelOnly(c_out)
         # Adding a skip connection
         self.skip = SkipConnection(c_in, c_out, spatial_factor)
 
