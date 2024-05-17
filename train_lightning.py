@@ -207,12 +207,9 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
                   class_count_target, settings, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
                   s_sim_name, s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
                   s_check_val_every_n_epoch, s_calc_baseline, **__):
-    '''
+    """
     All the junk surrounding train goes in here
-    '''
-    # train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation, linspace_binning_params, filer_and_normalization_params, training_steps_per_epoch, data_set_statistics_dict, \
-    # = data_set_vars
-
+    """
 
     train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)
 
@@ -232,8 +229,6 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
 
     # save_top_k=-1, prevents callback from overwriting previous checkpoints
 
-
-
     save_dict_pickle_csv('{}/data_set_statistcis_dict'.format(s_dirs['data_dir']), data_set_statistics_dict)
 
     save_zipped_pickle('{}/filtered_indecies_training'.format(s_dirs['data_dir']), filtered_indecies_training)
@@ -249,7 +244,6 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
     # logger = MLFlowLogger(experiment_name="Default", tracking_uri="file:./mlruns", run_name=s_sim_name, # tags={"mlflow.runName": settings['s_sim_name']},
     #                       log_model=False)
     logger = None
-
 
     callback_list = [checkpoint_callback,
                      TrainingLogsCallback(train_logger),
@@ -299,7 +293,6 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
                        filter_and_normalization_params=filter_and_normalization_params,
                        class_count_target=class_count_target,
                        **settings)
-
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=s_max_epochs, log_every_n_steps=1,
                          logger=logger, devices=s_num_gpus, check_val_every_n_epoch=s_check_val_every_n_epoch,
