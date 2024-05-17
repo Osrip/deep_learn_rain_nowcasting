@@ -170,7 +170,7 @@ class NetworkL(pl.LightningModule):
 
         # returned dict has to include 'loss' entry for automatic backward optimization
         # return {'loss': loss, 'pred': pred}  # Add all remaining
-        return loss
+        return {'loss': loss}
 
     def validation_step(self, val_batch, batch_idx):
         self.val_step_num += 1
