@@ -439,7 +439,7 @@ if __name__ == '__main__':
             # Logging
             's_calc_baseline': True,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000,  # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
-            's_log_precipitation_difference': True,
+            's_log_precipitation_difference': False,
 
             # Log transform input/ validation data --> log binning --> log(x+1)
             's_log_transform': True,  # False not tested, leave this true

@@ -3,7 +3,6 @@ import pytorch_lightning as pl
 
 from helper.calc_CRPS import crps_vectorized
 from load_data import inverse_normalize_data, invnorm_linspace_binning
-from helper.memory_logging import print_gpu_memory, print_ram_usage
 from modules_blocks import Network
 from modules_blocks_convnext import ConvNeXtUNet
 import torch.nn as nn
@@ -166,10 +165,9 @@ class NetworkL(pl.LightningModule):
             raise ValueError('NAN in prediction (also leading to nan in loss)')
         loss = self.loss_func(pred, target_binned)
 
-        # self.logging(loss, pred, target, input_sequence, prefix_train_val='train')
-
         # returned dict has to include 'loss' entry for automatic backward optimization
-        # return {'loss': loss, 'pred': pred}  # Add all remaining
+        # Multiple entries can be added to the dict, which can be found in 'outputs' of the callback on_train_batch_end()
+        # which is currently used by logger.py
         return {'loss': loss}
 
     def validation_step(self, val_batch, batch_idx):
@@ -195,74 +193,3 @@ class NetworkL(pl.LightningModule):
         loss = self.loss_func(pred, target_binned)
 
         return {'loss': loss}
-
-        # self.logging(loss, pred, target, input_sequence, prefix_train_val='val')
-
-    # def logging(self, loss, pred, target, input_sequence, prefix_train_val, prefix_instance='', on_step=True,
-    #             on_epoch=False, sync_dist=False):
-    #     """
-    #     This does all the logging during the training / validation loop
-    #     prefix_train_val has to be either 'train' or 'val'
-    #
-    #     epoch-wise logging: on_step=False, on_epoch=True, sync_dist=True
-    #     step-wise logging: on_step=True, on_epoch=False, sync_dist=False
-    #     sync_dist: syncs the GPUs, so not something we want after each step.
-    #         if True, reduces the metric across devices. Use with care as this
-    #         may lead to a significant communication overhead.
-    #
-    #     Per default Lightning first runs training, then logs training
-    #     then runs validation, then logs validation.
-    #     Sanity check runs two batches through validation without logging
-    #     """
-    #
-    #     if prefix_train_val not in ['train', 'val']:
-    #         raise ValueError('prefix_train_val has to be either "train" or "val"')
-    #
-    #     with torch.no_grad():
-    #         prefix_instance = ''
-    #         self.log('{}_{}loss'.format(prefix_train_val, prefix_instance), loss, on_step=on_step,
-    #                  on_epoch=on_epoch, sync_dist=sync_dist)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
-    #
-    #         linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
-    #         pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-    #                                         mean_bin_vals=True)
-    #
-    #         pred_mm = inverse_normalize_data(pred_mm, self.mean_train_data_set, self.std_train_data_set)
-    #
-    #         pred_mm = torch.tensor(pred_mm, device=self.s_device)
-    #
-    #         target_nan_mask = torch.isnan(target)
-    #         # MSE
-    #         mse_pred_target = torch.nn.MSELoss()(pred_mm[~target_nan_mask], target[~target_nan_mask])
-    #         self.log('{}_{}mse_pred_target'.format(prefix_train_val, prefix_instance), mse_pred_target.item(),
-    #                  on_step=on_step, on_epoch=on_epoch, sync_dist=sync_dist)
-    #         # mlflow.log_metric('train_mse_pred_target', mse_pred_target.item())
-    #
-    #         # MSE zeros
-    #         mse_zeros_target = torch.nn.MSELoss()(torch.zeros(target.shape, device=self.s_device)[~target_nan_mask],
-    #                                               target[~target_nan_mask])
-    #         self.log('{}_{}mse_zeros_target'.format(prefix_train_val, prefix_instance), mse_zeros_target,
-    #                  on_step=on_step, on_epoch=on_epoch, sync_dist=sync_dist)
-    #         # mlflow.log_metric('train_mse_zeros_target', mse_zeros_target.item())
-    #
-    #         persistence = input_sequence[:, -1, :, :]
-    #         persistence = T.CenterCrop(size=self.s_width_height_target)(persistence)
-    #         mse_persistence_target = torch.nn.MSELoss()(persistence[~target_nan_mask], target[~target_nan_mask])
-    #         self.log('{}_{}mse_persistence_target'.format(prefix_train_val, prefix_instance), mse_persistence_target,
-    #                  on_step=on_step, on_epoch=on_epoch, sync_dist=sync_dist)
-    #         # mlflow.log_metric('train_mse_persistence_target', mse_persistence_target.item())
-    #
-    #         if self.s_log_precipitation_difference:
-    #             target_nan_mask = torch.isnan(target)
-    #             mean_pred = torch.mean(pred_mm[~target_nan_mask]).item()
-    #             mean_target = torch.mean(target[~target_nan_mask]).item()
-    #
-    #             self.log('{}_{}mean_pred_mm'.format(prefix_train_val, prefix_instance), mean_pred,
-    #                      on_step=on_step, on_epoch=on_epoch, sync_dist=sync_dist)
-    #             self.log('{}_{}mean_target_mm'.format(prefix_train_val, prefix_instance), mean_target,
-    #                      on_step=on_step, on_epoch=on_epoch, sync_dist=sync_dist)
-    #
-    #     print_gpu_memory()
-    #     print_ram_usage()
-
-

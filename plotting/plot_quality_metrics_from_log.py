@@ -387,29 +387,28 @@ def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target,
     This requires both **plot_settings and **settings as input
     '''
     train_df, val_df, base_train_df, base_val_df = load_data(s_calc_baseline, **plot_settings)
-    key_list_train_mse = ['train_mse_pred_target', 'train_mse_zeros_target',
-                      'train_mse_persistence_target']
-    key_list_val_mse = ['val_mse_pred_target', 'val_mse_zeros_target',
-                    'val_mse_persistence_target']
-    key_list_base_train_mse = ['base_train_mse_pred_target']
-    key_list_base_val_mse = ['base_val_mse_pred_target']
 
-    line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train_mse, key_list_val_mse, key_list_base_train_mse,
-              key_list_base_val_mse, save_name='mse_with_val',
-              color_list=['g', 'y', 'b', 'g', 'y', 'b'], base_color_list = ['red', 'red'],
-              linestyle_list=['-', '-', '-', '--', '--', '--'],
-              base_linestyle_list=['-', '--'],
-              title='MSE on lognorm data', **plot_settings,)
+    # Uncomment this for plotting of MSE ect. However has to be enabled first.
 
-
+    # key_list_train_mse = ['train_mse_pred_target', 'train_mse_zeros_target',
+    #                   'train_mse_persistence_target']
+    # key_list_val_mse = ['val_mse_pred_target', 'val_mse_zeros_target',
+    #                 'val_mse_persistence_target']
+    # key_list_base_train_mse = ['base_train_mse_pred_target']
+    # key_list_base_val_mse = ['base_val_mse_pred_target']
+    #
+    # line_plot(train_df, val_df, base_train_df, base_val_df, key_list_train_mse, key_list_val_mse, key_list_base_train_mse,
+    #           key_list_base_val_mse, save_name='mse_with_val',
+    #           color_list=['g', 'y', 'b', 'g', 'y', 'b'], base_color_list = ['red', 'red'],
+    #           linestyle_list=['-', '-', '-', '--', '--', '--'],
+    #           base_linestyle_list=['-', '--'],
+    #           title='MSE on lognorm data', **plot_settings,)
+    #
+    #
     key_list_train_xentropy = ['train_loss']
     key_list_val_xentropy = ['val_loss']
 
-    # if s_gaussian_smoothing_target:
-    #     loss_ylog = False
-    #     loss_ylabel = 'KL Divergence'
-    #     loss_title = 'KL divergence on lognorm data'
-    # else:
+
     loss_ylog = True
     loss_title = 'Xentropy on lognorm data'
     loss_ylabel = 'Xentropy'

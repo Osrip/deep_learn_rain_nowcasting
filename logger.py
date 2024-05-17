@@ -1,9 +1,7 @@
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import CSVLogger, MLFlowLogger
 import torch
-from helper.helper_functions import one_hot_to_lognorm_mm
-from load_data import inverse_normalize_data, invnorm_linspace_binning
-import torchvision.transforms as T
+from helper.memory_logging import print_gpu_memory, print_ram_usage
 
 
 
@@ -32,16 +30,17 @@ class TrainingLogsCallback(pl.Callback):
     # def on_train_epoch_end(self, trainer, pl_module):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         loss = outputs['loss']
-        input_sequence, target_binned, target, target_one_hot_extended = batch
+        # Everything that is returned by training_step() can be unpacked from outputs
 
         logging(self.train_logger, loss, 'train')
-        # self.train_logger.log_metrics(train_logs)  # , epoch=trainer.current_epoch) #, step=trainer.current_epoch)
-
-        # self.train_logger.save()
 
     def on_train_end(self, trainer, pl_module):
         # self.train_logger.finalize()
         self.train_logger.save()
+
+        # Print RAM and VRAM usage
+        print_gpu_memory()
+        print_ram_usage()
 
 
 class ValidationLogsCallback(pl.Callback):
@@ -51,17 +50,8 @@ class ValidationLogsCallback(pl.Callback):
 
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         loss = outputs['loss']
-        input_sequence, target_binned, target, target_one_hot_extended = batch
 
         logging(self.val_logger, loss, 'val')
-    # def on_validation_epoch_end(self, trainer, pl_module):
-    # def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx,):
-    #     all_logs = trainer.callback_metrics
-    #     # trainer.callback_metrics = {}
-    #     val_logs = {key: value for key, value in all_logs.items() if key.startswith('val_')}
-    #     self.val_logger.log_metrics(val_logs)  # , epoch=trainer.current_epoch)
-    #     # self.val_logger.log_metrics(val_logs)  #, step=trainer.current_epoch)
-    #     # self.val_logger.save()
 
     def on_validation_end(self, trainer, pl_module):
         # self.val_logger.finalize()
@@ -75,10 +65,8 @@ class BaselineTrainingLogsCallback(pl.Callback):
 
     def on_validation_epoch_end(self, trainer, pl_module):
         all_logs = trainer.callback_metrics
-        # trainer.callback_metrics = {}
         val_logs = {key: value for key, value in all_logs.items() if key.startswith('base_train_')}
         self.base_train_logger.log_metrics(val_logs) # , epoch=trainer.current_epoch)
-        # self.val_logger.log_metrics(val_logs) #, step=trainer.current_epoch)
         self.base_train_logger.save()
 
     def on_validation_end(self, trainer, pl_module):
