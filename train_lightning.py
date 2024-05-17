@@ -482,7 +482,7 @@ if __name__ == '__main__':
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
         settings['s_data_preprocessing_chunk_num'] = 2
         settings['s_upscale_c_to'] = 32  # 8
-        settings['s_batch_size'] = 2  # our net: 8
+        settings['s_batch_size'] = 4  # our net: 8
         settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter

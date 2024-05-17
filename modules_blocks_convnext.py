@@ -336,5 +336,6 @@ class ConvNeXtUNet(nn.Module):
         skip_list = self.encoder(x)
         x = self.decoder(skip_list)
         x = self.center_crop_downscale(x)
-        x = self.soft_max(x)
+        # XEntropy takes non-softmaxed input!
+        # x = self.soft_max(x)
         return x

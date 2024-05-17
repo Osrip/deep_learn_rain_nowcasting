@@ -38,7 +38,9 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
 
             model = model.to(ps_device)
             pred = model(input_sequence)
-
+            # Prediction through softmax, as torch.CrossEntropyLoss can deal with values higher than 1, which is why
+            # Softmax was not implemented in modules_blocks.py
+            pred = torch.nn.Softmax(dim=1)(pred)
             if plot_baseline:
                 logging_type = None
                 lk_baseline = LKBaseline(logging_type, mean_filtered_log_data, std_filtered_log_data, **settings)
