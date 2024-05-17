@@ -12,15 +12,23 @@ def create_loggers(s_dirs, **__):
 
 
 class TrainingLogsCallback(pl.Callback):
-    # Important info in:
-    # pytorch_lightning/callbacks/callback.py
-    # lightning_fabric/loggers/csv_logs.py
-    # pytorch_lightning/trainer/trainer.py
+    """
+    This inherits and overwrites methods of pytorch_lightning/callbacks/callback.py
+    Important info in:
+    pytorch_lightning/callbacks/callback.py
+    lightning_fabric/loggers/csv_logs.py
+    pytorch_lightning/trainer/trainer.py
+    """
+
     def __init__(self, train_logger):
         super().__init__()
         self.train_logger = train_logger
 
-    def on_train_epoch_end(self, trainer, pl_module):
+    # def on_train_epoch_end(self, trainer, pl_module):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        """
+        Inherited from pytorch_lightning/callbacks/callback.py
+        """
         # on_train_batch_end
 
         all_logs = trainer.callback_metrics  # Alternatively: trainer.logged_metrics
@@ -28,9 +36,8 @@ class TrainingLogsCallback(pl.Callback):
         # trainer.callback_metrics= {}
         # There are both, trainer and validation metrics in callback_metrics (and logged_metrics as well )
         train_logs = {key: value for key, value in all_logs.items() if key.startswith('train_')}
-        self.train_logger.log_metrics(train_logs) # , epoch=trainer.current_epoch) #, step=trainer.current_epoch)
-        self.train_logger.save()
-
+        self.train_logger.log_metrics(train_logs)  # , epoch=trainer.current_epoch) #, step=trainer.current_epoch)
+        # self.train_logger.save()
 
     def on_train_end(self, trainer, pl_module):
         # self.train_logger.finalize()
@@ -42,13 +49,14 @@ class ValidationLogsCallback(pl.Callback):
         super().__init__()
         self.val_logger = val_logger
 
-    def on_validation_epoch_end(self, trainer, pl_module):
+    # def on_validation_epoch_end(self, trainer, pl_module):
+    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx,):
         all_logs = trainer.callback_metrics
         # trainer.callback_metrics = {}
         val_logs = {key: value for key, value in all_logs.items() if key.startswith('val_')}
-        self.val_logger.log_metrics(val_logs) # , epoch=trainer.current_epoch)
-        # self.val_logger.log_metrics(val_logs) #, step=trainer.current_epoch)
-        self.val_logger.save()
+        self.val_logger.log_metrics(val_logs)  # , epoch=trainer.current_epoch)
+        # self.val_logger.log_metrics(val_logs)  #, step=trainer.current_epoch)
+        # self.val_logger.save()
 
     def on_validation_end(self, trainer, pl_module):
         # self.val_logger.finalize()

@@ -194,13 +194,17 @@ class NetworkL(pl.LightningModule):
 
         self.logging(loss, pred, target, input_sequence, prefix_train_val='val')
 
-    def logging(self, loss, pred, target, input_sequence, prefix_train_val, prefix_instance='', on_step=False,
-                on_epoch=True, sync_dist=True):
+    def logging(self, loss, pred, target, input_sequence, prefix_train_val, prefix_instance='', on_step=True,
+                on_epoch=False, sync_dist=False):
         """
         This does all the logging during the training / validation loop
         prefix_train_val has to be either 'train' or 'val'
 
         epoch-wise logging: on_step=False, on_epoch=True, sync_dist=True
+        step-wise logging: on_step=True, on_epoch=False, sync_dist=False
+        sync_dist: syncs the GPUs, so not something we want after each step.
+            if True, reduces the metric across devices. Use with care as this
+            may lead to a significant communication overhead.
 
         Per default Lightning first runs training, then logs training
         then runs validation, then logs validation.
