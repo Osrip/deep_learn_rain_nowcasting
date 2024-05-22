@@ -146,7 +146,7 @@ class NetworkL(pl.LightningModule):
         input_sequence[nan_mask] = 0
 
         input_sequence = inverse_normalize_data(input_sequence, self.mean_train_data_set, self.std_train_data_set)
-        target = inverse_normalize_data(target, self.mean_train_data_set, self.std_train_data_set)
+        # target = inverse_normalize_data(target, self.mean_train_data_set, self.std_train_data_set)
 
         if self.s_gaussian_smoothing_target:
             if self.s_schedule_sigma_smoothing:
@@ -163,7 +163,10 @@ class NetworkL(pl.LightningModule):
         pred = self(input_sequence)
         if torch.isnan(pred).any():
             raise ValueError('NAN in prediction (also leading to nan in loss)')
+
         loss = self.loss_func(pred, target_binned)
+        # Yields the same result, when inputting indecies instead of one-hot probabilities
+        # loss = self.loss_func(pred, torch.argmax(target_binned, dim=1))
 
         # returned dict has to include 'loss' entry for automatic backward optimization
         # Multiple entries can be added to the dict, which can be found in 'outputs' of the callback on_train_batch_end()

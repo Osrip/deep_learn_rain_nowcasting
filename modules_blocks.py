@@ -48,7 +48,6 @@ class Network(nn.Module):
 
         self.conv1_1_downscale = nn.Conv2d(c_curr, downscale_c_to, kernel_size=1, dilation=1, stride=1, padding=0)
 
-
     def forward(self, x: torch.Tensor):
         x = self.conv1_1_upscale(x)
         for module in self.net_modules:

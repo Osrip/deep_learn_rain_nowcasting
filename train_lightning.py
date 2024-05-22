@@ -367,7 +367,6 @@ if __name__ == '__main__':
 
             's_convnext': True,  # Use ResNet instead of ours
 
-            # TODO: Implement!!
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20240126-224535_ID_51437Weighted_x_entropy_loss',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             # Save data loader variables
@@ -465,18 +464,11 @@ if __name__ == '__main__':
             's_model_every_n_epoch': 1,  # Save model every nth epoch
         }
 
-    if not settings['s_plotting_only']:
-        for _, make_dir in s_dirs.items():
-            if not os.path.exists(make_dir):
-                os.makedirs(make_dir)
-
-    if settings['s_no_plotting']:
-        for en in ['s_plot_average_preds_boo', 's_plot_pixelwise_preds_boo', 's_plot_target_vs_pred_boo',
-                   's_plot_mse_boo', 's_plot_losses_boo', 's_plot_img_histogram_boo']:
-            settings[en] = False
 
     if settings['s_local_machine_mode']:
 
+        settings['s_plotting_only'] = True
+        settings['s_plot_sim_name'] = 'Run_20240522-141620default_switching_region_64_bins_100mm_25_ConvNeXt_Centercrop_128_batch_size_test_logger'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
@@ -487,13 +479,22 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
-        settings['s_max_epochs'] = 1  # 3
+        settings['s_max_epochs'] = 15  # 3
         settings['s_num_gpus'] = 1
 
         settings['s_multiple_sigmas'] = [2, 16]
         settings['s_data_loader_vars_path'] = '/home/jan/Programming/weather_data/data_loader_vars' #'/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars' #
         settings['s_max_num_filter_hits'] = None  # 4 # None or int
 
+    if not settings['s_plotting_only']:
+        for _, make_dir in s_dirs.items():
+            if not os.path.exists(make_dir):
+                os.makedirs(make_dir)
+
+    if settings['s_no_plotting']:
+        for en in ['s_plot_average_preds_boo', 's_plot_pixelwise_preds_boo', 's_plot_target_vs_pred_boo',
+                   's_plot_mse_boo', 's_plot_losses_boo', 's_plot_img_histogram_boo']:
+            settings[en] = False
 
     if not settings['s_plotting_only']:
         # Normal training

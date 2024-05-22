@@ -39,7 +39,7 @@ def get_checkpoint_name(ps_runs_path, epoch=None, **__):
     else:
         arg_idx = corresponding_epochs.index(epoch)
 
-    return checkpoint_names[arg_idx], arg_idx
+    return checkpoint_names[arg_idx], corresponding_epochs[arg_idx]
 
 
 def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_name, ps_plot_snapshots,
