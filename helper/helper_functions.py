@@ -28,7 +28,7 @@ def create_dilation_list(s_width_height, inverse_ratio=4):
 
 def bin_to_one_hot_index(mm_data: torch.Tensor, linspace_binning: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
     if isinstance(linspace_binning, np.ndarray):
-        linspace_binning = torch.from_numpy(linspace_binning).to()
+        linspace_binning = torch.from_numpy(linspace_binning).to(mm_data.device)
     # For some reason we need right = True here instead of right = False as in np digitize to get the same behaviour
     indecies = torch.bucketize(mm_data, linspace_binning, right=True) - 1
     return indecies
@@ -44,6 +44,7 @@ def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: Union[torc
     left edge <= observed value < right edge
     This is tested in the test case tests/test_img_one_hot
     '''
+
     data_indexed = bin_to_one_hot_index(data_arr, linspace_binning)  # -0.00000001
 
     if torch.min(data_indexed) < 0:
@@ -69,7 +70,7 @@ def one_hot_to_lognorm_mm(one_hot_tensor: torch.Tensor, linspace_binning: Union[
     bin value is lower bin bound (given by bin index in linspace_binning)
     '''
     if isinstance(linspace_binning, np.ndarray):
-        linspace_binning = torch.from_numpy(linspace_binning).to()
+        linspace_binning = torch.from_numpy(linspace_binning).to(one_hot_tensor.device)
     argmax_indecies = torch.argmax(one_hot_tensor, dim=channel_dim)
     mm_data = linspace_binning[argmax_indecies]
     return mm_data
