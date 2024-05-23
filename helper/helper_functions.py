@@ -1,5 +1,5 @@
 import warnings
-
+from typing import Union
 import numpy as np
 import sys
 import pickle
@@ -26,7 +26,7 @@ def create_dilation_list(s_width_height, inverse_ratio=4):
     return out
 
 
-def bin_to_one_hot_index(mm_data: torch.Tensor, linspace_binning):
+def bin_to_one_hot_index(mm_data: torch.Tensor, linspace_binning: Union[torch.Tensor, np.ndarray]):
     if isinstance(linspace_binning, np.ndarray):
         linspace_binning = torch.from_numpy(linspace_binning).to()
     # For some reason we need right = True here instead of right = False as in np digitize to get the same behaviour

@@ -9,7 +9,7 @@ def test_img_one_hot():
     '''
     Unittest img_one_hot()
     '''
-    test_data = [1, 2, 3, 4, 5]
+    test_data = torch.Tensor([1, 2, 3, 4, 5])
     one_hot_control = torch.tensor(
         [[1, 0, 0, 0, 0],
         [0, 1, 0, 0, 0],
@@ -17,7 +17,7 @@ def test_img_one_hot():
         [0, 0, 0, 1, 0],
         [0, 0, 0, 0, 1]])
     num_c = 5
-    linspace_binning = np.linspace(np.min(test_data), np.max(test_data),
+    linspace_binning = np.linspace(torch.min(test_data).item(), torch.max(test_data).item(),
                                    num=num_c,
                                    endpoint=False)
     data_hot = img_one_hot(test_data, num_c, linspace_binning)
@@ -31,10 +31,12 @@ def test_one_hot_converting():
     Test converting to one hot img_one_hot and then nack to mm with one_hot_to_mm in both, mean_bins and lower bound options
     (Validation data set is binning directly from test_data_set --> Information lost due to bins, that can't be reproduced)
     '''
-    test_data = np.random.standard_normal(size=(2, 256, 256))
+    # Generate a tensor with standard normal distribution
+    test_data = torch.randn(2, 256, 256)
+
     num_c = 64
-    linspace_binning_min = np.min(test_data)
-    linspace_binning_max = np.max(test_data)
+    linspace_binning_min = torch.min(test_data).item()
+    linspace_binning_max = torch.max(test_data).item()
 
     linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max,
                                    num=num_c,
@@ -86,7 +88,7 @@ def test_torch_bin_to_one_hot_index():
     device = 'cpu'
     # Execute both functions
     result_np = bin_to_one_hot_index_np(mm_data_np, linspace_binning_np)
-    result_torch = bin_to_one_hot_index_torch(mm_data_torch, linspace_binning_torch, device)
+    result_torch = bin_to_one_hot_index_torch(mm_data_torch, linspace_binning_torch)
     # Convert Torch result to NumPy for comparison
     result_torch_np = result_torch.numpy()
     # Compare
@@ -118,11 +120,10 @@ def test_normalize_inverse_normalize():
     '''
     Integration test checking whether inverse_normalize can reconstruct the data that has been normalized by normalize()
     '''
-    test_data_set = np.random.rand(5, 256, 256) * 5 + 432
-    mean = np.mean(test_data_set)
-    std = np.std(test_data_set)
+    test_data_set = torch.randn(5, 256, 256) * 5 + 432
+    mean = torch.mean(test_data_set).item()
+    std = torch.std(test_data_set).item()
     normalized_test_data = normalize_data(test_data_set, mean, std)
-    mean = test_data_set
     reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=False)
     assert (reconstructed_test_data == test_data_set).all()
 
@@ -135,7 +136,7 @@ def test_normalize_inverse_normalize_log():
     log_test_data = np.log(test_data_set+1)
     mean = np.mean(log_test_data)
     std = np.std(log_test_data)
-    normalized_test_data = normalize_data(log_test_data)
+    normalized_test_data = normalize_data(log_test_data, mean, std)
     reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=True)
     assert (np.round(reconstructed_test_data, 5) == np.round(test_data_set, 5)).all()
 

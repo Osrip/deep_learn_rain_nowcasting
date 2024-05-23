@@ -24,6 +24,7 @@ from helper.sigma_scheduler_helper import create_scheduler_mapping
 from helper.helper_functions import no_special_characters
 import copy
 import warnings
+from tests.test_basic_functions import test_all
 
 
 def data_loading(settings, s_force_data_preprocessing, **__):
@@ -495,6 +496,9 @@ if __name__ == '__main__':
         for en in ['s_plot_average_preds_boo', 's_plot_pixelwise_preds_boo', 's_plot_target_vs_pred_boo',
                    's_plot_mse_boo', 's_plot_losses_boo', 's_plot_img_histogram_boo']:
             settings[en] = False
+
+    if settings['s_testing']:
+        test_all()
 
     if not settings['s_plotting_only']:
         # Normal training

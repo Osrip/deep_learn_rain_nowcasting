@@ -27,11 +27,10 @@ class TrainingLogsCallback(pl.Callback):
         super().__init__()
         self.train_logger = train_logger
 
-    # def on_train_epoch_end(self, trainer, pl_module):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         loss = outputs['loss']
         # Everything that is returned by training_step() can be unpacked from outputs
-        params = pl_module._linspace_binning_params
+        # params = pl_module._linspace_binning_params
         logging(self.train_logger, loss, 'train')
 
     def on_train_end(self, trainer, pl_module):
