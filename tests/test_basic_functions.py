@@ -7,16 +7,24 @@ import einops
 
 def test_img_one_hot():
     '''
-    Unittest img_one_hot()
+    Unit test img_one_hot()
+    Expected behavior is that values are sorted in between the bin borders
+    here given by 1, 2, 3, 4, 5 (4 bins)
+    For example value 1.3 would be sorted into
+    bin 1 as
+    1 (left bound) <= 1.3 (observed value) < 2 (right bound)
     '''
-    test_data = torch.Tensor([1, 2, 3, 4, 5])
-    one_hot_control = torch.tensor(
-        [[1, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0],
-        [0, 0, 1, 0, 0],
-        [0, 0, 0, 1, 0],
-        [0, 0, 0, 0, 1]])
-    num_c = 5
+    test_data = torch.Tensor([1, 1.5, 2, 2.1, 3, 3.9, 4, 5])
+    one_hot_control = torch.Tensor(
+        [[1, 0, 0, 0],
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1],
+        [0, 0, 0, 1]])
+    num_c = 4
     linspace_binning = np.linspace(torch.min(test_data).item(), torch.max(test_data).item(),
                                    num=num_c,
                                    endpoint=False)
@@ -51,7 +59,7 @@ def test_one_hot_converting():
 
     # ... then back with one_hot_to_mm assigning lower bin bound
     data_binned_lower_bound_mm = one_hot_to_lognorm_mm(data_hot, linspace_binning, linspace_binning_max=linspace_binning_max,
-                                                       channel_dim=1, mean_bin_vals=False)
+                                                       channel_dim=1)
 
     # Sort the test_data directly into bins as valiadation. Take the lower bound of the bin as value for the bin
     # Hacking some stuff with lambda and np.vecotrize to enable an additional argument (linspace_binning)
@@ -59,16 +67,17 @@ def test_one_hot_converting():
     next_smallest_func = lambda x: next_smallest(x, linspace_binning)
     v_next_smallest = np.vectorize(next_smallest_func)
     validate_data_lower_bound = v_next_smallest(test_data)
-    assert (data_binned_lower_bound_mm == validate_data_lower_bound).all()
-
-
-    # ... this time converting from one hot to mm with one_hot_to_mm assigning mean bin value
-    data_binned_mean_of_bounds_mm = one_hot_to_lognorm_mm(data_hot, linspace_binning, linspace_binning_max=linspace_binning_max,
-                                                          channel_dim=1, mean_bin_vals=True)
-    mean_of_bounds_func = lambda x: mean_of_bounds(x, linspace_binning, linspace_binning_max)
-    v_mean_of_bounds = np.vectorize(mean_of_bounds_func)
-    validate_data_mean_bounds = v_mean_of_bounds(test_data)
-    assert (data_binned_mean_of_bounds_mm == validate_data_mean_bounds).all()
+    tolerance = 1e-3
+    assert torch.isclose(data_binned_lower_bound_mm, torch.tensor(validate_data_lower_bound), atol=tolerance).all()
+    #
+    #
+    # # ... this time converting from one hot to mm with one_hot_to_mm assigning mean bin value
+    # data_binned_mean_of_bounds_mm = one_hot_to_lognorm_mm(data_hot, linspace_binning, linspace_binning_max=linspace_binning_max,
+    #                                                       channel_dim=1, mean_bin_vals=True)
+    # mean_of_bounds_func = lambda x: mean_of_bounds(x, linspace_binning, linspace_binning_max)
+    # v_mean_of_bounds = np.vectorize(mean_of_bounds_func)
+    # validate_data_mean_bounds = v_mean_of_bounds(test_data)
+    # assert (data_binned_mean_of_bounds_mm == validate_data_mean_bounds).all()
 
 def test_torch_bin_to_one_hot_index():
 

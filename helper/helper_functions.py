@@ -26,7 +26,7 @@ def create_dilation_list(s_width_height, inverse_ratio=4):
     return out
 
 
-def bin_to_one_hot_index(mm_data: torch.Tensor, linspace_binning: Union[torch.Tensor, np.ndarray]):
+def bin_to_one_hot_index(mm_data: torch.Tensor, linspace_binning: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
     if isinstance(linspace_binning, np.ndarray):
         linspace_binning = torch.from_numpy(linspace_binning).to()
     # For some reason we need right = True here instead of right = False as in np digitize to get the same behaviour
@@ -34,12 +34,15 @@ def bin_to_one_hot_index(mm_data: torch.Tensor, linspace_binning: Union[torch.Te
     return indecies
 
 
-def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: torch.Tensor) -> torch.Tensor:
+def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
     '''
     Adds one hot encoded channel dimension
     Channel dimension is added as -1st dimension, so rearrange dimensions!
-    linspace_binning can be either torch.Tensor or np.ndarray
-    Handle nans --> Simply set one hot to zeros at each nan
+    linspace_binning only includes left bin edges
+    for nans simply all bins are set to 0
+    The observed values are sorted into the bins as follows:
+    left edge <= observed value < right edge
+    This is tested in the test case tests/test_img_one_hot
     '''
     data_indexed = bin_to_one_hot_index(data_arr, linspace_binning)  # -0.00000001
 
@@ -58,28 +61,17 @@ def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: torch.Tens
     return data_hot
 
 
-def one_hot_to_lognorm_mm(one_hot_tensor: torch.Tensor, linspace_binning, linspace_binning_max, channel_dim, mean_bin_vals=False,):
+def one_hot_to_lognorm_mm(one_hot_tensor: torch.Tensor, linspace_binning: Union[torch.Tensor, np.ndarray],
+                          linspace_binning_max, channel_dim=1) -> torch.Tensor:
     '''
     THIS IS NOT UNDOING LOGNORMALIZATION
     Converts one hot data back to precipitation mm data based upon argmax (highest bin wins)
-    mean_bin_vals==False --> bin value is lower bin bound (given by bin index in linspace_binning)
-    mean_bin_vals==True --> bin value is mean of lower and upper bin bound TODO: something better for logspace that binnning is in?
-    #TODO --> GEOMETRIC MEAN does not work for lognormal data due to negative values
-    #TODO: Calculate arithmetic mena after invlognormalization then lognormalize back
-    channel dim: Channel dimension, that represents binning (num channels --> num bins)
-    out np.array
+    bin value is lower bin bound (given by bin index in linspace_binning)
     '''
-
+    if isinstance(linspace_binning, np.ndarray):
+        linspace_binning = torch.from_numpy(linspace_binning).to()
     argmax_indecies = torch.argmax(one_hot_tensor, dim=channel_dim)
-    argmax_indecies = argmax_indecies.cpu().detach().numpy()
-
-    if mean_bin_vals:
-        linspace_binning_with_max = np.append(linspace_binning, linspace_binning_max)
-        mm_lower_bound = linspace_binning[argmax_indecies]
-        mm_upper_bound = linspace_binning_with_max[argmax_indecies + 1]
-        mm_data = np.mean(np.array([mm_lower_bound, mm_upper_bound]), axis=0)
-    else:
-        mm_data = linspace_binning[argmax_indecies]
+    mm_data = linspace_binning[argmax_indecies]
     return mm_data
 
 

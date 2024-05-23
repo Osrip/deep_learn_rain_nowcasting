@@ -80,8 +80,7 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
             if ps_gaussian_smoothing_multiple_sigmas:
                 pred = pred[0].detach().cpu()
 
-            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1,
-                                            mean_bin_vals=True)
+            pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1)
             del pred
             pred_mm_inv_normed = inv_norm(pred_mm)
             # ! USE INV NORMED PREDICTIONS FROM MODEL ! Baseline is calculated in unnormed space
