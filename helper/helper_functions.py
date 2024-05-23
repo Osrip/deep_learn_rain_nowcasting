@@ -62,10 +62,10 @@ def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: Union[torc
     return data_hot
 
 
-def one_hot_to_lognorm_mm(one_hot_tensor: torch.Tensor, linspace_binning: Union[torch.Tensor, np.ndarray],
-                          channel_dim=1) -> torch.Tensor:
+def one_hot_to_lognormed_mm(one_hot_tensor: torch.Tensor, linspace_binning: Union[torch.Tensor, np.ndarray],
+                            channel_dim=1) -> torch.Tensor:
     '''
-    THIS IS NOT UNDOING LOGNORMALIZATION
+    THIS IS NOT UNDOING LOGNORMALIZATION (therefore naming)
     Converts one hot data back to precipitation mm data based upon argmax (highest bin wins)
     bin value is lower bin bound (given by bin index in linspace_binning)
     '''
@@ -83,7 +83,7 @@ def convert_to_binning_and_back(data_arr: torch.Tensor, linspace_binning, linspa
     '''
     data_one_hot = img_one_hot(data_arr, num_c=len(linspace_binning), linspace_binning=linspace_binning)
     data_one_hot = einops.rearrange(data_one_hot, 'b w h c -> b c w h')
-    data_mm = one_hot_to_lognorm_mm(data_one_hot, linspace_binning, channel_dim=1)
+    data_mm = one_hot_to_lognormed_mm(data_one_hot, linspace_binning, channel_dim=1)
     return data_mm
 
 

@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from helper.helper_functions import one_hot_to_lognorm_mm, convert_to_binning_and_back
+from helper.helper_functions import one_hot_to_lognormed_mm, convert_to_binning_and_back
 from load_data import inverse_normalize_data, lognormalize_data, invnorm_linspace_binning
 from plotting.plot_images import plot_target_vs_pred_with_likelihood
 from plotting.plot_distributions_in_snapshot import plot_distributions
@@ -70,7 +70,7 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
             for pred, sigma_str in zip(preds, sigma_strs):
 
 
-                pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, channel_dim=1)
+                pred_mm = one_hot_to_lognormed_mm(pred, linspace_binning, channel_dim=1)
 
                 # min and max for the snapshots. Max is 4 x std. Masking Nans
                 nan_mask_target = torch.isnan(target)
