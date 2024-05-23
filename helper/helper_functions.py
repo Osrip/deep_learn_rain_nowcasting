@@ -39,15 +39,14 @@ def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: torch.Tens
     Adds one hot encoded channel dimension
     Channel dimension is added as -1st dimension, so rearrange dimensions!
     linspace_binning can be either torch.Tensor or np.ndarray
-
+    Handle nans --> Simply set one hot to zeros at each nan
     '''
-    # TODO: Write the digitize line in torch!
     data_indexed = bin_to_one_hot_index(data_arr, linspace_binning)  # -0.00000001
 
     if torch.min(data_indexed) < 0:
         err_message = 'ERROR: ONE HOT ENCODING: data_arr_indexed had values below zero.' \
                       ' min of linspace_binning: {}, (all vals lognormalized) data_arr_index <0: {}'\
-            .format(data_arr[data_arr < np.min(linspace_binning)], np.min(linspace_binning), data_arr_indexed[data_arr_indexed<0])
+            .format(data_arr[data_arr < np.min(linspace_binning)], np.min(linspace_binning), data_indexed[data_indexed<0])
         raise ValueError(err_message)
 
     else:

@@ -3,6 +3,8 @@
 scontrol show job $SLURM_JOB_ID
 scancel -jobid- 
 
+squeue --partition= ...
+
 SSD direktory to work on!
 /mnt/qb/work2/butz1/bst981
 

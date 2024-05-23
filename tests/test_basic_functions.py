@@ -5,7 +5,6 @@ import torch
 import einops
 
 
-
 def test_img_one_hot():
     '''
     Unittest img_one_hot()
@@ -21,7 +20,7 @@ def test_img_one_hot():
     linspace_binning = np.linspace(np.min(test_data), np.max(test_data),
                                    num=num_c,
                                    endpoint=False)
-    data_hot= img_one_hot(test_data, num_c, linspace_binning)
+    data_hot = img_one_hot(test_data, num_c, linspace_binning)
     # expected linspace binning: array([1. , 1.8, 2.6, 3.4, 4.2])
     assert (data_hot == one_hot_control).all()
 
@@ -42,7 +41,7 @@ def test_one_hot_converting():
                                    endpoint=False)
 
     # Test conversion with img_one_hot...
-    data_hot= img_one_hot(test_data, num_c, linspace_binning)
+    data_hot = img_one_hot(test_data, num_c, linspace_binning)
     # Put channel dimension where it belongs
     data_hot = einops.rearrange(data_hot, 'i w h c -> i c w h')
 
@@ -127,6 +126,7 @@ def test_normalize_inverse_normalize():
     reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=False)
     assert (reconstructed_test_data == test_data_set).all()
 
+
 def test_normalize_inverse_normalize_log():
     '''
     Integration test checking whether inverse_normalize can reconstruct the data that has been normalized by normlaiz()
@@ -138,6 +138,7 @@ def test_normalize_inverse_normalize_log():
     normalized_test_data = normalize_data(log_test_data)
     reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=True)
     assert (np.round(reconstructed_test_data, 5) == np.round(test_data_set, 5)).all()
+
 
 def is_one_hot(tensor, one_hot_dim=0):
     assert torch.all(torch.sum(tensor, dim=one_hot_dim) == 1)
