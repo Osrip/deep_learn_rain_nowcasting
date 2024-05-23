@@ -58,8 +58,7 @@ def test_one_hot_converting():
     is_one_hot(data_hot, one_hot_dim=1)
 
     # ... then back with one_hot_to_mm assigning lower bin bound
-    data_binned_lower_bound_mm = one_hot_to_lognorm_mm(data_hot, linspace_binning, linspace_binning_max=linspace_binning_max,
-                                                       channel_dim=1)
+    data_binned_lower_bound_mm = one_hot_to_lognorm_mm(data_hot, linspace_binning, channel_dim=1)
 
     # Sort the test_data directly into bins as valiadation. Take the lower bound of the bin as value for the bin
     # Hacking some stuff with lambda and np.vecotrize to enable an additional argument (linspace_binning)

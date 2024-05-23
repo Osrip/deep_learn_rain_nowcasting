@@ -70,7 +70,7 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
             for pred, sigma_str in zip(preds, sigma_strs):
 
 
-                pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, linspace_binning_max, channel_dim=1)
+                pred_mm = one_hot_to_lognorm_mm(pred, linspace_binning, channel_dim=1)
 
                 # min and max for the snapshots. Max is 4 x std. Masking Nans
                 nan_mask_target = torch.isnan(target)

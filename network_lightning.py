@@ -6,7 +6,6 @@ from load_data import inverse_normalize_data, invnorm_linspace_binning
 from modules_blocks import Network
 from modules_blocks_convnext import ConvNeXtUNet
 import torch.nn as nn
-from helper.helper_functions import one_hot_to_lognorm_mm
 from helper.gaussian_smoothing_helper import gaussian_smoothing_target
 from helper.sigma_scheduler_helper import bernstein_polynomial, linear_schedule_0_to_1
 import torchvision.transforms as T
