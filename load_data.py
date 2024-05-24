@@ -12,12 +12,14 @@ from torch.utils.data import Dataset
 import einops
 import random
 import warnings
+from typing import Callable
 
 
 # Remember to install package netCDF4 !!
 
 class PrecipitationFilteredDataset(Dataset):
-    def __init__(self, filtered_data_loader_indecies, mean_filtered_log_data, std_filtered_log_data, linspace_binning_min, linspace_binning_max, linspace_binning, transform_f,
+    def __init__(self, filtered_data_loader_indecies, mean_filtered_log_data, std_filtered_log_data, linspace_binning_min,
+                 linspace_binning_max, linspace_binning, transform_f, settings,
                  s_num_bins_crossentropy, s_folder_path, s_width_height, s_width_height_target, s_data_variable_name,
                  s_local_machine_mode, s_gaussian_smoothing_target, s_gaussian_smoothing_multiple_sigmas, s_data_file_name,
                  device, s_normalize=True, **__):
@@ -34,6 +36,7 @@ class PrecipitationFilteredDataset(Dataset):
         unnormalized data sequence --> target frame
         """
 
+        self.settings = settings
         self.linspace_binning = linspace_binning # Gets assigned in __getitem__
         # TODO pretty ugly due to evolutionary code history... Create linspace binning at the beginning in train.py at some point
 
@@ -56,29 +59,134 @@ class PrecipitationFilteredDataset(Dataset):
         self.s_device = device
 
         # Initialize xr dataset
-        self.data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
+        self.xr_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
         # TODO: chunks = None?
     def __len__(self):
         return len(self.filtered_data_loader_indecies)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> tuple[torch.Tensor]:
         # Loading everything directly from the disc
-        # Returns the first pictures as input data and the last picture as training picture
-        input_sequence, target = \
-            load_input_target_from_index(idx, self.data_dataset, self.filtered_data_loader_indecies, self.linspace_binning,
-                                     self.mean_filtered_log_data, self.std_filtered_log_data, self.transform_f,
-                                     self.s_width_height, self.s_width_height_target, self.s_data_variable_name,
-                                     self.s_normalize, self.s_num_bins_crossentropy, self.s_folder_path,
-                                     self.s_gaussian_smoothing_target,
-                                     self.s_gaussian_smoothing_multiple_sigmas, device='cpu',
-                                     normalize=True, load_input_sequence=True, load_target=True
-                                     )
+        # input_sequence, target = \
+        #     load_input_target_from_index(idx, self.xr_dataset, self.filtered_data_loader_indecies,
+        #                              self.mean_filtered_log_data, self.std_filtered_log_data, self.transform_f,
+        #                              self.s_width_height, self.s_width_height_target, self.s_data_variable_name,
+        #                              self.s_normalize, self.s_gaussian_smoothing_target,
+        #                              self.s_gaussian_smoothing_multiple_sigmas, self.s_device,
+        #                              normalize=True, load_input_sequence=True, load_target=True
+        #                              )
+        input_sequence = load_input_from_index(idx,
+                                               self.xr_dataset,
+                                               self.filtered_data_loader_indecies,
+                                               self.mean_filtered_log_data,
+                                               self.std_filtered_log_data,
+                                               self.transform_f,
+                                               normalize=True,
+                                               **self.settings,)
 
+        target = load_target_from_index(idx,
+                                        self.xr_dataset,
+                                        self.filtered_data_loader_indecies,
+                                        self.mean_filtered_log_data,
+                                        self.std_filtered_log_data,
+                                        self.transform_f,
+                                        normalize=True,
+                                        **self.settings,)
+
+        # This is automatically converted into a torch.Tensor by lightning
         return input_sequence, target
 
 
+def load_input_from_index(idx: int,
+                          xr_dataset: xr.Dataset,
+                          filtered_data_loader_indecies: list[dict],
+                          mean_filtered_log_data: float,
+                          std_filtered_log_data: float,
+                          transform_f: Callable,
+                          s_normalize, s_data_variable_name, s_width_height,
+                          normalize=True, **__) -> np.array:
+    '''
+    This loads the input_sequence directly from the zarr file efficiently from the filtered indecies list that includes spatial
+    and temporal indecies.
+    idx: the number of the sample
+    '''
+
+    # Get the indecies
+    filtered_data_loader_indecies_dict = filtered_data_loader_indecies[idx]
+    first_idx_input_sequence = filtered_data_loader_indecies_dict['first_idx_input_sequence']
+    # The last index is included! (np.arange(1,5) = [1,2,3,4]
+    last_idx_input_sequence = filtered_data_loader_indecies_dict['last_idx_input_sequence']
+    input_idx_upper_left = filtered_data_loader_indecies_dict['input_idx_upper_left_h_w']
+
+    # !!!! ATTENTION Y --> HEIGHT --> Dim [0]  x--> WIDTH --> Dim [1]
+    # TESTED, NOW cuts the expected crop!
+    input_data_set = xr_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence+1),
+                                       y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
+                                       x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
+    # Using arange leads to same result as slice() (tested)
+
+    input_sequence = input_data_set[s_data_variable_name].values
+
+    # Get rid of steps dimension (nothing to do with pysteps)
+    input_sequence = input_sequence[0, :, :, :]
+
+    # setting all nan s to zero (this is only done to input sequence, not to target!)
+    nan_mask = np.isnan(input_sequence)
+    input_sequence[nan_mask] = 0
+
+    if normalize:
+        input_sequence = lognormalize_data(input_sequence, mean_filtered_log_data, std_filtered_log_data,
+                                           transform_f, s_normalize)
+    return input_sequence
+
+
+def load_target_from_index(idx: int,
+                           xr_dataset: xr.Dataset,
+                           filtered_data_loader_indecies: list[dict],
+                           mean_filtered_log_data: float,
+                           std_filtered_log_data: float,
+                           transform_f: Callable,
+                           s_normalize, s_data_variable_name, s_width_height, s_width_height_target,
+                           s_gaussian_smoothing_target,
+                           normalize=True, extended_target_size=256, **__) -> torch.Tensor:
+
+    # Get the indecies
+    filtered_data_loader_indecies_dict = filtered_data_loader_indecies[idx]
+    target_idx_input_sequence = filtered_data_loader_indecies_dict['target_idx_input_sequence']
+    # Input idx upper left is needed as a spatial reference for the target
+    input_idx_upper_left = filtered_data_loader_indecies_dict['input_idx_upper_left_h_w']
+
+
+    target_data_set = xr_dataset.isel(time=target_idx_input_sequence,
+                                      y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0] + s_width_height),
+                                      x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1] + s_width_height))
+    target = target_data_set[s_data_variable_name].values
+    # Get rid of steps dimension as we only have one index anyway
+    target = target[0]
+
+    with torch.no_grad():
+        # TODO: ONLY LOAD TARGET OF SHAPE s_width_height here or s_width_height_extended
+        # TODO Make sure that extended only gets the required paddding for the gaussian kernel!!
+        target = torch.from_numpy(target)
+        # target = target.to('cpu')
+
+        # extended target is only needed in case of DLBD.
+        # Cut either right to default target size or extended target size
+        if s_gaussian_smoothing_target:
+            target = T.CenterCrop(size=extended_target_size)(target)
+        else:
+            target = T.CenterCrop(size=s_width_height_target)(target)
+
+        if normalize:
+            target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
+                                       s_normalize)
+        target = target.detach().cpu().numpy()
+    return target
+
+
+
+
 # TODO: !!!! rewrite this such that it only loads extended target if we are really doing gausian smoothing! !!!
-def load_input_target_from_index(idx, data_dataset, filtered_data_loader_indecies, linspace_binning, mean_filtered_log_data,
+def load_input_target_from_index(idx, xr_dataset, filtered_data_loader_indecies, mean_filtered_log_data,
                                  std_filtered_log_data, transform_f, s_width_height, s_width_height_target, s_data_variable_name,
                                  s_normalize, s_gaussian_smoothing_target, s_gaussian_smoothing_multiple_sigmas, device,
                                  normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
@@ -102,7 +210,7 @@ def load_input_target_from_index(idx, data_dataset, filtered_data_loader_indecie
 
         # !!!! ATTENTION Y --> HEIGHT --> Dim [0]  x--> WIDTH --> Dim [1]
         # TESTED, NOW cuts the expected crop!
-        input_data_set = data_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence+1),
+        input_data_set = xr_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence+1),
                                            y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
                                            x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
         # Using arange leads to same result as slice() (tested)
@@ -125,7 +233,7 @@ def load_input_target_from_index(idx, data_dataset, filtered_data_loader_indecie
     if load_target:
         # TODO: ONLY LOAD TARGET OF SHAPE s_width_height here or s_width_height_extended
         # TODO Make sure that extended only gets the required paddding for the gaussian kernel!!
-        target_data_set = data_dataset.isel(time=target_idx_input_sequence,
+        target_data_set = xr_dataset.isel(time=target_idx_input_sequence,
                                             y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
                                             x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
         target = target_data_set[s_data_variable_name].values
@@ -508,16 +616,24 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_lo
     The more often class occurs, the lower the weight value : class_weights = 1 / class_count
     TODO: However observed, that classes with lower mean and max precipitation have higher weight ??!!
     '''
-    data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
+    xr_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
     class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64).to(device)
 
     for idx in range(len(filtered_indecies)):
-        _, target = load_input_target_from_index(idx, data_dataset, filtered_indecies, linspace_binning,
-                                                                 mean_filtered_log_data, std_filtered_log_data,
-                                                                 transform_f,
-                                                                 normalize=normalize, load_input_sequence=False,
-                                                                 load_target=True, **settings)
-
+        # _, target = load_input_target_from_index(idx, xr_dataset, filtered_indecies, linspace_binning,
+        #                                                          mean_filtered_log_data, std_filtered_log_data,
+        #                                                          transform_f,
+        #                                                          normalize=normalize, load_input_sequence=False,
+        #                                                          load_target=True, **settings)
+        target = load_target_from_index(idx,
+                                         xr_dataset,
+                                         filtered_indecies,
+                                         mean_filtered_log_data,
+                                         std_filtered_log_data,
+                                         transform_f,
+                                         normalize=True,
+                                         **settings)
+        target = torch.from_numpy(target).to(device)
         target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
         target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
 
@@ -537,18 +653,27 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_lo
 
 
 def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning, mean_filtered_log_data, std_filtered_log_data,
-                                transform_f, settings, s_folder_path, s_data_file_name, s_num_bins_crossentropy, normalize=True, **__):
+                                transform_f, settings, s_folder_path, s_data_file_name, s_num_bins_crossentropy, device, **__):
 
     target_mean_weights = []
-    data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
+    xr_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
 
     for idx in range(len(filtered_indecies)):
-        _, target = load_input_target_from_index(idx, data_dataset, filtered_indecies, linspace_binning,
-                                                                 mean_filtered_log_data, std_filtered_log_data,
-                                                                 transform_f,
-                                                                 normalize=normalize, load_input_sequence=False,
-                                                                 load_target=True, **settings)
+        # _, target = load_input_target_from_index(idx, xr_dataset, filtered_indecies, linspace_binning,
+        #                                                          mean_filtered_log_data, std_filtered_log_data,
+        #                                                          transform_f,
+        #                                                          normalize=normalize, load_input_sequence=False,
+        #                                                          load_target=True, **settings)
+        target = load_target_from_index(idx,
+                                         xr_dataset,
+                                         filtered_indecies,
+                                         mean_filtered_log_data,
+                                         std_filtered_log_data,
+                                         transform_f,
+                                         normalize=True,
+                                         **settings)
 
+        target = torch.from_numpy(target).to(device)
         target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
         target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
 
@@ -628,17 +753,17 @@ def iterate_through_data_names(start_date_time, future_iterations_from_start: in
     return load_dates
 
 
-def flag_data(data_dataset, flag_dataset, nan_letter=0):
-    data_arr = np.array(data_dataset)
-    flag_arr = np.array(flag_dataset)
-    # set all flag values of 0 (data available) True
-    booler = lambda x: x == 0
-    booler_func = np.vectorize(booler)
-    flag_bool = booler_func(flag_arr)
-    # Replace all False in flag_bool with nan
-    # data_arr[~flag_bool] = np.NAN
-    data_arr[~flag_bool] = nan_letter
-    return data_arr
+# def flag_data(data_dataset, flag_dataset, nan_letter=0):
+#     data_arr = np.array(data_dataset)
+#     flag_arr = np.array(flag_dataset)
+#     # set all flag values of 0 (data available) True
+#     booler = lambda x: x == 0
+#     booler_func = np.vectorize(booler)
+#     flag_bool = booler_func(flag_arr)
+#     # Replace all False in flag_bool with nan
+#     # data_arr[~flag_bool] = np.NAN
+#     data_arr[~flag_bool] = nan_letter
+#     return data_arr
 
 
 def random_splitting_filtered_indecies(indecies, num_training_samples, chunk_size):

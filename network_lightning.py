@@ -88,7 +88,7 @@ class NetworkL(pl.LightningModule):
         self.s_max_epochs = s_max_epochs
         self.s_gaussian_smoothing_target = s_gaussian_smoothing_target
         self.s_log_precipitation_difference = s_log_precipitation_difference
-
+        self.s_num_bins_crossentropy = s_num_bins_crossentropy
 
         self.s_lr_schedule = s_lr_schedule
 
@@ -146,7 +146,7 @@ class NetworkL(pl.LightningModule):
         # Creating binned target
         linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
         target_binned = img_one_hot(target, self.s_num_bins_crossentropy, linspace_binning)
-        target_binned = einops.rearrange(target_binned, 'w h c -> c w h')
+        target_binned = einops.rearrange(target_binned, 'b w h c -> b c w h')
         return target_binned
 
     def pre_process_input(self, input_sequence: torch.Tensor) -> torch.Tensor:

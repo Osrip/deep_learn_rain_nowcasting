@@ -37,12 +37,12 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
 
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_log_data, std_filtered_log_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning,
-                                                  transform_f, **settings)
+                                                  transform_f, settings, **settings)
 
     validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_log_data,
                                                        std_filtered_log_data,
                                                        linspace_binning_min, linspace_binning_max, linspace_binning,
-                                                       transform_f, **settings)
+                                                       transform_f, settings, **settings)
 
     train_data_loader = DataLoader(train_data_set, batch_size=settings['s_batch_size'], shuffle=True, drop_last=True,
                                    num_workers=settings['s_num_workers_data_loader'], pin_memory=True)

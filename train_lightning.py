@@ -136,12 +136,12 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
     # TODO: RETURN filtered indecies instead of data set
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_log_data, std_filtered_log_data,
                                                   linspace_binning_min, linspace_binning_max, linspace_binning,
-                                                  transform_f, **settings)
+                                                  transform_f, settings, **settings)
 
     validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_log_data,
                                                        std_filtered_log_data,
                                                        linspace_binning_min, linspace_binning_max, linspace_binning,
-                                                       transform_f, **settings)
+                                                       transform_f, settings, **settings)
 
     mean_train_data_set = train_data_set.mean_filtered_log_data
     std_train_data_set = train_data_set.std_filtered_log_data
