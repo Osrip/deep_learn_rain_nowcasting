@@ -138,42 +138,63 @@ class NetworkL(pl.LightningModule):
             optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.s_learning_rate)
             return optimizer
 
-    def pre_process_target(self, target):
-
-
-    def training_step(self, batch, batch_idx):
-        self.train_step_num += 1
-        # Loading input and target. For DLBD extended target is loaded
-        input_sequence, target = batch
-
+    def pre_process_target(self, target: torch.Tensor) -> torch.Tensor:
+        '''
+        Fast on-the fly pre-processing of target in training / validation loop
+        Converting into binned / one-hot target
+        '''
         # Creating binned target
         linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
         target_binned = img_one_hot(target, self.s_num_bins_crossentropy, linspace_binning)
         target_binned = einops.rearrange(target_binned, 'w h c -> c w h')
+        return target_binned
 
+    def pre_process_input(self, input_sequence: torch.Tensor) -> torch.Tensor:
+        '''
+        Fast on-the-fly pre-processing of input_sequence in training/validation loop
+        Replace NaNs with zeros
+        '''
         # Replace nans with 0s
         nan_mask = torch.isnan(input_sequence)
         input_sequence[nan_mask] = 0
+        return input_sequence
 
-        input_sequence = inverse_normalize_data(input_sequence, self.mean_train_data_set, self.std_train_data_set)
-        # target = inverse_normalize_data(target, self.mean_train_data_set, self.std_train_data_set)
+    def dlbd_target_pre_processing(self, extended_target_binned: torch.Tensor) -> torch.Tensor:
+        '''
+        Fast on-the-fly pre-processing of target in training/validation loop for DLBD
+        This requires one-hot target that has been pre-precessed by pre_process_target() method
+        The target has to be the larger, extended version that is convolved by the gaussian Kernel
+        '''
+        # Getting sigma from scheduler if activated
+        if self.s_schedule_sigma_smoothing:
+            curr_sigma = self.sigma_schedule_mapping[self.train_step_num]
+        else:
+            curr_sigma = self.s_sigma_target_smoothing
 
+        # Pre-processing target for DLBD
+        target_binned = gaussian_smoothing_target(extended_target_binned, device=self.s_device, sigma=curr_sigma,
+                                                  kernel_size=128)
+        return target_binned
+
+    def training_step(self, batch, batch_idx):
+        self.train_step_num += 1
+        # Loading lognormalized input and target. For DLBD extended target is loaded
+        input_sequence, target = batch
+
+        # Pre-process input and target
+        # Convert target into one_hot binned target, all NaNs are assigned zero probabilities for all bins
+        target_binned = self.pre_process_target(target)
+        # Replace NaNs with Zeros in Input
+        input_sequence = self.pre_process_input(input_sequence)
 
         if self.s_gaussian_smoothing_target:
-            # Getting sigma from scheduler if activated
-            if self.s_schedule_sigma_smoothing:
-                curr_sigma = self.sigma_schedule_mapping[self.train_step_num]
-            else:
-                curr_sigma = self.s_sigma_target_smoothing
-
-            # Pre-processing target for DLBD
-            target_binned = gaussian_smoothing_target(target_binned, device=self.s_device, sigma=curr_sigma,
-                                                       kernel_size=128)
+            target_binned = self.dlbd_target_pre_processing(target_binned)
 
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
 
         pred = self(input_sequence)
+
         if torch.isnan(pred).any():
             raise ValueError('NAN in prediction (also leading to nan in loss)')
 
@@ -184,16 +205,18 @@ class NetworkL(pl.LightningModule):
         # returned dict has to include 'loss' entry for automatic backward optimization
         # Multiple entries can be added to the dict, which can be found in 'outputs' of the callback on_train_batch_end()
         # which is currently used by logger.py
-        return {'loss': loss}
+        return {'loss': loss, 'target_binned': target_binned}
 
     def validation_step(self, val_batch, batch_idx):
         self.val_step_num += 1
-        input_sequence, target_binned, target, target_one_hot_extended = val_batch
+
+        # Loading lognormalized input and target. For DLBD extended target is loaded
+        input_sequence, target = val_batch
 
         input_sequence = inverse_normalize_data(input_sequence, self.mean_val_data_set, self.std_val_data_set)
         target = inverse_normalize_data(target, self.mean_val_data_set, self.std_val_data_set)
 
-        # TODO linspace binning!!!!!
+
         linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
         target_binned = img_one_hot(target, self.s_num_bins_crossentropy, linspace_binning)
         target_binned = einops.rearrange(target_binned, 'w h c -> c w h')
