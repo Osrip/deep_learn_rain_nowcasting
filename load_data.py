@@ -64,7 +64,7 @@ class PrecipitationFilteredDataset(Dataset):
     def __getitem__(self, idx):
         # Loading everything directly from the disc
         # Returns the first pictures as input data and the last picture as training picture
-        input_sequence, target_one_hot, target, target_one_hot_extended = \
+        input_sequence, target, target_one_hot_extended = \
             load_input_target_from_index(idx, self.data_dataset, self.filtered_data_loader_indecies, self.linspace_binning,
                                      self.mean_filtered_log_data, self.std_filtered_log_data, self.transform_f,
                                      self.s_width_height, self.s_width_height_target, self.s_data_variable_name,
@@ -74,14 +74,13 @@ class PrecipitationFilteredDataset(Dataset):
                                      normalize=True, load_input_sequence=True, load_target=True
                                      )
 
-        return input_sequence, target_one_hot, target, target_one_hot_extended
+        return input_sequence, target, target_one_hot_extended
 
 
 # TODO: !!!! rewrite this such that it only loads extended target if we are really doing gausian smoothing! !!!
 def load_input_target_from_index(idx, data_dataset, filtered_data_loader_indecies, linspace_binning, mean_filtered_log_data,
                                  std_filtered_log_data, transform_f, s_width_height, s_width_height_target, s_data_variable_name,
-                                 s_normalize, s_num_bins_crossentropy, s_folder_path, s_gaussian_smoothing_target,
-                                 s_gaussian_smoothing_multiple_sigmas, device,
+                                 s_normalize, s_gaussian_smoothing_target, s_gaussian_smoothing_multiple_sigmas, device,
                                  normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
                                  ):
     """
@@ -101,7 +100,7 @@ def load_input_target_from_index(idx, data_dataset, filtered_data_loader_indecie
 
     if load_input_sequence:
 
-        # !!!! ATTENTION Y --> HEIGHT --> Dim [0] x--> WIDTH --> Dim [1]
+        # !!!! ATTENTION Y --> HEIGHT --> Dim [0]  x--> WIDTH --> Dim [1]
         # TESTED, NOW cuts the expected crop!
         input_data_set = data_dataset.isel(time=np.arange(first_idx_input_sequence, last_idx_input_sequence+1),
                                            y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
@@ -124,6 +123,8 @@ def load_input_target_from_index(idx, data_dataset, filtered_data_loader_indecie
         input_sequence = None
 
     if load_target:
+        # TODO: ONLY LOAD TARGET OF SHAPE s_width_height here or s_width_height_extended
+        # TODO Make sure that extended only gets the required paddding for the gaussian kernel!!
         target_data_set = data_dataset.isel(time=target_idx_input_sequence,
                                             y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0]+s_width_height),
                                             x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1]+s_width_height))
@@ -135,7 +136,7 @@ def load_input_target_from_index(idx, data_dataset, filtered_data_loader_indecie
             target = torch.from_numpy(target)
             target = target.to(device)
 
-            # extended target is only needed in case of gaussian smoothing.
+            # extended target is only needed in case of DLBD.
             # Cut either right to default target size or extended target size
             if s_gaussian_smoothing_target or s_gaussian_smoothing_multiple_sigmas:
                 target = T.CenterCrop(size=extended_target_size)(target)
@@ -146,24 +147,19 @@ def load_input_target_from_index(idx, data_dataset, filtered_data_loader_indecie
                 target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
                                            s_normalize)
 
-            target_one_hot = img_one_hot(target, s_num_bins_crossentropy, torch.from_numpy(linspace_binning).to(device))
-            target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
-
             # This ugly bs added for the extended version of target_one_hot required for gaussian smoothing
             # TODO Only load this if required!
             if s_gaussian_smoothing_target or s_gaussian_smoothing_multiple_sigmas:
-                target_one_hot_extended = target_one_hot
+                target_extended = target
                 target = T.CenterCrop(size=s_width_height_target)(target)
-                target_one_hot = T.CenterCrop(size=s_width_height_target)(target_one_hot)
             else:
                 # Return empty tensor instead of None as torch.DataLoader cannot handle None
-                target_one_hot_extended = torch.Tensor([])
+                target_extended = torch.Tensor([])
 
     else:
         target = torch.Tensor([])
-        target_one_hot = torch.Tensor([])
 
-    return input_sequence, target_one_hot, target, target_one_hot_extended
+    return input_sequence, target, target_extended
 
 
 def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
@@ -184,8 +180,8 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                         **__):
     '''
     This huge ass function is doing all the filtering of the data and returns a list of indecies for the final data that
-    is used for training and validation (both temporal and spatial indecies). This way the data can be directly loaded from the original data set using these
-    indecies by the dataloader
+    is used for training and validation (both temporal and spatial indecies). This way the data can be directly loaded
+    from the original data set using these indecies by the dataloader
     What does this function do?
     - Processes the data in chunks, that get laoded into the memory (Number of chunks given by s_data_preprocessing_chunk_num,
       which has to be adjusted to available memory
@@ -194,10 +190,13 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
       (only one random grid per segment / time step in the data, such that there is no overlap between the crops in one time step
     - Iterates through these crops (all crops with nans only are removed)
     In the upcoming steps all nans (both input and target are treated as zeros)
-    (! Attention ! For final training input nans are set to zero and target nans are disregarded for loss calc, as one-hot is set to [0,0,0,...] (as of March 2024))
+    (! Attention ! For final training input nans are set to zero and target nans are disregarded for loss calc,
+     as one-hot is set to [0,0,0,...] (as of March 2024))
     - Filter condition is applied (currently to the target only) - nans treated as zero
-    - For all cropped input-target segments that pass the filter condition, the spatio-temporal indecies are returned,
-      additionally the normalization parameters are calculated based on the targets of the filtered cropped segments - nans treated as zeros
+    - For all cropped input-target segments that pass the filter condition, the spatio-temporal indecies are returned
+      (upper left corner of crop with respect to the input width / heihgt given by s_width_height),
+      additionally the normalization parameters are calculated based on the targets of the filtered cropped segments
+       - nans treated as zeros
     '''
 
     filtered_data_loader_indecies = []
@@ -226,7 +225,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
     # chunk_time_indecies gives start and stop indecies in time dimension
     chunk_time_indecies, chunk_size = create_chunk_indices(num_time_steps, s_data_preprocessing_chunk_num)
 
-    # Iterate through chunks, that get loaded into ram
+    # Iterate through CHUNKS, that get loaded into ram
     for chunk_num in range(len(chunk_time_indecies) - 1):
         chunk_start_idx = chunk_time_indecies[chunk_num]
         chunk_end_idx = chunk_time_indecies[chunk_num + 1]
@@ -234,8 +233,8 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
         # Load into ram
         data_chunk_t_h_w_np = dataset_chunk[s_data_variable_name].values
 
-        # Convert into torch tensor ON CPU
         with (torch.no_grad()):
+            # Convert into torch tensor ON CPU
             data_chunk_t_h_w = torch.from_numpy(data_chunk_t_h_w_np).to('cpu')
 
             # Get rid of prediction steps dimension
@@ -266,7 +265,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                                  f' Chunk size is {chunk_size}, whereas '
                                  f'total lead (s_num_lead_time_steps + s_num_input_time_steps) is {total_lead}.')
 
-            # iterate through time - For each time step in the data set an input - target segment is created
+            # iterate through TIME - For each time step in the data set an input - target segment is created
             for time_idx_in_chunk in range(np.shape(data_chunk_t_h_w)[0] - total_lead):
             # for i in range(16):
 
@@ -275,7 +274,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                 input_indecies_upper_left_h_w = gridding_data_sequence_indecies(data_chunk_t_h_w.shape[1:3],
                                                                                 s_width_height)
 
-                # iterate through crops of the grid
+                # iterate through CROPS of the grid
                 for input_idx_upper_left_h_w in input_indecies_upper_left_h_w:
 
                     # Calculate the indecies relative to the start of the chunk:
@@ -522,11 +521,14 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_lo
     class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64).to(device)
 
     for idx in range(len(filtered_indecies)):
-        _, target_one_hot, target, _ = load_input_target_from_index(idx, data_dataset, filtered_indecies, linspace_binning,
+        _, target, _ = load_input_target_from_index(idx, data_dataset, filtered_indecies, linspace_binning,
                                                                  mean_filtered_log_data, std_filtered_log_data,
                                                                  transform_f,
                                                                  normalize=normalize, load_input_sequence=False,
                                                                  load_target=True, **settings)
+
+        target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
+        target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
 
         class_count += torch.sum(target_one_hot, (1, 2)).type(torch.int64)
 
@@ -544,17 +546,21 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_lo
 
 
 def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning, mean_filtered_log_data, std_filtered_log_data,
-                                transform_f, settings, s_folder_path, s_data_file_name, normalize=True, **__):
+                                transform_f, settings, s_folder_path, s_data_file_name, s_num_bins_crossentropy, normalize=True, **__):
 
     target_mean_weights = []
     data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
 
     for idx in range(len(filtered_indecies)):
-        _, target_one_hot, target, _ = load_input_target_from_index(idx, data_dataset, filtered_indecies, linspace_binning,
+        _, target, _ = load_input_target_from_index(idx, data_dataset, filtered_indecies, linspace_binning,
                                                                  mean_filtered_log_data, std_filtered_log_data,
                                                                  transform_f,
                                                                  normalize=normalize, load_input_sequence=False,
                                                                  load_target=True, **settings)
+
+        target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
+        target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')
+
         # Checked this: Seems to do what it is supposed to (high rain (rare class) corresponds to high weight)
         target_one_hot_indecies = torch.argmax(target_one_hot, dim=0)
         target_class_weighted = class_weights[target_one_hot_indecies]

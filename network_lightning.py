@@ -10,6 +10,8 @@ from helper.gaussian_smoothing_helper import gaussian_smoothing_target
 from helper.sigma_scheduler_helper import bernstein_polynomial, linear_schedule_0_to_1
 import torchvision.transforms as T
 import copy
+import einops
+from helper.helper_functions import img_one_hot
 from pysteps import verification
 
 
@@ -138,7 +140,14 @@ class NetworkL(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         self.train_step_num += 1
-        input_sequence, target_binned, target, target_one_hot_extended = batch
+        input_sequence, target, target_one_hot_extended = batch
+
+        # Creating binned target
+        linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
+        target_binned = img_one_hot(target, self.s_num_bins_crossentropy, linspace_binning)
+        target_binned = einops.rearrange(target_binned, 'w h c -> c w h')
+
+        target_one_hot_extended
 
         # Replace nans with 0s
         nan_mask = torch.isnan(input_sequence)
@@ -164,7 +173,7 @@ class NetworkL(pl.LightningModule):
             raise ValueError('NAN in prediction (also leading to nan in loss)')
 
         loss = self.loss_func(pred, target_binned)
-        # Yields the same result, when inputting indecies instead of one-hot probabilities
+        # Yields the same result, when inputs are indecies instead of one-hot probabilities
         # loss = self.loss_func(pred, torch.argmax(target_binned, dim=1))
 
         # returned dict has to include 'loss' entry for automatic backward optimization
@@ -178,6 +187,11 @@ class NetworkL(pl.LightningModule):
 
         input_sequence = inverse_normalize_data(input_sequence, self.mean_val_data_set, self.std_val_data_set)
         target = inverse_normalize_data(target, self.mean_val_data_set, self.std_val_data_set)
+
+        # TODO linspace binning!!!!!
+        linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
+        target_binned = img_one_hot(target, self.s_num_bins_crossentropy, linspace_binning)
+        target_binned = einops.rearrange(target_binned, 'w h c -> c w h')
 
         if self.s_gaussian_smoothing_target:
             if self.s_schedule_sigma_smoothing:
