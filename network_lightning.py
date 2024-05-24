@@ -213,22 +213,14 @@ class NetworkL(pl.LightningModule):
         # Loading lognormalized input and target. For DLBD extended target is loaded
         input_sequence, target = val_batch
 
-        input_sequence = inverse_normalize_data(input_sequence, self.mean_val_data_set, self.std_val_data_set)
-        target = inverse_normalize_data(target, self.mean_val_data_set, self.std_val_data_set)
-
-
-        linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
-        target_binned = img_one_hot(target, self.s_num_bins_crossentropy, linspace_binning)
-        target_binned = einops.rearrange(target_binned, 'w h c -> c w h')
+        # Pre-process input and target
+        # Convert target into one_hot binned target, all NaNs are assigned zero probabilities for all bins
+        target_binned = self.pre_process_target(target)
+        # Replace NaNs with Zeros in Input
+        input_sequence = self.pre_process_input(input_sequence)
 
         if self.s_gaussian_smoothing_target:
-            if self.s_schedule_sigma_smoothing:
-                curr_sigma = self.sigma_schedule_mapping[self.val_step_num]
-            else:
-                curr_sigma = self.s_sigma_target_smoothing
-
-            target_binned = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
-                                                      kernel_size=128)
+            target_binned = self.dlbd_target_pre_processing(target_binned)
 
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
@@ -236,4 +228,4 @@ class NetworkL(pl.LightningModule):
         pred = self(input_sequence)
         loss = self.loss_func(pred, target_binned)
 
-        return {'loss': loss}
+        return {'loss': loss, 'target_binned': target_binned}
