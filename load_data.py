@@ -76,11 +76,12 @@ class PrecipitationFilteredDataset(Dataset):
 
         return input_sequence, target_one_hot, target, target_one_hot_extended
 
-    # TODO: !!!! rewrite this such that it only loads extended target if we are really doing gausian smoothing! !!!
-def load_input_target_from_index(idx, data_dataset, filtered_data_loader_indecies, linspace_binning, mean_filtered_log_data, std_filtered_log_data,
-                                 transform_f, s_width_height, s_width_height_target, s_data_variable_name, s_normalize,
-                                 s_num_bins_crossentropy, s_folder_path, s_gaussian_smoothing_target, s_gaussian_smoothing_multiple_sigmas,
-                                 device,
+
+# TODO: !!!! rewrite this such that it only loads extended target if we are really doing gausian smoothing! !!!
+def load_input_target_from_index(idx, data_dataset, filtered_data_loader_indecies, linspace_binning, mean_filtered_log_data,
+                                 std_filtered_log_data, transform_f, s_width_height, s_width_height_target, s_data_variable_name,
+                                 s_normalize, s_num_bins_crossentropy, s_folder_path, s_gaussian_smoothing_target,
+                                 s_gaussian_smoothing_multiple_sigmas, device,
                                  normalize=True, load_input_sequence=True, load_target=True, extended_target_size=256, **__
                                  ):
     """
