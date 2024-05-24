@@ -138,16 +138,18 @@ class NetworkL(pl.LightningModule):
             optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.s_learning_rate)
             return optimizer
 
+    def pre_process_target(self, target):
+
+
     def training_step(self, batch, batch_idx):
         self.train_step_num += 1
-        input_sequence, target, target_one_hot_extended = batch
+        # Loading input and target. For DLBD extended target is loaded
+        input_sequence, target = batch
 
         # Creating binned target
         linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
         target_binned = img_one_hot(target, self.s_num_bins_crossentropy, linspace_binning)
         target_binned = einops.rearrange(target_binned, 'w h c -> c w h')
-
-        target_one_hot_extended
 
         # Replace nans with 0s
         nan_mask = torch.isnan(input_sequence)
@@ -156,13 +158,16 @@ class NetworkL(pl.LightningModule):
         input_sequence = inverse_normalize_data(input_sequence, self.mean_train_data_set, self.std_train_data_set)
         # target = inverse_normalize_data(target, self.mean_train_data_set, self.std_train_data_set)
 
+
         if self.s_gaussian_smoothing_target:
+            # Getting sigma from scheduler if activated
             if self.s_schedule_sigma_smoothing:
                 curr_sigma = self.sigma_schedule_mapping[self.train_step_num]
             else:
                 curr_sigma = self.s_sigma_target_smoothing
 
-            target_binned = gaussian_smoothing_target(target_one_hot_extended, device=self.s_device, sigma=curr_sigma,
+            # Pre-processing target for DLBD
+            target_binned = gaussian_smoothing_target(target_binned, device=self.s_device, sigma=curr_sigma,
                                                        kernel_size=128)
 
         input_sequence = input_sequence.float()

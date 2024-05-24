@@ -64,7 +64,7 @@ class PrecipitationFilteredDataset(Dataset):
     def __getitem__(self, idx):
         # Loading everything directly from the disc
         # Returns the first pictures as input data and the last picture as training picture
-        input_sequence, target, target_one_hot_extended = \
+        input_sequence, target = \
             load_input_target_from_index(idx, self.data_dataset, self.filtered_data_loader_indecies, self.linspace_binning,
                                      self.mean_filtered_log_data, self.std_filtered_log_data, self.transform_f,
                                      self.s_width_height, self.s_width_height_target, self.s_data_variable_name,
@@ -74,7 +74,7 @@ class PrecipitationFilteredDataset(Dataset):
                                      normalize=True, load_input_sequence=True, load_target=True
                                      )
 
-        return input_sequence, target, target_one_hot_extended
+        return input_sequence, target
 
 
 # TODO: !!!! rewrite this such that it only loads extended target if we are really doing gausian smoothing! !!!
@@ -146,20 +146,11 @@ def load_input_target_from_index(idx, data_dataset, filtered_data_loader_indecie
             if normalize:
                 target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
                                            s_normalize)
-
-            # This ugly bs added for the extended version of target_one_hot required for gaussian smoothing
-            # TODO Only load this if required!
-            if s_gaussian_smoothing_target or s_gaussian_smoothing_multiple_sigmas:
-                target_extended = target
-                target = T.CenterCrop(size=s_width_height_target)(target)
-            else:
-                # Return empty tensor instead of None as torch.DataLoader cannot handle None
-                target_extended = torch.Tensor([])
-
     else:
         target = torch.Tensor([])
 
-    return input_sequence, target, target_extended
+    # In case of s_gaussian_smoothing_target==True this returns the extended target size
+    return input_sequence, target
 
 
 def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
@@ -176,8 +167,8 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
 
 def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width_height,
                            s_data_variable_name, s_width_height_target, s_min_rain_ratio_target,
-                           s_data_preprocessing_chunk_num, s_num_input_time_steps, s_num_lead_time_steps, s_max_num_filter_hits,
-                        **__):
+                           s_data_preprocessing_chunk_num, s_num_input_time_steps, s_num_lead_time_steps,
+                           s_max_num_filter_hits, **__):
     '''
     This huge ass function is doing all the filtering of the data and returns a list of indecies for the final data that
     is used for training and validation (both temporal and spatial indecies). This way the data can be directly loaded
@@ -521,7 +512,7 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_lo
     class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64).to(device)
 
     for idx in range(len(filtered_indecies)):
-        _, target, _ = load_input_target_from_index(idx, data_dataset, filtered_indecies, linspace_binning,
+        _, target = load_input_target_from_index(idx, data_dataset, filtered_indecies, linspace_binning,
                                                                  mean_filtered_log_data, std_filtered_log_data,
                                                                  transform_f,
                                                                  normalize=normalize, load_input_sequence=False,
@@ -552,7 +543,7 @@ def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning,
     data_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
 
     for idx in range(len(filtered_indecies)):
-        _, target, _ = load_input_target_from_index(idx, data_dataset, filtered_indecies, linspace_binning,
+        _, target = load_input_target_from_index(idx, data_dataset, filtered_indecies, linspace_binning,
                                                                  mean_filtered_log_data, std_filtered_log_data,
                                                                  transform_f,
                                                                  normalize=normalize, load_input_sequence=False,
