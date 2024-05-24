@@ -61,14 +61,13 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
         crps_steps_list_tc = []
 
         print('CRPS calculations started')
-        for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
+        for i, (input_sequence, target) in enumerate(data_loader):
             print(f'Batch_num: {i}')
             print_gpu_memory()
             if not (i % crps_calc_on_every_n_th_batch == 0):
                 break
 
             input_sequence = input_sequence.to(ps_device)
-            target_one_hot = target_one_hot.to(ps_device)
             target = target.to(ps_device)
 
             model = model.to(ps_device)

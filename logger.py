@@ -33,6 +33,9 @@ class TrainingLogsCallback(pl.Callback):
         # params = pl_module._linspace_binning_params
         logging(self.train_logger, loss, 'train')
 
+        # TODO: Implement logging of other metrics here,
+        # TODO: INVERSE NORMALIZE PREDICTION AND TARGET
+
     def on_train_end(self, trainer, pl_module):
         # self.train_logger.finalize()
         self.train_logger.save()

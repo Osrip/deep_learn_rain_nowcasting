@@ -64,7 +64,7 @@ def calc_FSS(model, data_loader, filter_and_normalization_params, linspace_binni
         preds_and_targets['target_inv_normed'] = []
 
         print('Started FSS Calculations')
-        for i, (input_sequence, target_one_hot, target, _) in enumerate(data_loader):
+        for i, (input_sequence, target) in enumerate(data_loader):
             print(f'Batch_num: {i}')
             print_gpu_memory()
 

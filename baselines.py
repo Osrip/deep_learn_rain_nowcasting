@@ -6,6 +6,8 @@ from pysteps import nowcasts
 from pysteps import verification
 import numpy as np
 from load_data import inverse_normalize_data
+from helper.helper_functions import img_one_hot
+import einops
 
 class LKBaseline(pl.LightningModule):
     '''
@@ -142,9 +144,7 @@ class LKBaseline(pl.LightningModule):
 
 
     def validation_step(self, val_batch, batch_idx):
-        input_sequence, target_binned, target, target_one_hot_extended = val_batch
-        input_sequence = input_sequence.float()
-        target_binned = target_binned.float()
+        input_sequence, target = val_batch
 
         # TODO: Converting to numpy, as torch inverse normalization does not work
         target_np = target.detach().cpu().numpy()
@@ -160,6 +160,7 @@ class LKBaseline(pl.LightningModule):
         if self.logging_type is not None:
             self.log('base_{}_mse_pred_target'.format(self.logging_type), mse_pred_target.item(), on_step=False,
                      on_epoch=True, sync_dist=True)
+
 
 
 
