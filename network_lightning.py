@@ -19,9 +19,8 @@ class NetworkL(pl.LightningModule):
     def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict,
                  settings, device, s_num_input_time_steps, s_num_bins_crossentropy,
                  s_learning_rate, s_width_height_target, s_max_epochs,
-                 s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing, s_log_precipitation_difference,
-                 s_lr_schedule,
-                 s_convnext, s_crps_loss,
+                 s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing,
+                 s_log_precipitation_difference, s_lr_schedule, s_convnext, s_crps_loss,
                  training_steps_per_epoch=None, filter_and_normalization_params=None, class_count_target=None, training_mode=True, **__):
         '''
         Both data_set_statistics_dict and  sigma_schedule_mapping and class_count_target can be None if no training, but only forward pass is
