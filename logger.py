@@ -28,7 +28,25 @@ class TrainingLogsCallback(pl.Callback):
         self.train_logger = train_logger
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+
+        if batch_idx == 0:
+            pl_module.log_loss_train_mean = 0
+            pl_module.log_loss_train_mean_squared = 0
+            pl_module.log_mse_train_mean = 0
+            pl_module.log_mse_train_mean_squared = 0
+            pl_module.log_rain_train_mean = 0
+            pl_module.log_rain_train_mean_squared = 0
+
+        # Loss logging
         loss = outputs['loss']
+        pl_module.log_loss_train_mean += loss
+        pl_module.log_loss_train_mean_squared += loss ** 2
+
+        # # # MSE logging
+        # mse = outputs['mse']
+        # pl_module.log_mse_train_mean += mse
+        # pl_module.log_mse_train_mean_squared += mse ** 2
+
         # Everything that is returned by training_step() can be unpacked from outputs
         # params = pl_module._linspace_binning_params
         logging(self.train_logger, loss, 'train')
@@ -36,28 +54,56 @@ class TrainingLogsCallback(pl.Callback):
         # TODO: Implement logging of other metrics here,
         # TODO: INVERSE NORMALIZE PREDICTION AND TARGET
 
+    def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+
+        loss_mean = pl_module.log_loss_train_mean
+        # TODO divide mby num entries!
+        self.my_log(loss_mean, 'mean_loss')
+
     def on_train_end(self, trainer, pl_module):
         # self.train_logger.finalize()
-        self.train_logger.save()
+        self.logger.save()
 
         # Print RAM and VRAM usage
         print_gpu_memory()
         print_ram_usage()
 
+    def my_log(self, metric, metric_prefix):
+        logging(metric, 'train', metric_prefix, self.logger)
+
 
 class ValidationLogsCallback(pl.Callback):
     def __init__(self, val_logger):
         super().__init__()
-        self.val_logger = val_logger
+        self.logger = val_logger
 
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         loss = outputs['loss']
 
-        logging(self.val_logger, loss, 'val')
+        if batch_idx == 0:
+            pl_module.log_loss_val_mean = 0
+            pl_module.log_loss_val_mean_squared = 0
+            pl_module.log_mse_val_mean = 0
+            pl_module.log_mse_val_mean_squared = 0
+            pl_module.log_rain_val_mean = 0
+            pl_module.log_rain_val_mean_squared = 0
 
+        self.my_log(loss, 'val')
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        # Loss
+        # Mean
+        loss_mean = pl_module.log_loss_val_mean / pl.module.val_step_num
+        self.my_log(loss_mean, 'mean_loss')
+        # Std
+        loss_std = ((pl_module.log_loss_mean_squared / pl.module.val_step_num) - pl_module.log_loss_mean / pl.module.val_step_num ** 2 ) ** 0.5
+        self.my_log(loss_std, 'std_loss')
     def on_validation_end(self, trainer, pl_module):
         # self.val_logger.finalize()
-        self.val_logger.save()
+        self.logger.save()
+
+    def my_log(self, metric, metric_prefix):
+        logging(metric, 'val', metric_prefix, self.logger)
 
 
 class BaselineTrainingLogsCallback(pl.Callback):
@@ -74,6 +120,8 @@ class BaselineTrainingLogsCallback(pl.Callback):
     def on_validation_end(self, trainer, pl_module):
         # self.val_logger.finalize()
         self.base_train_logger.save()
+
+
 
 
 class BaselineValidationLogsCallback(pl.Callback):
@@ -94,8 +142,8 @@ class BaselineValidationLogsCallback(pl.Callback):
         self.logger.save()
 
 
-def logging(logger, loss, prefix_train_val, prefix_instance='', on_step=True,
-            on_epoch=False, sync_dist=False):
+
+def logging(metric, prefix_metric, prefix_train_val, logger, prefix_instance=''):
     """
     This does all the logging during the training / validation loop
     prefix_train_val has to be either 'train' or 'val'
@@ -116,7 +164,7 @@ def logging(logger, loss, prefix_train_val, prefix_instance='', on_step=True,
 
     with torch.no_grad():
         log_metrics_dict = {}
-        log_metrics_dict['{}_{}loss'.format(prefix_train_val, prefix_instance)] = loss
+        log_metrics_dict[r'{prefix_train_val}_{prefix_instance}{prefix_metric}'] = metric
         logger.log_metrics(log_metrics_dict)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
 
 

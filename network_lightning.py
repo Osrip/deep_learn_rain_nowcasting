@@ -65,15 +65,22 @@ class NetworkL(pl.LightningModule):
         else:
             self.model = Network(c_in=s_num_input_time_steps, **settings)
 
+        self.val_step_num = 0
+        self.train_step_num = 0
+
         self.log_loss_val_mean = 0
         self.log_loss_val_mean_squared = 0
         self.log_mse_val_mean = 0
         self.log_mse_val_mean_squared = 0
+        self.log_rain_val_mean = 0
+        self.log_rain_val_mean_squared = 0
 
         self.log_loss_train_mean = 0
         self.log_loss_train_mean_squared = 0
         self.log_mse_train_mean = 0
         self.log_mse_train_mean_squared = 0
+        self.log_rain_train_mean = 0
+        self.log_rain_train_mean_squared = 0
 
         self.model.to(device)
 
