@@ -51,6 +51,7 @@ class NetworkL(pl.LightningModule):
                                                                              device))
 
         else:
+            # self.loss_func = nn.KLDivLoss()
             self.loss_func = nn.CrossEntropyLoss()
 
         if s_convnext:
@@ -63,6 +64,16 @@ class NetworkL(pl.LightningModule):
             )
         else:
             self.model = Network(c_in=s_num_input_time_steps, **settings)
+
+        self.log_loss_val_mean = 0
+        self.log_loss_val_mean_squared = 0
+        self.log_mse_val_mean = 0
+        self.log_mse_val_mean_squared = 0
+
+        self.log_loss_train_mean = 0
+        self.log_loss_train_mean_squared = 0
+        self.log_mse_train_mean = 0
+        self.log_mse_train_mean_squared = 0
 
         self.model.to(device)
 
