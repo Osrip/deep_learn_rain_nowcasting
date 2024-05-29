@@ -249,4 +249,7 @@ class NetworkL(pl.LightningModule):
         pred = self(input_sequence)
         loss = self.loss_func(pred, target_binned)
 
-        return {'loss': loss, 'target_binned': target_binned}
+        # returned dict has to include 'loss' entry for automatic backward optimization
+        # Multiple entries can be added to the dict, which can be found in 'outputs' of the callback on_train_batch_end()
+        # which is currently used by logger.py
+        return {'loss': loss, 'pred': pred, 'target': target, 'target_binned': target_binned}
