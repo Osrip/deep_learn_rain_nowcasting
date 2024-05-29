@@ -405,16 +405,20 @@ def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target,
     #           title='MSE on lognorm data', **plot_settings,)
     #
     #
-    key_list_train_xentropy = ['train_mean_loss']#, 'train_mean_normed_mse', 'train_mean_normed_mean_pred', 'train_mean_normed_mean_target']
-    key_list_val_xentropy = ['val_mean_loss',] #'val_mean_normed_mse', 'val_mean_normed_mean_pred', 'val_mean_normed_mean_target']
+    key_list_train_xentropy_big = ['train_mean_loss', 'train_mean_normed_mse', 'train_mean_normed_mean_pred', 'train_mean_normed_mean_target']
+    key_list_val_xentropy_big = ['val_mean_loss', 'val_mean_normed_mse', 'val_mean_normed_mean_pred', 'val_mean_normed_mean_target']
+
+    for train_en, val_en in zip(key_list_train_xentropy_big, key_list_val_xentropy_big):
+        key_list_train_xentropy = [train_en]
+        key_list_val_xentropy = [val_en]
 
 
-    loss_ylog = True
-    loss_title = 'Xentropy on lognorm data'
-    loss_ylabel = 'Xentropy'
+        loss_ylog = True
+        loss_title = train_en
+        loss_ylabel = train_en
 
-    line_plot(train_df, val_df, None, None, key_list_train_xentropy, key_list_val_xentropy, None, None,
-              ylabel=loss_ylabel, ylog=loss_ylog, save_name='xentropy_loss', title=loss_title, **plot_settings)
+        line_plot(train_df, val_df, None, None, key_list_train_xentropy, key_list_val_xentropy, None, None,
+                  ylabel=loss_ylabel, ylog=loss_ylog, save_name=train_en, title=loss_title, **plot_settings)
 
 
 def plot_precipitation_diff(plot_settings, ps_sim_name, **__):
