@@ -620,11 +620,6 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_lo
     class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64).to(device)
 
     for idx in range(len(filtered_indecies)):
-        # _, target = load_input_target_from_index(idx, xr_dataset, filtered_indecies, linspace_binning,
-        #                                                          mean_filtered_log_data, std_filtered_log_data,
-        #                                                          transform_f,
-        #                                                          normalize=normalize, load_input_sequence=False,
-        #                                                          load_target=True, **settings)
         target = load_target_from_index(idx,
                                          xr_dataset,
                                          filtered_indecies,
@@ -659,11 +654,6 @@ def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning,
     xr_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
 
     for idx in range(len(filtered_indecies)):
-        # _, target = load_input_target_from_index(idx, xr_dataset, filtered_indecies, linspace_binning,
-        #                                                          mean_filtered_log_data, std_filtered_log_data,
-        #                                                          transform_f,
-        #                                                          normalize=normalize, load_input_sequence=False,
-        #                                                          load_target=True, **settings)
         target = load_target_from_index(idx,
                                          xr_dataset,
                                          filtered_indecies,
@@ -751,19 +741,6 @@ def iterate_through_data_names(start_date_time, future_iterations_from_start: in
         date_time = start_date_time + datetime.timedelta(minutes=time_diff)
         load_dates.append(date_time)
     return load_dates
-
-
-# def flag_data(data_dataset, flag_dataset, nan_letter=0):
-#     data_arr = np.array(data_dataset)
-#     flag_arr = np.array(flag_dataset)
-#     # set all flag values of 0 (data available) True
-#     booler = lambda x: x == 0
-#     booler_func = np.vectorize(booler)
-#     flag_bool = booler_func(flag_arr)
-#     # Replace all False in flag_bool with nan
-#     # data_arr[~flag_bool] = np.NAN
-#     data_arr[~flag_bool] = nan_letter
-#     return data_arr
 
 
 def random_splitting_filtered_indecies(indecies, num_training_samples, chunk_size):

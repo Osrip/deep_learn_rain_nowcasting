@@ -68,19 +68,19 @@ class NetworkL(pl.LightningModule):
         self.val_step_num = 0
         self.train_step_num = 0
 
-        self.log_loss_val_mean = 0
-        self.log_loss_val_mean_squared = 0
-        self.log_mse_val_mean = 0
-        self.log_mse_val_mean_squared = 0
-        self.log_rain_val_mean = 0
-        self.log_rain_val_mean_squared = 0
+        self.sum_val_loss = 0
+        self.sum_val_loss_squared = 0
+        self.sum_val_mse = 0
+        self.sum_val_mse_squared = 0
+        self.sum_val_mean_pred = 0
+        self.sum_val_mean_pred_squared = 0
 
-        self.log_loss_train_mean = 0
-        self.log_loss_train_mean_squared = 0
-        self.log_mse_train_mean = 0
-        self.log_mse_train_mean_squared = 0
-        self.log_rain_train_mean = 0
-        self.log_rain_train_mean_squared = 0
+        self.sum_train_loss = 0
+        self.sum_train_loss_squared = 0
+        self.sum_train_mse = 0
+        self.sum_train_mse_squared = 0
+        self.sum_train_mean_pred = 0
+        self.sum_train_mean_pred_squared = 0
 
         self.model.to(device)
 
