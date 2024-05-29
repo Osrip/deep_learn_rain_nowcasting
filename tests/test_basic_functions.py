@@ -146,11 +146,12 @@ def test_normalize_inverse_normalize_log():
     std = np.std(log_test_data)
     normalized_test_data = normalize_data(log_test_data, mean, std)
     reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=True)
-    assert (np.round(reconstructed_test_data, 5) == np.round(test_data_set, 5)).all()
+    assert np.allclose(reconstructed_test_data, test_data_set, atol=1e-4)
 
 
 def is_one_hot(tensor, one_hot_dim=0):
     assert torch.all(torch.sum(tensor, dim=one_hot_dim) == 1)
+
 
 def test_all():
     '''

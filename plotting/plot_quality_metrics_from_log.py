@@ -405,8 +405,8 @@ def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target,
     #           title='MSE on lognorm data', **plot_settings,)
     #
     #
-    key_list_train_xentropy = ['train_loss']
-    key_list_val_xentropy = ['val_loss']
+    key_list_train_xentropy = ['train_mean_loss']
+    key_list_val_xentropy = ['val_mean_loss']
 
 
     loss_ylog = True

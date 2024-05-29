@@ -4,6 +4,30 @@ import torch
 from helper.memory_logging import print_gpu_memory, print_ram_usage
 
 
+def logging(metric, prefix_metric, prefix_train_val, logger, prefix_instance=''):
+    """
+    This does all the logging during the training / validation loop
+    prefix_train_val has to be either 'train' or 'val'
+
+    epoch-wise logging: on_step=False, on_epoch=True, sync_dist=True
+    step-wise logging: on_step=True, on_epoch=False, sync_dist=False
+    sync_dist: syncs the GPUs, so not something we want after each step.
+        if True, reduces the metric across devices. Use with care as this
+        may lead to a significant communication overhead.
+
+    Per default Lightning first runs training, then logs training
+    then runs validation, then logs validation.
+    Sanity check runs two batches through validation without logging
+    """
+
+    if prefix_train_val not in ['train', 'val']:
+        raise ValueError('prefix_train_val has to be either "train" or "val"')
+
+    with torch.no_grad():
+        log_metrics_dict = {}
+        log_metrics_dict[f'{prefix_train_val}_{prefix_instance}{prefix_metric}'] = metric
+        logger.log_metrics(log_metrics_dict)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
+
 
 def create_loggers(s_dirs, **__):
     train_logger = CSVLogger(s_dirs['logs'], name='train_log')
@@ -25,7 +49,7 @@ class TrainingLogsCallback(pl.Callback):
 
     def __init__(self, train_logger):
         super().__init__()
-        self.train_logger = train_logger
+        self.logger = train_logger
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
 
@@ -49,7 +73,6 @@ class TrainingLogsCallback(pl.Callback):
 
         # Everything that is returned by training_step() can be unpacked from outputs
         # params = pl_module._linspace_binning_params
-        logging(self.train_logger, loss, 'train')
 
         # TODO: Implement logging of other metrics here,
         # TODO: INVERSE NORMALIZE PREDICTION AND TARGET
@@ -68,8 +91,8 @@ class TrainingLogsCallback(pl.Callback):
         print_gpu_memory()
         print_ram_usage()
 
-    def my_log(self, metric, metric_prefix):
-        logging(metric, 'train', metric_prefix, self.logger)
+    def my_log(self, metric, prefix_metric):
+        logging(metric, prefix_metric, 'train', self.logger)
 
 
 class ValidationLogsCallback(pl.Callback):
@@ -88,22 +111,27 @@ class ValidationLogsCallback(pl.Callback):
             pl_module.log_rain_val_mean = 0
             pl_module.log_rain_val_mean_squared = 0
 
-        self.my_log(loss, 'val')
+        # Loss logging
+        loss = outputs['loss']
+        pl_module.log_loss_val_mean += loss
+        pl_module.log_loss_val_mean_squared += loss ** 2
 
     def on_validation_epoch_end(self, trainer, pl_module):
         # Loss
         # Mean
-        loss_mean = pl_module.log_loss_val_mean / pl.module.val_step_num
+        loss_mean = pl_module.log_loss_val_mean / pl_module.val_step_num
         self.my_log(loss_mean, 'mean_loss')
         # Std
-        loss_std = ((pl_module.log_loss_mean_squared / pl.module.val_step_num) - pl_module.log_loss_mean / pl.module.val_step_num ** 2 ) ** 0.5
+        loss_std = ((pl_module.log_loss_val_mean_squared / pl_module.val_step_num) -
+                    pl_module.log_loss_val_mean / pl_module.val_step_num ** 2) ** 0.5
         self.my_log(loss_std, 'std_loss')
+
     def on_validation_end(self, trainer, pl_module):
         # self.val_logger.finalize()
         self.logger.save()
 
     def my_log(self, metric, metric_prefix):
-        logging(metric, 'val', metric_prefix, self.logger)
+        logging(metric, metric_prefix, 'val', self.logger)
 
 
 class BaselineTrainingLogsCallback(pl.Callback):
@@ -120,8 +148,6 @@ class BaselineTrainingLogsCallback(pl.Callback):
     def on_validation_end(self, trainer, pl_module):
         # self.val_logger.finalize()
         self.base_train_logger.save()
-
-
 
 
 class BaselineValidationLogsCallback(pl.Callback):
@@ -143,29 +169,6 @@ class BaselineValidationLogsCallback(pl.Callback):
 
 
 
-def logging(metric, prefix_metric, prefix_train_val, logger, prefix_instance=''):
-    """
-    This does all the logging during the training / validation loop
-    prefix_train_val has to be either 'train' or 'val'
-
-    epoch-wise logging: on_step=False, on_epoch=True, sync_dist=True
-    step-wise logging: on_step=True, on_epoch=False, sync_dist=False
-    sync_dist: syncs the GPUs, so not something we want after each step.
-        if True, reduces the metric across devices. Use with care as this
-        may lead to a significant communication overhead.
-
-    Per default Lightning first runs training, then logs training
-    then runs validation, then logs validation.
-    Sanity check runs two batches through validation without logging
-    """
-
-    if prefix_train_val not in ['train', 'val']:
-        raise ValueError('prefix_train_val has to be either "train" or "val"')
-
-    with torch.no_grad():
-        log_metrics_dict = {}
-        log_metrics_dict[r'{prefix_train_val}_{prefix_instance}{prefix_metric}'] = metric
-        logger.log_metrics(log_metrics_dict)  # on_step=False, on_epoch=True calculates averages over all steps for each epoch
 
 
 
