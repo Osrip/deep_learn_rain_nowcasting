@@ -297,7 +297,8 @@ def train_l(train_data_loader, validation_data_loader, profiler, callback_list, 
 
     trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=s_max_epochs, log_every_n_steps=1,
                          logger=logger, devices=s_num_gpus, check_val_every_n_epoch=s_check_val_every_n_epoch,
-                         strategy='ddp')  # on mac: , accelerator='cpu'
+                         strategy='ddp', num_sanity_val_steps=0)
+    # num_sanity_val_steps=0 turns off validation sanity checking
      # precision='16-mixed'
     # 'devices' argument is ignored when device == 'cpu'
     # Speed up advice: https://pytorch-lightning.readthedocs.io/en/1.8.6/guides/speed.html
