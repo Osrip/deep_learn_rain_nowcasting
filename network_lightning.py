@@ -74,6 +74,8 @@ class NetworkL(pl.LightningModule):
         self.sum_val_mse_squared = 0
         self.sum_val_mean_pred = 0
         self.sum_val_mean_pred_squared = 0
+        self.sum_val_mean_target = 0
+        self.sum_val_mean_target_squared = 0
 
         self.sum_train_loss = 0
         self.sum_train_loss_squared = 0
@@ -81,6 +83,8 @@ class NetworkL(pl.LightningModule):
         self.sum_train_mse_squared = 0
         self.sum_train_mean_pred = 0
         self.sum_train_mean_pred_squared = 0
+        self.sum_train_mean_target = 0
+        self.sum_train_mean_target_squared = 0
 
         self.model.to(device)
 
@@ -222,7 +226,7 @@ class NetworkL(pl.LightningModule):
         # returned dict has to include 'loss' entry for automatic backward optimization
         # Multiple entries can be added to the dict, which can be found in 'outputs' of the callback on_train_batch_end()
         # which is currently used by logger.py
-        return {'loss': loss, 'target_binned': target_binned}
+        return {'loss': loss, 'pred': pred, 'target': target, 'target_binned': target_binned}
 
     def validation_step(self, val_batch, batch_idx):
         self.val_step_num += 1

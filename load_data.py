@@ -675,6 +675,7 @@ def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning,
         target_mean_weights.append(mean_weight)
     return target_mean_weights
 
+
 def filter(input_sequence, target, s_min_rain_ratio_target, percentage=0.5, min_amount_rain=0.2):
 
     '''

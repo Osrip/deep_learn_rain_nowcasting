@@ -2,6 +2,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import CSVLogger, MLFlowLogger
 import torch
 from helper.memory_logging import print_gpu_memory, print_ram_usage
+from helper.helper_functions import one_hot_to_lognormed_mm
 
 
 def logging(prefix_metrics_dict, prefix_train_val, logger, prefix_instance=''):
@@ -49,7 +50,10 @@ class TrainingLogsCallback(pl.Callback):
         super().__init__()
         self.logger = train_logger
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, logging_device='cpu'):
+        '''
+        Make sums of training metrics each batch / iteration
+        '''
 
         if batch_idx == 0:
             pl_module.sum_train_loss = 0
@@ -58,27 +62,80 @@ class TrainingLogsCallback(pl.Callback):
             pl_module.sum_train_mse_squared = 0
             pl_module.sum_train_mean_pred = 0
             pl_module.sum_train_mean_pred_squared = 0
+            pl_module.sum_train_mean_target = 0
+            pl_module.sum_train_mean_target_squared = 0
 
-        # Loss logging
+        # Unpacking outputs
         loss = outputs['loss']
+        pred = outputs['pred']
+        target = outputs['target']
+        target_binned = outputs['target_binned']
+
+        # Converting prediction from one-hot to (lognormed) mm
+        _, _, linspace_binning = pl_module._linspace_binning_params
+        pred_normed_mm = one_hot_to_lognormed_mm(pred, linspace_binning, channel_dim=1)
+
+        # Loss
         pl_module.sum_train_loss += loss
         pl_module.sum_train_loss_squared += loss ** 2
 
-        # Everything that is returned by training_step() can be unpacked from outputs
-        # params = pl_module._linspace_binning_params
+        # MSE
+        mse_normed = torch.nn.MSELoss()(pred_normed_mm, target)
+        pl_module.sum_train_mse += mse_normed
+        pl_module.sum_train_mse_squared += mse_normed ** 2
 
-        # TODO: Implement logging of other metrics here,
-        # TODO: INVERSE NORMALIZE PREDICTION AND TARGET
+        # Mean prediction
+        mean_pred = torch.mean(pred_normed_mm)
+        pl_module.sum_train_mean_pred += mean_pred
+        pl_module.sum_train_mean_pred_squared += mean_pred ** 2
+
+        # Mean target
+        mean_target = torch.mean(target)
+        pl_module.sum_train_mean_target += mean_target
+        pl_module.sum_train_mean_target_squared += mean_target ** 2
 
     def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        '''
+        Calculate means and stds from the sums of logs each training iteration and log them
+        '''
         # Loss
         # Mean
         mean_loss = pl_module.sum_train_loss / pl_module.train_step_num
         # Std
-        std_loss = ((pl_module.sum_train_loss_squared / pl_module.train_step_num) -
-                    (pl_module.sum_train_loss / pl_module.train_step_num) ** 2) ** 0.5
-        # TODO divide mby num entries!
-        self.my_log({'mean_loss': mean_loss, 'std_loss': std_loss})
+        mean_squared_loss = pl_module.sum_train_loss_squared / pl_module.train_step_num
+        std_loss = (mean_squared_loss - mean_loss ** 2) ** 0.5
+
+        # MSE
+        # Mean
+        mean_mse = pl_module.sum_train_mse / pl_module.train_step_num
+        # Std
+        mean_squared_mse = pl_module.sum_train_mse_squared / pl_module.train_step_num
+        std_mse = (mean_squared_mse - mean_mse ** 2) ** 0.5
+
+        # Mean prediction
+        # Mean
+        mean_mean_pred = pl_module.sum_train_mean_pred / pl_module.train_step_num
+        # Std
+        mean_squared_mean_pred = pl_module.sum_train_mean_pred_squared / pl_module.train_step_num
+        std_mean_pred = (mean_squared_mean_pred - mean_mean_pred ** 2) ** 0.5
+
+        # Mean target
+        # Mean
+        mean_mean_target = pl_module.sum_train_mean_target / pl_module.train_step_num
+        # Std
+        mean_squared_mean_target = pl_module.sum_train_mean_target_squared / pl_module.train_step_num
+        std_mean_target = (mean_squared_mean_target - mean_mean_target ** 2) ** 0.5
+
+        self.my_log(
+            {'mean_loss': mean_loss, 'std_loss': std_loss,
+             'mean_normed_mse': mean_mse, 'std_normed_mse': std_mse,
+             'mean_normed_mean_pred': mean_mean_pred, 'std_normed_mean_pred': std_mean_pred,
+             'mean_normed_mean_target': mean_mean_target, 'std_normed_mean_target': std_mean_target})
+
+        save_every_n_th_epoch = 1
+        if pl_module.current_epoch % save_every_n_th_epoch == 0:
+            # Call on_train_end every nth epoch to save intermediate results
+            self.on_train_end(trainer, pl_module)
 
     def on_train_end(self, trainer, pl_module):
         # self.train_logger.finalize()
