@@ -506,7 +506,7 @@ if __name__ == '__main__':
         data_set_vars = data_loading(settings, **settings)
         model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(*data_set_vars, settings,
                                                                                   **settings)
-        plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l, settings, **settings)
+        plotting_pipeline(training_steps_per_epoch, model_l, settings, **settings)
 
     else:
         # Plotting only

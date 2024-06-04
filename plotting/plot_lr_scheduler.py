@@ -9,13 +9,15 @@ class NullModule(torch.nn.Module):
         super().__init__()
         self.fc = torch.nn.Linear(1, 1)
 
-def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, ps_sim_name, save=True,
+
+def plot_lr_schedule(lr_scheduler, training_steps_per_epoch, epochs, s_dirs, save=True,
                      save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler', ylog=False, **__):
     # TODO init learing rate seems to do nothing!, Init learning rate is adapted fropm the optimizer, that is fed in!
+
+    ps_sim_name = s_dirs['save_dir']
+
     model = NullModule()
     optimizer = torch.optim.Adam(model.parameters())
-
-
 
     lrs = []
     for _ in range(epochs * training_steps_per_epoch):

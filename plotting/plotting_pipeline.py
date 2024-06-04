@@ -3,47 +3,47 @@ from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
 
 from plotting.calc_and_plot_from_checkpoint import plot_from_checkpoint
 
+from helper.plotting_helper import load_data_from_logs
+from plotting.plot_from_log import plot_logged_metrics
 
-def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l, settings, s_dirs,
+
+def plotting_pipeline(training_steps_per_epoch, model_l, settings,
                       plot_lr_schedule_boo=True, **__):
     '''
     Pipeline for automatic plotting of several figures
     For plot_lr_schedule=True, model_l is required, otherwise None can be passed for model_l
     '''
+    s_dirs = settings['s_dirs']
 
-    plot_metrics_settings = {
-        'ps_sim_name': s_dirs['save_dir']  # settings['s_sim_name']
-    }
+    key_list_train = ['train_mean_loss', 'train_mean_normed_mse']
+    key_list_val = ['val_mean_loss', 'val_mean_normed_mse']
+    save_name_list = ['loss', 'mse']
+    title_list = ['Loss', 'MSE']
 
-    plot_qualities_main(plot_metrics_settings, **plot_metrics_settings, **settings)
+    train_df, val_df, base_train_df, base_val_df = load_data_from_logs(**settings)
+
+    for train_key, val_key, save_name, title in zip(key_list_train, key_list_val, save_name_list, title_list):
+        plot_logged_metrics(train_key, val_key, save_name, title, train_df, val_df, xlog=False, ylog=True, **settings)
+
 
     if settings['s_log_precipitation_difference']:
-        # This does not yet work with s_gaussian_smoothing_multiple_sigmas
-        try:
-            plot_precipitation_diff(plot_metrics_settings, **plot_metrics_settings, **settings)
-        except Exception:
-            print('Precipitation difference plotting encountered error!')
+        pass
+        # # This does not yet work with s_gaussian_smoothing_multiple_sigmas
+        # try:
+        #     plot_precipitation_diff(plot_from_log_settings, **plot_from_log_settings, **settings)
+        # except Exception:
+        #     print('Precipitation difference plotting encountered error!')
 
     # Deepcopy lr_scheduler to make sure steps in instance is not messed up
     # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
 
-    plot_lr_schedule_settings = {
-        'ps_sim_name': s_dirs['save_dir']  # settings['s_sim_name'], # TODO: Solve conflicting name convention
-    }
 
     if settings['s_lr_schedule'] and plot_lr_schedule_boo:
 
         plot_lr_schedule(model_l.lr_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
                          save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler',
-                         ylog=True, **plot_lr_schedule_settings)
+                         ylog=True, **settings)
 
-    if settings['s_schedule_sigma_smoothing']:
-        plot_sigma_schedule(sigma_schedule_mapping, save_name='sigma_scheduler', ylog=True, save=True,
-                            **plot_lr_schedule_settings)
-
-    # plot_lr_schedule(sigma_scheduler, training_steps_per_epoch, settings['s_max_epochs'],
-    #                  init_learning_rate=settings['s_learning_rate'], save_name='sigma_scheduler',
-    #                  y_label='Sigma', title='Sigma scheduler', ylog=False, **plot_lr_schedule_settings)
 
     plot_checkpoint_settings ={
         'ps_runs_path': s_dirs['save_dir'], #'{}/runs'.format(os.getcwd()),
