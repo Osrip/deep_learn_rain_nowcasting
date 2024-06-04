@@ -227,6 +227,10 @@ class NetworkL(pl.LightningModule):
         # Multiple entries can be added to the dict, which can be found in 'outputs' of the callback on_train_batch_end()
         # which is currently used by logger.py
         return {'loss': loss, 'pred': pred, 'target': target, 'target_binned': target_binned}
+        # Loss cannot be NaN
+        # Pred is inherently not NaN
+        # TARGET HAS NANs
+        # In target binned for all values that have been NaNs in target simply all bins have been set to zero
 
     def validation_step(self, val_batch, batch_idx):
         self.val_step_num += 1
@@ -253,3 +257,7 @@ class NetworkL(pl.LightningModule):
         # Multiple entries can be added to the dict, which can be found in 'outputs' of the callback on_train_batch_end()
         # which is currently used by logger.py
         return {'loss': loss, 'pred': pred, 'target': target, 'target_binned': target_binned}
+        # Loss cannot be NaN
+        # Pred is inherently not NaN
+        # TARGET HAS NANs
+        # In target binned for all values that have been NaNs in target simply all bins have been set to zero

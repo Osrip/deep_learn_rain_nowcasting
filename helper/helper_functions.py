@@ -43,6 +43,7 @@ def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: Union[torc
     The observed values are sorted into the bins as follows:
     left edge <= observed value < right edge
     This is tested in the test case tests/test_img_one_hot
+    Handle nans --> Simply set one hot to zeros at each nan
     '''
 
     data_indexed = bin_to_one_hot_index(data_arr, linspace_binning)  # -0.00000001

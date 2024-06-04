@@ -71,6 +71,10 @@ class TrainingLogsCallback(pl.Callback):
         target = outputs['target']
         target_binned = outputs['target_binned']
 
+        # Get rid of NaNs in target
+        nan_mask = torch.isnan(target)
+        target[nan_mask] = 0
+
         # Converting prediction from one-hot to (lognormed) mm
         _, _, linspace_binning = pl_module._linspace_binning_params
         pred_normed_mm = one_hot_to_lognormed_mm(pred, linspace_binning, channel_dim=1)
@@ -182,6 +186,10 @@ class ValidationLogsCallback(pl.Callback):
         pred = outputs['pred']
         target = outputs['target']
         target_binned = outputs['target_binned']
+
+        # Get rid of NaNs in target
+        nan_mask = torch.isnan(target)
+        target[nan_mask] = 0
 
         # Converting prediction from one-hot to (lognormed) mm
         _, _, linspace_binning = pl_module._linspace_binning_params
