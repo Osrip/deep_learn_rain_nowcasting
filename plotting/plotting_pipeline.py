@@ -15,10 +15,7 @@ def plotting_pipeline(sigma_schedule_mapping, training_steps_per_epoch, model_l,
         'ps_sim_name': s_dirs['save_dir']  # settings['s_sim_name']
     }
 
-    if not settings['s_gaussian_smoothing_multiple_sigmas']:
-        plot_qualities_main(plot_metrics_settings, **plot_metrics_settings, **settings)
-    else:
-        plot_qualities_main_several_sigmas(plot_metrics_settings, **plot_metrics_settings, **settings)
+    plot_qualities_main(plot_metrics_settings, **plot_metrics_settings, **settings)
 
     if settings['s_log_precipitation_difference']:
         # This does not yet work with s_gaussian_smoothing_multiple_sigmas
