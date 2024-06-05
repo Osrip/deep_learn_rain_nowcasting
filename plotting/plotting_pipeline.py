@@ -4,7 +4,7 @@ from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
 from plotting.calc_and_plot_from_checkpoint import plot_from_checkpoint
 
 from helper.plotting_helper import load_data_from_logs
-from plotting.plot_from_log import plot_logged_metrics
+from plotting.plot_from_log import plot_logged_metrics, plot_mean_predictions
 
 
 def plotting_pipeline(training_steps_per_epoch, model_l, settings,
@@ -15,16 +15,40 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
     '''
     s_dirs = settings['s_dirs']
 
-    key_list_train = ['train_mean_loss', 'train_mean_normed_mse']
-    key_list_val = ['val_mean_loss', 'val_mean_normed_mse']
+    ###### Plot logged metrics ######
+
+    key_list_train_mean = ['train_mean_loss', 'train_mean_normed_mse']
+    key_list_val_mean = ['val_mean_loss', 'val_mean_normed_mse']
+    key_list_train_std = ['train_std_loss', 'train_std_normed_mse']
+    key_list_val_std = ['val_std_loss', 'val_std_normed_mse']
     save_name_list = ['loss', 'mse']
     title_list = ['Loss', 'MSE']
 
     train_df, val_df, base_train_df, base_val_df = load_data_from_logs(**settings)
 
-    for train_key, val_key, save_name, title in zip(key_list_train, key_list_val, save_name_list, title_list):
-        plot_logged_metrics(train_key, val_key, save_name, title, train_df, val_df, xlog=False, ylog=True, **settings)
+    for train_mean_key, val_mean_key, train_std_key, val_std_key, save_name, title in\
+            zip(key_list_train_mean, key_list_val_mean, key_list_train_std, key_list_val_std, save_name_list, title_list):
+        plot_logged_metrics(
+            train_df, val_df,
+            train_mean_key, val_mean_key, train_std_key, val_std_key,
+            save_name, title,
+            xlog=False, ylog=True, **settings)
 
+
+
+    ###### Plot mean predictions ######
+
+    plot_mean_predictions(train_df, val_df,
+                          train_mean_pred_key='train_mean_normed_mean_pred',
+                          val_mean_pred_key='val_mean_normed_mean_pred',
+                          train_std_pred_key='train_std_normed_mean_pred',
+                          val_std_pred_key='val_std_normed_mean_pred',
+                          train_mean_target_key='train_mean_normed_mean_target',
+                          val_mean_target_key='val_mean_normed_mean_target',
+                          train_std_target_key='train_std_normed_mean_target',
+                          val_std_target_key='val_std_normed_mean_target',
+                          save_name='mean_predictions', title='Mean predictions',
+                          xlog=False, ylog=True, **settings)
 
     if settings['s_log_precipitation_difference']:
         pass
