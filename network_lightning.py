@@ -95,15 +95,11 @@ class NetworkL(pl.LightningModule):
 
         # data_set_statistics_dict can be None if no training, but only forward pass is performed (for checkpoint loading)
         if data_set_statistics_dict is None:
-            self.mean_train_data_set = None
-            self.std_train_data_set = None
-            self.mean_val_data_set = None
-            self.std_val_data_set = None
+            self.mean_filtered_log_data = None
+            self.std_filtered_log_data = None
         else:
-            self.mean_train_data_set = data_set_statistics_dict['mean_train_data_set']
-            self.std_train_data_set = data_set_statistics_dict['std_train_data_set']
-            self.mean_val_data_set = data_set_statistics_dict['mean_val_data_set']
-            self.std_val_data_set = data_set_statistics_dict['std_val_data_set']
+            self.mean_filtered_log_data = data_set_statistics_dict['mean_filtered_log_data']
+            self.std_filtered_log_data = data_set_statistics_dict['std_filtered_log_data']
 
         self.s_learning_rate = s_learning_rate
         self.s_width_height_target = s_width_height_target

@@ -258,7 +258,6 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
 
     save_zipped_pickle('{}/filter_and_normalization_params'.format(s_dirs['data_dir']), filer_and_normalization_params)
 
-
     # Save linspace params
     save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')
 
@@ -288,10 +287,10 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
                        logs_callback_list=[BaselineTrainingLogsCallback, BaselineValidationLogsCallback],
                        logger_list=[base_train_logger, base_val_logger],
                        logging_type_list=['train', 'val'],
-                       mean_filtered_log_data_list=[data_set_statistics_dict['mean_train_data_set'],
-                                                data_set_statistics_dict['mean_val_data_set']],
-                       std_filtered_log_data_list=[data_set_statistics_dict['std_train_data_set'],
-                                                  data_set_statistics_dict['std_val_data_set']],
+                       mean_filtered_log_data_list=[data_set_statistics_dict['mean_filtered_log_data'],
+                                                data_set_statistics_dict['mean_filtered_log_data']],
+                       std_filtered_log_data_list=[data_set_statistics_dict['std_filtered_log_data'],
+                                                  data_set_statistics_dict['std_filtered_log_data']],
                        settings=settings
                        )
 
