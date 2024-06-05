@@ -17,12 +17,12 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
 
     ###### Plot logged metrics ######
 
-    key_list_train_mean = ['train_mean_loss', 'train_mean_normed_mse']
-    key_list_val_mean = ['val_mean_loss', 'val_mean_normed_mse']
-    key_list_train_std = ['train_std_loss', 'train_std_normed_mse']
-    key_list_val_std = ['val_std_loss', 'val_std_normed_mse']
+    key_list_train_mean = ['train_mean_loss', 'train_mean_rmse']
+    key_list_val_mean = ['val_mean_loss', 'val_mean_rmse']
+    key_list_train_std = ['train_std_loss', 'train_std_rmse']
+    key_list_val_std = ['val_std_loss', 'val_std_rmse']
     save_name_list = ['loss', 'mse']
-    title_list = ['Loss', 'MSE']
+    title_list = ['Loss', 'RMSE (mm)']
 
     train_df, val_df, base_train_df, base_val_df = load_data_from_logs(**settings)
 
@@ -37,15 +37,15 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
     ###### Plot mean predictions ######
 
     plot_mean_predictions(train_df, val_df,
-                          train_mean_pred_key='train_mean_normed_mean_pred',
-                          val_mean_pred_key='val_mean_normed_mean_pred',
-                          train_std_pred_key='train_std_normed_mean_pred',
-                          val_std_pred_key='val_std_normed_mean_pred',
-                          train_mean_target_key='train_mean_normed_mean_target',
-                          val_mean_target_key='val_mean_normed_mean_target',
-                          train_std_target_key='train_std_normed_mean_target',
-                          val_std_target_key='val_std_normed_mean_target',
-                          save_name='mean_predictions', title='Mean predictions',
+                          train_mean_pred_key='train_mean_mean_pred',
+                          val_mean_pred_key='val_mean_mean_pred',
+                          train_std_pred_key='train_std_mean_pred',
+                          val_std_pred_key='val_std_mean_pred',
+                          train_mean_target_key='train_mean_mean_target',
+                          val_mean_target_key='val_mean_mean_target',
+                          train_std_target_key='train_std_mean_target',
+                          val_std_target_key='val_std_mean_target',
+                          save_name='mean_predictions', title='Mean predictions (mm)',
                           xlog=False, ylog=True, **settings)
 
     ###### PLot lr scheduler ######

@@ -144,9 +144,9 @@ class TrainingLogsCallback(pl.Callback):
 
         self.my_log(
             {'mean_loss': mean_loss, 'std_loss': std_loss,
-             'mean_normed_mse': mean_mse, 'std_normed_mse': std_mse,
-             'mean_normed_mean_pred': mean_mean_pred, 'std_normed_mean_pred': std_mean_pred,
-             'mean_normed_mean_target': mean_mean_target, 'std_normed_mean_target': std_mean_target})
+             'mean_rmse': mean_mse, 'std_rmse': std_mse,
+             'mean_mean_pred': mean_mean_pred, 'std_mean_pred': std_mean_pred,
+             'mean_mean_target': mean_mean_target, 'std_mean_target': std_mean_target})
 
         save_every_n_th_epoch = 1
         if pl_module.current_epoch % save_every_n_th_epoch == 0:
@@ -271,9 +271,9 @@ class ValidationLogsCallback(pl.Callback):
 
         self.my_log(
             {'mean_loss': mean_loss, 'std_loss': std_loss,
-             'mean_normed_mse': mean_mse, 'std_normed_mse': std_mse,
-             'mean_normed_mean_pred': mean_mean_pred, 'std_normed_mean_pred': std_mean_pred,
-             'mean_normed_mean_target': mean_mean_target, 'std_normed_mean_target': std_mean_target})
+             'mean_rmse': mean_mse, 'std_rmse': std_mse,
+             'mean_mean_pred': mean_mean_pred, 'std_mean_pred': std_mean_pred,
+             'mean_mean_target': mean_mean_target, 'std_mean_target': std_mean_target})
 
         save_every_n_th_epoch = 1
         if pl_module.current_epoch % save_every_n_th_epoch == 0:

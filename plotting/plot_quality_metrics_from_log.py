@@ -406,8 +406,8 @@ def plot_qualities_main(plot_settings, ps_sim_name, s_gaussian_smoothing_target,
     #
     #
 
-    key_list_train_xentropy_big = ['train_mean_loss', 'train_mean_normed_mse', 'train_mean_normed_mean_pred', 'train_mean_normed_mean_target']
-    key_list_val_xentropy_big = ['val_mean_loss', 'val_mean_normed_mse', 'val_mean_normed_mean_pred', 'val_mean_normed_mean_target']
+    key_list_train_xentropy_big = ['train_mean_loss', 'train_mean_rmse', 'train_mean_mean_pred', 'train_mean_mean_target']
+    key_list_val_xentropy_big = ['val_mean_loss', 'val_mean_rmse', 'val_mean_mean_pred', 'val_mean_mean_target']
 
     for train_en, val_en in zip(key_list_train_xentropy_big, key_list_val_xentropy_big):
         key_list_train_xentropy = [train_en]
