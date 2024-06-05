@@ -171,16 +171,8 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
                                                        settings,
                                                        **settings)
 
-    mean_train_data_set = train_data_set.mean_filtered_log_data
-    std_train_data_set = train_data_set.std_filtered_log_data
-
-    mean_val_data_set = validation_data_set.mean_filtered_log_data
-    std_val_data_set = validation_data_set.std_filtered_log_data
-
-    data_set_statistics_dict = {'mean_train_data_set': mean_train_data_set,
-                                'std_train_data_set': std_train_data_set,
-                                'mean_val_data_set': mean_val_data_set,
-                                'std_val_data_set': std_val_data_set}
+    data_set_statistics_dict = {'mean_filtered_log_data': mean_filtered_log_data,
+                                'std_filtered_log_data': std_filtered_log_data}
 
     training_steps_per_epoch = len(train_data_set)
 

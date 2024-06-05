@@ -195,6 +195,10 @@ class ValidationLogsCallback(pl.Callback):
         _, _, linspace_binning = pl_module._linspace_binning_params
         pred_normed_mm = one_hot_to_lognormed_mm(pred, linspace_binning, channel_dim=1)
 
+        # Inverse normalize target and prediction
+
+        pass
+
         # Loss
         pl_module.sum_val_loss += loss
         pl_module.sum_val_loss_squared += loss ** 2
