@@ -170,7 +170,7 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
                                                        transform_f,
                                                        settings,
                                                        **settings)
-    
+
     # Zip up the mean and std of the logarithmic data in a dict (includes all data: training and validation)
     data_set_statistics_dict = {'mean_filtered_log_data': mean_filtered_log_data,
                                 'std_filtered_log_data': std_filtered_log_data}

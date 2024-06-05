@@ -3,6 +3,7 @@ from pytorch_lightning.loggers import CSVLogger, MLFlowLogger
 import torch
 from helper.memory_logging import print_gpu_memory, print_ram_usage
 from helper.helper_functions import one_hot_to_lognormed_mm
+from load_data import inverse_normalize_data
 
 
 def logging(prefix_metrics_dict, prefix_train_val, logger, prefix_instance=''):
@@ -79,17 +80,27 @@ class TrainingLogsCallback(pl.Callback):
         _, _, linspace_binning = pl_module._linspace_binning_params
         pred_normed_mm = one_hot_to_lognormed_mm(pred, linspace_binning, channel_dim=1)
 
+        # Inverse normalize target and prediction
+
+        pred_mm = inverse_normalize_data(pred_normed_mm,
+                                         pl_module.mean_filtered_log_data,
+                                         pl_module.std_filtered_log_data)
+
+        target = inverse_normalize_data(target,
+                                        pl_module.mean_filtered_log_data,
+                                        pl_module.std_filtered_log_data)
+
         # Loss
         pl_module.sum_train_loss += loss
         pl_module.sum_train_loss_squared += loss ** 2
 
         # MSE
-        mse_normed = torch.nn.MSELoss()(pred_normed_mm, target)
+        mse_normed = torch.nn.MSELoss()(pred_mm, target)
         pl_module.sum_train_mse += mse_normed
         pl_module.sum_train_mse_squared += mse_normed ** 2
 
         # Mean prediction
-        mean_pred = torch.mean(pred_normed_mm)
+        mean_pred = torch.mean(pred_mm)
         pl_module.sum_train_mean_pred += mean_pred
         pl_module.sum_train_mean_pred_squared += mean_pred ** 2
 
@@ -197,19 +208,25 @@ class ValidationLogsCallback(pl.Callback):
 
         # Inverse normalize target and prediction
 
-        pass
+        pred_mm = inverse_normalize_data(pred_normed_mm,
+                                         pl_module.mean_filtered_log_data,
+                                         pl_module.std_filtered_log_data)
+
+        target = inverse_normalize_data(target,
+                                        pl_module.mean_filtered_log_data,
+                                        pl_module.std_filtered_log_data)
 
         # Loss
         pl_module.sum_val_loss += loss
         pl_module.sum_val_loss_squared += loss ** 2
 
         # MSE
-        mse_normed = torch.nn.MSELoss()(pred_normed_mm, target)
+        mse_normed = torch.nn.MSELoss()(pred_mm, target)
         pl_module.sum_val_mse += mse_normed
         pl_module.sum_val_mse_squared += mse_normed ** 2
 
         # Mean prediction
-        mean_pred = torch.mean(pred_normed_mm)
+        mean_pred = torch.mean(pred_mm)
         pl_module.sum_val_mean_pred += mean_pred
         pl_module.sum_val_mean_pred_squared += mean_pred ** 2
 

@@ -690,23 +690,25 @@ def normalize_data(data_sequence, mean_data, std_data):
     return (data_sequence - mean_data) / std_data
 
 
-def inverse_normalize_data(data_sequence, mean_orig_data, std_orig_data, inverse_log=True, inverse_normalize=True):
+def inverse_normalize_data(data_sequence, mean_log_orig_data, std_log_orig_data, inverse_log=True, inverse_normalize=True):
     '''
+    Assumes log - then z normalization:
     Assumes that the original data has been logtransformed first and subsequently normalized to standard normal
     Works for torch tensors and numpy arrays
+    ! When inverse_log=True make sure to pass the mean and std of the log transformed data !
     '''
 
     if isinstance(data_sequence, torch.Tensor):
         # If input is a torch tensor
         if inverse_normalize:
-            data_sequence = data_sequence * std_orig_data + mean_orig_data
+            data_sequence = data_sequence * std_log_orig_data + mean_log_orig_data
         if inverse_log:
             data_sequence = torch.exp(data_sequence) - 1
 
     elif isinstance(data_sequence, np.ndarray):
         # If input is a numpy array
         if inverse_normalize:
-            data_sequence = data_sequence * std_orig_data + mean_orig_data
+            data_sequence = data_sequence * std_log_orig_data + mean_log_orig_data
         if inverse_log:
             data_sequence = np.exp(data_sequence) - 1
 
