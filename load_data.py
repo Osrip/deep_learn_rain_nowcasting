@@ -66,14 +66,7 @@ class PrecipitationFilteredDataset(Dataset):
 
     def __getitem__(self, idx) -> tuple[torch.Tensor]:
         # Loading everything directly from the disc
-        # input_sequence, target = \
-        #     load_input_target_from_index(idx, self.xr_dataset, self.filtered_data_loader_indecies,
-        #                              self.mean_filtered_log_data, self.std_filtered_log_data, self.transform_f,
-        #                              self.s_width_height, self.s_width_height_target, self.s_data_variable_name,
-        #                              self.s_normalize, self.s_gaussian_smoothing_target,
-        #                              self.s_gaussian_smoothing_multiple_sigmas, self.s_device,
-        #                              normalize=True, load_input_sequence=True, load_target=True
-        #                              )
+
         input_sequence = load_input_from_index(idx,
                                                self.xr_dataset,
                                                self.filtered_data_loader_indecies,
@@ -288,6 +281,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
     - For each of these input - target segments a gridding with random offset is applied to create crops of the input size (s_width_height)
       (only one random grid per segment / time step in the data, such that there is no overlap between the crops in one time step
     - Iterates through these crops (all crops with nans only are removed)
+
     In the upcoming steps all nans (both input and target are treated as zeros)
     (! Attention ! For final training input nans are set to zero and target nans are disregarded for loss calc,
      as one-hot is set to [0,0,0,...] (as of March 2024))
@@ -295,7 +289,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
     - For all cropped input-target segments that pass the filter condition, the spatio-temporal indecies are returned
       (upper left corner of crop with respect to the input width / heihgt given by s_width_height),
       additionally the normalization parameters are calculated based on the targets of the filtered cropped segments
-       - nans treated as zeros
+
     '''
 
     filtered_data_loader_indecies = []
@@ -484,8 +478,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                 if num_frames_passed_filter >= s_max_num_filter_hits:
                     break
 
-
-    # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here?
+    # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here (not a big effect)?
     if num_x == 0:
         raise Exception('No data passed the filter conditions of s_min_rain_ratio_target={}, such that there is no '
                         'data for training and validation.'.format(s_min_rain_ratio_target))

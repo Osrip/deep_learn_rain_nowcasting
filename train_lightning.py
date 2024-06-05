@@ -82,15 +82,22 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     ###############
     # LINSPACE BINNING
     # Normalize linspace binning thresholds now that data is available
-    linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized, mean_filtered_log_data, std_filtered_log_data,
-                                             transform_f, s_normalize)
-    # Subtract a small number to account for rounding errors made in the normalization process
-    linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized, mean_filtered_log_data, std_filtered_log_data,
-                                             transform_f, s_normalize)
-    # Watch out! mean_filtered_log_data and std_filtered_log_data have been calculated in the log space, as we first take log,
-    # then do z normalization!
+    linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized,
+                                             mean_filtered_log_data,
+                                             std_filtered_log_data,
+                                             transform_f,
+                                             s_normalize)
 
-    # The virtual linspace binning max is used to create the linspace binning, such that the right most bin simply covers all outliers
+    linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized,
+                                             mean_filtered_log_data,
+                                             std_filtered_log_data,
+                                             transform_f,
+                                             s_normalize)
+    # Watch out! mean_filtered_log_data and std_filtered_log_data have been calculated in the log space,
+    # as we first take log, then do z normalization!
+
+    # The virtual linspace binning max is used to create the linspace binning,
+    # such that the right most bin simply covers all outliers
     # This includes 95% of the data
     linspace_binning_virtual_max = lognormalize_data(s_linspace_binning_cut_off_unnormalized, mean_filtered_log_data,
                                              std_filtered_log_data,
@@ -109,16 +116,26 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     # We calculate the weights of each class which is = `1 / number of samples (pixels)` in class
     # class_weights_target has length and order of bins
     # The class weights don't sum to one --> Why don't I take the softmax of the weights? --> WeightedRandomsampler doesn't care
-    class_weights_target, class_count_target, sample_num_target = calc_class_frequencies(filtered_indecies_training, linspace_binning,
-                                                                                  mean_filtered_log_data, std_filtered_log_data,
-                                                                                  transform_f, settings, normalize=True,
-                                                                                  **settings)
+    class_weights_target, class_count_target, sample_num_target = calc_class_frequencies(filtered_indecies_training,
+                                                                                         linspace_binning,
+                                                                                         mean_filtered_log_data,
+                                                                                         std_filtered_log_data,
+                                                                                         transform_f,
+                                                                                         settings,
+                                                                                         normalize=True,
+                                                                                         **settings)
 
     # This calculates the mean weight of each sample, meaning the mean of all pixel weights in the sample are taken
     # target_mean_weights has length and order of targets
-    target_mean_weights = class_weights_per_sample(filtered_indecies_training, class_weights_target, linspace_binning,
-                                                   mean_filtered_log_data, std_filtered_log_data, transform_f, settings,
-                                                   normalize=True, **settings)
+    target_mean_weights = class_weights_per_sample(filtered_indecies_training,
+                                                   class_weights_target,
+                                                   linspace_binning,
+                                                   mean_filtered_log_data,
+                                                   std_filtered_log_data,
+                                                   transform_f,
+                                                   settings,
+                                                   normalize=True,
+                                                   **settings)
 
     print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
                                                                                                  num_training_samples,
@@ -134,14 +151,25 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
                         target_mean_weights, class_count_target, settings, s_batch_size, s_num_workers_data_loader, **__):
 
     # TODO: RETURN filtered indecies instead of data set
-    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_log_data, std_filtered_log_data,
-                                                  linspace_binning_min, linspace_binning_max, linspace_binning,
-                                                  transform_f, settings, **settings)
+    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training,
+                                                  mean_filtered_log_data,
+                                                  std_filtered_log_data,
+                                                  linspace_binning_min,
+                                                  linspace_binning_max,
+                                                  linspace_binning,
+                                                  transform_f,
+                                                  settings,
+                                                  **settings)
 
-    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_log_data,
+    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation,
+                                                       mean_filtered_log_data,
                                                        std_filtered_log_data,
-                                                       linspace_binning_min, linspace_binning_max, linspace_binning,
-                                                       transform_f, settings, **settings)
+                                                       linspace_binning_min,
+                                                       linspace_binning_max,
+                                                       linspace_binning,
+                                                       transform_f,
+                                                       settings,
+                                                       **settings)
 
     mean_train_data_set = train_data_set.mean_filtered_log_data
     std_train_data_set = train_data_set.std_filtered_log_data
@@ -157,7 +185,7 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
     training_steps_per_epoch = len(train_data_set)
 
     sampler = WeightedRandomSampler(weights=target_mean_weights, num_samples=training_steps_per_epoch, replacement=True)
-    # val_weighted_random_sampler = WeightedRandomSampler
+    # val_weighted_random_sampler = WeightedRandomSampler()
 
     # Does this assume same order in weights as in data_set? --> Seems so!
     # replacement=True allows for oversampling and in exchange not showing all samples each epoch
@@ -173,6 +201,7 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
     print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
                                                                                        len(validation_data_loader),
                                                                                        s_batch_size))
+
     linspace_binning_params = (linspace_binning_min, linspace_binning_max, linspace_binning)
     # tODO: RETURN filtered indecies instead of data set
     return train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,\
@@ -335,7 +364,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
+    s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
     s_sim_name_suffix = 'default_switching_region_64_bins_100mm_conv_next_plotting_several_metrics'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
     # _1_2_4_
@@ -391,7 +420,7 @@ if __name__ == '__main__':
 
             # Parameters related to lightning
             's_num_gpus': 1,
-            's_batch_size': 128, #our net : 64 on a100 #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
+            's_batch_size': 128, #our net on a100: 64  #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
             # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
             # Make this divisible by 8 or best 8 * 2^n
 
@@ -475,7 +504,7 @@ if __name__ == '__main__':
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
         settings['s_data_preprocessing_chunk_num'] = 2
         settings['s_upscale_c_to'] = 32  # 8
-        settings['s_batch_size'] = 4  # our net: 8
+        settings['s_batch_size'] = 8  # our net: 8
         settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
