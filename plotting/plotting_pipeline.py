@@ -34,8 +34,6 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
             save_name, title,
             xlog=False, ylog=True, **settings)
 
-
-
     ###### Plot mean predictions ######
 
     plot_mean_predictions(train_df, val_df,
@@ -50,17 +48,7 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
                           save_name='mean_predictions', title='Mean predictions',
                           xlog=False, ylog=True, **settings)
 
-    if settings['s_log_precipitation_difference']:
-        pass
-        # # This does not yet work with s_gaussian_smoothing_multiple_sigmas
-        # try:
-        #     plot_precipitation_diff(plot_from_log_settings, **plot_from_log_settings, **settings)
-        # except Exception:
-        #     print('Precipitation difference plotting encountered error!')
-
-    # Deepcopy lr_scheduler to make sure steps in instance is not messed up
-    # lr_scheduler = copy.deepcopy(model_l.lr_scheduler)
-
+    ###### PLot lr scheduler ######
 
     if settings['s_lr_schedule'] and plot_lr_schedule_boo:
 
@@ -68,6 +56,7 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
                          save_name='lr_scheduler', y_label='Learning Rate', title='LR scheduler',
                          ylog=True, **settings)
 
+    ###### Plot from checkpoint ######
 
     plot_checkpoint_settings ={
         'ps_runs_path': s_dirs['save_dir'], #'{}/runs'.format(os.getcwd()),
@@ -94,7 +83,9 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
         'crps_calc_on_every_n_th_batch': 10, #1,
         'crps_load_steps_crps_from_file': True,
         # leave away the .pickle.pgx extension
-        'crps_steps_file_path': '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/Run_20231211-213613_ID_4631443x_entropy_loss_vectorized_CRPS_eval_no_gaussian/logs/crps_steps'
+        'crps_steps_file_path':
+            '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/'
+            'Run_20231211-213613_ID_4631443x_entropy_loss_vectorized_CRPS_eval_no_gaussian/logs/crps_steps'
     }
 
     steps_settings = {
@@ -105,18 +96,23 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
     if settings['s_local_machine_mode']:
         plot_crps_settings['crps_calc_on_every_n_th_batch'] = 100
         # leave away the .pickle.pgx extension
-        plot_crps_settings['crps_steps_file_path'] = '/home/jan/Programming/remote/first_CNN_on_radolan_remote/runs/Run_20240123-161505NO_bin_weighting/logs/crps_steps'
+        plot_crps_settings['crps_steps_file_path'] =\
+            ('/home/jan/Programming/remote/first_CNN_on_radolan_remote/runs'
+             '/Run_20240123-161505NO_bin_weighting/logs/crps_steps')
         plot_crps_settings['crps_load_steps_crps_from_file'] = True
         steps_settings['steps_n_ens_members'] = 10
         steps_settings['steps_num_workers'] = 16
 
-    plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, **plot_checkpoint_settings)
+    plot_from_checkpoint(plot_fss_settings,
+                         plot_crps_settings,
+                         steps_settings,
+                         plot_checkpoint_settings,
+                         **plot_checkpoint_settings)
 
     if settings['s_max_epochs'] > 10:
         plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, epoch=10,
                              **plot_checkpoint_settings)
-    # except Exception:
-    #     warnings.warn('Image plotting encountered error!')
+
 
 
 

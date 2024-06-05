@@ -157,6 +157,7 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
     training_steps_per_epoch = len(train_data_set)
 
     sampler = WeightedRandomSampler(weights=target_mean_weights, num_samples=training_steps_per_epoch, replacement=True)
+    # val_weighted_random_sampler = WeightedRandomSampler
 
     # Does this assume same order in weights as in data_set? --> Seems so!
     # replacement=True allows for oversampling and in exchange not showing all samples each epoch
@@ -222,13 +223,12 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
                                                        filename='model_{epoch:04d}_{val_loss:.2f}',
                                                        save_top_k=-1,
                                                        every_n_epochs=s_model_every_n_epoch)
+    # save_top_k=-1, prevents callback from overwriting previous checkpoints
 
     if s_profiling:
         profiler = PyTorchProfiler(dirpath=s_dirs['profile_dir'], export_to_chrome=True)
     else:
         profiler = None
-
-    # save_top_k=-1, prevents callback from overwriting previous checkpoints
 
     save_dict_pickle_csv('{}/data_set_statistcis_dict'.format(s_dirs['data_dir']), data_set_statistics_dict)
 
@@ -440,7 +440,6 @@ if __name__ == '__main__':
             # Logging
             's_calc_baseline': True,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000,  # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
-            's_log_precipitation_difference': False,
 
             # Log transform input/ validation data --> log binning --> log(x+1)
             's_log_transform': True,  # False not tested, leave this true

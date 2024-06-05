@@ -269,44 +269,6 @@ class ValidationLogsCallback(pl.Callback):
         logging(prefix_metrics_dict, 'val', self.logger)
 
 
-# class ValidationLogsCallback(pl.Callback):
-#     def __init__(self, val_logger):
-#         super().__init__()
-#         self.logger = val_logger
-#
-#     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-#
-#         if batch_idx == 0:
-#             pl_module.sum_val_loss = 0
-#             pl_module.sum_val_loss_squared = 0
-#             pl_module.sum_val_mse = 0
-#             pl_module.sum_val_mse_squared = 0
-#             pl_module.sum_val_mean_pred = 0
-#             pl_module.sum_val_mean_pred_squared = 0
-#
-#         # Loss logging
-#         loss = outputs['loss']
-#         pl_module.sum_val_loss += loss
-#         pl_module.sum_val_loss_squared += loss ** 2
-#
-#     def on_validation_epoch_end(self, trainer, pl_module):
-#         # Loss
-#         # Mean
-#         mean_loss = pl_module.sum_val_loss / pl_module.val_step_num
-#         # Std
-#         std_loss = ((pl_module.sum_val_loss_squared / pl_module.val_step_num) -
-#                     (pl_module.sum_val_loss / pl_module.val_step_num) ** 2) ** 0.5
-#
-#         self.my_log({'mean_loss': mean_loss, 'std_loss': std_loss})
-#
-#     def on_validation_end(self, trainer, pl_module):
-#         # self.val_logger.finalize()
-#         self.logger.save()
-#
-#     def my_log(self, prefix_metrics_dict):
-#         logging(prefix_metrics_dict, 'val', self.logger)
-
-
 class BaselineTrainingLogsCallback(pl.Callback):
     def __init__(self, base_train_logger):
         super().__init__()
