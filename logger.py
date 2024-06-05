@@ -94,10 +94,11 @@ class TrainingLogsCallback(pl.Callback):
         pl_module.sum_train_loss += loss
         pl_module.sum_train_loss_squared += loss ** 2
 
-        # MSE
-        mse_normed = torch.nn.MSELoss()(pred_mm, target)
-        pl_module.sum_train_mse += mse_normed
-        pl_module.sum_train_mse_squared += mse_normed ** 2
+        # (R)MSE
+        mse = torch.nn.MSELoss()(pred_mm, target)
+        rmse = torch.sqrt(mse)
+        pl_module.sum_train_mse += rmse
+        pl_module.sum_train_mse_squared += rmse ** 2
 
         # Mean prediction
         mean_pred = torch.mean(pred_mm)
@@ -220,10 +221,11 @@ class ValidationLogsCallback(pl.Callback):
         pl_module.sum_val_loss += loss
         pl_module.sum_val_loss_squared += loss ** 2
 
-        # MSE
-        mse_normed = torch.nn.MSELoss()(pred_mm, target)
-        pl_module.sum_val_mse += mse_normed
-        pl_module.sum_val_mse_squared += mse_normed ** 2
+        # (R)MSE
+        mse = torch.nn.MSELoss()(pred_mm, target)
+        rmse = torch.sqrt(mse)
+        pl_module.sum_val_mse += rmse
+        pl_module.sum_val_mse_squared += rmse ** 2
 
         # Mean prediction
         mean_pred = torch.mean(pred_mm)
