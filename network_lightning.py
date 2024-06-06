@@ -216,7 +216,7 @@ class NetworkL(pl.LightningModule):
             raise ValueError('NAN in prediction (also leading to nan in loss)')
 
         loss = self.loss_func(pred, target_binned)
-        # Yields the same result, when inputs are indecies instead of one-hot probabilities
+        # Yields the same result, when inputs are indecies instead of one-hot probabilities for x entropy
         # loss = self.loss_func(pred, torch.argmax(target_binned, dim=1))
 
         # returned dict has to include 'loss' entry for automatic backward optimization
