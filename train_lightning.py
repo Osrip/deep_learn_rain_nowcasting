@@ -116,34 +116,66 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     # We calculate the weights of each class which is = `1 / number of samples (pixels)` in class
     # class_weights_target has length and order of bins
     # The class weights don't sum to one --> Why don't I take the softmax of the weights? --> WeightedRandomsampler doesn't care
-    class_weights_target, class_count_target, sample_num_target = calc_class_frequencies(filtered_indecies_training,
-                                                                                         linspace_binning,
-                                                                                         mean_filtered_log_data,
-                                                                                         std_filtered_log_data,
-                                                                                         transform_f,
-                                                                                         settings,
-                                                                                         normalize=True,
-                                                                                         **settings)
+
+    # Class weights for training data
+    class_weights_target_train, class_count_target_train, sample_num_target_train = calc_class_frequencies(
+        filtered_indecies_training,
+        linspace_binning,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        transform_f,
+        settings,
+        normalize=True,
+        **settings)
+
+    # Class weights for validation data
+    class_weights_target_val, class_count_target_val, sample_num_target_val = calc_class_frequencies(
+        filtered_indecies_validation,
+        linspace_binning,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        transform_f,
+        settings,
+        normalize=True,
+        **settings)
 
     # This calculates the mean weight of each sample, meaning the mean of all pixel weights in the sample are taken
     # target_mean_weights has length and order of targets
-    target_mean_weights = class_weights_per_sample(filtered_indecies_training,
-                                                   class_weights_target,
-                                                   linspace_binning,
-                                                   mean_filtered_log_data,
-                                                   std_filtered_log_data,
-                                                   transform_f,
-                                                   settings,
-                                                   normalize=True,
-                                                   **settings)
+
+    # Sample weights for training data
+    target_mean_weights_train = class_weights_per_sample(
+        filtered_indecies_training,
+        class_weights_target_train,
+        linspace_binning,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        transform_f,
+        settings,
+        normalize=True,
+        **settings)
+
+    # Sample weights for validation data
+    target_mean_weights_val = class_weights_per_sample(
+        filtered_indecies_validation,
+        class_weights_target_val,
+        linspace_binning,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        transform_f,
+        settings,
+        normalize=True,
+        **settings)
 
     print('Size data set: {} \nof which training samples: {}  \nvalidation samples: {}'.format(len(filtered_indecies),
                                                                                                  num_training_samples,
                                                                                                  num_validation_samples))
 
-    return (filtered_indecies_training, filtered_indecies_validation, mean_filtered_log_data, std_filtered_log_data,
-            linspace_binning_min, linspace_binning_max, linspace_binning, filter_and_normalization_params,
-            target_mean_weights, class_count_target)
+    return (filtered_indecies_training, filtered_indecies_validation,
+            mean_filtered_log_data, std_filtered_log_data,
+            linspace_binning_min, linspace_binning_max, linspace_binning,
+            filter_and_normalization_params,
+            target_mean_weights_train, class_count_target_train,
+            target_mean_weights_val, class_count_target_val)
 
 
 def create_data_loaders(transform_f,
@@ -151,9 +183,16 @@ def create_data_loaders(transform_f,
                         mean_filtered_log_data, std_filtered_log_data,
                         linspace_binning_min, linspace_binning_max, linspace_binning,
                         filter_and_normalization_params,
-                        target_mean_weights,
-                        class_count_target,
-                        settings, s_batch_size, s_num_workers_data_loader, **__):
+                        target_mean_weights_train, class_count_target_train,
+                        target_mean_weights_val, class_count_target_val,
+                        settings,
+                        s_batch_size,
+                        s_num_workers_data_loader,
+                        s_oversample_validation, **__):
+    '''
+    Creates data loaders for training and validation data
+    The args have to have the same order as in the function preprocess_data()
+    '''
 
     # TODO: RETURN filtered indecies instead of data set
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training,
@@ -181,30 +220,48 @@ def create_data_loaders(transform_f,
                                 'std_filtered_log_data': std_filtered_log_data}
 
     training_steps_per_epoch = len(train_data_set)
+    validation_steps_per_epoch = len(validation_data_set)
 
-    train_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights,
+    train_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights_train,
                                                           num_samples=training_steps_per_epoch,
                                                           replacement=True)
-    # val_weighted_random_sampler = WeightedRandomSampler()
+
+    val_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights_val,
+                                                        num_samples=validation_steps_per_epoch,
+                                                        replacement=True)
 
     # Does this assume same order in weights as in data_set? --> Seems so!
     # replacement=True allows for oversampling and in exchange not showing all samples each epoch
     # num_samples gives number of samples per epoch.
     # Setting to len data_set forces sampler to not show all samples each epoch
 
-    train_data_loader = DataLoader(train_data_set,
-                                   sampler=train_weighted_random_sampler,
-                                   batch_size=s_batch_size,
-                                   drop_last=True,
-                                   num_workers=s_num_workers_data_loader,
-                                   pin_memory=True)
+    # Training data loader
+    train_data_loader = DataLoader(
+        train_data_set,
+        sampler=train_weighted_random_sampler,
+        batch_size=s_batch_size,
+        drop_last=True,
+        num_workers=s_num_workers_data_loader,
+        pin_memory=True)
 
-    validation_data_loader = DataLoader(validation_data_set,
-                                        batch_size=s_batch_size,
-                                        shuffle=False,
-                                        drop_last=True,
-                                        num_workers=s_num_workers_data_loader,
-                                        pin_memory=True)
+    # Validation data loader
+    if s_oversample_validation:
+        # ... with oversampling:
+        validation_data_loader = DataLoader(
+            train_data_set,
+            sampler=val_weighted_random_sampler,
+            batch_size=s_batch_size,
+            drop_last=True,
+            num_workers=s_num_workers_data_loader,
+            pin_memory=True)
+    else:
+        # ... without oversampling:
+        validation_data_loader = DataLoader(validation_data_set,
+                                            batch_size=s_batch_size,
+                                            shuffle=False,
+                                            drop_last=True,
+                                            num_workers=s_num_workers_data_loader,
+                                            pin_memory=True)
 
     print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
                                                                                        len(validation_data_loader),
@@ -217,7 +274,7 @@ def create_data_loaders(transform_f,
             linspace_binning_params,
             filter_and_normalization_params, training_steps_per_epoch,
             data_set_statistics_dict,
-            class_count_target)
+            class_count_target_train)
     # training_steps_per_epoch only needed for lr_schedule_plotting
 
 
@@ -471,6 +528,7 @@ if __name__ == '__main__':
             's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
 
             # Logging
+            's_oversample_validation': True,  # Oversample validation just like training, such that training and validations are directly copmparable
             's_calc_baseline': True,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000,  # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
