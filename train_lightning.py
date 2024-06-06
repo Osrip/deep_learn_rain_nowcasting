@@ -69,7 +69,7 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
                                        std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized)
 
     ############
-    # SPLITTING
+    # SPLITTING 
     # Defining and splitting into training and validation data set
     num_training_samples = int(len(filtered_indecies) * s_ratio_training_data)
     num_validation_samples = len(filtered_indecies) - num_training_samples
