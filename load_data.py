@@ -622,13 +622,14 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_lo
 
     for idx in range(len(filtered_indecies)):
         target = load_target_from_index(idx,
-                                         xr_dataset,
-                                         filtered_indecies,
-                                         mean_filtered_log_data,
-                                         std_filtered_log_data,
-                                         transform_f,
-                                         normalize=True,
-                                         **settings)
+                                        xr_dataset,
+                                        filtered_indecies,
+                                        mean_filtered_log_data,
+                                        std_filtered_log_data,
+                                        transform_f,
+                                        normalize=True,
+                                        **settings)
+
         target = torch.from_numpy(target).to(device)
         target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
         target_one_hot = einops.rearrange(target_one_hot, 'w h c -> c w h')

@@ -69,7 +69,7 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
                                        std_filtered_data, linspace_binning_min_unnormalized, linspace_binning_max_unnormalized)
 
     ############
-    # SPLITTING 
+    # SPLITTING
     # Defining and splitting into training and validation data set
     num_training_samples = int(len(filtered_indecies) * s_ratio_training_data)
     num_validation_samples = len(filtered_indecies) - num_training_samples
@@ -146,9 +146,14 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
             target_mean_weights, class_count_target)
 
 
-def create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation, mean_filtered_log_data, std_filtered_log_data,
-                        linspace_binning_min, linspace_binning_max, linspace_binning, filter_and_normalization_params,
-                        target_mean_weights, class_count_target, settings, s_batch_size, s_num_workers_data_loader, **__):
+def create_data_loaders(transform_f,
+                        filtered_indecies_training, filtered_indecies_validation,
+                        mean_filtered_log_data, std_filtered_log_data,
+                        linspace_binning_min, linspace_binning_max, linspace_binning,
+                        filter_and_normalization_params,
+                        target_mean_weights,
+                        class_count_target,
+                        settings, s_batch_size, s_num_workers_data_loader, **__):
 
     # TODO: RETURN filtered indecies instead of data set
     train_data_set = PrecipitationFilteredDataset(filtered_indecies_training,
@@ -177,19 +182,29 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
 
     training_steps_per_epoch = len(train_data_set)
 
-    sampler = WeightedRandomSampler(weights=target_mean_weights, num_samples=training_steps_per_epoch, replacement=True)
+    train_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights,
+                                                          num_samples=training_steps_per_epoch,
+                                                          replacement=True)
     # val_weighted_random_sampler = WeightedRandomSampler()
 
     # Does this assume same order in weights as in data_set? --> Seems so!
     # replacement=True allows for oversampling and in exchange not showing all samples each epoch
-    # num_samples gives number of samples per epoch. Setting to len data_set forces sampler to not show all samples each epoch
+    # num_samples gives number of samples per epoch.
+    # Setting to len data_set forces sampler to not show all samples each epoch
 
-    train_data_loader = DataLoader(train_data_set, sampler=sampler, batch_size=s_batch_size, drop_last=True,
-                                   num_workers=s_num_workers_data_loader, pin_memory=True)
+    train_data_loader = DataLoader(train_data_set,
+                                   sampler=train_weighted_random_sampler,
+                                   batch_size=s_batch_size,
+                                   drop_last=True,
+                                   num_workers=s_num_workers_data_loader,
+                                   pin_memory=True)
 
-    validation_data_loader = DataLoader(validation_data_set, batch_size=s_batch_size, shuffle=False, drop_last=True,
-                                        num_workers=s_num_workers_data_loader, pin_memory=True)
-
+    validation_data_loader = DataLoader(validation_data_set,
+                                        batch_size=s_batch_size,
+                                        shuffle=False,
+                                        drop_last=True,
+                                        num_workers=s_num_workers_data_loader,
+                                        pin_memory=True)
 
     print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
                                                                                        len(validation_data_loader),
@@ -197,9 +212,12 @@ def create_data_loaders(transform_f, filtered_indecies_training, filtered_indeci
 
     linspace_binning_params = (linspace_binning_min, linspace_binning_max, linspace_binning)
     # tODO: RETURN filtered indecies instead of data set
-    return train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,\
-        linspace_binning_params, filter_and_normalization_params, training_steps_per_epoch,\
-        data_set_statistics_dict, class_count_target
+    return (train_data_loader, validation_data_loader,
+            filtered_indecies_training, filtered_indecies_validation,
+            linspace_binning_params,
+            filter_and_normalization_params, training_steps_per_epoch,
+            data_set_statistics_dict,
+            class_count_target)
     # training_steps_per_epoch only needed for lr_schedule_plotting
 
 
