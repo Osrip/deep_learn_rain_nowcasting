@@ -93,6 +93,8 @@ def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, 
 
         plot_crps(**settings, **plot_crps_settings)
 
+    if ps_plot_spread_skill:
+
         # print('CRPS model mean: {}'.format(crps_model_mean))
         # print('CRPS model std: {}'.format(crps_model_std))
         # print('CRPS steps mean: {}'.format(crps_steps_mean))

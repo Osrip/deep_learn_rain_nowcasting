@@ -307,7 +307,7 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
                   s_sim_name, s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
                   s_check_val_every_n_epoch, s_calc_baseline, **__):
     """
-    All the junk surrounding train goes in here
+    All the junk surrounding train_l() goes in here
     """
 
     train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)

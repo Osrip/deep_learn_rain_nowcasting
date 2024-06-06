@@ -265,6 +265,7 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
         data = normalize_data(data, mean_data=mean_data, std_data=std_data)
     return data
 
+
 def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width_height,
                            s_data_variable_name, s_width_height_target, s_min_rain_ratio_target,
                            s_data_preprocessing_chunk_num, s_num_input_time_steps, s_num_lead_time_steps,
@@ -290,6 +291,10 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
       additionally the normalization parameters are calculated based on the targets of the filtered cropped segments
 
     For output data format look at the comments at return statement
+
+    This torch - only implementation has been tested against the old torch - numpy mix implementation and yields
+    the same results (commit b5ce5eef5dd3a085f040fa562832898b05e19218 and
+    test function: https://chatgpt.com/share/c0a7f3d3-e091-45bd-8ca3-ff316071b132)
     '''
 
     filtered_data_loader_indecies = []
