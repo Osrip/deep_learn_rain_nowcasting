@@ -66,9 +66,10 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
         'ps_inv_normalize': False,
         'ps_gaussian_smoothing_multiple_sigmas': settings['s_gaussian_smoothing_multiple_sigmas'],
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
-        'ps_plot_snapshots': True,
-        'ps_plot_fss': True,
-        'ps_plot_crps': True,
+        'ps_plot_snapshots': False,
+        'ps_plot_fss': False,
+        'ps_plot_crps': False,
+        'ps_plot_spread_skill': True,
         'ps_num_gpus': settings['s_num_gpus'],
     }
 

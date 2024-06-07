@@ -460,7 +460,7 @@ if __name__ == '__main__':
             's_convnext': True,  # Use ResNet instead of ours
 
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
-            's_plot_sim_name': 'Run_20240126-224535_ID_51437Weighted_x_entropy_loss',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            's_plot_sim_name': 'Run_20240606-172916default_switching_region_64_bins_100mm_conv_next_new_logging',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             # Save data loader variables
             's_save_prefix_data_loader_vars': 'switching_regions_filter_min_amount_rain_0_2_new_format',
             's_data_loader_vars_path': '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
@@ -560,7 +560,7 @@ if __name__ == '__main__':
     if settings['s_local_machine_mode']:
 
         settings['s_plotting_only'] = False
-        settings['s_plot_sim_name'] = 'Run_20240522-141620default_switching_region_64_bins_100mm_25_ConvNeXt_Centercrop_128_batch_size_test_logger'
+        settings['s_plot_sim_name'] = 'Run_20240606-172916default_switching_region_64_bins_100mm_conv_next_new_logging'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
@@ -571,7 +571,7 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
-        settings['s_max_epochs'] = 3  # 3
+        settings['s_max_epochs'] = 1  # 3
         settings['s_num_gpus'] = 1
 
         settings['s_multiple_sigmas'] = [2, 16]

@@ -11,6 +11,7 @@ from plotting.plot_snapshots import plot_snapshots
 from plotting.calc_plot_CRPS import calc_CRPS, plot_crps
 from plotting.calc_plot_FSS import calc_FSS, plot_fss_by_scales, plot_fss_by_threshold,\
     plot_fss_by_threshold_one_plot, plot_fss_by_scales_one_plot
+from plotting.plot_spread_skill_ratio import plot_spread_skill
 
 
 
@@ -43,7 +44,7 @@ def get_checkpoint_name(ps_runs_path, epoch=None, **__):
 
 
 def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_settings, ps_runs_path, ps_run_name, ps_checkpoint_name, ps_plot_snapshots,
-                         ps_plot_fss, ps_plot_crps, ps_num_gpus, epoch=None, **__):
+                         ps_plot_fss, ps_plot_crps, ps_num_gpus, ps_plot_spread_skill, epoch=None, **__):
     '''
     Loads model from corresponding epoch and plotsthings up
     This does a forward pass! GPU resources required!
@@ -95,10 +96,14 @@ def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, 
 
     if ps_plot_spread_skill:
 
-        # print('CRPS model mean: {}'.format(crps_model_mean))
-        # print('CRPS model std: {}'.format(crps_model_std))
-        # print('CRPS steps mean: {}'.format(crps_steps_mean))
-        # print('CRPS steps std: {}'.format(crps_steps_std))
+        plot_spread_skill(
+            model,
+            validation_data_loader,
+            filter_and_normalization_params,
+            linspace_binning_params,
+            **plot_settings)
+
+
 
 
 

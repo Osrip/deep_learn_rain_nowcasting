@@ -40,6 +40,8 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
             pred = model(input_sequence)
             # Prediction through softmax, as torch.CrossEntropyLoss can deal with values higher than 1, which is why
             # Softmax was not implemented in modules_blocks.py
+            # TODO Is this visualization of the softmax really representing well
+            #  what happens under the hood of torch.CrossEntropy?
             pred = torch.nn.Softmax(dim=1)(pred)
             if plot_baseline:
                 logging_type = None
@@ -88,12 +90,12 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
                                                         linspace_binning=inv_norm_or_not(linspace_binning),
                                                         vmin=vmin,
                                                         vmax=vmax,
-                                                        save_path_name= '{}/plots/{}{}_target_vs_pred_likelihood_{}'.format(ps_runs_path
+                                                        save_path_name='{}/plots/{}{}_target_vs_pred_likelihood_{}'.format(ps_runs_path
                                                                                                                 , prefix
                                                                                                                 , sigma_str
                                                                                                                 , ps_checkpoint_name),
                                                         title='{}{}'.format(prefix, sigma_str),
-                                                        input_sequence = inv_norm_or_not(input_sequence),
+                                                        input_sequence=inv_norm_or_not(input_sequence),
                                                         **plot_settings
                                                         )
                     plot_distributions(target, pred,
@@ -104,4 +106,4 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
                                                                                                              ,sigma_str
                                                                                                              ,ps_checkpoint_name),
                 )
-            # break
+            break
