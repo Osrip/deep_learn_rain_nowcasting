@@ -4,8 +4,8 @@ import torchvision.transforms as T
 # from modules_blocks import Network
 from network_lightning import NetworkL
 import datetime
-from load_data import PrecipitationFilteredDataset, filtering_data_scraper, lognormalize_data,\
-    random_splitting_filtered_indecies, calc_class_frequencies, class_weights_per_sample
+from load_data import PrecipitationFilteredDataset, filtering_data_scraper, random_splitting_filtered_indecies, calc_class_frequencies, class_weights_per_sample
+from helper.pre_process_target_input import lognormalize_data, invnorm_linspace_binning, inverse_normalize_data
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
 import numpy as np
@@ -272,7 +272,8 @@ def create_data_loaders(transform_f,
     return (train_data_loader, validation_data_loader,
             filtered_indecies_training, filtered_indecies_validation,
             linspace_binning_params,
-            filter_and_normalization_params, training_steps_per_epoch,
+            filter_and_normalization_params,
+            training_steps_per_epoch,
             data_set_statistics_dict,
             class_count_target_train)
     # training_steps_per_epoch only needed for lr_schedule_plotting
@@ -336,6 +337,17 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
 
     # Save linspace params
     save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')
+    linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
+
+    _, mean_filtered_log_data, std_filtered_log_data, _, _, _, _ = filer_and_normalization_params
+    linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
+                                                                                        linspace_binning_max,
+                                                                                        mean_filtered_log_data,
+                                                                                        std_filtered_log_data)
+    linspace_binning_min_inv_norm = inverse_normalize_data(np.array(linspace_binning_min), mean_filtered_log_data, std_filtered_log_data)
+    linspace_binning_params_inv_norm = linspace_binning_min_inv_norm, linspace_binning_max_inv_norm, linspace_binning_inv_norm
+    save_tuple_pickle_csv(linspace_binning_params_inv_norm, s_dirs['data_dir'], 'linspace_binning_params_inv_norm')
+
 
     # eNABLE MLFLOW LOGGING HERE!
     # logger = MLFlowLogger(experiment_name="Default", tracking_uri="file:./mlruns", run_name=s_sim_name, # tags={"mlflow.runName": settings['s_sim_name']},

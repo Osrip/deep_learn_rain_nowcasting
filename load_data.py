@@ -3,9 +3,8 @@ import xarray as xr
 import numpy as np
 import torch
 import torchvision.transforms as T
-from matplotlib.colors import LogNorm
-import matplotlib.pyplot as plt
-from helper.helper_functions import chunk_list, flatten_list, img_one_hot
+from helper.helper_functions import chunk_list, flatten_list
+from helper.pre_process_target_input import img_one_hot, lognormalize_data
 import datetime
 from exceptions import CountException
 from torch.utils.data import Dataset
@@ -148,7 +147,6 @@ def load_target_from_index(idx: int,
     # Input idx upper left is needed as a spatial reference for the target
     input_idx_upper_left = filtered_data_loader_indecies_dict['input_idx_upper_left_h_w']
 
-
     target_data_set = xr_dataset.isel(time=target_idx_input_sequence,
                                       y=np.arange(input_idx_upper_left[0], input_idx_upper_left[0] + s_width_height),
                                       x=np.arange(input_idx_upper_left[1], input_idx_upper_left[1] + s_width_height))
@@ -252,18 +250,6 @@ def load_input_target_from_index(idx, xr_dataset, filtered_data_loader_indecies,
 
     # In case of s_gaussian_smoothing_target==True this returns the extended target size
     return input_sequence, target
-
-
-def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
-    """
-    We take log first, then do z normalization!
-    mean_data and std_data therefore have to be calculated in log space!
-    (This has been implemented correctly in filtering_data_scraper)
-    """
-    data = transform_f(data)
-    if s_normalize:
-        data = normalize_data(data, mean_data=mean_data, std_data=std_data)
-    return data
 
 
 def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width_height,
@@ -697,41 +683,6 @@ def filter(input_sequence: torch.Tensor, target: torch.Tensor, s_min_rain_ratio_
         return False
 
 
-def normalize_data(data_sequence, mean_data, std_data):
-    '''
-    Normalizing data, NO LOG TRANSFORMATION
-    '''
-    return (data_sequence - mean_data) / std_data
-
-
-def inverse_normalize_data(data_sequence, mean_log_orig_data, std_log_orig_data, inverse_log=True, inverse_normalize=True):
-    '''
-    Assumes log - then z normalization:
-    Assumes that the original data has been logtransformed first and subsequently normalized to standard normal
-    Works for torch tensors and numpy arrays
-    ! When inverse_log=True make sure to pass the mean and std of the log transformed data !
-    '''
-
-    if isinstance(data_sequence, torch.Tensor):
-        # If input is a torch tensor
-        if inverse_normalize:
-            data_sequence = data_sequence * std_log_orig_data + mean_log_orig_data
-        if inverse_log:
-            data_sequence = torch.exp(data_sequence) - 1
-
-    elif isinstance(data_sequence, np.ndarray):
-        # If input is a numpy array
-        if inverse_normalize:
-            data_sequence = data_sequence * std_log_orig_data + mean_log_orig_data
-        if inverse_log:
-            data_sequence = np.exp(data_sequence) - 1
-
-    else:
-        raise ValueError("Unsupported data type. Please provide a torch tensor or a numpy array.")
-
-    return data_sequence
-
-
 def iterate_through_data_names(start_date_time, future_iterations_from_start: int, minutes_per_iteration: int):
     '''
     start_date_time_ datetime object
@@ -768,17 +719,6 @@ def random_splitting_filtered_indecies(indecies, num_training_samples, chunk_siz
     training_indecies = flatten_list(training_chunks)
     validation_indecies = flatten_list(vaildation_chunks)
     return training_indecies, validation_indecies
-
-
-def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filtered_log_data, std_filtered_log_data):
-    '''
-    Inverse normalizes linspace binning
-    By default the linspace binning only includes the lower bounds#
-    Therefore the highest upper bound is missing which is given by linspace_binning_max
-    '''
-    linspace_binning_inv_norm = inverse_normalize_data(np.array(linspace_binning), mean_filtered_log_data, std_filtered_log_data)
-    linspace_binning_max_inv_norm = inverse_normalize_data(np.array(linspace_binning_max), mean_filtered_log_data, std_filtered_log_data, inverse_log=True)
-    return linspace_binning_inv_norm, linspace_binning_max_inv_norm.item()
 
 
 

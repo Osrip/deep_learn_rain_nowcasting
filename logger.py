@@ -2,8 +2,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import CSVLogger, MLFlowLogger
 import torch
 from helper.memory_logging import print_gpu_memory, print_ram_usage
-from helper.helper_functions import one_hot_to_lognormed_mm
-from load_data import inverse_normalize_data
+from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data
 
 
 def logging(prefix_metrics_dict, prefix_train_val, logger, prefix_instance=''):

@@ -5,8 +5,7 @@ import pysteps.motion as motion
 from pysteps import nowcasts
 from pysteps import verification
 import numpy as np
-from load_data import inverse_normalize_data
-from helper.helper_functions import img_one_hot
+from helper.pre_process_target_input import img_one_hot, inverse_normalize_data
 import einops
 
 class LKBaseline(pl.LightningModule):

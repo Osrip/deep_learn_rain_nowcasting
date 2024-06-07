@@ -101,6 +101,7 @@ def plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, 
             validation_data_loader,
             filter_and_normalization_params,
             linspace_binning_params,
+            settings,
             **plot_settings)
 
 

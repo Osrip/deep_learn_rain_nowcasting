@@ -45,7 +45,8 @@ import torch.nn.functional as F
 import torchvision.transforms as T
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
-from helper.helper_functions import bin_to_one_hot_index, chunk_list, flatten_list
+from helper.helper_functions import chunk_list, flatten_list
+from helper.pre_process_target_input import bin_to_one_hot_index
 import datetime
 from exceptions import CountException
 from torch.utils.data import Dataset

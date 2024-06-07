@@ -1,8 +1,9 @@
 import numpy as np
 import torch
 
-from helper.helper_functions import one_hot_to_lognormed_mm, convert_to_binning_and_back
-from load_data import inverse_normalize_data, lognormalize_data, invnorm_linspace_binning
+from helper.helper_functions import convert_to_binning_and_back
+from helper.pre_process_target_input import one_hot_to_lognormed_mm, lognormalize_data, inverse_normalize_data, \
+    invnorm_linspace_binning
 from plotting.plot_images import plot_target_vs_pred_with_likelihood
 from plotting.plot_distributions_in_snapshot import plot_distributions
 from baselines import LKBaseline
