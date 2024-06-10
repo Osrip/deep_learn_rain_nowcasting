@@ -21,7 +21,8 @@ def load_from_checkpoint(runs_path, checkpoint_name, linspace_binning_params, se
     #                                        training_mode=False,
     #                                        **settings)
 
-    model = NetworkL.load_from_checkpoint(checkpoint_path=checkpoint_path)
+    model = NetworkL.load_from_checkpoint(checkpoint_path=checkpoint_path,
+                                          devices=ps_num_gpus,)
 
     model = model.to(ps_device)
     return model

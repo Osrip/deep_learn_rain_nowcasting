@@ -3,7 +3,7 @@ from plotting.plot_lr_scheduler import plot_lr_schedule, plot_sigma_schedule
 
 from plotting.calc_and_plot_from_checkpoint import plot_from_checkpoint
 
-from helper.plotting_helper import load_data_from_logs
+from helper.plotting_helper import load_data_from_logs, get_checkpoint_names
 from plotting.plot_from_log import plot_logged_metrics, plot_mean_predictions
 
 
@@ -62,7 +62,6 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
         'ps_runs_path': s_dirs['save_dir'], #'{}/runs'.format(os.getcwd()),
         'ps_run_name': settings['s_sim_name'],
         'ps_device': settings['device'],
-        'ps_checkpoint_name': None,  # If none take checkpoint of last epoch
         'ps_inv_normalize': False,
         'ps_gaussian_smoothing_multiple_sigmas': settings['s_gaussian_smoothing_multiple_sigmas'],
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
@@ -70,7 +69,7 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
         'ps_plot_fss': False,
         'ps_plot_crps': False,
         'ps_plot_spread_skill': True,
-        'ps_num_gpus': settings['s_num_gpus'],
+        'ps_num_gpus': settings['s_num_gpus']
     }
 
     plot_fss_settings = {
@@ -104,15 +103,16 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
         steps_settings['steps_n_ens_members'] = 10
         steps_settings['steps_num_workers'] = 16
 
-    plot_from_checkpoint(plot_fss_settings,
-                         plot_crps_settings,
-                         steps_settings,
-                         plot_checkpoint_settings,
-                         **plot_checkpoint_settings)
+    checkpoint_names = get_checkpoint_names(**plot_checkpoint_settings)
+    for checkpoint_name in checkpoint_names:
+        plot_from_checkpoint(
+            checkpoint_name,
+            plot_fss_settings,
+            plot_crps_settings,
+            steps_settings,
+            plot_checkpoint_settings,
+            **plot_checkpoint_settings)
 
-    if settings['s_max_epochs'] > 10:
-        plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, epoch=10,
-                             **plot_checkpoint_settings)
 
 
 

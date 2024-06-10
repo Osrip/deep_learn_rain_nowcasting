@@ -25,6 +25,8 @@ from helper.helper_functions import no_special_characters
 import copy
 import warnings
 from tests.test_basic_functions import test_all
+from pytorch_lightning.loggers import WandbLogger
+import wandb
 
 
 def data_loading(settings, s_force_data_preprocessing, **__):
@@ -304,7 +306,7 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
 
 def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,
                   linspace_binning_params, filer_and_normalization_params, training_steps_per_epoch, data_set_statistics_dict,
-                  class_count_target, settings, s_dirs, s_model_every_n_epoch, s_profiling, s_max_epochs, s_num_gpus,
+                  class_count_target, settings, s_dirs, s_profiling, s_max_epochs, s_num_gpus,
                   s_sim_name, s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
                   s_check_val_every_n_epoch, s_calc_baseline, **__):
     """
@@ -318,9 +320,10 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
     save_whole_project(s_dirs['code_dir'])
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(dirpath=s_dirs['model_dir'],
+                                                       monitor='val_mean_loss',
                                                        filename='model_{epoch:04d}_{val_loss:.2f}',
-                                                       save_top_k=-1,
-                                                       every_n_epochs=s_model_every_n_epoch)
+                                                       save_top_k=1,
+                                                       save_last=True)
     # save_top_k=-1, prevents callback from overwriting previous checkpoints
 
     if s_profiling:
@@ -352,7 +355,8 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
     # eNABLE MLFLOW LOGGING HERE!
     # logger = MLFlowLogger(experiment_name="Default", tracking_uri="file:./mlruns", run_name=s_sim_name, # tags={"mlflow.runName": settings['s_sim_name']},
     #                       log_model=False)
-    logger = None
+    logger = WandbLogger()
+    wandb.init(name=s_sim_name)
 
     callback_list = [checkpoint_callback,
                      TrainingLogsCallback(train_logger),
@@ -563,9 +567,6 @@ if __name__ == '__main__':
             's_plot_mse_boo': True,
             's_plot_losses_boo': True,
             's_plot_img_histogram_boo': True,
-
-            # Logging Stuff
-            's_model_every_n_epoch': 1,  # Save model every nth epoch
         }
 
 

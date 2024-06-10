@@ -141,11 +141,20 @@ class TrainingLogsCallback(pl.Callback):
         mean_squared_mean_target = pl_module.sum_train_mean_target_squared / pl_module.train_step_num
         std_mean_target = (mean_squared_mean_target - mean_mean_target ** 2) ** 0.5
 
+        # My CSV logger for plotting pipeline
         self.my_log(
             {'mean_loss': mean_loss, 'std_loss': std_loss,
              'mean_rmse': mean_mse, 'std_rmse': std_mse,
              'mean_mean_pred': mean_mean_pred, 'std_mean_pred': std_mean_pred,
              'mean_mean_target': mean_mean_target, 'std_mean_target': std_mean_target})
+
+        # W and B logger
+        pl_module.log_dict(
+            {'train_mean_loss': mean_loss,
+             'train_mean_rmse': mean_mse,
+             'train_mean_mean_pred': mean_mean_pred,
+             'train_mean_mean_target': mean_mean_target,}
+        )
 
         save_every_n_th_epoch = 1
         if pl_module.current_epoch % save_every_n_th_epoch == 0:
@@ -268,11 +277,20 @@ class ValidationLogsCallback(pl.Callback):
         mean_squared_mean_target = pl_module.sum_val_mean_target_squared / pl_module.val_step_num
         std_mean_target = (mean_squared_mean_target - mean_mean_target ** 2) ** 0.5
 
+        # My CSV logger
         self.my_log(
             {'mean_loss': mean_loss, 'std_loss': std_loss,
              'mean_rmse': mean_mse, 'std_rmse': std_mse,
              'mean_mean_pred': mean_mean_pred, 'std_mean_pred': std_mean_pred,
              'mean_mean_target': mean_mean_target, 'std_mean_target': std_mean_target})
+
+        # W and B logger
+        pl_module.log_dict(
+            {'val_mean_loss': mean_loss,
+             'val_mean_rmse': mean_mse,
+             'val_mean_mean_pred': mean_mean_pred,
+             'val_mean_mean_target': mean_mean_target,}
+        )
 
         save_every_n_th_epoch = 1
         if pl_module.current_epoch % save_every_n_th_epoch == 0:
