@@ -355,8 +355,8 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
     # eNABLE MLFLOW LOGGING HERE!
     # logger = MLFlowLogger(experiment_name="Default", tracking_uri="file:./mlruns", run_name=s_sim_name, # tags={"mlflow.runName": settings['s_sim_name']},
     #                       log_model=False)
-    logger = WandbLogger()
-    wandb.init(name=s_sim_name)
+
+    logger = WandbLogger(name=s_sim_name)
 
     callback_list = [checkpoint_callback,
                      TrainingLogsCallback(train_logger),
