@@ -99,8 +99,8 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
 
     # The virtual linspace binning max is used to create the linspace binning,
     # such that the right most bin simply covers all outliers
-    # This includes 95% of the data
-    linspace_binning_virtual_max = lognormalize_data(s_linspace_binning_cut_off_unnormalized, mean_filtered_log_data,
+    # However the actual max still r
+    linspace_binning_cut_off_normed = lognormalize_data(s_linspace_binning_cut_off_unnormalized, mean_filtered_log_data,
                                              std_filtered_log_data,
                                              transform_f, s_normalize)
 
@@ -109,8 +109,19 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     linspace_binning_max += 0.001
 
     # linspace_binning only includes left bin edges. The rightmost bin egde is given by linspace binning max
-    linspace_binning = np.linspace(linspace_binning_min, linspace_binning_virtual_max, num=s_num_bins_crossentropy,
-                                   endpoint=False)  # num_indecies + 1 as the very last entry will never be used
+    # This is used when there is cut off happening for the last bin  but the linspace binning is uniformly
+    # distributed between the bounds of the data:
+    # linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=s_num_bins_crossentropy,
+    #                                endpoint=False)  # num_indecies + 1 as the very last entry will never be used
+
+    # Using the cut-off at a certain value for linspace binning (uniform distribution of the bins where
+    # last left edge is the cut-off
+
+    linspace_binning = np.linspace(
+        linspace_binning_min,
+        linspace_binning_cut_off_normed,
+        num=s_num_bins_crossentropy-1,
+        endpoint=True)  # In this case endpoint=True to get the cut-off as left bound of last bin
 
     ##############
     # WEIGHTING / CLASS FREQUENCIES
@@ -446,7 +457,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
+    s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
     s_sim_name_suffix = 'default_switching_region_64_bins_100mm_conv_next_new_logging'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
