@@ -26,7 +26,6 @@ import copy
 import warnings
 from tests.test_basic_functions import test_all
 from pytorch_lightning.loggers import WandbLogger
-import wandb
 
 
 def data_loading(settings, s_force_data_preprocessing, **__):
