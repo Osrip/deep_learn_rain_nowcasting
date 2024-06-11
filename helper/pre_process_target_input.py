@@ -82,7 +82,7 @@ def one_hot_to_lognormed_mm(one_hot_tensor: torch.Tensor, linspace_binning: Unio
     return mm_data
 
 
-def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
+def lognormalize_data(data, mean_log_data, std_log_data, transform_f, s_normalize):
     """
     We take log first, then do z normalization!
     mean_data and std_data therefore have to be calculated in log space!
@@ -90,7 +90,7 @@ def lognormalize_data(data, mean_data, std_data, transform_f, s_normalize):
     """
     data = transform_f(data)
     if s_normalize:
-        data = normalize_data(data, mean_data=mean_data, std_data=std_data)
+        data = normalize_data(data, mean_data=mean_log_data, std_data=std_log_data)
     return data
 
 

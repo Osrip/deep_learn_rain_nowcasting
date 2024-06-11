@@ -111,11 +111,17 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     # linspace_binning only includes left bin edges. The rightmost bin egde is given by linspace binning max
     # This is used when there is cut off happening for the last bin  but the linspace binning is uniformly
     # distributed between the bounds of the data:
+
     # linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=s_num_bins_crossentropy,
     #                                endpoint=False)  # num_indecies + 1 as the very last entry will never be used
 
     # Using the cut-off at a certain value for linspace binning (uniform distribution of the bins where
     # last left edge is the cut-off
+    # Changed edges of linspace binning with cut-off.
+    # Previously used virtual max - so uniform distribution between min data and cut off of all right edges,
+    # where last edge is virtual and actual one is given by max data bound (endpoint=False)
+    # - now uniform distribution of all left bin eges between min data and cut-off
+    # (endpoint= True, s_num_bins_crossentropy-1)
 
     linspace_binning = np.linspace(
         linspace_binning_min,
