@@ -9,6 +9,7 @@ def plot_spread_skill(model,
                       linspace_binning_params,
                       settings,
                       ps_device,
+                      s_local_machine_mode,
                       **__):
     with torch.no_grad():
         # Initialize an empty tensor for storing predictions
@@ -54,7 +55,12 @@ def plot_spread_skill(model,
         maxed_predictions_np = maxed_predictions.cpu().numpy()
         plt.figure()
         # plt.xscale('log')
-        plt.scatter(class_distance_np, maxed_predictions_np, s=0.03, alpha=0.1)
+        if s_local_machine_mode:
+            plt.scatter(class_distance_np, maxed_predictions_np, s=0.3, alpha=0.2)
+        else:
+            plt.scatter(class_distance_np, maxed_predictions_np, s=0.03, alpha=0.1)
+        plt.xlabel('Class distance (bins)')
+        plt.ylabel('Certainty (max bin)')
         plt.show()
 
 

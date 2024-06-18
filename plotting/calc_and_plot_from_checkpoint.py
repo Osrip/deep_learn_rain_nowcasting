@@ -48,11 +48,11 @@ def plot_from_checkpoint(checkpoint_name,
                         linspace_binning_params, filter_and_normalization_params, settings)
 
     if ps_plot_snapshots:
-        checkpoint_name_no_ending = checkpoint_name.replace('.ckpt', {})
-        plot_snapshots(model, train_data_loader, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
+        checkpoint_name_no_ending = checkpoint_name.replace('.ckpt', '')
+        plot_snapshots(model, train_data_loader, checkpoint_name_no_ending, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
                        plot_settings, prefix=f'TRAIN_ckpt_{checkpoint_name_no_ending}',
                        **plot_settings)
-        plot_snapshots(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
+        plot_snapshots(model, validation_data_loader, checkpoint_name_no_ending, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
                        plot_settings, prefix=f'VAL_ckpt_{checkpoint_name_no_ending}',
                        **plot_settings)
     if ps_plot_fss:
@@ -77,7 +77,9 @@ def plot_from_checkpoint(checkpoint_name,
             filter_and_normalization_params,
             linspace_binning_params,
             settings,
-            **plot_settings)
+            **plot_settings,
+            **settings
+        )
 
 
 if __name__ == '__main__':

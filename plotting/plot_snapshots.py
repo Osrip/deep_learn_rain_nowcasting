@@ -11,8 +11,8 @@ import torchvision.transforms as T
 
 
 
-def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace_binning_params, transform_f, settings, plot_settings,
-                   ps_runs_path, ps_run_name, ps_checkpoint_name, ps_device, ps_inv_normalize,
+def plot_snapshots(model, data_loader, checkpoint_name_no_ending, filter_and_normalization_params, linspace_binning_params, transform_f, settings, plot_settings,
+                   ps_runs_path, ps_run_name, ps_device, ps_inv_normalize,
                    ps_gaussian_smoothing_multiple_sigmas, ps_multiple_sigmas, prefix='', plot_baseline=True, **__):
 
     with (torch.no_grad()):
@@ -94,17 +94,18 @@ def plot_snapshots(model, data_loader, filter_and_normalization_params, linspace
                                                         save_path_name='{}/plots/{}{}_target_vs_pred_likelihood_{}'.format(ps_runs_path
                                                                                                                 , prefix
                                                                                                                 , sigma_str
-                                                                                                                , ps_checkpoint_name),
+                                                                                                                , checkpoint_name_no_ending),
                                                         title='{}{}'.format(prefix, sigma_str),
                                                         input_sequence=inv_norm_or_not(input_sequence),
                                                         **plot_settings
                                                         )
-                    plot_distributions(target, pred,
-                                       linspace_binning_inv_norm, linspace_binning_max_inv_norm,
-                                       title='{}{}'.format(prefix, sigma_str),
-                                       save_path_name = '{}/plots/{}{}_distributions_snapshot_{}'.format(ps_runs_path
-                                                                                                             ,prefix
-                                                                                                             ,sigma_str
-                                                                                                             ,ps_checkpoint_name),
-                )
+                    # TODO Uncomment this to plot  distributions, some error though..
+                    # plot_distributions(target, pred,
+                    #                    linspace_binning_inv_norm, linspace_binning_max_inv_norm,
+                    #                    title='{}{}'.format(prefix, sigma_str),
+                    #                    save_path_name = '{}/plots/{}{}_distributions_snapshot_{}'.format(ps_runs_path
+                    #                                                                                          ,prefix
+                    #                                                                                          ,sigma_str
+                    #                                                                                          ,checkpoint_name_no_ending),
+                # )
             break

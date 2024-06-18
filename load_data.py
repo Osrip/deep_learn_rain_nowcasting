@@ -302,7 +302,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
     # Loading data into xarray
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
     print('Loading training/validation data from {}'.format(load_path))
-    dataset = xr.open_dataset(load_path)
+    dataset = xr.open_dataset(load_path) # , chunks=None
     num_time_steps = dataset.sizes['time']
 
     # chunk_time_indecies gives start and stop indecies in time dimension
