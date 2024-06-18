@@ -92,7 +92,7 @@ def plot_snapshots(model, data_loader, checkpoint_name_no_ending, filter_and_nor
                                                         vmin=vmin,
                                                         vmax=vmax,
                                                         save_path_name='{}/plots/{}{}_target_vs_pred_likelihood_{}'.format(ps_runs_path
-                                                                                                                , prefix
+                                                                                                                ,prefix
                                                                                                                 , sigma_str
                                                                                                                 , checkpoint_name_no_ending),
                                                         title='{}{}'.format(prefix, sigma_str),

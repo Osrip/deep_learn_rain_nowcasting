@@ -44,11 +44,17 @@ def plot_from_checkpoint(checkpoint_name,
     model = load_from_checkpoint(ps_runs_path, checkpoint_name, settings, **plot_settings)
     model.freeze()
 
-    train_data_loader, validation_data_loader = create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation,
-                        linspace_binning_params, filter_and_normalization_params, settings)
+    train_data_loader, validation_data_loader = create_data_loaders(
+        transform_f,
+        filtered_indecies_training,
+        filtered_indecies_validation,
+        linspace_binning_params,
+        filter_and_normalization_params,
+        settings)
+
+    checkpoint_name_no_ending = checkpoint_name.replace('.ckpt', '')
 
     if ps_plot_snapshots:
-        checkpoint_name_no_ending = checkpoint_name.replace('.ckpt', '')
         plot_snapshots(model, train_data_loader, checkpoint_name_no_ending, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
                        plot_settings, prefix=f'TRAIN_ckpt_{checkpoint_name_no_ending}',
                        **plot_settings)
@@ -76,10 +82,12 @@ def plot_from_checkpoint(checkpoint_name,
             validation_data_loader,
             filter_and_normalization_params,
             linspace_binning_params,
+            checkpoint_name_no_ending,
             settings,
             **plot_settings,
             **settings
         )
+
 
 
 if __name__ == '__main__':
@@ -125,7 +133,11 @@ if __name__ == '__main__':
         'fss_log_thresholds': True,
     }
 
-
     # Catch previous versions where certain features were not implemented
 
-    plot_from_checkpoint(plot_fss_settings, plot_crps_settings, steps_settings, plot_checkpoint_settings, **plot_checkpoint_settings)
+    plot_from_checkpoint(
+        plot_fss_settings,
+        plot_crps_settings,
+        steps_settings,
+        plot_checkpoint_settings,
+        **plot_checkpoint_settings)
