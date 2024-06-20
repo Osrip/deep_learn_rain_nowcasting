@@ -15,7 +15,7 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
     '''
     s_dirs = settings['s_dirs']
 
-    if False:
+    if True:
         ###### Plot logged metrics ######
 
         key_list_train_mean = ['train_mean_loss', 'train_mean_rmse']
@@ -46,7 +46,7 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
                               val_mean_target_key='val_mean_mean_target',
                               train_std_target_key='train_std_mean_target',
                               val_std_target_key='val_std_mean_target',
-                              save_name='mean_predictions', title='Mean predictions (mm)',
+                              save_name='mean_predictions_targets', title='Mean precipitation (mm)',
                               xlog=False, ylog=True, **settings)
 
         ###### PLot lr scheduler ######
@@ -66,7 +66,7 @@ def plotting_pipeline(training_steps_per_epoch, model_l, settings,
         'ps_inv_normalize': False,
         'ps_gaussian_smoothing_multiple_sigmas': settings['s_gaussian_smoothing_multiple_sigmas'],
         'ps_multiple_sigmas': settings['s_multiple_sigmas'],
-        'ps_plot_snapshots': False,
+        'ps_plot_snapshots': True,
         'ps_plot_fss': False,
         'ps_plot_crps': False,
         'ps_plot_spread_skill': True,

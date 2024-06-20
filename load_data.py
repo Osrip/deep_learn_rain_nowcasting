@@ -60,6 +60,7 @@ class PrecipitationFilteredDataset(Dataset):
         # Initialize xr dataset
         self.xr_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
         # TODO: chunks = None?
+
     def __len__(self):
         return len(self.filtered_data_loader_indecies)
 

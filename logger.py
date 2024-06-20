@@ -63,6 +63,7 @@ class TrainingLogsCallback(pl.Callback):
             pl_module.sum_train_mean_pred_squared = 0
             pl_module.sum_train_mean_target = 0
             pl_module.sum_train_mean_target_squared = 0
+            pl_module.batches_per_epoch_train = 0
 
         # Unpacking outputs
         loss = outputs['loss']
@@ -70,7 +71,7 @@ class TrainingLogsCallback(pl.Callback):
         target = outputs['target']
         target_binned = outputs['target_binned']
 
-        # Get rid of NaNs in target
+        # Get rid of NaNs in target (set NaN --> 0)
         nan_mask = torch.isnan(target)
         target[nan_mask] = 0
 
@@ -87,6 +88,8 @@ class TrainingLogsCallback(pl.Callback):
         target = inverse_normalize_data(target,
                                         pl_module.mean_filtered_log_data,
                                         pl_module.std_filtered_log_data)
+        # Batch count
+        pl_module.batches_per_epoch_train += 1
 
         # Loss
         pl_module.sum_train_loss += loss
@@ -115,30 +118,30 @@ class TrainingLogsCallback(pl.Callback):
         pass
         # Loss
         # Mean
-        mean_loss = pl_module.sum_train_loss / pl_module.train_step_num
+        mean_loss = pl_module.sum_train_loss / pl_module.batches_per_epoch_train
         # Std
-        mean_squared_loss = pl_module.sum_train_loss_squared / pl_module.train_step_num
+        mean_squared_loss = pl_module.sum_train_loss_squared / pl_module.batches_per_epoch_train
         std_loss = (mean_squared_loss - mean_loss ** 2) ** 0.5
 
         # MSE
         # Mean
-        mean_mse = pl_module.sum_train_mse / pl_module.train_step_num
+        mean_mse = pl_module.sum_train_mse / pl_module.batches_per_epoch_train
         # Std
-        mean_squared_mse = pl_module.sum_train_mse_squared / pl_module.train_step_num
+        mean_squared_mse = pl_module.sum_train_mse_squared / pl_module.batches_per_epoch_train
         std_mse = (mean_squared_mse - mean_mse ** 2) ** 0.5
 
         # Mean prediction
         # Mean
-        mean_mean_pred = pl_module.sum_train_mean_pred / pl_module.train_step_num
+        mean_mean_pred = pl_module.sum_train_mean_pred / pl_module.batches_per_epoch_train
         # Std
-        mean_squared_mean_pred = pl_module.sum_train_mean_pred_squared / pl_module.train_step_num
+        mean_squared_mean_pred = pl_module.sum_train_mean_pred_squared / pl_module.batches_per_epoch_train
         std_mean_pred = (mean_squared_mean_pred - mean_mean_pred ** 2) ** 0.5
 
         # Mean target
         # Mean
-        mean_mean_target = pl_module.sum_train_mean_target / pl_module.train_step_num
+        mean_mean_target = pl_module.sum_train_mean_target / pl_module.batches_per_epoch_train
         # Std
-        mean_squared_mean_target = pl_module.sum_train_mean_target_squared / pl_module.train_step_num
+        mean_squared_mean_target = pl_module.sum_train_mean_target_squared / pl_module.batches_per_epoch_train
         std_mean_target = (mean_squared_mean_target - mean_mean_target ** 2) ** 0.5
 
         # My CSV logger for plotting pipeline
@@ -153,7 +156,8 @@ class TrainingLogsCallback(pl.Callback):
             {'train_mean_loss': mean_loss,
              'train_mean_rmse': mean_mse,
              'train_mean_mean_pred': mean_mean_pred,
-             'train_mean_mean_target': mean_mean_target,}
+             'train_mean_mean_target': mean_mean_target,
+             'pl_module.batches_per_epoch_train': pl_module.batches_per_epoch_train}
         )
 
         save_every_n_th_epoch = 1
@@ -200,6 +204,8 @@ class ValidationLogsCallback(pl.Callback):
             pl_module.sum_val_mean_pred_squared = 0
             pl_module.sum_val_mean_target = 0
             pl_module.sum_val_mean_target_squared = 0
+            pl_module.batches_per_epoch_val = 0
+
 
         # Unpacking outputs
         loss = outputs['loss']
@@ -224,6 +230,8 @@ class ValidationLogsCallback(pl.Callback):
         target = inverse_normalize_data(target,
                                         pl_module.mean_filtered_log_data,
                                         pl_module.std_filtered_log_data)
+        # Batch count
+        pl_module.batches_per_epoch_val += 1
 
         # Loss
         pl_module.sum_val_loss += loss
@@ -251,30 +259,30 @@ class ValidationLogsCallback(pl.Callback):
         '''
         # Loss
         # Mean
-        mean_loss = pl_module.sum_val_loss / pl_module.val_step_num
+        mean_loss = pl_module.sum_val_loss / pl_module.batches_per_epoch_val
         # Std
-        mean_squared_loss = pl_module.sum_val_loss_squared / pl_module.val_step_num
+        mean_squared_loss = pl_module.sum_val_loss_squared / pl_module.batches_per_epoch_val
         std_loss = (mean_squared_loss - mean_loss ** 2) ** 0.5
 
         # MSE
         # Mean
-        mean_mse = pl_module.sum_val_mse / pl_module.val_step_num
+        mean_mse = pl_module.sum_val_mse / pl_module.batches_per_epoch_val
         # Std
-        mean_squared_mse = pl_module.sum_val_mse_squared / pl_module.val_step_num
+        mean_squared_mse = pl_module.sum_val_mse_squared / pl_module.batches_per_epoch_val
         std_mse = (mean_squared_mse - mean_mse ** 2) ** 0.5
 
         # Mean prediction
         # Mean
-        mean_mean_pred = pl_module.sum_val_mean_pred / pl_module.val_step_num
+        mean_mean_pred = pl_module.sum_val_mean_pred / pl_module.batches_per_epoch_val
         # Std
-        mean_squared_mean_pred = pl_module.sum_val_mean_pred_squared / pl_module.val_step_num
+        mean_squared_mean_pred = pl_module.sum_val_mean_pred_squared / pl_module.batches_per_epoch_val
         std_mean_pred = (mean_squared_mean_pred - mean_mean_pred ** 2) ** 0.5
 
         # Mean target
         # Mean
-        mean_mean_target = pl_module.sum_val_mean_target / pl_module.val_step_num
+        mean_mean_target = pl_module.sum_val_mean_target / pl_module.batches_per_epoch_val
         # Std
-        mean_squared_mean_target = pl_module.sum_val_mean_target_squared / pl_module.val_step_num
+        mean_squared_mean_target = pl_module.sum_val_mean_target_squared / pl_module.batches_per_epoch_val
         std_mean_target = (mean_squared_mean_target - mean_mean_target ** 2) ** 0.5
 
         # My CSV logger
@@ -289,7 +297,8 @@ class ValidationLogsCallback(pl.Callback):
             {'val_mean_loss': mean_loss,
              'val_mean_rmse': mean_mse,
              'val_mean_mean_pred': mean_mean_pred,
-             'val_mean_mean_target': mean_mean_target,}
+             'val_mean_mean_target': mean_mean_target,
+             'batches_per_epoch_val': pl_module.batches_per_epoch_val}
         )
 
         save_every_n_th_epoch = 1

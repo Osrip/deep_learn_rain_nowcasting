@@ -513,7 +513,7 @@ if __name__ == '__main__':
 
             's_convnext': True,  # Use ResNet instead of ours
 
-            's_plotting_only': True,  # If active loads sim s_plot_sim_name and runs plotting pipeline
+            's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20240613-215707_ID_419305default_switching_region_32_bins_100mm_our_net_new_logging_50_epochs_1_gpu',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             # Save data loader variables
             's_save_prefix_data_loader_vars': 'switching_regions_filter_min_amount_rain_0_2_new_format_new_binning',
@@ -581,7 +581,7 @@ if __name__ == '__main__':
             's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
 
             # Logging
-            's_oversample_validation': True,  # Oversample validation just like training, such that training and validations are directly copmparable
+            's_oversample_validation': False,  # Oversample validation just like training, such that training and validations are directly copmparable
             's_calc_baseline': True,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000,  # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
@@ -620,7 +620,7 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
-        settings['s_max_epochs'] = 2  # 3
+        settings['s_max_epochs'] = 20  # 3
         settings['s_num_gpus'] = 1
 
         settings['s_multiple_sigmas'] = [2, 16]

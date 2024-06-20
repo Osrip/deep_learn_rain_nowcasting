@@ -67,7 +67,7 @@ class NetworkL(pl.LightningModule):
             self.model = Network(c_in=s_num_input_time_steps, **settings)
 
         self.val_step_num = 0
-        self.train_step_num = 0
+        self.train_step_num = 0  # TODO This does not exactly correspond to the number of batches processed: https://wandb.ai/cognitive_modeling/lightning_logs/runs/5g7hgn02/workspace?nw=nwuserosrip
 
         self.sum_val_loss = 0
         self.sum_val_loss_squared = 0
@@ -195,7 +195,7 @@ class NetworkL(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         self.train_step_num += 1
-        # Loading lognormalized input and target. For DLBD extended target is loaded
+        # Loading lognormalized input and target.
         input_sequence, target = batch
 
         # Pre-process input and target
