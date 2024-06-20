@@ -83,37 +83,48 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
 
     ###############
     # LINSPACE BINNING
-    # Normalize linspace binning thresholds now that data is available
-    linspace_binning_min = lognormalize_data(linspace_binning_min_unnormalized,
-                                             mean_filtered_log_data,
-                                             std_filtered_log_data,
-                                             transform_f,
-                                             s_normalize)
 
-    linspace_binning_max = lognormalize_data(linspace_binning_max_unnormalized,
-                                             mean_filtered_log_data,
-                                             std_filtered_log_data,
-                                             transform_f,
-                                             s_normalize)
+    if linspace_binning_max_unnormalized < s_linspace_binning_cut_off_unnormalized:
+        warnings.warn(f's_linspace_binning_cut_off_unnormalized is smaller than the max value of the training data:,'
+                      f'{linspace_binning_max_unnormalized} please choose a cut-off that is larger than that')
+        linspace_binning_max_unnormalized = s_linspace_binning_cut_off_unnormalized
+
+
+    # Normalize linspace binning thresholds now that data is available
+    linspace_binning_min_normed = lognormalize_data(
+        linspace_binning_min_unnormalized,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        transform_f,
+        s_normalize)
+
+    linspace_binning_max_normed = lognormalize_data(
+        linspace_binning_max_unnormalized,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        transform_f,
+        s_normalize)
+
     # Watch out! mean_filtered_log_data and std_filtered_log_data have been calculated in the log space,
     # as we first take log, then do z normalization!
 
     # The virtual linspace binning max is used to create the linspace binning,
     # such that the right most bin simply covers all outliers
     # However the actual max still r
+
     linspace_binning_cut_off_normed = lognormalize_data(s_linspace_binning_cut_off_unnormalized, mean_filtered_log_data,
                                              std_filtered_log_data,
                                              transform_f, s_normalize)
 
     # Subtract a small number to account for rounding errors made in the normalization process
-    linspace_binning_min -= 0.001
-    linspace_binning_max += 0.001
+    linspace_binning_min_normed -= 0.001
+    linspace_binning_max_normed += 0.001
 
     # linspace_binning only includes left bin edges. The rightmost bin egde is given by linspace binning max
     # This is used when there is cut off happening for the last bin  but the linspace binning is uniformly
     # distributed between the bounds of the data:
 
-    # linspace_binning = np.linspace(linspace_binning_min, linspace_binning_max, num=s_num_bins_crossentropy,
+    # linspace_binning = np.linspace(linspace_binning_min_normed, linspace_binning_max_normed, num=s_num_bins_crossentropy,
     #                                endpoint=False)  # num_indecies + 1 as the very last entry will never be used
 
     # Using the cut-off at a certain value for linspace binning (uniform distribution of the bins where
@@ -125,7 +136,7 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     # (endpoint= True, s_num_bins_crossentropy-1)
 
     linspace_binning = np.linspace(
-        linspace_binning_min,
+        linspace_binning_min_normed,
         linspace_binning_cut_off_normed,
         num=s_num_bins_crossentropy,
         endpoint=True)  # In this case endpoint=True to get the cut-off as left bound of last bin
@@ -191,7 +202,7 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
 
     return (filtered_indecies_training, filtered_indecies_validation,
             mean_filtered_log_data, std_filtered_log_data,
-            linspace_binning_min, linspace_binning_max, linspace_binning,
+            linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning,
             filter_and_normalization_params,
             target_mean_weights_train, class_count_target_train,
             target_mean_weights_val, class_count_target_val)
@@ -355,7 +366,7 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
 
     save_zipped_pickle('{}/filter_and_normalization_params'.format(s_dirs['data_dir']), filer_and_normalization_params)
 
-    # Save linspace params
+    # Save linspace binning  params
     save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')
     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
@@ -364,9 +375,17 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
                                                                                         linspace_binning_max,
                                                                                         mean_filtered_log_data,
                                                                                         std_filtered_log_data)
-    linspace_binning_min_inv_norm = inverse_normalize_data(np.array(linspace_binning_min), mean_filtered_log_data, std_filtered_log_data)
-    linspace_binning_params_inv_norm = linspace_binning_min_inv_norm, linspace_binning_max_inv_norm, linspace_binning_inv_norm
-    save_tuple_pickle_csv(linspace_binning_params_inv_norm, s_dirs['data_dir'], 'linspace_binning_params_inv_norm')
+    linspace_binning_min_inv_norm = inverse_normalize_data(
+        np.array(linspace_binning_min),
+        mean_filtered_log_data,
+        std_filtered_log_data)
+    linspace_binning_params_inv_norm = (linspace_binning_min_inv_norm,
+                                        linspace_binning_max_inv_norm,
+                                        linspace_binning_inv_norm)
+    save_tuple_pickle_csv(
+        linspace_binning_params_inv_norm,
+        s_dirs['data_dir'],
+        'linspace_binning_params_inv_norm')
 
 
     # eNABLE MLFLOW LOGGING HERE!
