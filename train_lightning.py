@@ -1,3 +1,5 @@
+import os
+# os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 import torch
 import torch.nn as nn
 import torchvision.transforms as T
@@ -11,7 +13,6 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 import numpy as np
 from helper.helper_functions import save_zipped_pickle, save_dict_pickle_csv,\
     save_tuple_pickle_csv, save_whole_project, load_zipped_pickle, save_data_loader_vars, load_data_loader_vars
-import os
 
 import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
@@ -126,7 +127,7 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     linspace_binning = np.linspace(
         linspace_binning_min,
         linspace_binning_cut_off_normed,
-        num=s_num_bins_crossentropy-1,
+        num=s_num_bins_crossentropy,
         endpoint=True)  # In this case endpoint=True to get the cut-off as left bound of last bin
 
     ##############
@@ -374,6 +375,7 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
     # Increase time out for weights and biases to prevent time out on galavani
     os.environ["WANDB__SERVICE_WAIT"] = "600"
     logger = WandbLogger(name=s_sim_name)
+    # logger = None
 
     callback_list = [checkpoint_callback,
                      TrainingLogsCallback(train_logger),
@@ -462,9 +464,9 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
-    s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
+    s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
     s_sim_name_suffix = 'default_switching_region_32_bins_100mm_our_net_new_logging_50_epochs_1_gpu_TEST'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
@@ -490,7 +492,7 @@ if __name__ == '__main__':
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
-            's_convnext': False,  # Use ResNet instead of ours
+            's_convnext': True,  # Use ResNet instead of ours
 
             's_plotting_only': True,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20240613-215707_ID_419305default_switching_region_32_bins_100mm_our_net_new_logging_50_epochs_1_gpu',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
@@ -514,7 +516,7 @@ if __name__ == '__main__':
 
             # Parameters related to lightning
             's_num_gpus': 1,
-            's_batch_size': 64, #our net on a100: 64  #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
+            's_batch_size': 128, #our net on a100: 64  #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
             # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
             # Make this divisible by 8 or best 8 * 2^n
 
@@ -585,7 +587,6 @@ if __name__ == '__main__':
             's_plot_img_histogram_boo': True,
         }
 
-
     if settings['s_local_machine_mode']:
 
         settings['s_plotting_only'] = False
@@ -619,6 +620,16 @@ if __name__ == '__main__':
 
     if settings['s_testing']:
         test_all()
+
+    if settings['s_local_machine_mode']:
+        # This prohibits the bug on my local machine, however massively influences performance:
+        pass
+        # Does not solve the issue
+        # torch.backends.cudnn.benchmark = False  # This alone does not solve bug
+        # # Disables the automatic selection of the fastest convolution algorithm for your hardware,
+        # # which can lead to suboptimal performance.
+        # torch.backends.cudnn.deterministic = True
+        # # Ensures deterministic results by using only deterministic convolution algorithms, which are generally slower.
 
     if not settings['s_plotting_only']:
         # Normal training

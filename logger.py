@@ -54,7 +54,6 @@ class TrainingLogsCallback(pl.Callback):
         '''
         Make sums of training metrics each batch / iteration
         '''
-
         if batch_idx == 0:
             pl_module.sum_train_loss = 0
             pl_module.sum_train_loss_squared = 0
@@ -113,6 +112,7 @@ class TrainingLogsCallback(pl.Callback):
         '''
         Calculate means and stds from the sums of logs each training iteration and log them
         '''
+        pass
         # Loss
         # Mean
         mean_loss = pl_module.sum_train_loss / pl_module.train_step_num
