@@ -581,7 +581,7 @@ if __name__ == '__main__':
             's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
 
             # Logging
-            's_oversample_validation': False,  # Oversample validation just like training, such that training and validations are directly copmparable
+            's_oversample_validation': True,  # Oversample validation just like training, such that training and validations are directly copmparable
             's_calc_baseline': True,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000,  # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
