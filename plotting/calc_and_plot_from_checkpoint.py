@@ -4,7 +4,7 @@ import torch
 import os
 
 from helper.checkpoint_handling import load_from_checkpoint, create_data_loaders, load_data_from_run
-# from helper.helper_functions import load_zipped_pickle
+from helper.plotting_helper import get_checkpoint_names
 from plotting.plot_snapshots import plot_snapshots
 from plotting.calc_plot_CRPS import calc_CRPS, plot_crps
 from plotting.calc_plot_FSS import calc_FSS, plot_fss_by_scales, plot_fss_by_threshold,\
@@ -12,18 +12,78 @@ from plotting.calc_plot_FSS import calc_FSS, plot_fss_by_scales, plot_fss_by_thr
 from plotting.plot_spread_skill_ratio import plot_spread_skill
 
 
-def plot_from_checkpoint(checkpoint_name,
-                         plot_fss_settings,
-                         plot_crps_settings,
-                         steps_settings,
-                         plot_settings,
-                         ps_runs_path,
-                         ps_run_name,
-                         ps_plot_snapshots,
-                         ps_plot_fss,
-                         ps_plot_crps,
-                         ps_plot_spread_skill,
-                         **__):
+def plot_from_checkpoint_wrapper(settings, s_dirs, **__):
+    ###### Plot from checkpoint ######
+    s_dirs = settings['s_dirs']
+    plot_checkpoint_settings = {
+        'ps_runs_path': s_dirs['save_dir'],  # '{}/runs'.format(os.getcwd()),
+        'ps_run_name': settings['s_sim_name'],
+        'ps_device': settings['device'],
+        'ps_inv_normalize': False,
+        'ps_gaussian_smoothing_multiple_sigmas': settings['s_gaussian_smoothing_multiple_sigmas'],
+        'ps_multiple_sigmas': settings['s_multiple_sigmas'],
+        'ps_plot_snapshots': True,
+        'ps_plot_fss': False,
+        'ps_plot_crps': False,
+        'ps_plot_spread_skill': True,
+        'ps_num_gpus': settings['s_num_gpus']
+    }
+
+    plot_fss_settings = {
+        'fss_space_threshold': [0.1, 50, 100],  # start, stop, steps
+        'fss_linspace_scale': [1, 10, 100],  # start, stop, threshold
+        'fss_calc_on_every_n_th_batch': 1,
+        'fss_log_thresholds': True,
+    }
+
+    plot_crps_settings = {
+        'crps_calc_on_every_n_th_batch': 10,  # 1,
+        'crps_load_steps_crps_from_file': True,
+        # leave away the .pickle.pgx extension
+        'crps_steps_file_path':
+            '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/'
+            'Run_20231211-213613_ID_4631443x_entropy_loss_vectorized_CRPS_eval_no_gaussian/logs/crps_steps'
+    }
+
+    steps_settings = {
+        'steps_n_ens_members': 300,
+        'steps_num_workers': 16,
+    }
+
+    if settings['s_local_machine_mode']:
+        plot_crps_settings['crps_calc_on_every_n_th_batch'] = 100
+        # leave away the .pickle.pgx extension
+        plot_crps_settings['crps_steps_file_path'] = \
+            ('/home/jan/Programming/remote/first_CNN_on_radolan_remote/runs'
+             '/Run_20240123-161505NO_bin_weighting/logs/crps_steps')
+        plot_crps_settings['crps_load_steps_crps_from_file'] = True
+        steps_settings['steps_n_ens_members'] = 10
+        steps_settings['steps_num_workers'] = 16
+
+    checkpoint_names = get_checkpoint_names(**plot_checkpoint_settings)
+    for checkpoint_name in checkpoint_names:
+        plot_from_checkpoint(
+            checkpoint_name,
+            plot_fss_settings,
+            plot_crps_settings,
+            steps_settings,
+            plot_checkpoint_settings,
+            **plot_checkpoint_settings)
+
+
+def plot_from_checkpoint(
+        checkpoint_name,
+        plot_fss_settings,
+        plot_crps_settings,
+        steps_settings,
+        plot_settings,
+        ps_runs_path,
+        ps_run_name,
+        ps_plot_snapshots,
+        ps_plot_fss,
+        ps_plot_crps,
+        ps_plot_spread_skill,
+        **__):
     '''
     Loads model from corresponding epoch and plotsthings up
     This does a forward pass! GPU resources required!

@@ -16,11 +16,15 @@ from helper.helper_functions import save_zipped_pickle, save_dict_pickle_csv,\
 
 import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
-from logger import ValidationLogsCallback, TrainingLogsCallback, BaselineTrainingLogsCallback, BaselineValidationLogsCallback,\
-    create_loggers
+from logger import (ValidationLogsCallback,
+                    TrainingLogsCallback,
+                    BaselineTrainingLogsCallback,
+                    BaselineValidationLogsCallback,
+                    create_loggers)
 from baselines import LKBaseline
 import mlflow
-from plotting.plotting_pipeline import plotting_pipeline
+from plotting.plotting_pipeline import plot_logs_pipeline
+from plotting.calc_and_plot_from_checkpoint import plot_from_checkpoint_wrapper
 from helper.sigma_scheduler_helper import create_scheduler_mapping
 from helper.helper_functions import no_special_characters
 import copy
@@ -487,7 +491,7 @@ if __name__ == '__main__':
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'default_switching_region_32_bins_100mm_our_net_new_logging_50_epochs_1_gpu_TEST'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning_50epochs_4_gpu'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -516,7 +520,7 @@ if __name__ == '__main__':
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20240613-215707_ID_419305default_switching_region_32_bins_100mm_our_net_new_logging_50_epochs_1_gpu',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             # Save data loader variables
-            's_save_prefix_data_loader_vars': 'switching_regions_filter_min_amount_rain_0_2_new_format_new_binning',
+            's_save_prefix_data_loader_vars': 'switching_regions_filter_min_amount_rain_0_2_fixed_binning_bug',
             's_data_loader_vars_path': '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
 
             # Max number of frames in proccessed data set for debugging (validation + training)
@@ -534,7 +538,7 @@ if __name__ == '__main__':
             's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
-            's_num_gpus': 1,
+            's_num_gpus': 4,
             's_batch_size': 128, #our net on a100: 64  #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
             # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
             # Make this divisible by 8 or best 8 * 2^n
@@ -620,7 +624,7 @@ if __name__ == '__main__':
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
-        settings['s_max_epochs'] = 20  # 3
+        settings['s_max_epochs'] = 2  # 3
         settings['s_num_gpus'] = 1
 
         settings['s_multiple_sigmas'] = [2, 16]
@@ -655,8 +659,12 @@ if __name__ == '__main__':
         data_set_vars = data_loading(settings, **settings)
         model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(*data_set_vars, settings,
                                                                                   **settings)
-        plotting_pipeline(training_steps_per_epoch, model_l, settings, **settings)
+        plot_logs_pipeline(
+            training_steps_per_epoch,
+            model_l,
+            settings, **settings)
 
+        plot_from_checkpoint_wrapper(settings, **settings)
     else:
         # Plotting only
         load_dirs = create_s_dirs(settings['s_plot_sim_name'], settings['s_local_machine_mode'])
@@ -666,11 +674,14 @@ if __name__ == '__main__':
         # Convert some of the loaded settings to the current settings
         settings_loaded['s_num_gpus'] = settings['s_num_gpus']
 
-        plotting_pipeline(
+        plot_logs_pipeline(
             training_steps_per_epoch,
             model_l=None,
             settings=settings_loaded,
             plot_lr_schedule_boo=False)
+
+        plot_from_checkpoint_wrapper(settings, **settings)
+
 
 
 
