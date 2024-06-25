@@ -1,7 +1,7 @@
 import torch
 import matplotlib.pyplot as plt
 from einops import rearrange
-from helper.pre_process_target_input import pre_process_input, pre_process_target
+from helper.pre_process_target_input import set_nans_zero, pre_process_target_to_one_hot
 import numpy as np
 
 def plot_spread_skill(model,
@@ -24,8 +24,8 @@ def plot_spread_skill(model,
             target = target.to(ps_device)
 
             # TODO implement correct pre procesing in other chkpoint plots as well!
-            input_sequence = pre_process_input(input_sequence)
-            target = pre_process_target(target, linspace_binning_params, **settings)
+            input_sequence = set_nans_zero(input_sequence)
+            target = pre_process_target_to_one_hot(target, linspace_binning_params, **settings)
 
             model = model.to(ps_device)
             pred = model(input_sequence)

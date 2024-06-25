@@ -10,11 +10,11 @@ from plotting.calc_plot_CRPS import calc_CRPS, plot_crps
 from plotting.calc_plot_FSS import calc_FSS, plot_fss_by_scales, plot_fss_by_threshold,\
     plot_fss_by_threshold_one_plot, plot_fss_by_scales_one_plot
 from plotting.plot_spread_skill_ratio import plot_spread_skill
+from plotting.calc_plot_FSS_ver2 import calc_FSS_ver2
 
 
 def plot_from_checkpoint_wrapper(settings, s_dirs, **__):
     ###### Plot from checkpoint ######
-    s_dirs = settings['s_dirs']
     plot_checkpoint_settings = {
         'ps_runs_path': s_dirs['save_dir'],  # '{}/runs'.format(os.getcwd()),
         'ps_run_name': settings['s_sim_name'],
@@ -114,6 +114,17 @@ def plot_from_checkpoint(
 
     checkpoint_name_no_ending = checkpoint_name.replace('.ckpt', '')
 
+    calc_FSS_ver2(
+        model,
+        validation_data_loader,
+        filter_and_normalization_params,
+        linspace_binning_params,
+        checkpoint_name_no_ending,
+        settings,
+        **plot_settings,
+        **settings
+    )
+
     if ps_plot_snapshots:
         plot_snapshots(model, train_data_loader, checkpoint_name_no_ending, filter_and_normalization_params, linspace_binning_params, transform_f, settings,
                        plot_settings, prefix=f'TRAIN_ckpt_{checkpoint_name_no_ending}',
@@ -123,7 +134,7 @@ def plot_from_checkpoint(
                        **plot_settings)
     if ps_plot_fss:
         calc_FSS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
-                 settings, plot_settings, **plot_settings, **plot_fss_settings)
+                      settings, plot_settings, **plot_settings, **plot_fss_settings)
 
         plot_fss_by_scales_one_plot(**settings, **plot_fss_settings, num_lines=5)
 
@@ -131,7 +142,7 @@ def plot_from_checkpoint(
         # MEMORY INTENSIVE if run with 'crps_load_steps_crps_from_file': False
         # corresponding ram required as by 4 v100 GPU on fair share with steps_n_ens_members: 1024 and 'fss_calc_on_every_n_th_batch': 1,
         calc_CRPS(model, validation_data_loader, filter_and_normalization_params, linspace_binning_params,
-                  settings, plot_settings, steps_settings, **plot_settings, **plot_crps_settings)
+                      settings, plot_settings, steps_settings, **plot_settings, **plot_crps_settings)
 
         plot_crps(**settings, **plot_crps_settings)
 
@@ -149,7 +160,6 @@ def plot_from_checkpoint(
         )
 
 
-
 if __name__ == '__main__':
 
     runs_path = '/home/jan/jan/programming/first_CNN_on_Radolan/runs'
@@ -163,7 +173,7 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     plot_checkpoint_settings ={
-        'ps_runs_path': runs_path, #'{}/runs'.format(os.getcwd()),
+        'ps_runs_path': runs_path,  # '{}/runs'.format(os.getcwd()),
         'ps_run_name': run_name,
         'ps_device': settings['device'],
         'ps_checkpoint_name': None,  # If none take checkpoint of last epoch

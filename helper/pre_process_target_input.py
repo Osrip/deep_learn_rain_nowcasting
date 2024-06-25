@@ -6,7 +6,7 @@ import einops
 from torch.nn import functional as F
 
 
-def pre_process_input(input_sequence: torch.Tensor) -> torch.Tensor:
+def set_nans_zero(input_sequence: torch.Tensor) -> torch.Tensor:
     '''
     Fast on-the-fly pre-processing of input_sequence in training/validation loop
     Replace NaNs with zeros
@@ -16,16 +16,22 @@ def pre_process_input(input_sequence: torch.Tensor) -> torch.Tensor:
     return input_sequence
 
 
-def pre_process_target(target: torch.Tensor, linspace_binning_params, s_num_bins_crossentropy, **__) -> torch.Tensor:
+def pre_process_target_to_one_hot(
+        target: torch.Tensor,
+        linspace_binning_params,
+        s_num_bins_crossentropy,
+        **__) -> torch.Tensor:
     '''
     Fast on-the fly pre-processing of target in training / validation loop
     Converting into binned / one-hot target
+    Handle nans --> Simply set one hot to zeros at each nan
     '''
     # Creating binned target
     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
     target_binned = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
     target_binned = einops.rearrange(target_binned, 'b w h c -> b c w h')
     return target_binned
+
 
 
 

@@ -11,7 +11,7 @@ import torchvision.transforms as T
 import copy
 import einops
 from helper.pre_process_target_input import img_one_hot, inverse_normalize_data, invnorm_linspace_binning
-from helper.pre_process_target_input import pre_process_input, pre_process_target
+from helper.pre_process_target_input import set_nans_zero, pre_process_target_to_one_hot
 from pysteps import verification
 
 
