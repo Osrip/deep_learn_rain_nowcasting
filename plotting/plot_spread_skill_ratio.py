@@ -91,7 +91,7 @@ def plot_spread_skill(model,
         plt.ylabel('Certainty (max bin)')
 
         save_path_name = f'{ps_runs_path}/plots/scatter_spread_skill_{checkpoint_name_no_ending}.png'
-        plt.savefig(save_path_name, bbox_inches='tight', dpi=50)
+        plt.savefig(save_path_name, bbox_inches='tight', dpi=300)
         plt.show()
 
         # Violin by gpt:

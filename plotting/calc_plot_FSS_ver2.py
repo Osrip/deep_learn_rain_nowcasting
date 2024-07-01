@@ -41,68 +41,74 @@ def calc_FSS_ver2(
 
     thresholds = np.logspace(-1, 1, 5)
     scales = np.arange(0, 10, 1, dtype=np.int64)
-    num_batches: 5
-
-    df_data = []
+    num_samples_for_calc = 500
 
     with torch.no_grad():
         # Initialize an empty tensor for storing predictions
-        predictions = torch.Tensor().to(ps_device)
-        targets = torch.Tensor().to(ps_device)
 
-        for i, (input_sequence, target_normed_mm) in enumerate(data_loader):
-            input_sequence = input_sequence.to(ps_device)
-            target_normed_mm = target_normed_mm.to(ps_device)
-
-            # TODO implement correct pre procesing in other chkpoint plots as well!
-            input_sequence = set_nans_zero(input_sequence)
-            target_normed_mm = set_nans_zero(target_normed_mm)
-
-            model = model.to(ps_device)
-            pred = model(input_sequence)
-
-            # Converting prediction from one-hot to (lognormed) mm
-            _, _, linspace_binning = linspace_binning_params
-            pred_normed_mm = one_hot_to_lognormed_mm(pred, linspace_binning, channel_dim=1)
-
-            # Inverse normalize target and prediction
-
-            pred_inv_normed_mm = inverse_normalize_data(
-                pred_normed_mm,
-                mean_filtered_log_data,
-                std_filtered_log_data)
-
-            target_inv_normed_mm = inverse_normalize_data(
-                target_normed_mm,
-                mean_filtered_log_data,
-                std_filtered_log_data)
-
-            plt.imshow(target_normed_mm[0, :, :].cpu().numpy())
-            plt.title('Target')
-            plt.show()
-
-            plt.imshow(pred_inv_normed_mm[0, :, :].cpu().numpy())
-            plt.title('Prediction')
-            plt.show()
-
-            break
-
+        sample_num = 0
         for threshold in thresholds:
 
-            fss_vals = []
+            fss_vals_per_scale = []
 
             for scale in scales:
 
-                for batch_idx in range(pred_inv_normed_mm.shape[0]):
-                    fss_value = fss_calc_steps(
-                        pred_inv_normed_mm[batch_idx, :, :].cpu().numpy(),
-                        target_inv_normed_mm[batch_idx, :, :].cpu().numpy(),
-                        thr=threshold, scale=scale)
-                    fss_vals.append(fss_value)
-                    break
+                fss_list_for_mean = []
 
-            plt.plot(scales, fss_vals)
-            plt.title(f'FSS at Threshold {threshold}')
+                for i, (input_sequence, target_normed_mm) in enumerate(data_loader):
+                    input_sequence = input_sequence.to(ps_device)
+                    target_normed_mm = target_normed_mm.to(ps_device)
+
+                    # TODO implement correct pre procesing in other checkpoint plots as well!
+                    input_sequence = set_nans_zero(input_sequence)
+                    target_normed_mm = set_nans_zero(target_normed_mm)
+
+                    model = model.to(ps_device)
+                    pred = model(input_sequence)
+
+                    # Converting prediction from one-hot to (lognormed) mm
+                    _, _, linspace_binning = linspace_binning_params
+                    pred_normed_mm = one_hot_to_lognormed_mm(pred, linspace_binning, channel_dim=1)
+
+                    # Inverse normalize target and prediction
+
+                    pred_inv_normed_mm = inverse_normalize_data(
+                        pred_normed_mm,
+                        mean_filtered_log_data,
+                        std_filtered_log_data)
+
+                    target_inv_normed_mm = inverse_normalize_data(
+                        target_normed_mm,
+                        mean_filtered_log_data,
+                        std_filtered_log_data)
+
+                    for batch_idx in range(pred_inv_normed_mm.shape[0]):
+                        fss_value = fss_calc_steps(
+                            pred_inv_normed_mm[batch_idx, :, :].cpu().numpy(),
+                            target_inv_normed_mm[batch_idx, :, :].cpu().numpy(),
+                            thr=threshold, scale=scale)
+                        # TODO: Why is this throwing NaNs for large scales?
+                        fss_list_for_mean.append(fss_value)
+                        sample_num += 1
+
+                        if sample_num > num_samples_for_calc:
+                            break
+
+                    if sample_num > num_samples_for_calc:
+                        break
+
+                fss_mean = np.nanmean(fss_list_for_mean)
+                fss_vals_per_scale.append(fss_mean)
+
+            plt.figure()
+            plt.plot(scales, fss_vals_per_scale)
+            plt.title(f'FSS at Threshold {threshold} mm')
+            plt.ylabel('FSS')
+            plt.xlabel('Scale (km)')
+
+            save_path_name = f'{ps_runs_path}/plots/FSS_{checkpoint_name_no_ending}_threshold_{threshold}_mm.png'
+            plt.savefig(save_path_name, bbox_inches='tight', dpi=300)
+
             plt.show()
 
 
