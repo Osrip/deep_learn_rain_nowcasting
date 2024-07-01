@@ -7,10 +7,10 @@ from pysteps import verification
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
-
+import math
 
 from einops import rearrange
+
 
 def calc_FSS_ver2(
         model,
@@ -31,6 +31,9 @@ def calc_FSS_ver2(
      linspace_binning_min_unnormalized,
      linspace_binning_max_unnormalized) = filter_and_normalization_params
 
+
+    # Source code / docu at :
+    # from pysteps.verification.spatialscores import fss_accum
     fss_calc_steps = verification.get_method("FSS")
 
     # Caglars implementation:
@@ -45,6 +48,7 @@ def calc_FSS_ver2(
 
     with torch.no_grad():
         # Initialize an empty tensor for storing predictions
+        model = model.to(ps_device)
 
         sample_num = 0
         for threshold in thresholds:
@@ -63,7 +67,6 @@ def calc_FSS_ver2(
                     input_sequence = set_nans_zero(input_sequence)
                     target_normed_mm = set_nans_zero(target_normed_mm)
 
-                    model = model.to(ps_device)
                     pred = model(input_sequence)
 
                     # Converting prediction from one-hot to (lognormed) mm
@@ -83,19 +86,25 @@ def calc_FSS_ver2(
                         std_filtered_log_data)
 
                     for batch_idx in range(pred_inv_normed_mm.shape[0]):
+                        # Calculate FSS
                         fss_value = fss_calc_steps(
                             pred_inv_normed_mm[batch_idx, :, :].cpu().numpy(),
                             target_inv_normed_mm[batch_idx, :, :].cpu().numpy(),
                             thr=threshold, scale=scale)
-                        # TODO: Why is this throwing NaNs for large scales?
+                        # Attention! As soon as the counts are all zero in either target or prediction (or both) this
+                        # returns an NaN!
+
+                        # if math.isnan(fss_value):
+                        #     raise ValueError('fss wrong!')
+
                         fss_list_for_mean.append(fss_value)
                         sample_num += 1
 
-                        if sample_num > num_samples_for_calc:
-                            break
-
-                    if sample_num > num_samples_for_calc:
-                        break
+                        # if sample_num >= num_samples_for_calc:
+                        #     break
+                    #
+                    # if sample_num >= num_samples_for_calc:
+                    #     break
 
                 fss_mean = np.nanmean(fss_list_for_mean)
                 fss_vals_per_scale.append(fss_mean)

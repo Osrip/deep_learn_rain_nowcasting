@@ -61,14 +61,17 @@ def plot_from_checkpoint_wrapper(settings, s_dirs, **__):
         steps_settings['steps_num_workers'] = 16
 
     checkpoint_names = get_checkpoint_names(**plot_checkpoint_settings)
+    # Execute plotting pipeline for all checkpoints:
     for checkpoint_name in checkpoint_names:
-        plot_from_checkpoint(
-            checkpoint_name,
-            plot_fss_settings,
-            plot_crps_settings,
-            steps_settings,
-            plot_checkpoint_settings,
-            **plot_checkpoint_settings)
+        # Only plot last checkpoint (remove this if all should be plotted)
+        if 'last' in checkpoint_name:
+            plot_from_checkpoint(
+                checkpoint_name,
+                plot_fss_settings,
+                plot_crps_settings,
+                steps_settings,
+                plot_checkpoint_settings,
+                **plot_checkpoint_settings)
 
 
 def plot_from_checkpoint(
