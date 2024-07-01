@@ -91,8 +91,9 @@ def calc_FSS_ver2(
                             pred_inv_normed_mm[batch_idx, :, :].cpu().numpy(),
                             target_inv_normed_mm[batch_idx, :, :].cpu().numpy(),
                             thr=threshold, scale=scale)
-                        # Attention! As soon as the counts are all zero in either target or prediction (or both) this
-                        # returns an NaN!
+                        # Attention! As soon as the counts are all zero in both - target and prediction - this turns NaN
+                        # Does not become NaN as soon as counts are above zero in either target, predictiojn or both
+                        # (even when target and prediction are equal there is no NaN as lon as counts are above 0)
 
                         # if math.isnan(fss_value):
                         #     raise ValueError('fss wrong!')
@@ -111,7 +112,7 @@ def calc_FSS_ver2(
 
             plt.figure()
             plt.plot(scales, fss_vals_per_scale)
-            plt.title(f'FSS at Threshold {threshold} mm')
+            plt.title(f'FSS for training data at threshold {threshold} mm')
             plt.ylabel('FSS')
             plt.xlabel('Scale (km)')
 

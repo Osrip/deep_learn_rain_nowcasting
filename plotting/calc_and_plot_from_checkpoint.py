@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import os
 
-from helper.checkpoint_handling import load_from_checkpoint, create_data_loaders, load_data_from_run
+from helper.checkpoint_handling import load_from_checkpoint, create_data_loaders_ckpt_plotting, load_data_from_run
 from helper.plotting_helper import get_checkpoint_names
 from plotting.plot_snapshots import plot_snapshots
 from plotting.calc_plot_CRPS import calc_CRPS, plot_crps
@@ -107,7 +107,7 @@ def plot_from_checkpoint(
     model = load_from_checkpoint(ps_runs_path, checkpoint_name, settings, **plot_settings)
     model.freeze()
 
-    train_data_loader, validation_data_loader = create_data_loaders(
+    train_data_loader, validation_data_loader = create_data_loaders_ckpt_plotting(
         transform_f,
         filtered_indecies_training,
         filtered_indecies_validation,
@@ -119,7 +119,7 @@ def plot_from_checkpoint(
 
     calc_FSS_ver2(
         model,
-        validation_data_loader,
+        train_data_loader,
         filter_and_normalization_params,
         linspace_binning_params,
         checkpoint_name_no_ending,

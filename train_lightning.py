@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 
 import numpy as np
 from helper.helper_functions import save_zipped_pickle, save_dict_pickle_csv,\
-    save_tuple_pickle_csv, save_whole_project, load_zipped_pickle, save_data_loader_vars, load_data_loader_vars
+    save_tuple_pickle_csv, save_project_code, load_zipped_pickle, save_data_loader_vars, load_data_loader_vars
 
 import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
@@ -303,6 +303,7 @@ def create_data_loaders(transform_f,
 
     linspace_binning_params = (linspace_binning_min, linspace_binning_max, linspace_binning)
     # tODO: RETURN filtered indecies instead of data set
+    # This has to have the same order as train_wrapper()
     return (train_data_loader, validation_data_loader,
             filtered_indecies_training, filtered_indecies_validation,
             linspace_binning_params,
@@ -336,20 +337,28 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
         trainer.validate(lk_baseline, data_loader)
 
 
-def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_training, filtered_indecies_validation,
-                  linspace_binning_params, filer_and_normalization_params, training_steps_per_epoch, data_set_statistics_dict,
-                  class_count_target, settings, s_dirs, s_profiling, s_max_epochs, s_num_gpus,
-                  s_sim_name, s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
-                  s_check_val_every_n_epoch, s_calc_baseline, **__):
+def train_wrapper(
+        train_data_loader, validation_data_loader,
+        filtered_indecies_training, filtered_indecies_validation,
+        linspace_binning_params,
+        filer_and_normalization_params,
+        training_steps_per_epoch,
+        data_set_statistics_dict,
+        class_count_target,
+        settings,
+        s_dirs, s_profiling, s_max_epochs, s_num_gpus, s_sim_name,
+        s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
+        s_check_val_every_n_epoch, s_calc_baseline, **__):
     """
     All the junk surrounding train_l() goes in here
+    Please keep intput arguments in the same order as the output of create_data_loaders()
     """
 
     train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)
 
     save_dict_pickle_csv('{}/settings'.format(s_dirs['data_dir']), settings)
 
-    save_whole_project(s_dirs['code_dir'])
+    save_project_code(s_dirs['code_dir'])
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(dirpath=s_dirs['model_dir'],
                                                        monitor='val_mean_loss',
@@ -364,10 +373,8 @@ def train_wrapper(train_data_loader, validation_data_loader, filtered_indecies_t
         profiler = None
 
     save_dict_pickle_csv('{}/data_set_statistcis_dict'.format(s_dirs['data_dir']), data_set_statistics_dict)
-
     save_zipped_pickle('{}/filtered_indecies_training'.format(s_dirs['data_dir']), filtered_indecies_training)
     save_zipped_pickle('{}/filtered_indecies_validation'.format(s_dirs['data_dir']), filtered_indecies_validation)
-
     save_zipped_pickle('{}/filter_and_normalization_params'.format(s_dirs['data_dir']), filer_and_normalization_params)
 
     # Save linspace binning  params
@@ -487,7 +494,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 

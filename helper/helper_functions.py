@@ -62,7 +62,7 @@ def save_tuple_pickle_csv(save_dict, folder, file_name):
     save_zipped_pickle('{}/{}'.format(folder, file_name), save_dict)
 
 
-def save_whole_project(save_folder):
+def save_project_code(save_folder):
     cwd = os.getcwd()
 
     onlyfiles = []

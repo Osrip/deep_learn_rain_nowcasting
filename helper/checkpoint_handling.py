@@ -20,8 +20,8 @@ def load_from_checkpoint(runs_path, checkpoint_name,
     return model
 
 
-def create_data_loaders(transform_f, filtered_indecies_training, filtered_indecies_validation,
-                        linspace_binning_params, filter_and_normalization_params, settings):
+def create_data_loaders_ckpt_plotting(transform_f, filtered_indecies_training, filtered_indecies_validation,
+                                      linspace_binning_params, filter_and_normalization_params, settings):
 
     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
