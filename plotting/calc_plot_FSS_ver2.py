@@ -36,15 +36,9 @@ def calc_FSS_ver2(
     # from pysteps.verification.spatialscores import fss_accum
     fss_calc_steps = verification.get_method("FSS")
 
-    # Caglars implementation:
-    # fss_score =
-    # fss(pred,
-    # obs, thr=threshold,
-    # scale=scale)
-
     thresholds = np.logspace(-1, 1, 5)
     scales = np.arange(0, 10, 1, dtype=np.int64)
-    num_samples_for_calc = 500
+    num_samples_for_calc = 1000
 
     with torch.no_grad():
         # Initialize an empty tensor for storing predictions
@@ -63,7 +57,7 @@ def calc_FSS_ver2(
                     input_sequence = input_sequence.to(ps_device)
                     target_normed_mm = target_normed_mm.to(ps_device)
 
-                    # TODO implement correct pre procesing in other checkpoint plots as well!
+                    # TODO implement correct pre-processing in other checkpoint plots as well!
                     input_sequence = set_nans_zero(input_sequence)
                     target_normed_mm = set_nans_zero(target_normed_mm)
 
@@ -101,11 +95,11 @@ def calc_FSS_ver2(
                         fss_list_for_mean.append(fss_value)
                         sample_num += 1
 
-                        # if sample_num >= num_samples_for_calc:
-                        #     break
-                    #
-                    # if sample_num >= num_samples_for_calc:
-                    #     break
+                        if sample_num >= num_samples_for_calc:
+                            break
+
+                    if sample_num >= num_samples_for_calc:
+                        break
 
                 fss_mean = np.nanmean(fss_list_for_mean)
                 fss_vals_per_scale.append(fss_mean)

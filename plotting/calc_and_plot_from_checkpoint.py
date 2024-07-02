@@ -11,6 +11,7 @@ from plotting.calc_plot_FSS import calc_FSS, plot_fss_by_scales, plot_fss_by_thr
     plot_fss_by_threshold_one_plot, plot_fss_by_scales_one_plot
 from plotting.plot_spread_skill_ratio import plot_spread_skill
 from plotting.calc_plot_FSS_ver2 import calc_FSS_ver2
+from helper.pre_process_target_input import inverse_normalize_data
 
 
 def plot_from_checkpoint_wrapper(settings, s_dirs, **__):
@@ -114,6 +115,42 @@ def plot_from_checkpoint(
         linspace_binning_params,
         filter_and_normalization_params,
         settings)
+
+    ###
+    # TODO Debugging only, remove this!
+    _, mean_filtered_log_data, std_filtered_log_data, _, _, _, _ = filter_and_normalization_params
+
+    num_empty = 0
+    num_total = 0
+    for i, (input_sequence, target) in enumerate(validation_data_loader):
+        if num_total >= 1000:
+            break
+        target_inv_normalized = inverse_normalize_data(target, mean_filtered_log_data, std_filtered_log_data)
+        epsilon = 0.001
+        for batch_dim_idx in range(target.shape[0]):
+            num_total += 1
+            if (target_inv_normalized[batch_dim_idx, :, :] < epsilon).all():
+                num_empty += 1
+
+    print(
+        f'Validation data loader during trainning loop: {num_empty} targets are empty out of a total of {num_total} targets')
+
+    num_empty = 0
+    num_total = 0
+    for i, (input_sequence, target) in enumerate(train_data_loader):
+        if num_total >= 1000:
+            break
+        target_inv_normalized = inverse_normalize_data(target, mean_filtered_log_data, std_filtered_log_data)
+        epsilon = 0.001
+        for batch_dim_idx in range(target.shape[0]):
+            num_total += 1
+            if (target_inv_normalized[batch_dim_idx, :, :] < epsilon).all():
+                num_empty += 1
+
+    print(
+        f'train data loader during training loop: {num_empty} targets are empty out of a total of {num_total} targets')
+
+    #####
 
     checkpoint_name_no_ending = checkpoint_name.replace('.ckpt', '')
 

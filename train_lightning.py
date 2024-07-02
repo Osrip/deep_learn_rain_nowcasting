@@ -229,25 +229,27 @@ def create_data_loaders(transform_f,
     '''
 
     # TODO: RETURN filtered indecies instead of data set
-    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training,
-                                                  mean_filtered_log_data,
-                                                  std_filtered_log_data,
-                                                  linspace_binning_min,
-                                                  linspace_binning_max,
-                                                  linspace_binning,
-                                                  transform_f,
-                                                  settings,
-                                                  **settings)
+    train_data_set = PrecipitationFilteredDataset(
+        filtered_indecies_training,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        linspace_binning_min,
+        linspace_binning_max,
+        linspace_binning,
+        transform_f,
+        settings,
+        **settings)
 
-    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation,
-                                                       mean_filtered_log_data,
-                                                       std_filtered_log_data,
-                                                       linspace_binning_min,
-                                                       linspace_binning_max,
-                                                       linspace_binning,
-                                                       transform_f,
-                                                       settings,
-                                                       **settings)
+    validation_data_set = PrecipitationFilteredDataset(
+        filtered_indecies_validation,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        linspace_binning_min,
+        linspace_binning_max,
+        linspace_binning,
+        transform_f,
+        settings,
+        **settings)
 
     # Zip up the mean and std of the logarithmic data in a dict (includes all data: training and validation)
     data_set_statistics_dict = {'mean_filtered_log_data': mean_filtered_log_data,
@@ -290,16 +292,51 @@ def create_data_loaders(transform_f,
             pin_memory=True)
     else:
         # ... without oversampling:
-        validation_data_loader = DataLoader(validation_data_set,
-                                            batch_size=s_batch_size,
-                                            shuffle=False,
-                                            drop_last=True,
-                                            num_workers=s_num_workers_data_loader,
-                                            pin_memory=True)
+        validation_data_loader = DataLoader(
+            validation_data_set,
+            batch_size=s_batch_size,
+            shuffle=False,
+            drop_last=True,
+            num_workers=s_num_workers_data_loader,
+            pin_memory=True)
 
     print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
                                                                                        len(validation_data_loader),
                                                                                        s_batch_size))
+
+
+    ####
+    #TODO: DEBUGGING ONLY, REMOVE THIS!
+
+    num_empty = 0
+    num_total = 0
+    for i, (input_sequence, target) in enumerate(validation_data_loader):
+        if num_total >= 1000:
+            break
+        target_inv_normalized = inverse_normalize_data(target, mean_filtered_log_data, std_filtered_log_data)
+        epsilon = 0.001
+        for batch_dim_idx in range(target.shape[0]):
+            num_total += 1
+            if (target_inv_normalized[batch_dim_idx, :, :] < epsilon).all():
+                num_empty += 1
+
+    print(f'Validation data loader during trainning loop: {num_empty} targets are empty out of a total of {num_total} targets')
+
+    num_empty = 0
+    num_total = 0
+    for i, (input_sequence, target) in enumerate(train_data_loader):
+        if num_total >= 1000:
+            break
+        target_inv_normalized = inverse_normalize_data(target, mean_filtered_log_data, std_filtered_log_data)
+        epsilon = 0.001
+        for batch_dim_idx in range(target.shape[0]):
+            num_total += 1
+            if (target_inv_normalized[batch_dim_idx, :, :] < epsilon).all():
+                num_empty += 1
+
+    print(f'train data loader during training loop: {num_empty} targets are empty out of a total of {num_total} targets')
+
+    ######
 
     linspace_binning_params = (linspace_binning_min, linspace_binning_max, linspace_binning)
     # tODO: RETURN filtered indecies instead of data set
@@ -498,7 +535,7 @@ if __name__ == '__main__':
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning_TEST_FSS'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'default_switching_region_32_bins_100mm_conv_next_PRINTING_ZERO_FRAMES_DATA_LOADER_WHOLE_DATA_SET_1_epoch'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -524,10 +561,10 @@ if __name__ == '__main__':
 
             's_convnext': True,  # Use ResNet instead of ours
 
-            's_plotting_only': True,  # If active loads sim s_plot_sim_name and runs plotting pipeline
-            's_plot_sim_name': 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
+            's_plot_sim_name': 'Run_20240620-174257_ID_430383default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             # Save data loader variables
-            's_save_prefix_data_loader_vars': 'switching_regions_filter_min_amount_rain_0_2_fixed_binning_bug',
+            's_save_prefix_data_loader_vars': 'switching_regions_filter_min_amount_rain_0_2_fixed_binning_bug_2',
             's_data_loader_vars_path': '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
 
             # Max number of frames in proccessed data set for debugging (validation + training)
