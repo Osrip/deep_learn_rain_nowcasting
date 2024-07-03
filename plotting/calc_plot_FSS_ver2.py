@@ -33,7 +33,7 @@ def calc_FSS_ver2(
 
 
     # Source code / docu at :
-    # from pysteps.verification.spatialscores import fss_accum
+    from pysteps.verification.spatialscores import fss_accum
     fss_calc_steps = verification.get_method("FSS")
 
     thresholds = np.logspace(-1, 1, 5)
