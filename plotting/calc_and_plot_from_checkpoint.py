@@ -133,7 +133,7 @@ def plot_from_checkpoint(
                 num_empty += 1
 
     print(
-        f'Validation data loader during trainning loop: {num_empty} targets are empty out of a total of {num_total} targets')
+        f'Validation data loader for checkpoint plotting: {num_empty} targets are empty out of a total of {num_total} targets')
 
     num_empty = 0
     num_total = 0
@@ -148,7 +148,7 @@ def plot_from_checkpoint(
                 num_empty += 1
 
     print(
-        f'train data loader during training loop: {num_empty} targets are empty out of a total of {num_total} targets')
+        f'train data loader for checkpoint plotting: {num_empty} targets are empty out of a total of {num_total} targets')
 
     #####
 

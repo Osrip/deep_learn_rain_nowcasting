@@ -320,7 +320,7 @@ def create_data_loaders(transform_f,
             if (target_inv_normalized[batch_dim_idx, :, :] < epsilon).all():
                 num_empty += 1
 
-    print(f'Validation data loader during trainning loop: {num_empty} targets are empty out of a total of {num_total} targets')
+    print(f'Validation data loader during training loop: {num_empty} targets are empty out of a total of {num_total} targets')
 
     num_empty = 0
     num_total = 0
@@ -531,7 +531,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
@@ -559,7 +559,7 @@ if __name__ == '__main__':
             's_sim_name': s_sim_name,
             's_sim_same_suffix': s_sim_name_suffix,
 
-            's_convnext': True,  # Use ResNet instead of ours
+            's_convnext': True,  # Use ConvNeXt instead of ours
 
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20240620-174257_ID_430383default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
@@ -656,7 +656,7 @@ if __name__ == '__main__':
 
     if settings['s_local_machine_mode']:
 
-        settings['s_plotting_only'] = True
+        settings['s_plotting_only'] = False
         settings['s_plot_sim_name'] = 'Run_20240624-155322default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning_TEST'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
