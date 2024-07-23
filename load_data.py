@@ -254,7 +254,7 @@ def load_input_target_from_index(idx, xr_dataset, filtered_data_loader_indecies,
 
 
 def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width_height,
-                           s_data_variable_name, s_width_height_target, s_min_rain_ratio_target,
+                           s_data_variable_name, s_width_height_target,
                            s_data_preprocessing_chunk_num, s_num_input_time_steps, s_num_lead_time_steps,
                            s_max_num_filter_hits, **__):
     '''
@@ -403,7 +403,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
                     num_frames_total += 1
 
                     # Filter data
-                    if filter(input_sequence, target, s_min_rain_ratio_target):
+                    if filter(input_sequence, target):
                         num_frames_passed_filter += 1
 
                         filtered_data_loader_indecies_dict = {}
@@ -466,11 +466,11 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
 
     # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here (not a big effect)?
     if num_x == 0:
-        raise Exception('No data passed the filter conditions of s_min_rain_ratio_target={}, such that there is no '
-                        'data for training and validation.'.format(s_min_rain_ratio_target))
+        raise Exception('No data passed the filter conditions such that there is no '
+                        'data for training and validation.'
     else:
         print(f'{num_frames_passed_filter} data points out of a total of {num_frames_total} scanned data points'
-              ' passed the filter condition of s_min_rain_ratio_target={s_min_rain_ratio_target}')
+              ' passed the filter condition')
 
     # We need to calculate the mean and std of the log data, as we are first taking log, then z normalizing in log space
     mean_filtered_log_data = sum_log_x / num_x
@@ -670,7 +670,6 @@ def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning,
 def filter(
         input_sequence: torch.Tensor,
         target: torch.Tensor,
-        s_min_rain_ratio_target,
         percentage=0.5,
         min_amount_rain=0.2):
 

@@ -638,10 +638,6 @@ if __name__ == '__main__':
             's_log_transform': True,  # False not tested, leave this true
             's_normalize': True,  # False not tested, leave this true
 
-            's_min_rain_ratio_target': 0.01,
-            # Deactivated  # The minimal amount of rain required in the 32 x 32 target for target and its
-            # prior input sequence to make it through the filter into the training data
-
             's_testing': True,  # Runs tests before starting training
             's_profiling': False,  # Runs profiler
 
@@ -667,7 +663,6 @@ if __name__ == '__main__':
         settings['s_batch_size'] = 8  # our net: 8
         settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
-        settings['s_min_rain_ratio_target'] = 0  # Deactivated # No Filter
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
         settings['s_max_epochs'] = 2  # 3
         settings['s_num_gpus'] = 1
