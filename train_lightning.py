@@ -26,11 +26,12 @@ import mlflow
 from plotting.plotting_pipeline import plot_logs_pipeline
 from plotting.calc_and_plot_from_checkpoint import plot_from_checkpoint_wrapper
 from helper.sigma_scheduler_helper import create_scheduler_mapping
-from helper.helper_functions import no_special_characters
+from helper.helper_functions import no_special_characters, create_save_name_for_data_loader_vars
 import copy
 import warnings
 from tests.test_basic_functions import test_all
 from pytorch_lightning.loggers import WandbLogger
+
 
 
 def data_loading(settings, s_force_data_preprocessing, **__):
@@ -47,7 +48,8 @@ def data_loading(settings, s_force_data_preprocessing, **__):
         if s_force_data_preprocessing:
             warnings.warn('Forced preprocessing of data as s_force_data_preprocessing == True')
             raise FileNotFoundError('Forced preprocessing of data as s_force_data_preprocessing == True')
-        print('Loading data loader vars from file!')
+        file_name_data_loader_vars = create_save_name_for_data_loader_vars(**settings)
+        print(f'Loading data loader vars from file {file_name_data_loader_vars}')
         data_loader_vars = load_data_loader_vars(settings, **settings)
     except FileNotFoundError:
         print('Data loader vars not found, preprocessing data!')

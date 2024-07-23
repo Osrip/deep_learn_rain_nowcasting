@@ -274,7 +274,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
      as one-hot is set to [0,0,0,...] (as of March 2024))
     - Filter condition is applied (currently to the target only) - nans treated as zero
     - For all cropped input-target segments that pass the filter condition, the spatio-temporal indecies are returned
-      (upper left corner of crop with respect to the input width / heihgt given by s_width_height),
+      (upper left corner of crop with respect to the input width / height given by s_width_height),
       additionally the normalization parameters are calculated based on the targets of the filtered cropped segments
 
     For output data format look at the comments at return statement
@@ -399,10 +399,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
 
                     target = torch.nan_to_num(target, nan=0.0)
 
-                    # TODO: Write all code beloqw for torch instead of numpy
-                    # target = target.cpu().numpy()
-                    # input_sequence = input_sequence.cpu().numpy()
-
+                    # The code below has been transformed from np to torch!
                     num_frames_total += 1
 
                     # Filter data
@@ -670,7 +667,12 @@ def class_weights_per_sample(filtered_indecies, class_weights, linspace_binning,
     return target_mean_weights
 
 
-def filter(input_sequence: torch.Tensor, target: torch.Tensor, s_min_rain_ratio_target, percentage=0.5, min_amount_rain=0.2):
+def filter(
+        input_sequence: torch.Tensor,
+        target: torch.Tensor,
+        s_min_rain_ratio_target,
+        percentage=0.5,
+        min_amount_rain=0.2):
 
     '''
     Previously: min_amount_rain=0.05
@@ -682,27 +684,6 @@ def filter(input_sequence: torch.Tensor, target: torch.Tensor, s_min_rain_ratio_
         return True
     else:
         return False
-
-
-def iterate_through_data_names(start_date_time, future_iterations_from_start: int, minutes_per_iteration: int):
-    '''
-    start_date_time_ datetime object
-    
-    Datetime object is initialized with:
-    
-    datetime.datetime(year, month, day, hour, minute, second, microsecond)
-    b = datetime(2022, 12, 28, 23, 55, 59, 342380)
-    '''
-
-    load_dates = []
-    if minutes_per_iteration % 5 != 0:
-        raise CountException('Only 5 minute steps available')
-
-    for i in range(future_iterations_from_start):
-        time_diff = minutes_per_iteration * i
-        date_time = start_date_time + datetime.timedelta(minutes=time_diff)
-        load_dates.append(date_time)
-    return load_dates
 
 
 def random_splitting_filtered_indecies(indecies, num_training_samples, chunk_size):

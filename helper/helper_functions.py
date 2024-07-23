@@ -76,9 +76,9 @@ def save_project_code(save_folder):
         save_code(save_folder, file)
 
 
-def _create_save_name_for_data_loader_vars(s_folder_path, s_log_transform, s_normalize, s_local_machine_mode,
-                                           s_save_prefix_data_loader_vars, s_num_bins_crossentropy, s_linspace_binning_cut_off_unnormalized,
-                                           s_width_height, **__):
+def create_save_name_for_data_loader_vars(s_folder_path, s_log_transform, s_normalize, s_local_machine_mode,
+                                          s_save_prefix_data_loader_vars, s_num_bins_crossentropy, s_linspace_binning_cut_off_unnormalized,
+                                          s_width_height, **__):
     if s_log_transform:
         log_transform_str = 'log_transform'
     else:
@@ -103,12 +103,12 @@ def _create_save_name_for_data_loader_vars(s_folder_path, s_log_transform, s_nor
 
 
 def save_data_loader_vars(data_loader_vars, settings, s_data_loader_vars_path, **__):
-    file_name = _create_save_name_for_data_loader_vars(**settings)
+    file_name = create_save_name_for_data_loader_vars(**settings)
     save_zipped_pickle(os.path.join(s_data_loader_vars_path, file_name), data_loader_vars)
 
 
 def load_data_loader_vars(settings, s_data_loader_vars_path, **__):
-    file_name = _create_save_name_for_data_loader_vars(**settings)
+    file_name = create_save_name_for_data_loader_vars(**settings)
     path = os.path.join(s_data_loader_vars_path, file_name)
     if not os.path.exists('{}.pickle.pgz'.format(path)):
         print('No data loader vars found at {}, therefore filtering data from scratch'.format(path))
