@@ -598,7 +598,6 @@ if __name__ == '__main__':
             # 'minutes_per_iteration': 5,
             's_width_height': 256,
             's_width_height_target': 32,
-            's_num_epochs': 1000,  # TODO: What does this do? Seems to be legacy and not in use anymore
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for one predicition
             's_num_lead_time_steps': 3, # 0 --> 0 min prediction (target == last input) ; 1 --> 5 min predicition, 3 --> 15min etc
             # This is substracted by 2: settings['s_num_lead_time_steps'] = 's_num_lead_time_steps' -2 for following reasons:
