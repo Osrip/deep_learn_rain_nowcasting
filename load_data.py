@@ -58,8 +58,7 @@ class PrecipitationFilteredDataset(Dataset):
         self.s_device = device
 
         # Initialize xr dataset
-        self.xr_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
-        # TODO: chunks = None?
+        self.xr_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name), chunks=None)
 
     def __len__(self):
         return len(self.filtered_data_loader_indecies)
@@ -303,7 +302,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
     # Loading data into xarray
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
     print('Loading training/validation data from {}'.format(load_path))
-    dataset = xr.open_dataset(load_path) # , chunks=None
+    dataset = xr.open_dataset(load_path, chunks=None)  # , chunks=None according to Sebastian more efficient as it avoids dask (default is chunks=1)
     num_time_steps = dataset.sizes['time']
 
     # chunk_time_indecies gives start and stop indecies in time dimension
@@ -467,7 +466,7 @@ def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width
     # TODO: Is Bessel's correction (+1 accounting for extra degree of freedom) needed here (not a big effect)?
     if num_x == 0:
         raise Exception('No data passed the filter conditions such that there is no '
-                        'data for training and validation.'
+                        'data for training and validation.')
     else:
         print(f'{num_frames_passed_filter} data points out of a total of {num_frames_total} scanned data points'
               ' passed the filter condition')
@@ -610,14 +609,15 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_lo
     class_count = torch.zeros(s_num_bins_crossentropy, dtype=torch.int64).to(device)
 
     for idx in range(len(filtered_indecies)):
-        target = load_target_from_index(idx,
-                                        xr_dataset,
-                                        filtered_indecies,
-                                        mean_filtered_log_data,
-                                        std_filtered_log_data,
-                                        transform_f,
-                                        normalize=True,
-                                        **settings)
+        target = load_target_from_index(
+            idx,
+            xr_dataset,
+            filtered_indecies,
+            mean_filtered_log_data,
+            std_filtered_log_data,
+            transform_f,
+            normalize=True,
+            **settings)
 
         target = torch.from_numpy(target).to(device)
         target_one_hot = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
