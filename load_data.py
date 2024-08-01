@@ -602,7 +602,7 @@ def calc_class_frequencies(filtered_indecies, linspace_binning, mean_filtered_lo
                            settings, s_num_bins_crossentropy, s_folder_path, s_data_file_name, device, normalize=True,
                            **__):
     '''
-    The more often class occurs, the lower the weight value : class_weights = 1 / class_count
+    The more often a class occurs, the lower the weight value : class_weights = 1 / class_count
     TODO: However observed, that classes with lower mean and max precipitation have higher weight ??!!
     '''
     xr_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name))
