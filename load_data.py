@@ -121,7 +121,7 @@ def load_input_from_index(idx: int,
     # Get rid of steps dimension (nothing to do with pysteps)
     input_sequence = input_sequence[0, :, :, :]
 
-    # setting all nan s to zero (this is only done to input sequence, not to target!)
+    # setting all nans to zero (this is only done to input sequence, not to target!)
     nan_mask = np.isnan(input_sequence)
     input_sequence[nan_mask] = 0
 
