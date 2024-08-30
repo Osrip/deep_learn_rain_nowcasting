@@ -37,7 +37,7 @@ from pytorch_lightning.loggers import WandbLogger
 def data_loading(settings, s_force_data_preprocessing, **__):
 
     if settings['s_log_transform']:
-        transform_f = lambda x: torch.log(x + 1) if isinstance(x, torch.Tensor) else np.log(x + 1)
+        transform_f = lambda x: torch.log1p(x) if isinstance(x, torch.Tensor) else np.log1p(x)
     else:
         transform_f = lambda x: x
     # Try to load data loader vars, if not possible preprocess data
