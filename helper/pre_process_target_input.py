@@ -120,14 +120,14 @@ def inverse_normalize_data(data_sequence, mean_log_orig_data, std_log_orig_data,
         if inverse_normalize:
             data_sequence = data_sequence * std_log_orig_data + mean_log_orig_data
         if inverse_log:
-            data_sequence = torch.exp(data_sequence) - 1
+            data_sequence = torch.expm1(data_sequence)
 
     elif isinstance(data_sequence, np.ndarray):
         # If input is a numpy array
         if inverse_normalize:
             data_sequence = data_sequence * std_log_orig_data + mean_log_orig_data
         if inverse_log:
-            data_sequence = np.exp(data_sequence) - 1
+            data_sequence = np.expm1(data_sequence) # more numerically stable than np.exp(data_sequence) - 1
 
     else:
         raise ValueError("Unsupported data type. Please provide a torch tensor or a numpy array.")

@@ -101,7 +101,7 @@ def plot_from_checkpoint(
         settings['s_crps_loss'] = False
 
     if settings['s_log_transform']:
-        transform_f = lambda x: np.log(x + 1) if isinstance(x, np.ndarray) else torch.log(x + 1)
+        transform_f = lambda x: np.log1p(x) if isinstance(x, np.ndarray) else torch.log1p(x + 1)
     else:
         transform_f = lambda x: x
 
