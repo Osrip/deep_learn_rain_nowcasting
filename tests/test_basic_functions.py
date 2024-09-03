@@ -124,28 +124,16 @@ def mean_of_bounds(x, linspace_binning, linspace_binning_max):
     return np.mean(np.array([lower_bounds, upper_bounds]), axis=0)
 
 
-def test_normalize_inverse_normalize():
-    '''
-    Integration test checking whether inverse_normalize can reconstruct the data that has been normalized by normalize()
-    '''
-    test_data_set = torch.randn(5, 256, 256) * 5 + 432
-    mean = torch.mean(test_data_set).item()
-    std = torch.std(test_data_set).item()
-    normalized_test_data = normalize_data(test_data_set, mean, std)
-    reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=False)
-    assert (reconstructed_test_data == test_data_set).all()
-
-
 def test_normalize_inverse_normalize_log():
     '''
     Integration test checking whether inverse_normalize can reconstruct the data that has been normalized by normlaiz()
     '''
     test_data_set = np.random.rand(5, 256, 256) * 5 + 432
-    log_test_data = np.log(test_data_set+1)
+    log_test_data = np.log1p(test_data_set)
     mean = np.mean(log_test_data)
     std = np.std(log_test_data)
-    normalized_test_data = normalize_data(log_test_data, mean, std)
-    reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std, inverse_log=True)
+    normalized_test_data = normalize_data(test_data_set, mean, std)
+    reconstructed_test_data = inverse_normalize_data(normalized_test_data, mean, std)
     assert np.allclose(reconstructed_test_data, test_data_set, atol=1e-4)
 
 
@@ -159,7 +147,6 @@ def test_all():
     '''
     test_img_one_hot()
     test_one_hot_converting()
-    test_normalize_inverse_normalize()
     test_normalize_inverse_normalize_log()
     test_torch_bin_to_one_hot_index()
     print('All tests successfull')

@@ -1,7 +1,7 @@
 import torch
 from helper.pre_process_target_input import set_nans_zero, pre_process_target_to_one_hot
 from helper.evaluation_metrics import fss
-from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data
+from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize
 import pysteps
 from pysteps import verification
 import numpy as np

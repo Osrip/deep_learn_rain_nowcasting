@@ -88,51 +88,24 @@ def one_hot_to_lognormed_mm(one_hot_tensor: torch.Tensor, linspace_binning: Unio
     return mm_data
 
 
-def lognormalize_data(data, mean_log_data, std_log_data, transform_f, s_normalize):
-    """
-    We take log first, then do z normalization!
-    mean_data and std_data therefore have to be calculated in log space!
-    (This has been implemented correctly in filtering_data_scraper)
-    """
-    data = transform_f(data)
-    if s_normalize:
-        data = normalize_data(data, mean_data=mean_log_data, std_data=std_log_data)
-    return data
-
-
-def normalize_data(data_sequence, mean_data, std_data):
+def normalize_data(data, log_mean, log_std):
     '''
-    Normalizing data, NO LOG TRANSFORMATION
+    Ln(x+1), then z - normalization
     '''
-    return (data_sequence - mean_data) / std_data
-
-
-def inverse_normalize_data(data_sequence, mean_log_orig_data, std_log_orig_data, inverse_log=True, inverse_normalize=True):
-    '''
-    Assumes log - then z normalization:
-    Assumes that the original data has been logtransformed first and subsequently normalized to standard normal
-    Works for torch tensors and numpy arrays
-    ! When inverse_log=True make sure to pass the mean and std of the log transformed data !
-    '''
-
-    if isinstance(data_sequence, torch.Tensor):
-        # If input is a torch tensor
-        if inverse_normalize:
-            data_sequence = data_sequence * std_log_orig_data + mean_log_orig_data
-        if inverse_log:
-            data_sequence = torch.expm1(data_sequence)
-
-    elif isinstance(data_sequence, np.ndarray):
-        # If input is a numpy array
-        if inverse_normalize:
-            data_sequence = data_sequence * std_log_orig_data + mean_log_orig_data
-        if inverse_log:
-            data_sequence = np.expm1(data_sequence) # more numerically stable than np.exp(data_sequence) - 1
-
+    if isinstance(data, torch.Tensor):
+        return (torch.log1p(data) - log_mean) / log_std
     else:
-        raise ValueError("Unsupported data type. Please provide a torch tensor or a numpy array.")
+        return (np.log1p(data) - log_mean) / log_std # log1p takes natural logarithm of x + 1, numerically stable
 
-    return data_sequence
+
+def inverse_normalize_data(data, log_mean, log_std):
+    '''
+    Assumes ln(x+1), then z - normalization
+    '''
+    if isinstance(data, torch.Tensor):
+        return torch.expm1(data * log_std + log_mean)
+    else:
+        return np.expm1(data * log_std + log_mean)
 
 
 def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filtered_log_data, std_filtered_log_data):

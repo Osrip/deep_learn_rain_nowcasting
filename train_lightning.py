@@ -7,7 +7,7 @@ import torchvision.transforms as T
 from network_lightning import NetworkL
 import datetime
 from load_data import PrecipitationFilteredDataset, filtering_data_scraper, random_splitting_filtered_indecies, calc_class_frequencies, class_weights_per_sample
-from helper.pre_process_target_input import lognormalize_data, invnorm_linspace_binning, inverse_normalize_data
+from helper.pre_process_target_input import normalize_data, invnorm_linspace_binning, inverse_normalize_data
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
 import numpy as np
@@ -97,19 +97,15 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
 
 
     # Normalize linspace binning thresholds now that data is available
-    linspace_binning_min_normed = lognormalize_data(
+    linspace_binning_min_normed = normalize_data(
         linspace_binning_min_unnormalized,
         mean_filtered_log_data,
-        std_filtered_log_data,
-        transform_f,
-        s_normalize)
+        std_filtered_log_data)
 
-    linspace_binning_max_normed = lognormalize_data(
+    linspace_binning_max_normed = normalize_data(
         linspace_binning_max_unnormalized,
         mean_filtered_log_data,
-        std_filtered_log_data,
-        transform_f,
-        s_normalize)
+        std_filtered_log_data)
 
     # Watch out! mean_filtered_log_data and std_filtered_log_data have been calculated in the log space,
     # as we first take log, then do z normalization!
@@ -118,9 +114,8 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     # such that the right most bin simply covers all outliers
     # However the actual max still r
 
-    linspace_binning_cut_off_normed = lognormalize_data(s_linspace_binning_cut_off_unnormalized, mean_filtered_log_data,
-                                             std_filtered_log_data,
-                                             transform_f, s_normalize)
+    linspace_binning_cut_off_normed = normalize_data(s_linspace_binning_cut_off_unnormalized, mean_filtered_log_data,
+                                             std_filtered_log_data)
 
     # Subtract a small number to account for rounding errors made in the normalization process
     linspace_binning_min_normed -= 0.001

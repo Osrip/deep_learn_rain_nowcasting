@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torchvision.transforms as T
 from helper.helper_functions import chunk_list, flatten_list
-from helper.pre_process_target_input import img_one_hot, lognormalize_data
+from helper.pre_process_target_input import img_one_hot, normalize_data
 import datetime
 from exceptions import CountException
 from torch.utils.data import Dataset
@@ -126,8 +126,7 @@ def load_input_from_index(idx: int,
     input_sequence[nan_mask] = 0
 
     if normalize:
-        input_sequence = lognormalize_data(input_sequence, mean_filtered_log_data, std_filtered_log_data,
-                                           transform_f, s_normalize)
+        input_sequence = normalize_data(input_sequence, mean_filtered_log_data, std_filtered_log_data)
     return input_sequence
 
 
@@ -168,8 +167,7 @@ def load_target_from_index(idx: int,
             target = T.CenterCrop(size=s_width_height_target)(target)
 
         if normalize:
-            target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
-                                       s_normalize)
+            target = normalize_data(target, mean_filtered_log_data, std_filtered_log_data)
         target = target.detach().cpu().numpy()
     return target
 
@@ -216,8 +214,7 @@ def load_input_target_from_index(idx, xr_dataset, filtered_data_loader_indecies,
         input_sequence[nan_mask] = 0
 
         if normalize:
-            input_sequence = lognormalize_data(input_sequence, mean_filtered_log_data, std_filtered_log_data,
-                                               transform_f, s_normalize)
+            input_sequence = normalize_data(input_sequence, mean_filtered_log_data, std_filtered_log_data)
     else:
         input_sequence = None
 
@@ -243,8 +240,7 @@ def load_input_target_from_index(idx, xr_dataset, filtered_data_loader_indecies,
                 target = T.CenterCrop(size=s_width_height_target)(target)
 
             if normalize:
-                target = lognormalize_data(target, mean_filtered_log_data, std_filtered_log_data, transform_f,
-                                           s_normalize)
+                target = normalize_data(target, mean_filtered_log_data, std_filtered_log_data)
     else:
         target = torch.Tensor([])
 

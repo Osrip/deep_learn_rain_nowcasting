@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from helper.helper_functions import convert_to_binning_and_back
-from helper.pre_process_target_input import one_hot_to_lognormed_mm, lognormalize_data, inverse_normalize_data, \
+from helper.pre_process_target_input import one_hot_to_lognormed_mm, normalize_data, inverse_normalize_data, \
     invnorm_linspace_binning
 from plotting.plot_images import plot_target_vs_pred_with_likelihood
 from plotting.plot_distributions_in_snapshot import plot_distributions
@@ -27,8 +27,7 @@ def plot_snapshots(model, data_loader, checkpoint_name_no_ending, filter_and_nor
                                                                                             mean_filtered_log_data,
                                                                                             std_filtered_log_data)
 
-        inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_log_data, std_filtered_log_data, inverse_log=True,
-                                                               inverse_normalize=True)
+        inv_norm = lambda x: inverse_normalize_data(x, mean_filtered_log_data, std_filtered_log_data)
         if ps_inv_normalize:
             inv_norm_or_not = inv_norm
         else:
@@ -54,8 +53,7 @@ def plot_snapshots(model, data_loader, checkpoint_name_no_ending, filter_and_nor
                 pred_mm_baseline = pred_mm_baseline.detach().cpu().numpy()
                 # renormalize in case the rest of the plots are not inv normalized
                 if not ps_inv_normalize:
-                    pred_mm_baseline = lognormalize_data(pred_mm_baseline, mean_filtered_log_data, std_filtered_log_data,
-                                                         transform_f, settings['s_normalize'])
+                    pred_mm_baseline = normalize_data(pred_mm_baseline, mean_filtered_log_data, std_filtered_log_data)
 
                 # pred_mm_baseline = convert_to_binning_and_back(pred_mm_baseline, linspace_binning, linspace_binning_max)
 
