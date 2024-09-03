@@ -33,10 +33,6 @@ def pre_process_target_to_one_hot(
     return target_binned
 
 
-
-
-
-
 def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
     '''
     Adds one hot encoded channel dimension
@@ -90,7 +86,9 @@ def one_hot_to_lognormed_mm(one_hot_tensor: torch.Tensor, linspace_binning: Unio
 
 def normalize_data(data, log_mean, log_std):
     '''
-    Ln(x+1), then z - normalization
+    Log(x+1) (log base e), then z - normalization
+    log_mean and log_std are 1st and 2nd moments from the log data
+    Can handle torch and np data
     '''
     if isinstance(data, torch.Tensor):
         return (torch.log1p(data) - log_mean) / log_std
@@ -100,7 +98,9 @@ def normalize_data(data, log_mean, log_std):
 
 def inverse_normalize_data(data, log_mean, log_std):
     '''
-    Assumes ln(x+1), then z - normalization
+    Log(x+1) (log base e), then z - normalization
+    log_mean and log_std are 1st and 2nd moments from the log data
+    Can handle torch and np data
     '''
     if isinstance(data, torch.Tensor):
         return torch.expm1(data * log_std + log_mean)
