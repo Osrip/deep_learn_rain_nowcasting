@@ -3,6 +3,7 @@ import xarray as xr
 import random
 from torch.utils.data import Dataset
 
+
 class FilteredDatasetXr(Dataset):
     def __init__(self, sample_coords, settings):
         self.sample_coords = sample_coords
@@ -18,7 +19,6 @@ class FilteredDatasetXr(Dataset):
     def __getitem__(self, idx):
         sample_coord = self.sample_coords[idx]
         get_sample_from_coords(sample_coord, self.precipitation_data)
-
 
 
 def get_sample_from_coords(
@@ -183,10 +183,12 @@ def patch_indecies_to_sample_coords(
         input_slices = [time, y_slice_input, x_slice_input]
 
         # Check if the larger input exceeds size, if not append the patch indecies / slices to the list
-        if y_slice_input.start < 0 or y_slice_input.stop >= data_shortened.sizes[
-            'y'] or x_slice_input.start < 0 or x_slice_input.stop >= data_shortened.sizes['x']:
+        if (y_slice_input.start < 0
+                or y_slice_input.stop >= data_shortened.sizes['y']
+                or x_slice_input.start < 0
+                or x_slice_input.stop >= data_shortened.sizes['x']):
             num_inputs_exceeding_bounds += 1
-            continue  # Skips the rest of the loop if input frame exceeds dataset bounds
+            continue  # Skips the rest of the code in the current loop iteration if input frame exceeds dataset bounds
 
         # --- Convert indecies to coordinates ---
         time_datetime = data_shortened.time.isel(time=time).values
@@ -211,6 +213,7 @@ def patch_indecies_to_sample_coords(
     #     np.array(valid_center_indecies_global))
 
     return np.array(valid_input_coords)
+
 
 def split_training_validation(
         data: xr.core.groupby.DatasetGroupBy,
