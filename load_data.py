@@ -59,6 +59,8 @@ class PrecipitationFilteredDataset(Dataset):
 
         # Initialize xr dataset
         self.xr_dataset = xr.open_dataset('{}/{}'.format(s_folder_path, s_data_file_name), chunks=None)
+        #chunks = None prevents usage of task which has a big computational overhead
+
 
     def __len__(self):
         return len(self.filtered_data_loader_indecies)
@@ -245,68 +247,6 @@ def load_input_target_from_index(idx, xr_dataset, filtered_data_loader_indecies,
     # In case of s_gaussian_smoothing_target==True this returns the extended target size
     return input_sequence, target
 
-
-def create_and_filter_patches(
-        s_width_height,
-        s_width_height_target,
-        s_num_input_time_steps,
-        s_num_lead_time_steps,
-        s_folder_path,
-        s_data_file_name,
-        **__):
-
-
-    y_target, x_target = s_width_height_target, s_width_height_target  # 73, 137 # how many pixels in y and x direction
-    y_input, x_input = s_width_height, s_width_height
-    y_input_padding, x_input_padding = 32, 32 # Additional padding that the frames that will be returned to data loader get for Augmentation
-
-    # Filter conditions:
-    threshold_mm_rain_each_pixel = 0.1  # threshold for each pixel filter condition
-    threshold_percentage_pixels = 0.5
-
-    # Loading data into xarray
-    load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
-    data = xr.open_dataset(load_path, engine='zarr')
-    data = data.squeeze()
-    # Cut off the beginning  of the data as the size of the data chunk, that one sample has (input frames + lead time + target)
-    data_shortened = data.isel(
-        time=slice(s_num_input_time_steps + s_num_lead_time_steps, -1)
-    )
-
-    # partition the data into pt x y_target x x_target blocks using coarsen --> construct DatasetCoarsen object
-    # In this implementation each target corresponds to one patch
-    coarse = data_shortened.coarsen(
-        y=y_target,
-        x=x_target,
-        # time = 1, # TODO: This way we are making patches with 4 subsequent time frames. This way we are only taking a target every 'pt'th time step
-        side="left",  # "left" means that the blocks are aligned to the left of the input
-        boundary="trim")  # boundary="trim" removes the last block if it is too small
-
-    # construct a new data set, where the patches are folded into a new dimension
-    patches = coarse.construct(
-        # time = ("time_outer", "time_inner"),
-        y=("y_outer", "y_inner"),
-        x=("x_outer", "x_inner"))
-    # Replace NaNs with 0s for the filter (we do not have to do this! Makes it less likely for the edge cases to occur in the target.)
-    # We also have the option to filter for NaNs in the input to completely prohibit edge cases
-    patches_no_nan = patches.fillna(0)
-
-    # --- FILTER ---
-    # define a threshold for each pixel --> we get a pixel-wise boo
-    patches_boolean_pixelwise = patches_no_nan > threshold_mm_rain_each_pixel
-    # We are calculating the percentage of pixels that passed filter (mean of boolean gives percentage of True)
-    # --> we are getting rid of the patch dimensions y_inner and x_inner,
-    patches_percentage_pixels_passed = patches_boolean_pixelwise.mean(("y_inner", "x_inner"))  # , "time_inner"
-    # Now we are creating a boolean again by comparing the percentage of pixels that exceed the rain threshold to the minimally required
-    # percentage of pixels that exceed the rain threshold
-    # --> valid_patches includes only the y_outer and x_outer, where each pair of indecies represents one patch. Its values are boolean, indicating whether or not the outer indecies correspond to a valid or invalid patch.
-    valid_patches_boo = patches_percentage_pixels_passed > threshold_percentage_pixels
-
-    # get the outer coordinates for all valid blocks (valid_time, valid_x, valid_y)
-    # (valid_patches_boo is boolean, np.nonzero returns the indecies of the pixels that are non-zero, thus True)
-    valid_target_indecies_outer = np.array(np.nonzero(valid_patches_boo.RV_recalc.values)).T
-
-    return valid_target_indecies_outer
 
 
 def filtering_data_scraper(transform_f, s_folder_path, s_data_file_name, s_width_height,
