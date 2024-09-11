@@ -173,7 +173,10 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     # This calculates the mean weight of each sample, meaning the mean of all pixel weights in the sample are taken
     # target_mean_weights has length and order of targets
 
-    # Sample weights for training data
+    # Sample weights for training data:
+    # the class weights are the inverse frequencies of each class (bin). Now each sample gets a weight assigned to it,
+    # which is the mean value of the class weights in each sample
+    # (each pixel correspinds to one class thus one weight and those weights are averaged)
     target_mean_weights_train = class_weights_per_sample(
         filtered_indecies_training,
         class_weights_target_train,
