@@ -10,7 +10,8 @@ from load_data import PrecipitationFilteredDataset, filtering_data_scraper, rand
 from load_data_xarray import (create_and_filter_patches,
                               split_training_validation,
                               calc_statistics_on_valid_batches,
-                              patch_indecies_to_sample_coords)
+                              patch_indecies_to_sample_coords,
+                              FilteredDatasetXr)
 from helper.pre_process_target_input import normalize_data, invnorm_linspace_binning, inverse_normalize_data
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
@@ -35,7 +36,6 @@ import copy
 import warnings
 from tests.test_basic_functions import test_all
 from pytorch_lightning.loggers import WandbLogger
-
 
 
 def data_loading(settings, s_force_data_preprocessing, **__):
@@ -88,8 +88,11 @@ def preprocess_data(
      # y_inner, x_inner give pixel dimensions for each patch
      valid_patches_boo,
      # valid_patches_boo: Boolean xr.Dataset with y_outer and y_inner defines the valid patches
-     data
+     data,
      # data: The unpatched data that has global pixel coordinates,
+     data_shortened,
+     # data_shortened: same as data, but beginning is missing (lead_time + num input frames) such that we can go
+     # 'back in time' to go fram target time to input time.
      ) = create_and_filter_patches(
         y_target,
         x_target,
@@ -99,7 +102,7 @@ def preprocess_data(
     _, _, log_mean, log_std = calc_statistics_on_valid_batches(patches, valid_patches_boo)
 
     # --- SPLIT DATA ---
-    # TODO: Change this to '1D':
+    # TODO: Change this to '1D' for daily splitting!:
     resampled_valid_patches_boo = valid_patches_boo.resample(time='1h')
     train_valid_patches_boo, val_valid_patches_boo = split_training_validation(resampled_valid_patches_boo, s_ratio_training_data)
 
@@ -109,70 +112,71 @@ def preprocess_data(
     # 2. -> global sample coordinates (reshaped to input size + augmentation padding)
 
     # 1. We convert the outer coordinates that define the valid patches to indecies with respect to 'patches'
+    # !The spacial and time indecies refer to data_shortened!
     train_valid_target_indecies_outer = np.array(np.nonzero(train_valid_patches_boo.RV_recalc.values)).T
     val_valid_target_indecies_outer = np.array(np.nonzero(val_valid_patches_boo.RV_recalc.values)).T
 
     # 2. We scale up the patches from target size to input + augmentation size (which is why we need the pixel indecies
     # created in 1.) and return the sample coordiantes together with the time coordinate of the target frame for the sample
-    train_valid_sample_coords = patch_indecies_to_sample_coords(data, train_valid_target_indecies_outer)
-    val_valid_sample_coords = patch_indecies_to_sample_coords(data, val_valid_target_indecies_outer)
+    train_sample_coords = patch_indecies_to_sample_coords(
+        data_shortened,
+        train_valid_target_indecies_outer,
+        y_target, x_target,
+        y_input, x_input,
+        y_input_padding, x_input_padding
+    )
 
-    return None
+    val_sample_coords = patch_indecies_to_sample_coords(
+        data_shortened,
+        val_valid_target_indecies_outer,
+        y_target, x_target,
+        y_input, x_input,
+        y_input_padding, x_input_padding,
+    )
+
+    # Calculate min and max for linspace_binning:
+    linspace_binning_max = float(data.max(dim=None, skipna=True).RV_recalc.values)
+    linspace_binning_min = float(data.min(dim=None, skipna=True).RV_recalc.values)
+    if linspace_binning_min != 0.0:
+        raise ValueError(f'Min of precipitation data is {linspace_binning_min} and thus below 0')
 
 
-def create_data_loaders(transform_f,
-                        filtered_indecies_training, filtered_indecies_validation,
-                        mean_filtered_log_data, std_filtered_log_data,
-                        linspace_binning_min, linspace_binning_max, linspace_binning,
-                        filter_and_normalization_params,
-                        target_mean_weights_train, class_count_target_train,
-                        target_mean_weights_val, class_count_target_val,
-                        settings,
-                        s_batch_size,
-                        s_num_workers_data_loader,
-                        s_oversample_validation, **__):
+    return train_sample_coords, val_sample_coords, log_mean, log_std, linspace_binning_max, linspace_binning_min
+
+
+def create_data_loaders(
+        train_sample_coords,
+        val_sample_coords,
+        settings,
+        s_batch_size,
+        s_num_workers_data_loader,
+        **__):
     '''
     Creates data loaders for training and validation data
     The args have to have the same order as in the function preprocess_data()
     '''
 
     # TODO: RETURN filtered indecies instead of data set
-    train_data_set = PrecipitationFilteredDataset(
-        filtered_indecies_training,
-        mean_filtered_log_data,
-        std_filtered_log_data,
-        linspace_binning_min,
-        linspace_binning_max,
-        linspace_binning,
-        transform_f,
+    train_data_set = FilteredDatasetXr(
+        train_sample_coords,
         settings,
-        **settings)
+    )
 
-    validation_data_set = PrecipitationFilteredDataset(
-        filtered_indecies_validation,
-        mean_filtered_log_data,
-        std_filtered_log_data,
-        linspace_binning_min,
-        linspace_binning_max,
-        linspace_binning,
-        transform_f,
-        settings,
-        **settings)
-
-    # Zip up the mean and std of the logarithmic data in a dict (includes all data: training and validation)
-    data_set_statistics_dict = {'mean_filtered_log_data': mean_filtered_log_data,
-                                'std_filtered_log_data': std_filtered_log_data}
+    val_data_set = FilteredDatasetXr(
+        val_sample_coords,
+        settings
+    )
 
     training_steps_per_epoch = len(train_data_set)
-    validation_steps_per_epoch = len(validation_data_set)
+    validation_steps_per_epoch = len(val_data_set)
 
-    train_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights_train,
-                                                          num_samples=training_steps_per_epoch,
-                                                          replacement=True)
-
-    val_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights_val,
-                                                        num_samples=validation_steps_per_epoch,
-                                                        replacement=True)
+    # train_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights_train,
+    #                                                       num_samples=training_steps_per_epoch,
+    #                                                       replacement=True)
+    #
+    # val_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights_val,
+    #                                                     num_samples=validation_steps_per_epoch,
+    #                                                     replacement=True)
 
     # Does this assume same order in weights as in data_set? --> Seems so!
     # replacement=True allows for oversampling and in exchange not showing all samples each epoch
@@ -182,67 +186,39 @@ def create_data_loaders(transform_f,
     # Training data loader
     train_data_loader = DataLoader(
         train_data_set,
-        sampler=train_weighted_random_sampler,
+        # sampler=train_weighted_random_sampler,
+        shuffle=True,  # remove this when using the random sampler
         batch_size=s_batch_size,
         drop_last=True,
         num_workers=s_num_workers_data_loader,
         pin_memory=True)
 
     # Validation data loader
-    if s_oversample_validation:
-        # ... with oversampling:
-        validation_data_loader = DataLoader(
-            train_data_set,
-            sampler=val_weighted_random_sampler,
-            batch_size=s_batch_size,
-            drop_last=True,
-            num_workers=s_num_workers_data_loader,
-            pin_memory=True)
-    else:
+    # if s_oversample_validation:
+    #     # ... with oversampling:
+    #     validation_data_loader = DataLoader(
+    #         train_data_set,
+    #         sampler=val_weighted_random_sampler,
+    #         batch_size=s_batch_size,
+    #         drop_last=True,
+    #         num_workers=s_num_workers_data_loader,
+    #         pin_memory=True)
+    # else:
         # ... without oversampling:
-        validation_data_loader = DataLoader(
-            validation_data_set,
-            batch_size=s_batch_size,
-            shuffle=False,
-            drop_last=True,
-            num_workers=s_num_workers_data_loader,
-            pin_memory=True)
+    validation_data_loader = DataLoader(
+        val_data_set,
+        batch_size=s_batch_size,
+        shuffle=True,
+        drop_last=True,
+        num_workers=s_num_workers_data_loader,
+        pin_memory=True)
 
     print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
                                                                                        len(validation_data_loader),
                                                                                        s_batch_size))
 
 
-    ####
-    #TODO: DEBUGGING ONLY, REMOVE THIS!
 
-    num_empty = 0
-    num_total = 0
-    for i, (input_sequence, target) in enumerate(validation_data_loader):
-        if num_total >= 1000:
-            break
-        target_inv_normalized = inverse_normalize_data(target, mean_filtered_log_data, std_filtered_log_data)
-        epsilon = 0.001
-        for batch_dim_idx in range(target.shape[0]):
-            num_total += 1
-            if (target_inv_normalized[batch_dim_idx, :, :] < epsilon).all():
-                num_empty += 1
-
-    print(f'Validation data loader during training loop: {num_empty} targets are empty out of a total of {num_total} targets')
-
-    num_empty = 0
-    num_total = 0
-    for i, (input_sequence, target) in enumerate(train_data_loader):
-        if num_total >= 1000:
-            break
-        target_inv_normalized = inverse_normalize_data(target, mean_filtered_log_data, std_filtered_log_data)
-        epsilon = 0.001
-        for batch_dim_idx in range(target.shape[0]):
-            num_total += 1
-            if (target_inv_normalized[batch_dim_idx, :, :] < epsilon).all():
-                num_empty += 1
-
-    print(f'train data loader during training loop: {num_empty} targets are empty out of a total of {num_total} targets')
 
     ######
 

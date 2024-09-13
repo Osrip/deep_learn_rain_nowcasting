@@ -18,7 +18,8 @@ class FilteredDatasetXr(Dataset):
 
     def __getitem__(self, idx):
         sample_coord = self.sample_coords[idx]
-        get_sample_from_coords(sample_coord, self.precipitation_data)
+        sample_values = get_sample_from_coords(sample_coord, self.precipitation_data)
+        return sample_values
 
 
 def get_sample_from_coords(
@@ -84,6 +85,14 @@ def create_and_filter_patches(
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
     data = xr.open_dataset(load_path, engine='zarr')
     data = data.squeeze()
+
+    # Set negative values to 0
+    # I realized that there are quite a few extremely tiny negative values in the data (WHY?), set those to zero
+    data_min = data.min(skipna=True, dim=None).RV_recalc.values
+    if data_min < -0.1:
+        raise ValueError(f'The min value of the data is {data_min}, which is below the threshold of -0.1')
+    data = data.where(data >= 0, 0)
+
     # Cut off the beginning  of the data as the time length, that one sample has (input frames + lead time + target)
     # as we will 'go back in time' to generate the inputs from the target patches
     data_shortened = data.isel(
@@ -123,7 +132,7 @@ def create_and_filter_patches(
     # (valid_patches_boo is boolean, np.nonzero returns the indecies of the pixels that are non-zero, thus True)
     # valid_target_indecies_outer = np.array(np.nonzero(valid_patches_boo.RV_recalc.values)).T
 
-    return patches, valid_patches_boo, data
+    return patches, valid_patches_boo, data, data_shortened
 
 
 def patch_indecies_to_sample_coords(
@@ -135,7 +144,8 @@ def patch_indecies_to_sample_coords(
 ) -> np.array(tuple):
     '''
     This functions converts the 'valid_target_indecies_outer' which give the outer indecies with respect to 'patches' to
-     global coordinates that refer to 'data' or 'data_shortened'
+     global coordinates that refer to 'data_shortened'
+     !valid_target_indecies_outer includes time and spatial indecies not coordinates!
 
     The datetime time index of the input and output indecies always refer to the target frame, which the filtering was done on!
 
