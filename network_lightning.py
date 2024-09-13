@@ -197,6 +197,7 @@ class NetworkL(pl.LightningModule):
         self.train_step_num += 1
         # Loading lognormalized input and target.
         input_sequence, target = batch
+        
 
         # Pre-process input and target
         # Convert target into one_hot binned target, all NaNs are assigned zero probabilities for all bins
