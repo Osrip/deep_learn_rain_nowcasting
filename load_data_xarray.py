@@ -193,10 +193,12 @@ def patch_indecies_to_sample_coords(
         input_slices = [time, y_slice_input, x_slice_input]
 
         # Check if the larger input exceeds size, if not append the patch indecies / slices to the list
-        if (y_slice_input.start < 0
+        if (
+                y_slice_input.start < 0
                 or y_slice_input.stop >= data_shortened.sizes['y']
                 or x_slice_input.start < 0
-                or x_slice_input.stop >= data_shortened.sizes['x']):
+                or x_slice_input.stop >= data_shortened.sizes['x']
+        ):
             num_inputs_exceeding_bounds += 1
             continue  # Skips the rest of the code in the current loop iteration if input frame exceeds dataset bounds
 
@@ -227,6 +229,7 @@ def patch_indecies_to_sample_coords(
 
 def split_training_validation(
         data: xr.core.groupby.DatasetGroupBy,
+
         s_ratio_training_data
 ) -> tuple(xr.Dataset, xr.Dataset):
     '''
@@ -280,5 +283,77 @@ def calc_statistics_on_valid_batches(
         std.RV_recalc.values,
         log_mean.RV_recalc.values,
         log_std.RV_recalc.values)
+
+
+def calc_linspace_binning(
+        data: xr.Dataset,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+
+        s_linspace_binning_cut_off_unnormalized,
+        **__,
+):
+    '''
+    Creates a linspace binning in normalized space of the data. The bin  values are also normalized.
+    Creates the vector that gives linspace binning
+    Only includes the left edges of the bins.
+    The
+    '''
+    # Calculate min and max for linspace_binning:
+    binning_max_unnormed = float(data.max(dim=None, skipna=True).RV_recalc.values)
+    binning_min_unnormed = float(data.min(dim=None, skipna=True).RV_recalc.values)
+
+    if binning_min_unnormed != 0.0:
+        raise ValueError(f'Min of precipitation data is {binning_min_unnormed} and thus below 0')
+
+    if binning_max_unnormed < s_linspace_binning_cut_off_unnormalized:
+        raise ValueError(
+            f's_linspace_binning_cut_off_unnormalized is larger than the max value of the training data:,'
+            f'{binning_max_unnormed} please choose a cut-off that is larger than that'
+        )
+        binning_max_unnormed = s_linspace_binning_cut_off_unnormalized
+
+    # Normalize linspace binning thresholds now that data is available
+    linspace_binning_min_normed = normalize_data(
+        binning_min_unnormed,
+        mean_filtered_log_data,
+        std_filtered_log_data
+    )
+
+    linspace_binning_max_normed = normalize_data(
+        binning_max_unnormed,
+        mean_filtered_log_data,
+        std_filtered_log_data
+    )
+
+    linspace_binning_cut_off_normed = normalize_data(
+        s_linspace_binning_cut_off_unnormalized,
+        mean_filtered_log_data,
+        std_filtered_log_data
+    )
+
+    # Subtract a small number to account for rounding errors made in the normalization process
+    linspace_binning_min_normed -= 0.001
+    linspace_binning_max_normed += 0.001
+
+    # linspace_binning only includes left bin edges. The rightmost bin egde is given by linspace binning max
+    # This is used when there is cut off happening for the last bin  but the linspace binning is uniformly
+    # distributed between the bounds of the data:
+
+    linspace_binning = np.linspace(
+        linspace_binning_min_normed,
+        linspace_binning_cut_off_normed,
+        num=s_num_bins_crossentropy,
+        endpoint=True
+    )  # In this case endpoint=True to get the cut-off as left bound of last bin
+
+    # linspace_binning = np.linspace(linspace_binning_min_normed, linspace_binning_max_normed, num=s_num_bins_crossentropy,
+    #                                endpoint=False)
+
+
+    return linspace_binning_min, linspace_binning_max, linspace_binning
+
+
+
 
 

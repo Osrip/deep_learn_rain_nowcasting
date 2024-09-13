@@ -100,10 +100,8 @@ def plot_from_checkpoint(
     if 's_crps_loss' not in settings.keys():
         settings['s_crps_loss'] = False
 
-    if settings['s_log_transform']:
-        transform_f = lambda x: np.log1p(x) if isinstance(x, np.ndarray) else torch.log1p(x + 1)
-    else:
-        transform_f = lambda x: x
+    transform_f = lambda x: np.log1p(x) if isinstance(x, np.ndarray) else torch.log1p(x + 1)
+
 
     model = load_from_checkpoint(ps_runs_path, checkpoint_name, settings, **plot_settings)
     model.freeze()

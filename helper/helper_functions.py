@@ -76,13 +76,10 @@ def save_project_code(save_folder):
         save_code(save_folder, file)
 
 
-def create_save_name_for_data_loader_vars(s_folder_path, s_log_transform, s_normalize, s_local_machine_mode,
+def create_save_name_for_data_loader_vars(s_folder_path, s_normalize, s_local_machine_mode,
                                           s_save_prefix_data_loader_vars, s_num_bins_crossentropy, s_linspace_binning_cut_off_unnormalized,
                                           s_width_height, **__):
-    if s_log_transform:
-        log_transform_str = 'log_transform'
-    else:
-        log_transform_str = 'no_log_transform'
+
 
     if s_normalize:
         normalize_str = 'normalize'

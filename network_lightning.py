@@ -16,58 +16,39 @@ from pysteps import verification
 
 
 class NetworkL(pl.LightningModule):
-    def __init__(self, linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict,
-                 settings, device, s_num_input_time_steps, s_num_bins_crossentropy,
-                 s_learning_rate, s_width_height_target, s_max_epochs,
-                 s_gaussian_smoothing_target, s_schedule_sigma_smoothing, s_sigma_target_smoothing,
-                 s_lr_schedule, s_convnext, s_crps_loss,
-                 training_steps_per_epoch=None, filter_and_normalization_params=None,
-                 class_count_target=None, training_mode=True, **__):
+    def __init__(
+            self,
+            linspace_binning_params,
+            sigma_schedule_mapping,
+            data_set_statistics_dict,
+
+            settings,
+            device,
+            s_num_input_time_steps,
+            s_num_bins_crossentropy,
+            s_learning_rate,
+            s_width_height_target,
+            s_max_epochs,
+            s_gaussian_smoothing_target,
+            s_schedule_sigma_smoothing,
+            s_sigma_target_smoothing,
+            s_lr_schedule,
+            s_convnext,
+            s_crps_loss,
+            training_steps_per_epoch=None,
+            **__):
         '''
-        Both data_set_statistics_dict and  sigma_schedule_mapping and class_count_target can be None if no training, but only forward pass is
-        performed (for checkpoint loading)
+        Both data_set_statistics_dict and  sigma_schedule_mapping  can be None if no training,
+        but only forward pass is performed (for checkpoint loading)
         Set training_mode to False for forward pass, when the upper variables are not available during initilization
         '''
 
         super().__init__()
 
-        # Set up loss function
-        # if training_mode:
-        if s_crps_loss and filter_and_normalization_params is None:
-            raise ValueError('When using CRPS loss mean_filtered_log_data and std_filtered_log_data have to be passed to Network_l')
-
-        if s_crps_loss:
-            # Extract and inverse normalize linspace_binning_params:
-            _, mean_filtered_log_data, std_filtered_log_data, _, _, _, _ = filter_and_normalization_params
-
-            linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
-            linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
-                                                                                                linspace_binning_max,
-                                                                                                mean_filtered_log_data,
-                                                                                                std_filtered_log_data)
-
-            self.loss_func = lambda pred, target: torch.mean(crps_vectorized(pred, target,
-                                                                  linspace_binning_inv_norm,
-                                                                  linspace_binning_max_inv_norm,
-                                                                             device))
-
-        else:
-            # self.loss_func = nn.KLDivLoss()
-            self.loss_func = nn.CrossEntropyLoss()
-
-        if s_convnext:
-            self.model = ConvNeXtUNet(
-                c_list=[4, 32, 64, 128, 256],
-                spatial_factor_list=[2, 2, 2, 2],
-                num_blocks_list=[2, 2, 2, 2],
-                c_target=s_num_bins_crossentropy,
-                height_width_target=s_width_height_target
-            )
-        else:
-            self.model = Network(c_in=s_num_input_time_steps, **settings)
-
         self.val_step_num = 0
-        self.train_step_num = 0  # TODO This does not exactly correspond to the number of batches processed: https://wandb.ai/cognitive_modeling/lightning_logs/runs/5g7hgn02/workspace?nw=nwuserosrip
+        self.train_step_num = 0
+        # TODO This does not exactly correspond to the number of batches processed:
+        #  https://wandb.ai/cognitive_modeling/lightning_logs/runs/5g7hgn02/workspace?nw=nwuserosrip
 
         self.sum_val_loss = 0
         self.sum_val_loss_squared = 0
@@ -123,6 +104,42 @@ class NetworkL(pl.LightningModule):
         # This saves the hyperparameters such that they are loaded by Network_l.load_from_checkpoint() directly
         # without having to reinitialze, see https://github.com/Lightning-AI/pytorch-lightning/issues/4390
         self.save_hyperparameters()
+
+
+        # Set up loss function
+        # if training_mode:
+        if s_crps_loss and filter_and_normalization_params is None:
+            raise ValueError('When using CRPS loss mean_filtered_log_data and std_filtered_log_data have to be passed to Network_l')
+
+        if s_crps_loss:
+            # Extract and inverse normalize linspace_binning_params:
+            _, mean_filtered_log_data, std_filtered_log_data, _, _, _, _ = filter_and_normalization_params
+
+            linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
+            linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
+                                                                                                linspace_binning_max,
+                                                                                                mean_filtered_log_data,
+                                                                                                std_filtered_log_data)
+
+            self.loss_func = lambda pred, target: torch.mean(crps_vectorized(pred, target,
+                                                                  linspace_binning_inv_norm,
+                                                                  linspace_binning_max_inv_norm,
+                                                                             device))
+
+        else:
+            self.loss_func = nn.CrossEntropyLoss()
+
+        if s_convnext:
+            self.model = ConvNeXtUNet(
+                c_list=[4, 32, 64, 128, 256],
+                spatial_factor_list=[2, 2, 2, 2],
+                num_blocks_list=[2, 2, 2, 2],
+                c_target=s_num_bins_crossentropy,
+                height_width_target=s_width_height_target
+            )
+        else:
+            self.model = Network(c_in=s_num_input_time_steps, **settings)
+
 
     def forward(self, x):
         output = self.model(x)
@@ -197,7 +214,6 @@ class NetworkL(pl.LightningModule):
         self.train_step_num += 1
         # Loading lognormalized input and target.
         input_sequence, target = batch
-        
 
         # Pre-process input and target
         # Convert target into one_hot binned target, all NaNs are assigned zero probabilities for all bins
@@ -223,11 +239,12 @@ class NetworkL(pl.LightningModule):
         # returned dict has to include 'loss' entry for automatic backward optimization
         # Multiple entries can be added to the dict, which can be found in 'outputs' of the callback on_train_batch_end()
         # which is currently used by logger.py
-        return {'loss': loss, 'pred': pred, 'target': target, 'target_binned': target_binned}
-        # Loss cannot be NaN
-        # Pred is inherently not NaN
-        # TARGET HAS NANs
-        # In target binned for all values that have been NaNs in target simply all bins have been set to zero
+        return {
+            'loss': loss,  # Loss cannot be NaN
+            'pred': pred,  # Pred is inherently not NaN
+            'target': target,  # Target can have NaNs (depending on filter condition in pre-processing)
+            'target_binned': target_binned  # In target binned for all values that have been NaNs in target simply all bins have been set to zero
+        }
 
     def validation_step(self, val_batch, batch_idx):
         self.val_step_num += 1

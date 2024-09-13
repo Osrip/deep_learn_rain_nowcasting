@@ -7,11 +7,14 @@ import torchvision.transforms as T
 from network_lightning import NetworkL
 import datetime
 from load_data import PrecipitationFilteredDataset, filtering_data_scraper, random_splitting_filtered_indecies, calc_class_frequencies, class_weights_per_sample
-from load_data_xarray import (create_and_filter_patches,
-                              split_training_validation,
-                              calc_statistics_on_valid_batches,
-                              patch_indecies_to_sample_coords,
-                              FilteredDatasetXr)
+from load_data_xarray import (
+    create_and_filter_patches,
+    split_training_validation,
+    calc_statistics_on_valid_batches,
+    patch_indecies_to_sample_coords,
+    calc_linspace_binning,
+    FilteredDatasetXr,
+)
 from helper.pre_process_target_input import normalize_data, invnorm_linspace_binning, inverse_normalize_data
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
@@ -27,7 +30,6 @@ from logger import (ValidationLogsCallback,
                     BaselineValidationLogsCallback,
                     create_loggers)
 from baselines import LKBaseline
-import mlflow
 from plotting.plotting_pipeline import plot_logs_pipeline
 from plotting.calc_and_plot_from_checkpoint import plot_from_checkpoint_wrapper
 from helper.sigma_scheduler_helper import create_scheduler_mapping
@@ -38,14 +40,16 @@ from tests.test_basic_functions import test_all
 from pytorch_lightning.loggers import WandbLogger
 
 
-def data_loading(settings, s_force_data_preprocessing, **__):
-
-    if settings['s_log_transform']:
-        transform_f = lambda x: torch.log1p(x) if isinstance(x, torch.Tensor) else np.log1p(x)
-    else:
-        transform_f = lambda x: x
-    # Try to load data loader vars, if not possible preprocess data
-    # If structure of data_loader_vars is changed, change name in _create_save_name_for_data_loader_vars,
+def data_loading(
+        settings,
+        s_force_data_preprocessing,
+        **__
+):
+    '''
+    This tries to load data loader vars, if not possible preprocess data
+    If structure of data_loader_vars is changed, automatically changes name in _create_save_name_for_data_loader_vars
+    (not super reliable, otherwise manually change prefix)
+    '''
 
     try:
         # When loading data loader vars, the file name is checked for whether log transform was used
@@ -55,13 +59,49 @@ def data_loading(settings, s_force_data_preprocessing, **__):
         file_name_data_loader_vars = create_save_name_for_data_loader_vars(**settings)
         print(f'Loading data loader vars from file {file_name_data_loader_vars}')
         data_loader_vars = load_data_loader_vars(settings, **settings)
+
+        (
+            train_sample_coords,
+            val_sample_coords,
+            data_set_statistics_dict,
+            linspace_binning_params
+        ) = data_loader_vars
+
     except FileNotFoundError:
         print('Data loader vars not found, preprocessing data!')
-        data_loader_vars = preprocess_data(transform_f, settings, **settings)
+
+        (train_sample_coords, val_sample_coords,
+        data_set_statistics_dict,
+        linspace_binning_params) = preprocess_data(settings, **settings)
+
+        data_loader_vars = (
+            train_sample_coords,
+            val_sample_coords,
+            data_set_statistics_dict,
+            linspace_binning_params
+        )
+
         save_data_loader_vars(data_loader_vars, settings, **settings)
 
-    data_set_vars = create_data_loaders(transform_f, *data_loader_vars, settings,  **settings)
-    return data_set_vars
+    (
+        train_data_loader,
+        validation_data_loader,
+        training_steps_per_epoch,
+        validation_steps_per_epoch
+    ) = create_data_loaders(
+        train_sample_coords,
+        val_sample_coords,
+        settings,
+        **settings)
+
+    # This has the same order as input in train_wrapper
+    return (
+        train_data_loader, validation_data_loader,
+        training_steps_per_epoch, validation_steps_per_epoch,
+        train_sample_coords, val_sample_coords,
+        data_set_statistics_dict,
+        linspace_binning_params,
+    )
 
 
 def preprocess_data(
@@ -70,7 +110,8 @@ def preprocess_data(
         s_width_height,
         s_input_padding,
         s_ratio_training_data,
-        **__):
+        **__
+):
     '''
     Patches refer to targets
     Samples refer to the data delivered by data loader
@@ -83,28 +124,41 @@ def preprocess_data(
     # --- PATCH AND FILTER ---
     # Patch data into patches of the target size and filter these patches. Patches that passed filter are called 'valid'
 
-    (patches,
-     # patches: xr.Dataset Patch dimensions y_outer, x_outer give one coordinate pair for each patch,
-     # y_inner, x_inner give pixel dimensions for each patch
-     valid_patches_boo,
-     # valid_patches_boo: Boolean xr.Dataset with y_outer and y_inner defines the valid patches
-     data,
-     # data: The unpatched data that has global pixel coordinates,
-     data_shortened,
-     # data_shortened: same as data, but beginning is missing (lead_time + num input frames) such that we can go
-     # 'back in time' to go fram target time to input time.
+    (
+        patches,
+        # patches: xr.Dataset Patch dimensions y_outer, x_outer give one coordinate pair for each patch,
+        # y_inner, x_inner give pixel dimensions for each patch
+        valid_patches_boo,
+        # valid_patches_boo: Boolean xr.Dataset with y_outer and y_inner defines the valid patches
+        data,
+        # data: The unpatched data that has global pixel coordinates,
+        data_shortened,
+        # data_shortened: same as data, but beginning is missing (lead_time + num input frames) such that we can go
+        # 'back in time' to go fram target time to input time.
      ) = create_and_filter_patches(
         y_target,
         x_target,
-        **settings)
+        **settings
+    )
 
     # --- CALC NORMALIZATION STATISTICS ---
-    _, _, log_mean, log_std = calc_statistics_on_valid_batches(patches, valid_patches_boo)
+    _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_batches(patches, valid_patches_boo)
+
+    data_set_statistics_dict = {
+        'mean_filtered_log_data': mean_filtered_log_data,
+        'std_filtered_log_data': std_filtered_log_data
+    }
 
     # --- SPLIT DATA ---
     # TODO: Change this to '1D' for daily splitting!:
     resampled_valid_patches_boo = valid_patches_boo.resample(time='1h')
-    train_valid_patches_boo, val_valid_patches_boo = split_training_validation(resampled_valid_patches_boo, s_ratio_training_data)
+    (
+        train_valid_patches_boo,
+        val_valid_patches_boo
+    ) = split_training_validation(
+        resampled_valid_patches_boo,
+        s_ratio_training_data
+    )
 
     # --- INDEX CONVERSION from patch to sample ---
     #  outer coordinates (define patches in 'patches')
@@ -113,17 +167,19 @@ def preprocess_data(
 
     # 1. We convert the outer coordinates that define the valid patches to indecies with respect to 'patches'
     # !The spacial and time indecies refer to data_shortened!
+
     train_valid_target_indecies_outer = np.array(np.nonzero(train_valid_patches_boo.RV_recalc.values)).T
     val_valid_target_indecies_outer = np.array(np.nonzero(val_valid_patches_boo.RV_recalc.values)).T
 
     # 2. We scale up the patches from target size to input + augmentation size (which is why we need the pixel indecies
     # created in 1.) and return the sample coordiantes together with the time coordinate of the target frame for the sample
+
     train_sample_coords = patch_indecies_to_sample_coords(
         data_shortened,
         train_valid_target_indecies_outer,
         y_target, x_target,
         y_input, x_input,
-        y_input_padding, x_input_padding
+        y_input_padding, x_input_padding,
     )
 
     val_sample_coords = patch_indecies_to_sample_coords(
@@ -134,26 +190,38 @@ def preprocess_data(
         y_input_padding, x_input_padding,
     )
 
-    # Calculate min and max for linspace_binning:
-    linspace_binning_max = float(data.max(dim=None, skipna=True).RV_recalc.values)
-    linspace_binning_min = float(data.min(dim=None, skipna=True).RV_recalc.values)
-    if linspace_binning_min != 0.0:
-        raise ValueError(f'Min of precipitation data is {linspace_binning_min} and thus below 0')
+    # --- CREATE LINSPACE BINNING ---
+
+    linspace_binning_min, linspace_binning_max, linspace_binning = calc_linspace_binning(
+        data,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        settings['s_linspace_binning_cut_off_unnormalized']
+    )
+    linspace_binning_params = linspace_binning_min, linspace_binning_max, linspace_binning
 
 
-    return train_sample_coords, val_sample_coords, log_mean, log_std, linspace_binning_max, linspace_binning_min
+    #TODO # --- Sample weighting / Class count for random sampler ---
+
+    return (
+        train_sample_coords,
+        val_sample_coords,
+        data_set_statistics_dict,
+        linspace_binning_params
+    )
 
 
 def create_data_loaders(
         train_sample_coords,
         val_sample_coords,
+
         settings,
         s_batch_size,
         s_num_workers_data_loader,
-        **__):
+        **__
+):
     '''
     Creates data loaders for training and validation data
-    The args have to have the same order as in the function preprocess_data()
     '''
 
     # TODO: RETURN filtered indecies instead of data set
@@ -191,7 +259,8 @@ def create_data_loaders(
         batch_size=s_batch_size,
         drop_last=True,
         num_workers=s_num_workers_data_loader,
-        pin_memory=True)
+        pin_memory=True
+    )
 
     # Validation data loader
     # if s_oversample_validation:
@@ -217,22 +286,7 @@ def create_data_loaders(
                                                                                        len(validation_data_loader),
                                                                                        s_batch_size))
 
-
-
-
-    ######
-
-    linspace_binning_params = (linspace_binning_min, linspace_binning_max, linspace_binning)
-    # tODO: RETURN filtered indecies instead of data set
-    # This has to have the same order as train_wrapper()
-    return (train_data_loader, validation_data_loader,
-            filtered_indecies_training, filtered_indecies_validation,
-            linspace_binning_params,
-            filter_and_normalization_params,
-            training_steps_per_epoch,
-            data_set_statistics_dict,
-            class_count_target_train)
-    # training_steps_per_epoch only needed for lr_schedule_plotting
+    return train_data_loader, validation_data_loader, training_steps_per_epoch, validation_steps_per_epoch
 
 
 def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_type_list, mean_filtered_log_data_list,
@@ -242,7 +296,6 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
     data_loader_list, logs_callback_list, logger_list, logging_type_list have to be in according order
     logging_type depending on data loader either: 'train' or 'val'
     '''
-
 
     for data_loader, logs_callback, logger, logging_type, mean_filtered_log_data, std_filtered_log_data in \
             zip(data_loader_list, logs_callback_list, logger_list, logging_type_list, mean_filtered_log_data_list,
@@ -258,51 +311,30 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
         trainer.validate(lk_baseline, data_loader)
 
 
-def train_wrapper(
-        train_data_loader, validation_data_loader,
-        filtered_indecies_training, filtered_indecies_validation,
-        linspace_binning_params,
-        filer_and_normalization_params,
-        training_steps_per_epoch,
+def save_data(
         data_set_statistics_dict,
-        class_count_target,
+        train_sample_coords,
+        val_sample_coords,
+        linspace_binning_params,
+        training_steps_per_epoch,
+        sigma_schedule_mapping,
         settings,
-        s_dirs, s_profiling, s_max_epochs, s_num_gpus, s_sim_name,
-        s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
-        s_check_val_every_n_epoch, s_calc_baseline, **__):
-    """
-    All the junk surrounding train_l() goes in here
-    Please keep intput arguments in the same order as the output of create_data_loaders()
-    """
+        s_dirs,
+        **__,
+):
+    save_dict_pickle_csv('{}/data_set_statistics_dict'.format(s_dirs['data_dir']), data_set_statistics_dict)
+    save_zipped_pickle('{}/train_sample_coords'.format(s_dirs['data_dir']), train_sample_coords)
+    save_zipped_pickle('{}/val_sample_coords'.format(s_dirs['data_dir']), val_sample_coords)
 
-    train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)
-
-    save_dict_pickle_csv('{}/settings'.format(s_dirs['data_dir']), settings)
-
-    save_project_code(s_dirs['code_dir'])
-
-    checkpoint_callback = pl.callbacks.ModelCheckpoint(dirpath=s_dirs['model_dir'],
-                                                       monitor='val_mean_loss',
-                                                       filename='model_{epoch:04d}_{val_mean_loss:.2f}',
-                                                       save_top_k=1,
-                                                       save_last=True)
-    # save_top_k=-1, prevents callback from overwriting previous checkpoints
-
-    if s_profiling:
-        profiler = PyTorchProfiler(dirpath=s_dirs['profile_dir'], export_to_chrome=True)
-    else:
-        profiler = None
-
-    save_dict_pickle_csv('{}/data_set_statistcis_dict'.format(s_dirs['data_dir']), data_set_statistics_dict)
-    save_zipped_pickle('{}/filtered_indecies_training'.format(s_dirs['data_dir']), filtered_indecies_training)
-    save_zipped_pickle('{}/filtered_indecies_validation'.format(s_dirs['data_dir']), filtered_indecies_validation)
-    save_zipped_pickle('{}/filter_and_normalization_params'.format(s_dirs['data_dir']), filer_and_normalization_params)
+    mean_filtered_log_data, std_filtered_log_data = data_set_statistics_dict[
+        'mean_filtered_log_data',
+        'std_filtered_log_data'
+    ]
 
     # Save linspace binning  params
     save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')
     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
-    _, mean_filtered_log_data, std_filtered_log_data, _, _, _, _ = filer_and_normalization_params
     linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
                                                                                         linspace_binning_max,
                                                                                         mean_filtered_log_data,
@@ -319,18 +351,58 @@ def train_wrapper(
         s_dirs['data_dir'],
         'linspace_binning_params_inv_norm')
 
+    save_dict_pickle_csv('{}/settings'.format(s_dirs['data_dir']), settings)
 
-    # eNABLE MLFLOW LOGGING HERE!
-    # logger = MLFlowLogger(experiment_name="Default", tracking_uri="file:./mlruns", run_name=s_sim_name, # tags={"mlflow.runName": settings['s_sim_name']},
-    #                       log_model=False)
+    # Save sigma scheduler and training steps per epoch for s_only_plotting
+    save_zipped_pickle('{}/training_steps_per_epoch'.format(s_dirs['data_dir']), training_steps_per_epoch)
+    save_zipped_pickle('{}/sigma_schedule_mapping'.format(s_dirs['data_dir']), sigma_schedule_mapping)
+
+def train_wrapper(
+        train_data_loader, validation_data_loader,
+        training_steps_per_epoch, validation_steps_per_epoch,
+        train_sample_coords, val_sample_coords,
+        data_set_statistics_dict,
+        linspace_binning_params,
+
+        settings,
+        s_dirs, s_profiling, s_max_epochs, s_sim_name,
+        s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
+        s_calc_baseline, **__
+):
+    """
+    All the junk surrounding train_l() goes in here
+    Please keep intput arguments in the same order as the output of create_data_loaders()
+    """
+
+
+
+    train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)
+
+    # This is used to save checkpoints of the model
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(
+        dirpath=s_dirs['model_dir'],
+        monitor='val_mean_loss',
+        filename='model_{epoch:04d}_{val_mean_loss:.2f}',
+        save_top_k=1,
+        save_last=True
+    )
+    # save_top_k=-1, prevents callback from overwriting previous checkpoints
+
+    if s_profiling:
+        profiler = PyTorchProfiler(dirpath=s_dirs['profile_dir'], export_to_chrome=True)
+    else:
+        profiler = None
+
     # Increase time out for weights and biases to prevent time out on galavani
     os.environ["WANDB__SERVICE_WAIT"] = "600"
     logger = WandbLogger(name=s_sim_name)
     # logger = None
 
-    callback_list = [checkpoint_callback,
-                     TrainingLogsCallback(train_logger),
-                     ValidationLogsCallback(val_logger)]
+    callback_list = [
+        checkpoint_callback,
+        TrainingLogsCallback(train_logger),
+        ValidationLogsCallback(val_logger)
+    ]
 
     if s_gaussian_smoothing_target and s_schedule_sigma_smoothing:
 
@@ -339,9 +411,23 @@ def train_wrapper(
     else:
         sigma_schedule_mapping, sigma_scheduler = (None, None)
 
+    save_data(
+        data_set_statistics_dict,
+        train_sample_coords,
+        val_sample_coords,
+        linspace_binning_params,
+        training_steps_per_epoch,
+        sigma_schedule_mapping,
+        settings,
+        s_dirs,
+        **__,
+    )
+
+    save_project_code(s_dirs['code_dir'])
+
     model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-                      data_set_statistics_dict, linspace_binning_params,sigma_schedule_mapping, filer_and_normalization_params,
-                      class_count_target, settings, **settings)
+                      data_set_statistics_dict, linspace_binning_params,sigma_schedule_mapping,
+                      settings, **settings)
 
     if s_calc_baseline:
         calc_baselines(**settings,
@@ -356,30 +442,37 @@ def train_wrapper(
                        settings=settings
                        )
 
-    # Save sigma scheduler and training steps per epoch for s_only_plotting
-    save_zipped_pickle('{}/training_steps_per_epoch'.format(s_dirs['data_dir']), training_steps_per_epoch)
-    save_zipped_pickle('{}/sigma_schedule_mapping'.format(s_dirs['data_dir']), sigma_schedule_mapping)
+
     # Network_l, training_steps_per_epoch is returned to be able to plot lr_scheduler
     return model_l, training_steps_per_epoch, sigma_schedule_mapping
 
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-            data_set_statistics_dict, linspace_binning_params, sigma_schedule_mapping, filter_and_normalization_params,
-            class_count_target, settings, s_max_epochs, s_num_gpus, s_check_val_every_n_epoch, s_convnext, **__):
+            data_set_statistics_dict, linspace_binning_params, sigma_schedule_mapping,
+            settings, s_max_epochs, s_num_gpus, s_check_val_every_n_epoch, s_convnext, **__):
     '''
     Train loop, keep this clean!
     '''
 
-    model_l = NetworkL(linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict,
-                       settings,
-                       training_steps_per_epoch=training_steps_per_epoch,
-                       filter_and_normalization_params=filter_and_normalization_params,
-                       class_count_target=class_count_target,
-                       **settings)
+    model_l = NetworkL(
+        linspace_binning_params,
+        sigma_schedule_mapping,
+        data_set_statistics_dict,
+        settings,
+        training_steps_per_epoch=training_steps_per_epoch,
+        **settings)
 
-    trainer = pl.Trainer(callbacks=callback_list, profiler=profiler, max_epochs=s_max_epochs, log_every_n_steps=1,
-                         logger=logger, devices=s_num_gpus, check_val_every_n_epoch=s_check_val_every_n_epoch,
-                         strategy='ddp', num_sanity_val_steps=0)
+    trainer = pl.Trainer(
+        callbacks=callback_list,
+        profiler=profiler,
+        max_epochs=s_max_epochs,
+        log_every_n_steps=1,
+        logger=logger,
+        devices=s_num_gpus,
+        check_val_every_n_epoch=s_check_val_every_n_epoch,
+        strategy='ddp',
+        num_sanity_val_steps=0
+    )
     # num_sanity_val_steps=0 turns off validation sanity checking
      # precision='16-mixed'
     # 'devices' argument is ignored when device == 'cpu'
@@ -522,7 +615,6 @@ if __name__ == '__main__':
             's_epoch_repetitions_baseline': 1000,  # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
             # Log transform input/ validation data --> log binning --> log(x+1)
-            's_log_transform': True,  # False not tested, leave this true
             's_normalize': True,  # False not tested, leave this true
 
             's_testing': True,  # Runs tests before starting training
@@ -571,9 +663,10 @@ if __name__ == '__main__':
         test_all()
 
     if not settings['s_plotting_only']:
-        # Normal training
+        # --- Normal training ---
         data_set_vars = data_loading(settings, **settings)
-        model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(*data_set_vars, settings,
+        model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(*data_set_vars,
+                                                                                  settings,
                                                                                   **settings)
         plot_logs_pipeline(
             training_steps_per_epoch,
@@ -583,7 +676,7 @@ if __name__ == '__main__':
         plot_from_checkpoint_wrapper(settings, **settings)
 
     else:
-        # Plotting only
+        # --- Plotting only ---
         load_dirs = create_s_dirs(settings['s_plot_sim_name'], settings['s_local_machine_mode'])
         training_steps_per_epoch = load_zipped_pickle('{}/training_steps_per_epoch'.format(load_dirs['data_dir']))
         sigma_schedule_mapping = load_zipped_pickle('{}/sigma_schedule_mapping'.format(load_dirs['data_dir']))

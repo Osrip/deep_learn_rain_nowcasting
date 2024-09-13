@@ -36,10 +36,9 @@ from pytorch_lightning.loggers import WandbLogger
 
 def data_loading(settings, s_force_data_preprocessing, **__):
 
-    if settings['s_log_transform']:
-        transform_f = lambda x: torch.log1p(x) if isinstance(x, torch.Tensor) else np.log1p(x)
-    else:
-        transform_f = lambda x: x
+
+    transform_f = lambda x: torch.log1p(x) if isinstance(x, torch.Tensor) else np.log1p(x)
+
     # Try to load data loader vars, if not possible preprocess data
     # If structure of data_loader_vars is changed, change name in _create_save_name_for_data_loader_vars,
 
@@ -91,7 +90,7 @@ def preprocess_data(transform_f, settings, s_ratio_training_data, s_normalize, s
     # LINSPACE BINNING
 
     if linspace_binning_max_unnormalized < s_linspace_binning_cut_off_unnormalized:
-        warnings.warn(f's_linspace_binning_cut_off_unnormalized is smaller than the max value of the training data:,'
+        warnings.warn(f's_linspace_binning_cut_off_unnormalized is larger than the max value of the training data:,'
                       f'{linspace_binning_max_unnormalized} please choose a cut-off that is larger than that')
         linspace_binning_max_unnormalized = s_linspace_binning_cut_off_unnormalized
 
@@ -252,8 +251,10 @@ def create_data_loaders(transform_f,
         **settings)
 
     # Zip up the mean and std of the logarithmic data in a dict (includes all data: training and validation)
-    data_set_statistics_dict = {'mean_filtered_log_data': mean_filtered_log_data,
-                                'std_filtered_log_data': std_filtered_log_data}
+    data_set_statistics_dict = {
+        'mean_filtered_log_data': mean_filtered_log_data,
+        'std_filtered_log_data': std_filtered_log_data
+    }
 
     training_steps_per_epoch = len(train_data_set)
     validation_steps_per_epoch = len(validation_data_set)
@@ -378,7 +379,6 @@ def train_wrapper(
         train_data_loader, validation_data_loader,
         filtered_indecies_training, filtered_indecies_validation,
         linspace_binning_params,
-        filer_and_normalization_params,
         training_steps_per_epoch,
         data_set_statistics_dict,
         class_count_target,
@@ -412,13 +412,16 @@ def train_wrapper(
     save_dict_pickle_csv('{}/data_set_statistcis_dict'.format(s_dirs['data_dir']), data_set_statistics_dict)
     save_zipped_pickle('{}/filtered_indecies_training'.format(s_dirs['data_dir']), filtered_indecies_training)
     save_zipped_pickle('{}/filtered_indecies_validation'.format(s_dirs['data_dir']), filtered_indecies_validation)
-    save_zipped_pickle('{}/filter_and_normalization_params'.format(s_dirs['data_dir']), filer_and_normalization_params)
+
+    mean_filtered_log_data, std_filtered_log_data = data_set_statistics_dict[
+        'mean_filtered_log_data',
+        'std_filtered_log_data'
+    ]
 
     # Save linspace binning  params
     save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')
     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
-    _, mean_filtered_log_data, std_filtered_log_data, _, _, _, _ = filer_and_normalization_params
     linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
                                                                                         linspace_binning_max,
                                                                                         mean_filtered_log_data,
@@ -456,7 +459,7 @@ def train_wrapper(
         sigma_schedule_mapping, sigma_scheduler = (None, None)
 
     model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-                      data_set_statistics_dict, linspace_binning_params,sigma_schedule_mapping, filer_and_normalization_params,
+                      data_set_statistics_dict, linspace_binning_params,sigma_schedule_mapping,
                       class_count_target, settings, **settings)
 
     if s_calc_baseline:
