@@ -11,9 +11,10 @@ from helper.sigma_scheduler_helper import bernstein_polynomial, linear_schedule_
 import torchvision.transforms as T
 import copy
 import einops
-from helper.pre_process_target_input import img_one_hot, inverse_normalize_data, invnorm_linspace_binning
+from helper.pre_process_target_input import img_one_hot, inverse_normalize_data, invnorm_linspace_binning, normalize_data
 from helper.pre_process_target_input import set_nans_zero, pre_process_target_to_one_hot
 from pysteps import verification
+from load_data_xarray import random_crop
 
 
 class NetworkL(pl.LightningModule):
@@ -112,6 +113,8 @@ class NetworkL(pl.LightningModule):
 
         else:
             self.loss_func = nn.CrossEntropyLoss()
+            # Yields the same result, when inputs are indecies instead of one-hot probabilities for x entropy
+            # loss = self.loss_func(pred, torch.argmax(target_binned, dim=1))
 
         # Initialize model
         if s_convnext:
@@ -185,10 +188,7 @@ class NetworkL(pl.LightningModule):
         input_sequence[nan_mask] = 0
         return input_sequence
 
-    def dlbd_target_pre_processing(
-            self,
-            extended_target_binned: torch.Tensor,
-    ) -> torch.Tensor:
+    def dlbd_target_pre_processing(self, extended_target_binned: torch.Tensor) -> torch.Tensor:
         '''
         Fast on-the-fly pre-processing of target in training/validation loop for DLBD
         This requires one-hot target that has been pre-precessed by pre_process_target() method
@@ -209,24 +209,23 @@ class NetworkL(pl.LightningModule):
                                                   kernel_size=128)
         return target_binned
 
-
-    def augment(self, spacetime_batches: torch.Tensor):
-        '''
-        Doing a random crop
-        '''
-        random_crop = transforms.RandomCrop(size=(256, 256))
-        spacetime_batches_cropped = random_crop(spacetime_batches)
-
-        return spacetime_batches_cropped
-
-
     def training_step(self, spacetime_batches, batch_idx):
 
         s_gaussian_smoothing_target = self.settings['s_gaussian_smoothing_target']
+        s_width_height_target = self.settings['s_width_height_target']
 
         self.train_step_num += 1
-        # Loading lognormalized input and target.
-        input_sequence, target = spacetime_batches
+
+        # We start out with a whole unnormalized batched spacetime tensor (b x t x h x w) which has spacial dimensions of the
+        # input and time-wise starts with the first input sequence and ends on the target sequence
+
+        # Augment data
+        spacetime_batches = random_crop(spacetime_batches, **self.settings)
+        # Normalize data
+        spacetime_batches = normalize_data(spacetime_batches, self.mean_filtered_log_data, self.std_filtered_log_data)
+        # Extract target and input
+        target = spacetime_batches[:, -1, :, :]
+        input_sequence = spacetime_batches[:, 0:4, :, :]
 
         # Pre-process input and target
         # Convert target into one_hot binned target, all NaNs are assigned zero probabilities for all bins
@@ -237,6 +236,11 @@ class NetworkL(pl.LightningModule):
         if s_gaussian_smoothing_target:
             target_binned = self.dlbd_target_pre_processing(target_binned)
 
+        # Center crop target to correct size
+        center_crop_target = transforms.CenterCrop(s_width_height_target)
+        target_binned = center_crop_target(target_binned)
+        target = center_crop_target(target)
+
         input_sequence = input_sequence.float()
         target_binned = target_binned.float()
 
@@ -246,8 +250,6 @@ class NetworkL(pl.LightningModule):
             raise ValueError('NAN in prediction (also leading to nan in loss)')
 
         loss = self.loss_func(pred, target_binned)
-        # Yields the same result, when inputs are indecies instead of one-hot probabilities for x entropy
-        # loss = self.loss_func(pred, torch.argmax(target_binned, dim=1))
 
         # returned dict has to include 'loss' entry for automatic backward optimization
         # Multiple entries can be added to the dict, which can be found in 'outputs' of the callback on_train_batch_end()

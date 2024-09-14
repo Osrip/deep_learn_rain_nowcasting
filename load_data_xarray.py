@@ -4,7 +4,8 @@ from xarray.core.groupby import DatasetGroupBy
 import random
 from torch.utils.data import Dataset
 from helper.pre_process_target_input import normalize_data
-
+import torch
+from torchvision import transforms
 
 
 class FilteredDatasetXr(Dataset):
@@ -86,6 +87,16 @@ def get_sample_from_coords(
     if not np.shape(sample_values)[0] == num_input_frames + lead_time + 1:
         raise ValueError('The time dim of the sample values is not as expected, check the slicing')
     return sample_values
+
+
+def random_crop(spacetime_batches: torch.Tensor, s_width_height, **__):
+    '''
+    Doing a random crop
+    '''
+    random_crop = transforms.RandomCrop(size=(s_width_height, s_width_height))
+    spacetime_batches_cropped = random_crop(spacetime_batches)
+
+    return spacetime_batches_cropped
 
 
 def create_and_filter_patches(
@@ -299,10 +310,10 @@ def calc_statistics_on_valid_batches(
     log_std = only_filtered_data_log.std(dim=None, skipna=True)
 
     return (
-        mean.RV_recalc.values,
-        std.RV_recalc.values,
-        log_mean.RV_recalc.values,
-        log_std.RV_recalc.values
+        float(mean.RV_recalc.values),
+        float(std.RV_recalc.values),
+        float(log_mean.RV_recalc.values),
+        float(log_std.RV_recalc.values)
     )
 
 

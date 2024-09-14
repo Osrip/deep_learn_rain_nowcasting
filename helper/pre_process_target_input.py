@@ -90,6 +90,8 @@ def normalize_data(data, log_mean, log_std):
     log_mean and log_std are 1st and 2nd moments from the log data
     Can handle torch and np data
     '''
+    log_mean = float(log_mean)
+    log_std = float(log_std)
     if isinstance(data, torch.Tensor):
         return (torch.log1p(data) - log_mean) / log_std
     else:

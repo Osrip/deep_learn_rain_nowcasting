@@ -314,7 +314,17 @@ class ConvNeXtUNet(nn.Module):
             downscalings = number of upscalings
     Just like in the paper the skip connections are applied right before the down sampling
     As of now we also implement a skip connection right from input to output (unlike paper)
+
+    Example usage:
+                self.model = ConvNeXtUNet(
+                c_list=[4, 32, 64, 128, 256],
+                spatial_factor_list=[2, 2, 2, 2],
+                num_blocks_list=[2, 2, 2, 2],
+                c_target=s_num_bins_crossentropy,
+                height_width_target=s_width_height_target
+            )
     """
+    # TODO: Initialize the skip connections to 0 for performance gain!!
     def __init__(self,
                  c_list: list[int],
                  spatial_factor_list: list[int],
