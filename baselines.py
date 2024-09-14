@@ -141,7 +141,6 @@ class LKBaseline(pl.LightningModule):
             # [batch, ensemble_member, w, h]
             return precip_forecast[:, :, -1, :, :], motion_field, precip_forecast
 
-
     def validation_step(self, val_batch, batch_idx):
         input_sequence, target = val_batch
 

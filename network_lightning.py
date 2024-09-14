@@ -209,23 +209,21 @@ class NetworkL(pl.LightningModule):
                                                   kernel_size=128)
         return target_binned
 
-    def training_step(self, spacetime_batches, batch_idx):
-
+    def train_and_val_step(self, spacetime_batch, batch_idx):
         s_gaussian_smoothing_target = self.settings['s_gaussian_smoothing_target']
         s_width_height_target = self.settings['s_width_height_target']
 
-        self.train_step_num += 1
 
         # We start out with a whole unnormalized batched spacetime tensor (b x t x h x w) which has spacial dimensions of the
-        # input and time-wise starts with the first input sequence and ends on the target sequence
+        # input + augmentation padding and time-wise starts with the first input sequence and ends on the target sequence
 
         # Augment data
-        spacetime_batches = random_crop(spacetime_batches, **self.settings)
+        spacetime_batch = random_crop(spacetime_batch, **self.settings)
         # Normalize data
-        spacetime_batches = normalize_data(spacetime_batches, self.mean_filtered_log_data, self.std_filtered_log_data)
+        spacetime_batch = normalize_data(spacetime_batch, self.mean_filtered_log_data, self.std_filtered_log_data)
         # Extract target and input
-        target = spacetime_batches[:, -1, :, :]
-        input_sequence = spacetime_batches[:, 0:4, :, :]
+        target = spacetime_batch[:, -1, :, :]
+        input_sequence = spacetime_batch[:, 0:4, :, :]
 
         # Pre-process input and target
         # Convert target into one_hot binned target, all NaNs are assigned zero probabilities for all bins
@@ -261,34 +259,12 @@ class NetworkL(pl.LightningModule):
             'target_binned': target_binned  # In target binned for all values that have been NaNs in target simply all bins have been set to zero
         }
 
-    def validation_step(self, val_batch, batch_idx):
-        s_gaussian_smoothing_target = self.settings['s_gaussian_smoothing_target']
+    def training_step(self, spacetime_batch, batch_idx):
+        self.train_step_num += 1
+        out_dict = self.train_and_val_step(spacetime_batch, batch_idx)
+        return out_dict
 
+    def validation_step(self, spacetime_batch, batch_idx):
         self.val_step_num += 1
-
-        # Loading lognormalized input and target. For DLBD extended target is loaded
-        input_sequence, target = val_batch
-
-        # Pre-process input and target
-        # Convert target into one_hot binned target, all NaNs are assigned zero probabilities for all bins
-        target_binned = self.pre_process_target(target)
-        # Replace NaNs with Zeros in Input
-        input_sequence = self.pre_process_input(input_sequence)
-
-        if s_gaussian_smoothing_target:
-            target_binned = self.dlbd_target_pre_processing(target_binned)
-
-        input_sequence = input_sequence.float()
-        target_binned = target_binned.float()
-
-        pred = self(input_sequence)
-        loss = self.loss_func(pred, target_binned)
-
-        # returned dict has to include 'loss' entry for automatic backward optimization
-        # Multiple entries can be added to the dict, which can be found in 'outputs' of the callback on_train_batch_end()
-        # which is currently used by logger.py
-        return {'loss': loss, 'pred': pred, 'target': target, 'target_binned': target_binned}
-        # Loss cannot be NaN
-        # Pred is inherently not NaN
-        # TARGET HAS NANs
-        # In target binned for all values that have been NaNs in target simply all bins have been set to zero
+        out_dict = self.train_and_val_step(spacetime_batch, batch_idx)
+        return out_dict

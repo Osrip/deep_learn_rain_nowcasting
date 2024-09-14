@@ -29,6 +29,7 @@ class FilteredDatasetXr(Dataset):
         # chunks = None prevents usage of task which has a big computational overhead
 
     def __getitem__(self, idx):
+        # TODO: CHange this to returning a dict of all dynamic and staticn input variables for the network
         sample_coord = self.sample_coords[idx]
         sample_values = get_sample_from_coords(sample_coord, self.precipitation_data, **self.settings)
         return sample_values
