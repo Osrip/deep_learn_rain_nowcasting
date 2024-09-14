@@ -17,7 +17,14 @@ class FilteredDatasetXr(Dataset):
         s_data_file_name = settings['s_data_file_name']
 
         load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
-        self.precipitation_data = xr.open_dataset(load_path, engine='zarr', chunks=None)
+        precipitation_data = xr.open_dataset(load_path, engine='zarr', chunks=None)
+
+        # --- preprocess data ---
+        # Squeeze empty dimension
+        precipitation_data = precipitation_data.squeeze()
+        precipitation_data = precipitation_data.where(precipitation_data >= 0, 0)
+        self.precipitation_data = precipitation_data  # This data has NaNs!
+
         # chunks = None prevents usage of task which has a big computational overhead
 
     def __getitem__(self, idx):
@@ -64,7 +71,7 @@ def get_sample_from_coords(
     # Go back in time to get the time slice of the input
     # in oppose to np or list indexing where the last index is not included, the last index is included when taking the datetime slices,
     # therefore num_input_frames - 1!
-    time_start = time - np.timedelta64(time_step_data_minutes * (num_input_frames - 1 + lead_time), 'm')
+    time_start = time - np.timedelta64(time_step_data_minutes * (num_input_frames + lead_time), 'm')
     time_end = time
 
     time_slice = slice(time_start, time_end)
@@ -76,7 +83,8 @@ def get_sample_from_coords(
         x=x_slice,
     )
     sample_values = spacetime_sample.RV_recalc.values
-
+    if not np.shape(sample_values)[0] == num_input_frames + lead_time + 1:
+        raise ValueError('The time dim of the sample values is not as expected, check the slicing')
     return sample_values
 
 

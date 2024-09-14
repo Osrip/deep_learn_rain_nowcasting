@@ -1,4 +1,5 @@
 import torch
+from torchvision import transforms
 import pytorch_lightning as pl
 
 from helper.calc_CRPS import crps_vectorized
@@ -26,13 +27,7 @@ class NetworkL(pl.LightningModule):
             device,
             s_num_input_time_steps,
             s_num_bins_crossentropy,
-            s_learning_rate,
             s_width_height_target,
-            s_max_epochs,
-            s_gaussian_smoothing_target,
-            s_schedule_sigma_smoothing,
-            s_sigma_target_smoothing,
-            s_lr_schedule,
             s_convnext,
             s_crps_loss,
             training_steps_per_epoch=None,
@@ -70,8 +65,7 @@ class NetworkL(pl.LightningModule):
         self.sum_train_mean_target_squared = 0
 
         self.sigma_schedule_mapping = sigma_schedule_mapping
-        self.s_schedule_sigma_smoothing = s_schedule_sigma_smoothing
-        self.s_sigma_target_smoothing = s_sigma_target_smoothing
+        self.settings = settings
 
         # data_set_statistics_dict can be None if no training, but only forward pass is performed (for checkpoint loading)
         if data_set_statistics_dict is None:
@@ -80,14 +74,6 @@ class NetworkL(pl.LightningModule):
         else:
             self.mean_filtered_log_data = data_set_statistics_dict['mean_filtered_log_data']
             self.std_filtered_log_data = data_set_statistics_dict['std_filtered_log_data']
-
-        self.s_learning_rate = s_learning_rate
-        self.s_width_height_target = s_width_height_target
-        self.s_max_epochs = s_max_epochs
-        self.s_gaussian_smoothing_target = s_gaussian_smoothing_target
-        self.s_num_bins_crossentropy = s_num_bins_crossentropy
-
-        self.s_lr_schedule = s_lr_schedule
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
@@ -146,12 +132,16 @@ class NetworkL(pl.LightningModule):
         return output
 
     def configure_optimizers(self):
-        if self.s_lr_schedule:
+        s_learning_rate = self.settings['s_learning_rate']
+        s_max_epochs = self.settings['s_max_epochs']
+        s_lr_schedule = self.settings['s_lr_schedule']
+
+        if s_lr_schedule:
             # Configure optimizer WITH lr_schedule
             if not self.training_steps_per_epoch is None:
-                optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.s_learning_rate)
+                optimizer = torch.optim.AdamW(self.model.parameters(), lr=s_learning_rate)
                 lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer,
-                            gamma=1 - 1.5 * (1 / self.s_max_epochs * (6000 / self.training_steps_per_epoch)) * 10e-4)
+                            gamma=1 - 1.5 * (1 / s_max_epochs * (6000 / self.training_steps_per_epoch)) * 10e-4)
                 # https://3.basecamp.com/5660298/buckets/33695235/messages/6386997982
 
                 self.optimizer = optimizer
@@ -169,7 +159,7 @@ class NetworkL(pl.LightningModule):
                                  ' Cannot proceed without it.')
 
         else:
-            optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.s_learning_rate)
+            optimizer = torch.optim.AdamW(self.model.parameters(), lr=s_learning_rate)
             return optimizer
 
     def pre_process_target(self, target: torch.Tensor) -> torch.Tensor:
@@ -177,9 +167,11 @@ class NetworkL(pl.LightningModule):
         Fast on-the fly pre-processing of target in training / validation loop
         Converting into binned / one-hot target
         '''
+        s_num_bins_crossentropy = self.settings['s_num_bins_crossentropy']
+
         # Creating binned target
         linspace_binning_min, linspace_binning_max, linspace_binning = self._linspace_binning_params
-        target_binned = img_one_hot(target, self.s_num_bins_crossentropy, linspace_binning)
+        target_binned = img_one_hot(target, s_num_bins_crossentropy, linspace_binning)
         target_binned = einops.rearrange(target_binned, 'b w h c -> b c w h')
         return target_binned
 
@@ -193,27 +185,48 @@ class NetworkL(pl.LightningModule):
         input_sequence[nan_mask] = 0
         return input_sequence
 
-    def dlbd_target_pre_processing(self, extended_target_binned: torch.Tensor) -> torch.Tensor:
+    def dlbd_target_pre_processing(
+            self,
+            extended_target_binned: torch.Tensor,
+    ) -> torch.Tensor:
         '''
         Fast on-the-fly pre-processing of target in training/validation loop for DLBD
         This requires one-hot target that has been pre-precessed by pre_process_target() method
         The target has to be the larger, extended version that is convolved by the gaussian Kernel
         '''
+
+        s_sigma_target_smoothing = self.settings['s_sigma_target_smoothing']
+        s_schedule_sigma_smoothing = self.settings['s_schedule_sigma_smoothing']
+
         # Getting sigma from scheduler if activated
-        if self.s_schedule_sigma_smoothing:
+        if s_schedule_sigma_smoothing:
             curr_sigma = self.sigma_schedule_mapping[self.train_step_num]
         else:
-            curr_sigma = self.s_sigma_target_smoothing
+            curr_sigma = s_sigma_target_smoothing
 
         # Pre-processing target for DLBD
         target_binned = gaussian_smoothing_target(extended_target_binned, device=self.s_device, sigma=curr_sigma,
                                                   kernel_size=128)
         return target_binned
 
-    def training_step(self, batch, batch_idx):
+
+    def augment(self, spacetime_batches: torch.Tensor):
+        '''
+        Doing a random crop
+        '''
+        random_crop = transforms.RandomCrop(size=(256, 256))
+        spacetime_batches_cropped = random_crop(spacetime_batches)
+
+        return spacetime_batches_cropped
+
+
+    def training_step(self, spacetime_batches, batch_idx):
+
+        s_gaussian_smoothing_target = self.settings['s_gaussian_smoothing_target']
+
         self.train_step_num += 1
         # Loading lognormalized input and target.
-        input_sequence, target = batch
+        input_sequence, target = spacetime_batches
 
         # Pre-process input and target
         # Convert target into one_hot binned target, all NaNs are assigned zero probabilities for all bins
@@ -221,7 +234,7 @@ class NetworkL(pl.LightningModule):
         # Replace NaNs with Zeros in Input
         input_sequence = self.pre_process_input(input_sequence)
 
-        if self.s_gaussian_smoothing_target:
+        if s_gaussian_smoothing_target:
             target_binned = self.dlbd_target_pre_processing(target_binned)
 
         input_sequence = input_sequence.float()
@@ -247,6 +260,8 @@ class NetworkL(pl.LightningModule):
         }
 
     def validation_step(self, val_batch, batch_idx):
+        s_gaussian_smoothing_target = self.settings['s_gaussian_smoothing_target']
+
         self.val_step_num += 1
 
         # Loading lognormalized input and target. For DLBD extended target is loaded
@@ -258,7 +273,7 @@ class NetworkL(pl.LightningModule):
         # Replace NaNs with Zeros in Input
         input_sequence = self.pre_process_input(input_sequence)
 
-        if self.s_gaussian_smoothing_target:
+        if s_gaussian_smoothing_target:
             target_binned = self.dlbd_target_pre_processing(target_binned)
 
         input_sequence = input_sequence.float()
