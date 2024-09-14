@@ -50,6 +50,7 @@ class NetworkL(pl.LightningModule):
         # TODO This does not exactly correspond to the number of batches processed:
         #  https://wandb.ai/cognitive_modeling/lightning_logs/runs/5g7hgn02/workspace?nw=nwuserosrip
 
+        # Attributes needed for logging
         self.sum_val_loss = 0
         self.sum_val_loss_squared = 0
         self.sum_val_mse = 0
@@ -67,8 +68,6 @@ class NetworkL(pl.LightningModule):
         self.sum_train_mean_pred_squared = 0
         self.sum_train_mean_target = 0
         self.sum_train_mean_target_squared = 0
-
-        self.model.to(device)
 
         self.sigma_schedule_mapping = sigma_schedule_mapping
         self.s_schedule_sigma_smoothing = s_schedule_sigma_smoothing
@@ -108,18 +107,17 @@ class NetworkL(pl.LightningModule):
 
         # Set up loss function
         # if training_mode:
-        if s_crps_loss and filter_and_normalization_params is None:
+        if s_crps_loss is None:
             raise ValueError('When using CRPS loss mean_filtered_log_data and std_filtered_log_data have to be passed to Network_l')
 
         if s_crps_loss:
-            # Extract and inverse normalize linspace_binning_params:
-            _, mean_filtered_log_data, std_filtered_log_data, _, _, _, _ = filter_and_normalization_params
 
             linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
-            linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(linspace_binning,
-                                                                                                linspace_binning_max,
-                                                                                                mean_filtered_log_data,
-                                                                                                std_filtered_log_data)
+            linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(
+                linspace_binning,
+                linspace_binning_max,
+                self.mean_filtered_log_data,
+                self.std_filtered_log_data)
 
             self.loss_func = lambda pred, target: torch.mean(crps_vectorized(pred, target,
                                                                   linspace_binning_inv_norm,
@@ -129,6 +127,7 @@ class NetworkL(pl.LightningModule):
         else:
             self.loss_func = nn.CrossEntropyLoss()
 
+        # Initialize model
         if s_convnext:
             self.model = ConvNeXtUNet(
                 c_list=[4, 32, 64, 128, 256],
@@ -140,6 +139,7 @@ class NetworkL(pl.LightningModule):
         else:
             self.model = Network(c_in=s_num_input_time_steps, **settings)
 
+        self.model.to(device)
 
     def forward(self, x):
         output = self.model(x)

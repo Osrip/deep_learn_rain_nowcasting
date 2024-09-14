@@ -1,11 +1,15 @@
 import numpy as np
 import xarray as xr
+from xarray.core.groupby import DatasetGroupBy
 import random
 from torch.utils.data import Dataset
+from helper.pre_process_target_input import normalize_data
+
 
 
 class FilteredDatasetXr(Dataset):
     def __init__(self, sample_coords, settings):
+        # super().__init__()
         self.sample_coords = sample_coords
         self.settings = settings
 
@@ -18,16 +22,21 @@ class FilteredDatasetXr(Dataset):
 
     def __getitem__(self, idx):
         sample_coord = self.sample_coords[idx]
-        sample_values = get_sample_from_coords(sample_coord, self.precipitation_data)
+        sample_values = get_sample_from_coords(sample_coord, self.precipitation_data, **self.settings)
         return sample_values
+
+    def __len__(self):
+        return len(self.sample_coords)
 
 
 def get_sample_from_coords(
         sample_coord: tuple,
         data,
-        num_input_frames,
-        lead_time,
-        time_step_data_minutes=5):
+        s_num_input_time_steps,
+        s_num_lead_time_steps,
+        time_step_data_minutes=5,
+        **__,
+):
     '''
     This function takes in the coordinates 'input_coord'
         Each input_coord represents one patch that passed the filter.
@@ -38,6 +47,8 @@ def get_sample_from_coords(
     Returns the input and target patches. Both the input and the target patches are in the size of
     '''
 
+    num_input_frames = s_num_input_time_steps
+    lead_time = s_num_lead_time_steps
     # TODO: NEXT UP implement dict for static and timeseries data:
     # Data loader gets the loading paths for static / timeseries input data as a dict and then this function gets the xr.Datasets
     # as a dict and the returns a static and a time series dict with the values which is then also returned by the data laoder.
@@ -78,7 +89,7 @@ def create_and_filter_patches(
         s_filter_threshold_mm_rain_each_pixel,
         s_filter_threshold_percentage_pixels,
         **__
-) -> tuple(np.array, xr.Dataset, xr.Dataset):
+) -> tuple[np.array, xr.Dataset, xr.Dataset]:
 
 
     # Loading data into xarray
@@ -112,7 +123,8 @@ def create_and_filter_patches(
     patches = coarse.construct(
         # time = ("time_outer", "time_inner"),
         y=("y_outer", "y_inner"),  # Those are the patche indecies / the patch dimesnion, each index pair corresponds to one patch
-        x=("x_outer", "x_inner")) # Those are the pixel dimensions of the patches
+        x=("x_outer", "x_inner")  # Those are the pixel dimensions of the patches
+    )
 
     # Replace NaNs with 0s for the filter (Alternatively we could also throw out all targets with NaNs in them)
     patches_no_nan = patches.fillna(0)
@@ -228,10 +240,10 @@ def patch_indecies_to_sample_coords(
 
 
 def split_training_validation(
-        data: xr.core.groupby.DatasetGroupBy,
+        data: DatasetGroupBy,
 
         s_ratio_training_data
-) -> tuple(xr.Dataset, xr.Dataset):
+) -> tuple[xr.Dataset, xr.Dataset]:
     '''
     This randomly splits DatasetGroupBy objects into the training and validation data
     The groupby object already sliced the data into slices of a given length, this randomly mixes and concatenates
@@ -282,7 +294,8 @@ def calc_statistics_on_valid_batches(
         mean.RV_recalc.values,
         std.RV_recalc.values,
         log_mean.RV_recalc.values,
-        log_std.RV_recalc.values)
+        log_std.RV_recalc.values
+    )
 
 
 def calc_linspace_binning(
@@ -291,6 +304,7 @@ def calc_linspace_binning(
         std_filtered_log_data,
 
         s_linspace_binning_cut_off_unnormalized,
+        s_num_bins_crossentropy,
         **__,
 ):
     '''
@@ -351,7 +365,7 @@ def calc_linspace_binning(
     #                                endpoint=False)
 
 
-    return linspace_binning_min, linspace_binning_max, linspace_binning
+    return linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning
 
 
 

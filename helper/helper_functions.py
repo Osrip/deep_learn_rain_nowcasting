@@ -94,9 +94,15 @@ def create_save_name_for_data_loader_vars(s_folder_path, s_normalize, s_local_ma
 
     original_file_name = s_folder_path.split('/')[-1]
 
-    return '{}_{}_{}_{}_{}_{}_{}_{}'.format(s_save_prefix_data_loader_vars, log_transform_str,
-                                      normalize_str, original_file_name, local_machine_str, s_num_bins_crossentropy,
-                                         s_linspace_binning_cut_off_unnormalized, s_width_height)
+    return '{}_{}_{}_{}_{}_{}_{}'.format(
+        s_save_prefix_data_loader_vars,
+        normalize_str,
+        original_file_name,
+        local_machine_str,
+        s_num_bins_crossentropy,
+        s_linspace_binning_cut_off_unnormalized,
+        s_width_height
+    )
 
 
 def save_data_loader_vars(data_loader_vars, settings, s_data_loader_vars_path, **__):

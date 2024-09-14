@@ -6,7 +6,7 @@ import torchvision.transforms as T
 # from modules_blocks import Network
 from network_lightning import NetworkL
 import datetime
-from load_data import PrecipitationFilteredDataset, filtering_data_scraper, random_splitting_filtered_indecies, calc_class_frequencies, class_weights_per_sample
+
 from load_data_xarray import (
     create_and_filter_patches,
     split_training_validation,
@@ -196,7 +196,7 @@ def preprocess_data(
         data,
         mean_filtered_log_data,
         std_filtered_log_data,
-        settings['s_linspace_binning_cut_off_unnormalized']
+        **settings,
     )
     linspace_binning_params = linspace_binning_min, linspace_binning_max, linspace_binning
 
@@ -326,10 +326,8 @@ def save_data(
     save_zipped_pickle('{}/train_sample_coords'.format(s_dirs['data_dir']), train_sample_coords)
     save_zipped_pickle('{}/val_sample_coords'.format(s_dirs['data_dir']), val_sample_coords)
 
-    mean_filtered_log_data, std_filtered_log_data = data_set_statistics_dict[
-        'mean_filtered_log_data',
-        'std_filtered_log_data'
-    ]
+    mean_filtered_log_data = data_set_statistics_dict['mean_filtered_log_data']
+    std_filtered_log_data = data_set_statistics_dict['std_filtered_log_data']
 
     # Save linspace binning  params
     save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')
@@ -425,9 +423,17 @@ def train_wrapper(
 
     save_project_code(s_dirs['code_dir'])
 
-    model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-                      data_set_statistics_dict, linspace_binning_params,sigma_schedule_mapping,
-                      settings, **settings)
+    model_l = train_l(
+        train_data_loader, validation_data_loader,
+        profiler,
+        callback_list,
+        logger,
+        training_steps_per_epoch,
+        data_set_statistics_dict,
+        linspace_binning_params,
+        sigma_schedule_mapping,
+        settings,
+        **settings)
 
     if s_calc_baseline:
         calc_baselines(**settings,
@@ -447,9 +453,21 @@ def train_wrapper(
     return model_l, training_steps_per_epoch, sigma_schedule_mapping
 
 
-def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-            data_set_statistics_dict, linspace_binning_params, sigma_schedule_mapping,
-            settings, s_max_epochs, s_num_gpus, s_check_val_every_n_epoch, s_convnext, **__):
+def train_l(
+        train_data_loader, validation_data_loader,
+        profiler,
+        callback_list,
+        logger,
+        training_steps_per_epoch,
+        data_set_statistics_dict,
+        linspace_binning_params,
+        sigma_schedule_mapping,
+
+        settings,
+        s_max_epochs,
+        s_num_gpus,
+        s_check_val_every_n_epoch,
+        **__):
     '''
     Train loop, keep this clean!
     '''
