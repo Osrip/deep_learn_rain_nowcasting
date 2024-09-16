@@ -566,9 +566,15 @@ if __name__ == '__main__':
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
             's_max_epochs': 25,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+
+            # Load Radolan
             's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
             's_data_file_name': 'RV_recalc.zarr',  #'yw_done.zarr',
             's_data_variable_name': 'RV_recalc',
+
+            # Load DEM
+            's_dem_path': '/mnt/qb/work2/butz1/bst981/weather_data/dem/dem_benchmark_dataset_1200_1100.zarr',
+            's_dem_variable_name': 'dem',
 
             's_ratio_training_data': 0.6,
             # Changed on 9.2.24 from 20 to 288 (corresponds to 24h)
@@ -655,6 +661,7 @@ if __name__ == '__main__':
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
+        settings['s_dem_path'] = '/home/jan/Programming/weather_data/dem/dem_benchmark_dataset_1200_1100.zarr'
         settings['s_upscale_c_to'] = 32  # 8
         settings['s_batch_size'] = 8  # our net: 8
         settings['s_data_loader_chunk_size'] = 1

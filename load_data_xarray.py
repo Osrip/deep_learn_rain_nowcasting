@@ -15,23 +15,46 @@ class FilteredDatasetXr(Dataset):
         self.settings = settings
 
         s_folder_path = settings['s_folder_path']
+        s_dem_path = settings['s_dem_path']
         s_data_file_name = settings['s_data_file_name']
 
-        load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
-        precipitation_data = xr.open_dataset(load_path, engine='zarr', chunks=None)
+        s_data_variable_name = settings['s_data_variable_name']
+        s_dem_variable_name = settings['s_dem_variable_name']
 
-        # --- preprocess data ---
+
+        # --- load data ---
+        load_path_radolan = '{}/{}'.format(s_folder_path, s_data_file_name)
+        radolan_data = xr.open_dataset(load_path_radolan, engine='zarr', chunks=None) # chunks = None disables dask overhead
+        radolan_data = radolan_data.load()  # loading into RAM
+
+        dem_data = xr.open_dataset(s_dem_path, engine='zarr', chunks=None)
+        dem_data = dem_data.load()
+
+        # --- preprocess radolan data ---
         # Squeeze empty dimension
-        precipitation_data = precipitation_data.squeeze()
-        precipitation_data = precipitation_data.where(precipitation_data >= 0, 0)
-        self.precipitation_data = precipitation_data  # This data has NaNs!
+        radolan_data = radolan_data.squeeze()
+        radolan_data = radolan_data.where(radolan_data >= 0, 0)
+
+
+        self.dynamic_data_dict = {
+            s_data_variable_name: radolan_data
+        }
+
+        self.static_data_dict = {
+            s_dem_variable_name: dem_data
+        }
 
         # chunks = None prevents usage of task which has a big computational overhead
 
     def __getitem__(self, idx):
         # TODO: CHange this to returning a dict of all dynamic and staticn input variables for the network
         sample_coord = self.sample_coords[idx]
-        sample_values = get_sample_from_coords(sample_coord, self.precipitation_data, **self.settings)
+        sample_values = get_sample_from_coords(
+            sample_coord,
+            self.dynamic_data_dict,
+            self.static_data_dict,
+            **self.settings
+        )
         return sample_values
 
     def __len__(self):
@@ -40,10 +63,12 @@ class FilteredDatasetXr(Dataset):
 
 def get_sample_from_coords(
         sample_coord: tuple,
-        data,
+        dynamic_data_dict,
+        static_data_dict,
         s_num_input_time_steps,
         s_num_lead_time_steps,
-        time_step_data_minutes=5,
+        s_data_variable_name,
+        time_step_precipitation_data_minutes=5,
         **__,
 ):
     '''
@@ -53,7 +78,13 @@ def get_sample_from_coords(
         The temporal datetime point gives the time of the target frame (as the filter was applied to the target)
         Therefore to get the inputs we have to go back in time relative to the given time in input_coord (depending on lead time and num_input_frames)
 
-    Returns the input and target patches. Both the input and the target patches are in the size of
+    dynamic_data_dict has the following format: {'variable_name': xr.Dataset, ...} Of all variables that are used for the input
+    it includes all data that has a time dimension
+
+    static_data_dict has the same format {'variable_name': xr.Dataset, ...} and includes static all data that does
+    not have a time dimension
+
+    Returns a timespace chunk for each sample that includes input and target
     '''
 
     num_input_frames = s_num_input_time_steps
@@ -73,21 +104,38 @@ def get_sample_from_coords(
     # Go back in time to get the time slice of the input
     # in oppose to np or list indexing where the last index is not included, the last index is included when taking the datetime slices,
     # therefore num_input_frames - 1!
-    time_start = time - np.timedelta64(time_step_data_minutes * (num_input_frames + lead_time), 'm')
+    time_start = time - np.timedelta64(time_step_precipitation_data_minutes * (num_input_frames + lead_time), 'm')
     time_end = time
 
     time_slice = slice(time_start, time_end)
 
-    # Generate input and output data
-    spacetime_sample = data.sel(
-        time=time_slice,
-        y=y_slice,
-        x=x_slice,
-    )
-    sample_values = spacetime_sample.RV_recalc.values
-    if not np.shape(sample_values)[0] == num_input_frames + lead_time + 1:
-        raise ValueError('The time dim of the sample values is not as expected, check the slicing')
-    return sample_values
+    # Load dynamic samples (samples with time dimension)
+    dynamic_samples_dict = {}
+    for variable_name, dynamic_data in dynamic_data_dict.items():
+        spacetime_sample = dynamic_data.sel(
+            time=time_slice,
+            y=y_slice,
+            x=x_slice,
+        )
+        dynamic_sample_values = spacetime_sample[variable_name].values  # spacetime_sample.RV_recalc.values
+        dynamic_samples_dict[variable_name] = dynamic_sample_values
+        if not np.shape(dynamic_sample_values)[0] == num_input_frames + lead_time + 1:
+            raise ValueError('The time dim of the sample values is not as expected, check the slicing')
+
+    # Load static samples:
+    static_samples_dict = {}
+    for variable_name, static_data in static_data_dict.items():
+        static_sample = static_data.sel(
+            y=y_slice,
+            x=x_slice,
+        )
+        static_sample_values = static_sample[variable_name].values
+        static_samples_dict[variable_name] = static_sample_values
+
+
+    # Process static samples (samples that are static throughout time
+
+    return dynamic_samples_dict, static_samples_dict
 
 
 def random_crop(spacetime_batches: torch.Tensor, s_width_height, **__):

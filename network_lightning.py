@@ -209,10 +209,13 @@ class NetworkL(pl.LightningModule):
                                                   kernel_size=128)
         return target_binned
 
-    def train_and_val_step(self, spacetime_batch, batch_idx):
+    def train_and_val_step(self, dynamic_samples_dict, static_samples_dict, batch_idx):
         s_gaussian_smoothing_target = self.settings['s_gaussian_smoothing_target']
         s_width_height_target = self.settings['s_width_height_target']
+        s_data_variable_name = self.settings['s_data_variable_name']
 
+        # TODO: make this handle dicts!
+        spacetime_batch = dynamic_samples_dict[s_data_variable_name]
 
         # We start out with a whole unnormalized batched spacetime tensor (b x t x h x w) which has spacial dimensions of the
         # input + augmentation padding and time-wise starts with the first input sequence and ends on the target sequence
@@ -259,12 +262,14 @@ class NetworkL(pl.LightningModule):
             'target_binned': target_binned  # In target binned for all values that have been NaNs in target simply all bins have been set to zero
         }
 
-    def training_step(self, spacetime_batch, batch_idx):
+    def training_step(self, batched_samples, batch_idx):
         self.train_step_num += 1
-        out_dict = self.train_and_val_step(spacetime_batch, batch_idx)
+        dynamic_samples_dict, static_samples_dict = batched_samples
+        out_dict = self.train_and_val_step(dynamic_samples_dict, static_samples_dict, batch_idx)
         return out_dict
-
-    def validation_step(self, spacetime_batch, batch_idx):
+ 
+    def validation_step(self, batched_samples, batch_idx):
         self.val_step_num += 1
-        out_dict = self.train_and_val_step(spacetime_batch, batch_idx)
+        dynamic_samples_dict, static_samples_dict = batched_samples
+        out_dict = self.train_and_val_step(dynamic_samples_dict, static_samples_dict, batch_idx)
         return out_dict
