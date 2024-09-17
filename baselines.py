@@ -158,6 +158,7 @@ class LKBaseline(pl.LightningModule):
         if self.logging_type is not None:
             self.log('base_{}_mse_pred_target'.format(self.logging_type), mse_pred_target.item(), on_step=False,
                      on_epoch=True, sync_dist=True)
+            
 
 
 
