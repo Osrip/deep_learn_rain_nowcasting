@@ -43,6 +43,7 @@ class FilteredDatasetXr(Dataset):
         dem_mean = float(np.mean(dem_data)[s_dem_variable_name].values)
         dem_std = float(np.std(dem_data)[s_dem_variable_name].values)
 
+        # --- xr data and metadata as dict attributes ---
         # The xarray data as attributes
         self.dynamic_data_dict = {
             'radolan': radolan_data
@@ -77,6 +78,19 @@ class FilteredDatasetXr(Dataset):
             sample_coord,
         )
         return dynamic_samples_dict, static_samples_dict
+
+    def __getitem_with_coord__(self, idx):
+        '''
+        This is the getitem method for evaluation, where the coordinate is also returned
+        TODO Potentially make this pass all samples from the complete spatial area one time step
+        '''
+        sample_coord = self.sample_coords[idx]
+        dynamic_samples_dict, static_samples_dict = self.get_sample_from_coords(
+            sample_coord,
+        )
+        sample_coord_float_converted = convert_sample_coord_to_float(sample_coord)
+        return dynamic_samples_dict, static_samples_dict, sample_coord_float_converted
+
 
     def __len__(self):
         return len(self.sample_coords)
@@ -138,7 +152,7 @@ class FilteredDatasetXr(Dataset):
             )
             variable_name = self.dynamic_variable_name_dict[key]
             dynamic_sample_values = spacetime_sample[variable_name].values  # spacetime_sample.RV_recalc.values
-            dynamic_samples_dict[variable_name] = dynamic_sample_values
+            dynamic_samples_dict[key] = dynamic_sample_values
             if not np.shape(dynamic_sample_values)[0] == num_input_frames + lead_time + 1:
                 raise ValueError('The time dim of the sample values is not as expected, check the slicing')
 
@@ -151,9 +165,7 @@ class FilteredDatasetXr(Dataset):
             )
             variable_name = self.static_variable_name_dict[key]
             static_sample_values = static_sample[variable_name].values
-            static_samples_dict[variable_name] = static_sample_values
-
-        # Process static samples (samples that are static throughout time
+            static_samples_dict[key] = static_sample_values
 
         return dynamic_samples_dict, static_samples_dict
 
@@ -176,13 +188,18 @@ def create_and_filter_patches(
         s_data_file_name,
         s_filter_threshold_mm_rain_each_pixel,
         s_filter_threshold_percentage_pixels,
+        s_crop_data_time_span,
         **__
 ) -> tuple[np.array, xr.Dataset, xr.Dataset]:
-
 
     # Loading data into xarray
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
     data = xr.open_dataset(load_path, engine='zarr')
+    if s_crop_data_time_span is not None:
+        start_time, stop_time = np.datetime64(s_crop_data_time_span[0]), np.datetime64(s_crop_data_time_span[1])
+        crop_slice = slice(start_time, stop_time)
+        data = data.sel(time=crop_slice)
+
     data = data.squeeze()
 
     # Set negative values to 0
@@ -318,11 +335,6 @@ def patch_indecies_to_sample_coords(
         valid_input_coords.append(input_coords)
 
     print(f'{num_inputs_exceeding_bounds} patches dropped as padded input exceeded spatial data bounds')
-    # return (
-    #     np.array(valid_input_coords),
-    #     np.array(valid_input_indecies_global),
-    #     np.array(valid_target_indecies_global),
-    #     np.array(valid_center_indecies_global))
 
     return np.array(valid_input_coords)
 
@@ -330,16 +342,19 @@ def patch_indecies_to_sample_coords(
 def split_training_validation(
         data: DatasetGroupBy,
 
-        s_ratio_training_data
+        s_ratio_training_data,  #  Splitting ratio of the groups, not the samples themselves
 ) -> tuple[xr.Dataset, xr.Dataset]:
     '''
     This randomly splits DatasetGroupBy objects into the training and validation data
+    The splitting ratio is given by: s_ratio_training_data
+    ! This splits the grouped dataset (default is daliy groups). This means that the days are splitted according to !
+    ! the ratio, but each day can gave a different amount of samples that passed the filter !
     The groupby object already sliced the data into slices of a given length, this randomly mixes and concatenates
     according to the given ration of training and validation
 
     This function has been tested on dicts (see notebook)
     '''
-    # Ensure s_ratio_training_data is between 0 and 1
+    # Ensure s_ratio_training_data   is between 0 and 1
     if not 0 <= s_ratio_training_data <= 1:
         raise ValueError("s_ratio_training_data must be between 0 and 1.")
 
@@ -452,8 +467,59 @@ def calc_linspace_binning(
     # linspace_binning = np.linspace(linspace_binning_min_normed, linspace_binning_max_normed, num=s_num_bins_crossentropy,
     #                                endpoint=False)
 
-
     return linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning
+
+
+# These two functions are use to pass the sample_coord through the datalaoder and subsequently reconstruct it:
+def convert_sample_coord_to_float(sample_coord):
+    """
+    Converts a sample_coord array containing a numpy.datetime64 and slice objects
+    into a flattened float array suitable for PyTorch DataLoader.
+
+    Args:
+        sample_coord (np.array): An array containing a datetime64 object and two slice objects.
+
+    Returns:
+        np.ndarray: A 1D numpy array of floats, where:
+                    - datetime64 is converted to a float timestamp.
+                    - slice objects are flattened into their start, stop, and step values (step as NaN if None).
+    """
+    float_array = []
+    for item in sample_coord:
+        if isinstance(item, np.datetime64):
+            # Convert datetime64 to a float timestamp
+            float_array.append(item.astype('float64'))
+        elif isinstance(item, slice):
+            # Convert slice to a tuple (start, stop, step) and flatten it
+            float_array.extend([float(item.start), float(item.stop),
+                                float(item.step) if item.step is not None else float('nan')])
+    return np.array(float_array, dtype=np.float64)
+
+
+def convert_float_array_to_sample_coord(float_tensor):
+    """
+    Converts a batched tensor (from DataLoader) containing flattened float representations of sample_coord
+    back into the original array format with a datetime64 and slice objects.
+
+    Args:
+        float_tensor (torch.Tensor): A 1D tensor where the first value is a timestamp (float),
+                                     followed by flattened slice values (start, stop, step).
+
+    Returns:
+        np.ndarray: An array where:
+                    - The first element is a numpy.datetime64 (converted from the timestamp).
+                    - The second and third elements are slice objects reconstructed from their flattened values.
+    """
+    float_list = float_tensor.tolist()  # Convert tensor back to list of floats
+    # Reconstruct the original sample_coord structure
+    datetime_value = np.datetime64(int(float_list[0]), 'ns')  # Convert float timestamp to int for datetime64
+
+    # Extract slice values from the list
+    slice1 = slice(float_list[1], float_list[2], None if np.isnan(float_list[3]) else float_list[3])
+    slice2 = slice(float_list[4], float_list[5], None if np.isnan(float_list[6]) else float_list[6])
+
+    return np.array([datetime_value, slice1, slice2], dtype=object)
+
 
 
 

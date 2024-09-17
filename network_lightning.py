@@ -214,25 +214,27 @@ class NetworkL(pl.LightningModule):
         s_width_height_target = self.settings['s_width_height_target']
         s_data_variable_name = self.settings['s_data_variable_name']
 
-        # TODO: make this handle dicts!
-        spacetime_batch = dynamic_samples_dict[s_data_variable_name]
+        # TODO: Is there a better way to handle the dicts here?
+
+        # --- Process Radolan ---
+        radolan_spacetime_batch = dynamic_samples_dict['radolan']
 
         # We start out with a whole unnormalized batched spacetime tensor (b x t x h x w) which has spacial dimensions of the
         # input + augmentation padding and time-wise starts with the first input sequence and ends on the target sequence
 
         # Augment data
-        spacetime_batch = random_crop(spacetime_batch, **self.settings)
+        radolan_spacetime_batch = random_crop(radolan_spacetime_batch, **self.settings)
         # Normalize data
-        spacetime_batch = normalize_data(spacetime_batch, self.mean_filtered_log_data, self.std_filtered_log_data)
+        radolan_spacetime_batch = normalize_data(radolan_spacetime_batch, self.mean_filtered_log_data, self.std_filtered_log_data)
         # Extract target and input
-        target = spacetime_batch[:, -1, :, :]
-        input_sequence = spacetime_batch[:, 0:4, :, :]
+        target = radolan_spacetime_batch[:, -1, :, :]
+        radolan_input_sequence = radolan_spacetime_batch[:, 0:4, :, :]
 
         # Pre-process input and target
         # Convert target into one_hot binned target, all NaNs are assigned zero probabilities for all bins
         target_binned = self.pre_process_target(target)
         # Replace NaNs with Zeros in Input
-        input_sequence = self.pre_process_input(input_sequence)
+        radolan_input_sequence = self.pre_process_input(radolan_input_sequence)
 
         if s_gaussian_smoothing_target:
             target_binned = self.dlbd_target_pre_processing(target_binned)
@@ -242,10 +244,19 @@ class NetworkL(pl.LightningModule):
         target_binned = center_crop_target(target_binned)
         target = center_crop_target(target)
 
-        input_sequence = input_sequence.float()
+        radolan_input_sequence = radolan_input_sequence.float()
         target_binned = target_binned.float()
 
-        pred = self(input_sequence)
+        # --- Process DEM ---
+        dem_spatial_batch = static_samples_dict['dem']
+
+        # TODO Augment
+
+        # Normalize
+        dem_mean, dem_std = self.trainer.train_dataloader.dataset.static_statistics_dict['dem']
+        dem_spatial_batch = (dem_spatial_batch - dem_mean) / dem_std
+
+        pred = self(radolan_input_sequence)
 
         if torch.isnan(pred).any():
             raise ValueError('NAN in prediction (also leading to nan in loss)')
@@ -266,6 +277,7 @@ class NetworkL(pl.LightningModule):
         self.train_step_num += 1
         dynamic_samples_dict, static_samples_dict = batched_samples
         out_dict = self.train_and_val_step(dynamic_samples_dict, static_samples_dict, batch_idx)
+
         return out_dict
 
     def validation_step(self, batched_samples, batch_idx):
