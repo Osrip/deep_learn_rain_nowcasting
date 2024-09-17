@@ -63,7 +63,7 @@ def data_loading(
         (
             train_sample_coords,
             val_sample_coords,
-            data_set_statistics_dict,
+            radolan_statistics_dict,
             linspace_binning_params
         ) = data_loader_vars
 
@@ -71,13 +71,13 @@ def data_loading(
         print('Data loader vars not found, preprocessing data!')
 
         (train_sample_coords, val_sample_coords,
-        data_set_statistics_dict,
+        radolan_statistics_dict,
         linspace_binning_params) = preprocess_data(settings, **settings)
 
         data_loader_vars = (
             train_sample_coords,
             val_sample_coords,
-            data_set_statistics_dict,
+            radolan_statistics_dict,
             linspace_binning_params
         )
 
@@ -91,6 +91,7 @@ def data_loading(
     ) = create_data_loaders(
         train_sample_coords,
         val_sample_coords,
+        radolan_statistics_dict,
         settings,
         **settings)
 
@@ -99,7 +100,7 @@ def data_loading(
         train_data_loader, validation_data_loader,
         training_steps_per_epoch, validation_steps_per_epoch,
         train_sample_coords, val_sample_coords,
-        data_set_statistics_dict,
+        radolan_statistics_dict,
         linspace_binning_params,
     )
 
@@ -144,7 +145,7 @@ def preprocess_data(
     # --- CALC NORMALIZATION STATISTICS ---
     _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_batches(patches, valid_patches_boo)
 
-    data_set_statistics_dict = {
+    radolan_statistics_dict = {
         'mean_filtered_log_data': mean_filtered_log_data,
         'std_filtered_log_data': std_filtered_log_data
     }
@@ -200,13 +201,12 @@ def preprocess_data(
     )
     linspace_binning_params = linspace_binning_min, linspace_binning_max, linspace_binning
 
-
     #TODO # --- Sample weighting / Class count for random sampler ---
 
     return (
         train_sample_coords,
         val_sample_coords,
-        data_set_statistics_dict,
+        radolan_statistics_dict,
         linspace_binning_params
     )
 
@@ -214,6 +214,7 @@ def preprocess_data(
 def create_data_loaders(
         train_sample_coords,
         val_sample_coords,
+        radolan_statistics_dict,
 
         settings,
         s_batch_size,
@@ -224,15 +225,16 @@ def create_data_loaders(
     Creates data loaders for training and validation data
     '''
 
-    # TODO: RETURN filtered indecies instead of data set
     train_data_set = FilteredDatasetXr(
         train_sample_coords,
+        radolan_statistics_dict,
         settings,
     )
 
     val_data_set = FilteredDatasetXr(
         val_sample_coords,
-        settings
+        radolan_statistics_dict,
+        settings,
     )
 
     training_steps_per_epoch = len(train_data_set)
@@ -312,7 +314,7 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
 
 
 def save_data(
-        data_set_statistics_dict,
+        radolan_statistics_dict,
         train_sample_coords,
         val_sample_coords,
         linspace_binning_params,
@@ -322,12 +324,12 @@ def save_data(
         s_dirs,
         **__,
 ):
-    save_dict_pickle_csv('{}/data_set_statistics_dict'.format(s_dirs['data_dir']), data_set_statistics_dict)
+    save_dict_pickle_csv('{}/radolan_statistics_dict'.format(s_dirs['data_dir']), radolan_statistics_dict)
     save_zipped_pickle('{}/train_sample_coords'.format(s_dirs['data_dir']), train_sample_coords)
     save_zipped_pickle('{}/val_sample_coords'.format(s_dirs['data_dir']), val_sample_coords)
 
-    mean_filtered_log_data = data_set_statistics_dict['mean_filtered_log_data']
-    std_filtered_log_data = data_set_statistics_dict['std_filtered_log_data']
+    mean_filtered_log_data = radolan_statistics_dict['mean_filtered_log_data']
+    std_filtered_log_data = radolan_statistics_dict['std_filtered_log_data']
 
     # Save linspace binning  params
     save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')
@@ -359,7 +361,7 @@ def train_wrapper(
         train_data_loader, validation_data_loader,
         training_steps_per_epoch, validation_steps_per_epoch,
         train_sample_coords, val_sample_coords,
-        data_set_statistics_dict,
+        radolan_statistics_dict,
         linspace_binning_params,
 
         settings,
@@ -410,7 +412,7 @@ def train_wrapper(
         sigma_schedule_mapping, sigma_scheduler = (None, None)
 
     save_data(
-        data_set_statistics_dict,
+        radolan_statistics_dict,
         train_sample_coords,
         val_sample_coords,
         linspace_binning_params,
@@ -429,7 +431,7 @@ def train_wrapper(
         callback_list,
         logger,
         training_steps_per_epoch,
-        data_set_statistics_dict,
+        radolan_statistics_dict,
         linspace_binning_params,
         sigma_schedule_mapping,
         settings,
@@ -441,10 +443,10 @@ def train_wrapper(
                        logs_callback_list=[BaselineTrainingLogsCallback, BaselineValidationLogsCallback],
                        logger_list=[base_train_logger, base_val_logger],
                        logging_type_list=['train', 'val'],
-                       mean_filtered_log_data_list=[data_set_statistics_dict['mean_filtered_log_data'],
-                                                data_set_statistics_dict['mean_filtered_log_data']],
-                       std_filtered_log_data_list=[data_set_statistics_dict['std_filtered_log_data'],
-                                                  data_set_statistics_dict['std_filtered_log_data']],
+                       mean_filtered_log_data_list=[radolan_statistics_dict['mean_filtered_log_data'],
+                                                radolan_statistics_dict['mean_filtered_log_data']],
+                       std_filtered_log_data_list=[radolan_statistics_dict['std_filtered_log_data'],
+                                                  radolan_statistics_dict['std_filtered_log_data']],
                        settings=settings
                        )
 
@@ -459,7 +461,7 @@ def train_l(
         callback_list,
         logger,
         training_steps_per_epoch,
-        data_set_statistics_dict,
+        radolan_statistics_dict,
         linspace_binning_params,
         sigma_schedule_mapping,
 
@@ -475,7 +477,7 @@ def train_l(
     model_l = NetworkL(
         linspace_binning_params,
         sigma_schedule_mapping,
-        data_set_statistics_dict,
+        radolan_statistics_dict,
         settings,
         training_steps_per_epoch=training_steps_per_epoch,
         **settings)
@@ -690,13 +692,17 @@ if __name__ == '__main__':
     if not settings['s_plotting_only']:
         # --- Normal training ---
         data_set_vars = data_loading(settings, **settings)
-        model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(*data_set_vars,
-                                                                                  settings,
-                                                                                  **settings)
+        model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(
+            *data_set_vars,
+            settings,
+            **settings
+        )
+
         plot_logs_pipeline(
             training_steps_per_epoch,
             model_l,
-            settings, **settings)
+            settings, **settings
+        )
 
         plot_from_checkpoint_wrapper(settings, **settings)
 
@@ -714,7 +720,8 @@ if __name__ == '__main__':
                 training_steps_per_epoch,
                 model_l=None,
                 settings=settings_loaded,
-                plot_lr_schedule_boo=False)
+                plot_lr_schedule_boo=False
+            )
 
         plot_from_checkpoint_wrapper(settings_loaded, **settings_loaded)
 

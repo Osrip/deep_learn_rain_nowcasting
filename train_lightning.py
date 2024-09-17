@@ -251,7 +251,7 @@ def create_data_loaders(transform_f,
         **settings)
 
     # Zip up the mean and std of the logarithmic data in a dict (includes all data: training and validation)
-    data_set_statistics_dict = {
+    radolan_statistics_dict = {
         'mean_filtered_log_data': mean_filtered_log_data,
         'std_filtered_log_data': std_filtered_log_data
     }
@@ -347,7 +347,7 @@ def create_data_loaders(transform_f,
             linspace_binning_params,
             filter_and_normalization_params,
             training_steps_per_epoch,
-            data_set_statistics_dict,
+            radolan_statistics_dict,
             class_count_target_train)
     # training_steps_per_epoch only needed for lr_schedule_plotting
 
@@ -380,7 +380,7 @@ def train_wrapper(
         filtered_indecies_training, filtered_indecies_validation,
         linspace_binning_params,
         training_steps_per_epoch,
-        data_set_statistics_dict,
+        radolan_statistics_dict,
         class_count_target,
         settings,
         s_dirs, s_profiling, s_max_epochs, s_num_gpus, s_sim_name,
@@ -409,11 +409,11 @@ def train_wrapper(
     else:
         profiler = None
 
-    save_dict_pickle_csv('{}/data_set_statistcis_dict'.format(s_dirs['data_dir']), data_set_statistics_dict)
+    save_dict_pickle_csv('{}/data_set_statistcis_dict'.format(s_dirs['data_dir']), radolan_statistics_dict)
     save_zipped_pickle('{}/filtered_indecies_training'.format(s_dirs['data_dir']), filtered_indecies_training)
     save_zipped_pickle('{}/filtered_indecies_validation'.format(s_dirs['data_dir']), filtered_indecies_validation)
 
-    mean_filtered_log_data, std_filtered_log_data = data_set_statistics_dict[
+    mean_filtered_log_data, std_filtered_log_data = radolan_statistics_dict[
         'mean_filtered_log_data',
         'std_filtered_log_data'
     ]
@@ -459,7 +459,7 @@ def train_wrapper(
         sigma_schedule_mapping, sigma_scheduler = (None, None)
 
     model_l = train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-                      data_set_statistics_dict, linspace_binning_params,sigma_schedule_mapping,
+                      radolan_statistics_dict, linspace_binning_params,sigma_schedule_mapping,
                       class_count_target, settings, **settings)
 
     if s_calc_baseline:
@@ -468,10 +468,10 @@ def train_wrapper(
                        logs_callback_list=[BaselineTrainingLogsCallback, BaselineValidationLogsCallback],
                        logger_list=[base_train_logger, base_val_logger],
                        logging_type_list=['train', 'val'],
-                       mean_filtered_log_data_list=[data_set_statistics_dict['mean_filtered_log_data'],
-                                                data_set_statistics_dict['mean_filtered_log_data']],
-                       std_filtered_log_data_list=[data_set_statistics_dict['std_filtered_log_data'],
-                                                  data_set_statistics_dict['std_filtered_log_data']],
+                       mean_filtered_log_data_list=[radolan_statistics_dict['mean_filtered_log_data'],
+                                                radolan_statistics_dict['mean_filtered_log_data']],
+                       std_filtered_log_data_list=[radolan_statistics_dict['std_filtered_log_data'],
+                                                  radolan_statistics_dict['std_filtered_log_data']],
                        settings=settings
                        )
 
@@ -483,13 +483,13 @@ def train_wrapper(
 
 
 def train_l(train_data_loader, validation_data_loader, profiler, callback_list, logger, training_steps_per_epoch,
-            data_set_statistics_dict, linspace_binning_params, sigma_schedule_mapping, filter_and_normalization_params,
+            radolan_statistics_dict, linspace_binning_params, sigma_schedule_mapping, filter_and_normalization_params,
             class_count_target, settings, s_max_epochs, s_num_gpus, s_check_val_every_n_epoch, s_convnext, **__):
     '''
     Train loop, keep this clean!
     '''
 
-    model_l = NetworkL(linspace_binning_params, sigma_schedule_mapping, data_set_statistics_dict,
+    model_l = NetworkL(linspace_binning_params, sigma_schedule_mapping, radolan_statistics_dict,
                        settings,
                        training_steps_per_epoch=training_steps_per_epoch,
                        filter_and_normalization_params=filter_and_normalization_params,

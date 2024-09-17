@@ -22,7 +22,7 @@ class NetworkL(pl.LightningModule):
             self,
             linspace_binning_params,
             sigma_schedule_mapping,
-            data_set_statistics_dict,
+            radolan_statistics_dict,
 
             settings,
             device,
@@ -34,7 +34,7 @@ class NetworkL(pl.LightningModule):
             training_steps_per_epoch=None,
             **__):
         '''
-        Both data_set_statistics_dict and  sigma_schedule_mapping  can be None if no training,
+        Both radolan_statistics_dict and  sigma_schedule_mapping  can be None if no training,
         but only forward pass is performed (for checkpoint loading)
         Set training_mode to False for forward pass, when the upper variables are not available during initilization
         '''
@@ -68,13 +68,13 @@ class NetworkL(pl.LightningModule):
         self.sigma_schedule_mapping = sigma_schedule_mapping
         self.settings = settings
 
-        # data_set_statistics_dict can be None if no training, but only forward pass is performed (for checkpoint loading)
-        if data_set_statistics_dict is None:
+        # radolan_statistics_dict can be None if no training, but only forward pass is performed (for checkpoint loading)
+        if radolan_statistics_dict is None:
             self.mean_filtered_log_data = None
             self.std_filtered_log_data = None
         else:
-            self.mean_filtered_log_data = data_set_statistics_dict['mean_filtered_log_data']
-            self.std_filtered_log_data = data_set_statistics_dict['std_filtered_log_data']
+            self.mean_filtered_log_data = radolan_statistics_dict['mean_filtered_log_data']
+            self.std_filtered_log_data = radolan_statistics_dict['std_filtered_log_data']
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
@@ -267,7 +267,7 @@ class NetworkL(pl.LightningModule):
         dynamic_samples_dict, static_samples_dict = batched_samples
         out_dict = self.train_and_val_step(dynamic_samples_dict, static_samples_dict, batch_idx)
         return out_dict
- 
+
     def validation_step(self, batched_samples, batch_idx):
         self.val_step_num += 1
         dynamic_samples_dict, static_samples_dict = batched_samples
