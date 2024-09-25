@@ -647,7 +647,7 @@ if __name__ == '__main__':
 
             # Logging
             's_oversample_validation': True,  # Oversample validation just like training, such that training and validations are directly copmparable
-            's_calc_baseline': True,  # Baselines are calculated and plotted --> Optical flow baseline
+            's_calc_baseline': False,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000,  # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
             # Log transform input/ validation data --> log binning --> log(x+1)
@@ -715,7 +715,7 @@ if __name__ == '__main__':
             settings, **settings
         )
 
-        plot_from_checkpoint_wrapper(settings, **settings)
+        # plot_from_checkpoint_wrapper(settings, **settings)
 
     else:
         # --- Plotting only ---

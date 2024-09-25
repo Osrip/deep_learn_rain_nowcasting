@@ -36,6 +36,7 @@ class FilteredDatasetXr(Dataset):
         # Radolan
         # Squeeze empty dimension
         radolan_data = radolan_data.squeeze()
+        # set all values below 0 to 0
         radolan_data = radolan_data.where(radolan_data >= 0, 0)
 
         # DEM
@@ -82,7 +83,15 @@ class FilteredDatasetXr(Dataset):
     def __getitem_with_coord__(self, idx):
         '''
         This is the getitem method for evaluation, where the coordinate is also returned
-        TODO Potentially make this pass all samples from the complete spatial area one time step
+        Output: (also see get_sample_from_coords())
+            dynamic_samples_dict: {'variable_name': timespace chunk that includes input frames and target frame, np.array}
+            static_samples_dict: {'variable_name': spacial chunk, np.array}
+            sample_coord_float_converted:
+                tuple(
+                    time: np.timedelta64,
+                    y_slice: slice of y coordinates,
+                    x_slice slice of x coordinates
+                    )
         '''
         sample_coord = self.sample_coords[idx]
         dynamic_samples_dict, static_samples_dict = self.get_sample_from_coords(
@@ -90,7 +99,6 @@ class FilteredDatasetXr(Dataset):
         )
         sample_coord_float_converted = convert_sample_coord_to_float(sample_coord)
         return dynamic_samples_dict, static_samples_dict, sample_coord_float_converted
-
 
     def __len__(self):
         return len(self.sample_coords)
@@ -114,7 +122,9 @@ class FilteredDatasetXr(Dataset):
         static_data_dict has the same format {'variable_name': xr.Dataset, ...} and includes static all data that does
         not have a time dimension
 
-        Returns a timespace chunk for each sample that includes input and target
+        Output:
+            dynamic_samples_dict: {'variable_name': timespace chunk that includes input frames and target frame, np.array}
+            static_samples_dict: {'variable_name': spacial chunk, np.array}
         '''
 
         num_input_frames = self.settings['s_num_input_time_steps']
