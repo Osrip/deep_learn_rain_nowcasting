@@ -84,6 +84,9 @@ class FilteredDatasetXr(Dataset):
         dynamic_samples_dict, static_samples_dict, sample_metadata_dict = self.get_sample_from_coords(
             sample_coord,
         )
+        # We are augmenting here, before batching, so that each individual sample gets its
+        # own random augmentation
+        dynamic_samples_dict, static_samples_dict = self.augment(dynamic_samples_dict, static_samples_dict)
         return dynamic_samples_dict, static_samples_dict
 
     def __getitem_evaluation__(self, idx):
@@ -99,6 +102,7 @@ class FilteredDatasetXr(Dataset):
                     x_slice slice of x coordinates
                     )
         '''
+        #TODO Centercrop this to normal s_height_width
         sample_coord = self.sample_coords[idx]
         dynamic_samples_dict, static_samples_dict, sample_metadata_dict = self.get_sample_from_coords(
             sample_coord,
@@ -191,7 +195,7 @@ class FilteredDatasetXr(Dataset):
             time_points_each_frame = convert_datetime64_array_to_float_tensor(time_points_each_frame)
 
             if i != 0:
-                if not np.all(lat == lat_old) or not np.all(lon == lon_old):
+                if not (lat == lat_old).all() or not (lon == lon_old).all():
                     raise ValueError('Lat / Lon do not match between different variables')
             lat_old = lat
             lon_old = lon
@@ -215,7 +219,7 @@ class FilteredDatasetXr(Dataset):
             lon = static_sample[variable_name].longitude.values
             lon = torch.from_numpy(lon)
 
-            if not np.all(lat == lat_old) or not np.all(lon == lon_old):
+            if not (lat == lat_old).all() or not (lon == lon_old).all():
                 raise ValueError('Lat / Lon do not match between different variables')
             lat_old = lat
             lon_old = lon
@@ -251,8 +255,10 @@ class FilteredDatasetXr(Dataset):
 
         return dynamic_samples_dict_cropped, static_samples_dict_cropped
 
-    def augment(self):
-        pass
+    def augment(self, dynamic_samples_dict, static_samples_dict):
+
+        dynamic_samples_dict, static_samples_dict = self.random_crop(dynamic_samples_dict, static_samples_dict)
+        return dynamic_samples_dict, static_samples_dict
 
 
 def create_and_filter_patches(
@@ -546,7 +552,6 @@ def calc_linspace_binning(
     return linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning
 
 
-
 def convert_datetime64_array_to_float_tensor(datetime_array):
     """
     Converts a numpy datetime64 array into a PyTorch float tensor.
@@ -563,6 +568,7 @@ def convert_datetime64_array_to_float_tensor(datetime_array):
     float_tensor = torch.tensor(float_array, dtype=torch.float64)
     return float_tensor
 
+
 def convert_float_tensor_to_datetime64_array(float_tensor):
     """
     Converts a PyTorch float tensor back into a numpy datetime64 array.
@@ -578,60 +584,3 @@ def convert_float_tensor_to_datetime64_array(float_tensor):
     # Convert float timestamps back to datetime64[ns]
     datetime_array = float_array.astype('datetime64[ns]')
     return datetime_array
-
-
-# These two functions are use to pass the sample_coord through the datalaoder and subsequently reconstruct it:
-def convert_sample_coord_to_float(sample_coord):
-    """
-    Converts a sample_coord array containing a numpy.datetime64 and slice objects
-    into a flattened float array suitable for PyTorch DataLoader.
-
-    Args:
-        sample_coord (np.array): An array containing a datetime64 object and two slice objects.
-
-    Returns:
-        np.ndarray: A 1D numpy array of floats, where:
-                    - datetime64 is converted to a float timestamp.
-                    - slice objects are flattened into their start, stop, and step values (step as NaN if None).
-    """
-    float_array = []
-    for item in sample_coord:
-        if isinstance(item, np.datetime64):
-            # Convert datetime64 to a float timestamp
-            float_array.append(item.astype('float64'))
-        elif isinstance(item, slice):
-            # Convert slice to a tuple (start, stop, step) and flatten it
-            float_array.extend([float(item.start), float(item.stop),
-                                float(item.step) if item.step is not None else float('nan')])
-    return np.array(float_array, dtype=np.float64)
-
-
-def convert_float_array_to_sample_coord(float_tensor):
-    """
-    Converts a batched tensor (from DataLoader) containing flattened float representations of sample_coord
-    back into the original array format with a datetime64 and slice objects.
-
-    Args:
-        float_tensor (torch.Tensor): A 1D tensor where the first value is a timestamp (float),
-                                     followed by flattened slice values (start, stop, step).
-
-    Returns:
-        np.ndarray: An array where:
-                    - The first element is a numpy.datetime64 (converted from the timestamp).
-                    - The second and third elements are slice objects reconstructed from their flattened values.
-    """
-    float_list = float_tensor.tolist()  # Convert tensor back to list of floats
-    # Reconstruct the original sample_coord structure
-    datetime_value = np.datetime64(int(float_list[0]), 'ns')  # Convert float timestamp to int for datetime64
-
-    # Extract slice values from the list
-    slice1 = slice(float_list[1], float_list[2], None if np.isnan(float_list[3]) else float_list[3])
-    slice2 = slice(float_list[4], float_list[5], None if np.isnan(float_list[6]) else float_list[6])
-
-    return np.array([datetime_value, slice1, slice2], dtype=object)
-
-
-
-
-
-
