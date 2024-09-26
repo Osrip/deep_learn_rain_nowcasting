@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 from helper.pre_process_target_input import normalize_data
 import torch
 from torchvision import transforms
+import torchvision.transforms.functional as TF
 
 
 class FilteredDatasetXr(Dataset):
@@ -74,13 +75,18 @@ class FilteredDatasetXr(Dataset):
         }
 
     def __getitem__(self, idx):
+        '''
+        This is the getitem method for training / validation.
+        The samples are augmented (including random cropping)
+        More detailed output information see get_sample_from_coords()
+        '''
         sample_coord = self.sample_coords[idx]
-        dynamic_samples_dict, static_samples_dict = self.get_sample_from_coords(
+        dynamic_samples_dict, static_samples_dict, sample_metadata_dict = self.get_sample_from_coords(
             sample_coord,
         )
         return dynamic_samples_dict, static_samples_dict
 
-    def __getitem_with_coord__(self, idx):
+    def __getitem_evaluation__(self, idx):
         '''
         This is the getitem method for evaluation, where the coordinate is also returned
         Output: (also see get_sample_from_coords())
@@ -94,11 +100,11 @@ class FilteredDatasetXr(Dataset):
                     )
         '''
         sample_coord = self.sample_coords[idx]
-        dynamic_samples_dict, static_samples_dict = self.get_sample_from_coords(
+        dynamic_samples_dict, static_samples_dict, sample_metadata_dict = self.get_sample_from_coords(
             sample_coord,
         )
-        sample_coord_float_converted = convert_sample_coord_to_float(sample_coord)
-        return dynamic_samples_dict, static_samples_dict, sample_coord_float_converted
+
+        return dynamic_samples_dict, static_samples_dict, sample_metadata_dict
 
     def __len__(self):
         return len(self.sample_coords)
@@ -115,7 +121,14 @@ class FilteredDatasetXr(Dataset):
             The spatial slices in input_coord have the spatial size of the input + the augmentation padding
             The temporal datetime point gives the time of the target frame (as the filter was applied to the target)
             Therefore to get the inputs we have to go back in time relative to the given time in input_coord (depending on lead time and num_input_frames)
-
+        Input:
+            sample_coord: tuple(
+                time: np.datetime64,
+                y_slice: slice of y coordinates, (s_width_height + s_padding)
+                x_slice slice of x coordinates (s_width_height + s_padding)
+                )
+            time_step_precipitation_data_minutes: int, default = 5
+                The time step of the precipitation data in minutes
         dynamic_data_dict has the following format: {'variable_name': xr.Dataset, ...} Of all variables that are used for the input
         it includes all data that has a time dimension
 
@@ -131,7 +144,7 @@ class FilteredDatasetXr(Dataset):
         s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
 
         lead_time = s_num_lead_time_steps
-        # TODO: NEXT UP implement dict for static and timeseries data:
+
         # Data loader gets the loading paths for static / timeseries input data as a dict and then this function gets the xr.Datasets
         # as a dict and the returns a static and a time series dict with the values which is then also returned by the data laoder.
 
@@ -154,17 +167,35 @@ class FilteredDatasetXr(Dataset):
 
         # Load dynamic samples (samples with time dimension)
         dynamic_samples_dict = {}
-        for key, dynamic_data in self.dynamic_data_dict.items():
+        for i, (key, dynamic_data) in enumerate(self.dynamic_data_dict.items()):
             spacetime_sample = dynamic_data.sel(
                 time=time_slice,
                 y=y_slice,
                 x=x_slice,
             )
             variable_name = self.dynamic_variable_name_dict[key]
+
             dynamic_sample_values = spacetime_sample[variable_name].values  # spacetime_sample.RV_recalc.values
+            dynamic_sample_values = torch.from_numpy(dynamic_sample_values)
             dynamic_samples_dict[key] = dynamic_sample_values
+
             if not np.shape(dynamic_sample_values)[0] == num_input_frames + lead_time + 1:
                 raise ValueError('The time dim of the sample values is not as expected, check the slicing')
+
+            # Extract lat / lon
+            lat = spacetime_sample[variable_name].latitude.values
+            lat = torch.from_numpy(lat)
+            lon = spacetime_sample[variable_name].longitude.values
+            lon = torch.from_numpy(lon)
+            time_points_each_frame = spacetime_sample.time.values
+            time_points_each_frame = convert_datetime64_array_to_float_tensor(time_points_each_frame)
+
+            if i != 0:
+                if not np.all(lat == lat_old) or not np.all(lon == lon_old):
+                    raise ValueError('Lat / Lon do not match between different variables')
+            lat_old = lat
+            lon_old = lon
+
 
         # Load static samples:
         static_samples_dict = {}
@@ -175,19 +206,53 @@ class FilteredDatasetXr(Dataset):
             )
             variable_name = self.static_variable_name_dict[key]
             static_sample_values = static_sample[variable_name].values
+            static_sample_values = torch.from_numpy(static_sample_values)
             static_samples_dict[key] = static_sample_values
 
-        return dynamic_samples_dict, static_samples_dict
+            # Extract lat / lon
+            lat = static_sample[variable_name].latitude.values
+            lat = torch.from_numpy(lat)
+            lon = static_sample[variable_name].longitude.values
+            lon = torch.from_numpy(lon)
 
+            if not np.all(lat == lat_old) or not np.all(lon == lon_old):
+                raise ValueError('Lat / Lon do not match between different variables')
+            lat_old = lat
+            lon_old = lon
 
-def random_crop(spacetime_batches: torch.Tensor, s_width_height, **__):
-    '''
-    Doing a random crop
-    '''
-    random_crop = transforms.RandomCrop(size=(s_width_height, s_width_height))
-    spacetime_batches_cropped = random_crop(spacetime_batches)
+            sample_metadata_dict = {
+                'latitude': lat,
+                'longitude': lon,
+                'time_points_each_frame': time_points_each_frame
+            }
 
-    return spacetime_batches_cropped
+        return dynamic_samples_dict, static_samples_dict, sample_metadata_dict
+
+    def random_crop(self, dynamic_samples_dict, static_samples_dict):
+        '''
+        Doing a random crop
+        '''
+        s_width_height = self.settings['s_width_height']
+
+        crop_indices = transforms.RandomCrop.get_params(
+            dynamic_samples_dict['radolan'],
+            output_size=(s_width_height, s_width_height)
+        )
+
+        i, j, h, w = crop_indices  # i,j give random position of the crop, h,w give height, width (=s_width_height)
+
+        dynamic_samples_dict_cropped = {
+            key: TF.crop(spacetime_sample, i, j, h, w) for key, spacetime_sample in dynamic_samples_dict.items()
+        }
+
+        static_samples_dict_cropped = {
+            key: TF.crop(spacial_sample, i, j, h, w) for key, spacial_sample in static_samples_dict.items()
+        }
+
+        return dynamic_samples_dict_cropped, static_samples_dict_cropped
+
+    def augment(self):
+        pass
 
 
 def create_and_filter_patches(
@@ -199,8 +264,8 @@ def create_and_filter_patches(
         s_filter_threshold_mm_rain_each_pixel,
         s_filter_threshold_percentage_pixels,
         s_crop_data_time_span,
-        **__
-) -> tuple[np.array, xr.Dataset, xr.Dataset]:
+        **__,
+):
 
     # Loading data into xarray
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
@@ -232,7 +297,8 @@ def create_and_filter_patches(
         x=x_target,
         # time = 1, # No chunking along time dimension
         side="left",  # "left" means that the blocks are aligned to the left of the input
-        boundary="trim")  # boundary="trim" removes the last block if it is too small
+        boundary="trim"  # boundary="trim" removes the last block if it is too small
+    )
 
     # construct a new data set, where the patches are folded into a new dimension
     patches = coarse.construct(
@@ -478,6 +544,40 @@ def calc_linspace_binning(
     #                                endpoint=False)
 
     return linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning
+
+
+
+def convert_datetime64_array_to_float_tensor(datetime_array):
+    """
+    Converts a numpy datetime64 array into a PyTorch float tensor.
+
+    Args:
+        datetime_array (np.ndarray): An array of numpy datetime64[ns] objects.
+
+    Returns:
+        torch.Tensor: A 1D PyTorch tensor where each datetime64 is converted to a float timestamp.
+    """
+    # Convert each datetime64 to float timestamp
+    float_array = datetime_array.astype('float64')  # datetime64[ns] to float64
+    # Convert the numpy array to a PyTorch tensor
+    float_tensor = torch.tensor(float_array, dtype=torch.float64)
+    return float_tensor
+
+def convert_float_tensor_to_datetime64_array(float_tensor):
+    """
+    Converts a PyTorch float tensor back into a numpy datetime64 array.
+
+    Args:
+        float_tensor (torch.Tensor): A 1D PyTorch tensor where each value represents a timestamp as float.
+
+    Returns:
+        np.ndarray: A numpy array of datetime64[ns] objects reconstructed from the float tensor.
+    """
+    # Convert tensor back to numpy array of floats
+    float_array = float_tensor.numpy()
+    # Convert float timestamps back to datetime64[ns]
+    datetime_array = float_array.astype('datetime64[ns]')
+    return datetime_array
 
 
 # These two functions are use to pass the sample_coord through the datalaoder and subsequently reconstruct it:

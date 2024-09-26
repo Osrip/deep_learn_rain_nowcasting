@@ -14,7 +14,6 @@ import einops
 from helper.pre_process_target_input import img_one_hot, inverse_normalize_data, invnorm_linspace_binning, normalize_data
 from helper.pre_process_target_input import set_nans_zero, pre_process_target_to_one_hot
 from pysteps import verification
-from load_data_xarray import random_crop
 
 
 class NetworkL(pl.LightningModule):
@@ -222,8 +221,6 @@ class NetworkL(pl.LightningModule):
         # We start out with a whole unnormalized batched spacetime tensor (b x t x h x w) which has spacial dimensions of the
         # input + augmentation padding and time-wise starts with the first input sequence and ends on the target sequence
 
-        # Augment data
-        radolan_spacetime_batch = random_crop(radolan_spacetime_batch, **self.settings)
         # Normalize data
         radolan_spacetime_batch = normalize_data(radolan_spacetime_batch, self.mean_filtered_log_data, self.std_filtered_log_data)
         # Extract target and input
