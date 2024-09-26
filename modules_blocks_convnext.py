@@ -60,6 +60,9 @@ class SkipConnection(nn.Module):
 
             if out_channels > in_channels:
                 return einops.repeat(input, 'b c h w -> b (c n) h w', n=out_channels // in_channels)
+        else:
+            raise ValueError('in_channels % out_channels is not 0')
+
 
         mean_channels = np.gcd(in_channels, out_channels)
         input = einops.reduce(input, 'b (c n) h w -> b c h w', 'mean', n=in_channels // mean_channels)
@@ -254,7 +257,7 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
     """
-    Encoder
+    Decoder
     This returns the whole list for the skip connections
     """
     def __init__(self, c_list: list[int], spatial_factor_list: list[int], num_blocks_list: list[int]):
@@ -329,23 +332,31 @@ class ConvNeXtUNet(nn.Module):
                  c_list: list[int],
                  spatial_factor_list: list[int],
                  num_blocks_list: list[int],
+                 c_in: int,
                  c_target: int = 64,
                  height_width_target: int = 32,
                  ):
         super().__init__()
+        self.c_in = c_in
         if not len(c_list) - 1 == len(spatial_factor_list) == len(num_blocks_list):
             raise ValueError('The length of c_list - 1 and  length of spatial_factor_list have to be equal as they correspond to'
                              'the number of downscalings in our network')
-
+        self.upscale_input_channels = nn.Conv2d(c_in, c_list[0], kernel_size=1)
         self.encoder = Encoder(c_list, spatial_factor_list, num_blocks_list)
         self.decoder = Decoder(c_list, spatial_factor_list, num_blocks_list)
         self.center_crop_downscale = DownScaleToTarget(c_in=c_list[0], c_out=c_target, height_width_target=height_width_target)
         self.soft_max = nn.Softmax(dim=1)
 
     def forward(self, x: torch.Tensor):
+        if x.shape[1] != self.c_in:
+            raise ValueError(
+                f'Size of channel dim in network input is {x.shape[1]} but expected {self.c_in}'
+            )
+        x = self.upscale_input_channels(x)
         skip_list = self.encoder(x)
         x = self.decoder(skip_list)
         x = self.center_crop_downscale(x)
+
         # XEntropy takes non-softmaxed input!
         # x = self.soft_max(x)
         return x

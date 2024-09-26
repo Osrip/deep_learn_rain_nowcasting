@@ -118,9 +118,10 @@ class NetworkL(pl.LightningModule):
         # Initialize model
         if s_convnext:
             self.model = ConvNeXtUNet(
-                c_list=[4, 32, 64, 128, 256],
-                spatial_factor_list=[2, 2, 2, 2],
-                num_blocks_list=[2, 2, 2, 2],
+                c_list=[32, 64, 128, 256],
+                spatial_factor_list=[4, 2, 2],
+                num_blocks_list=[1, 2, 4],
+                c_in=5,
                 c_target=s_num_bins_crossentropy,
                 height_width_target=s_width_height_target
             )
@@ -247,13 +248,15 @@ class NetworkL(pl.LightningModule):
         # --- Process DEM ---
         dem_spatial_batch = static_samples_dict['dem']
 
-        # TODO Augment
-
         # Normalize
         dem_mean, dem_std = self.trainer.train_dataloader.dataset.static_statistics_dict['dem']
         dem_spatial_batch = (dem_spatial_batch - dem_mean) / dem_std
+        # Add channel dim of size 1
+        dem_spatial_batch_unsqueezed = dem_spatial_batch.unsqueeze(dim=1)
 
-        pred = self(radolan_input_sequence)
+        net_input = torch.cat((radolan_input_sequence, dem_spatial_batch_unsqueezed), dim=1)
+
+        pred = self(net_input)
 
         if torch.isnan(pred).any():
             raise ValueError('NAN in prediction (also leading to nan in loss)')
