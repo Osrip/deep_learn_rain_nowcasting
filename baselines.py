@@ -36,7 +36,6 @@ class LKBaseline(pl.LightningModule):
 
         self.steps_settings = steps_settings
 
-
     def _infer_by_extrapolation(self, frames_2dim, motion_field):
         '''
         This infers the future frame using the motion field implementing extrapolation
@@ -62,7 +61,7 @@ class LKBaseline(pl.LightningModule):
             n_cascade_levels=6,
             precip_thr=0.01,  # everything below is assumed to be zero
             kmperpixel=1,
-            timestep=5, # Minutes temp. distance between frames of input motion field
+            timestep=5,  # Minutes temp. distance between frames of input motion field
             noise_method="nonparametric",
             vel_pert_method="bps",
             mask_method="incremental",
