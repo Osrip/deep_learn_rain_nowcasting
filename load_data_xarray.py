@@ -21,12 +21,22 @@ class FilteredDatasetXr(Dataset):
 
         s_data_variable_name = settings['s_data_variable_name']
         s_dem_variable_name = settings['s_dem_variable_name']
+        s_crop_data_time_span = settings['s_crop_data_time_span']
 
 
         # --- load data ---
         # Radolan
         load_path_radolan = '{}/{}'.format(s_folder_path, s_data_file_name)
-        radolan_data = xr.open_dataset(load_path_radolan, engine='zarr', chunks=None) # chunks = None disables dask overhead
+        radolan_data = xr.open_dataset(load_path_radolan, engine='zarr', chunks=None)
+        # chunks = None disables dask overhead
+
+        # In case only certain time span is used, do some cropping to save RAM
+        if s_crop_data_time_span is not None:
+            if s_crop_data_time_span is not None:
+                start_time, stop_time = np.datetime64(s_crop_data_time_span[0]), np.datetime64(s_crop_data_time_span[1])
+                crop_slice = slice(start_time, stop_time)
+                radolan_data = radolan_data.sel(time=crop_slice)
+
         radolan_data = radolan_data.load()  # loading into RAM
 
         # DEM

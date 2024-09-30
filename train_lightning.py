@@ -536,7 +536,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
@@ -578,7 +578,7 @@ if __name__ == '__main__':
             's_max_epochs': 25,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #None,
+            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be None
 
             # Load Radolan
             's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
