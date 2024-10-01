@@ -298,7 +298,7 @@ def create_and_filter_patches(
     data_min = data.min(skipna=True, dim=None).RV_recalc.values
     if data_min < -0.1:
         raise ValueError(f'The min value of the data is {data_min}, which is below the threshold of -0.1')
-    data = data.where(data >= 0, 0) #All values that are NOT chosen ( >= 0) are set to 0
+    data = data.where((data >= 0) | np.isnan(data), other=0)  #All values that are NOT chosen ( >= 0 or nan) are set to 0
 
     # Cut off the beginning  of the data as the time length, that one sample has (input frames + lead time + target)
     # as we will 'go back in time' to generate the inputs from the target patches
