@@ -205,7 +205,8 @@ class FilteredDatasetXr(Dataset):
             time_points_each_frame = convert_datetime64_array_to_float_tensor(time_points_each_frame)
 
             if i != 0:
-                if not (lat == lat_old).all() or not (lon == lon_old).all():
+                tolerance = 1e-2  # This should correspond to roughly 1 km error
+                if not torch.allclose(lat, lat_old, atol=tolerance) or not torch.allclose(lon, lon_old, atol=tolerance):
                     raise ValueError('Lat / Lon do not match between different variables')
             lat_old = lat
             lon_old = lon
@@ -229,7 +230,8 @@ class FilteredDatasetXr(Dataset):
             lon = static_sample[variable_name].longitude.values
             lon = torch.from_numpy(lon)
 
-            if not (lat == lat_old).all() or not (lon == lon_old).all():
+            tolerance = 1e-2 # This should correspond to roughly 1 km error
+            if not torch.allclose(lat, lat_old, atol=tolerance) or not torch.allclose(lon, lon_old, atol=tolerance):
                 raise ValueError('Lat / Lon do not match between different variables')
             lat_old = lat
             lon_old = lon
