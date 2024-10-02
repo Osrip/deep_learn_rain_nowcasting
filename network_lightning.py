@@ -219,11 +219,17 @@ class NetworkL(pl.LightningModule):
         # --- Process Radolan ---
         radolan_spacetime_batch = dynamic_samples_dict['radolan']
 
-        # We start out with a whole unnormalized batched spacetime tensor (b x t x h x w) which has spacial dimensions of the
-        # input + augmentation padding and time-wise starts with the first input sequence and ends on the target sequence
+        # We start out with a whole unnormalized batched spacetime tensor (b x t x h x w) which has spacial dimensions
+        # of the input + augmentation padding and time-wise starts with the first input sequence and ends on the
+        # target sequence
 
         # Normalize data
-        radolan_spacetime_batch = normalize_data(radolan_spacetime_batch, self.mean_filtered_log_data, self.std_filtered_log_data)
+        radolan_spacetime_batch = normalize_data(
+            radolan_spacetime_batch,
+            self.mean_filtered_log_data,
+            self.std_filtered_log_data
+        )
+
         # Extract target and input
         target = radolan_spacetime_batch[:, -1, :, :]
         radolan_input_sequence = radolan_spacetime_batch[:, 0:4, :, :]
@@ -256,6 +262,7 @@ class NetworkL(pl.LightningModule):
 
         net_input = torch.cat((radolan_input_sequence, dem_spatial_batch_unsqueezed), dim=1)
 
+        # --- Forward Pass ---
         pred = self(net_input)
 
         if torch.isnan(pred).any():
