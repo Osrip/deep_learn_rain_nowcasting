@@ -21,6 +21,7 @@ class SuppressPrint:
         # Restore stdout after exiting the block
         sys.stdout = self._original_stdout
 
+
 def load_data(
         ensemble_num,
         lead_time_steps,
@@ -44,9 +45,8 @@ def load_data(
     print(f'min val in dataset is {dataset.min(skipna=True, dim=None).RV_recalc.values}')
     dataset = dataset.sel(time=slice('2019-01-01T12:00:00', '2019-01-01T12:30:00'))
 
-    R = dataset['RV_recalc'].values
 
-    return R, dataset
+    return dataset
 
 
 def predict(
@@ -101,18 +101,27 @@ def main(
         **__,
     ):
 
-    R, radolan_dataset = load_data(**pre_settings)
+    radolan_dataset = load_data(**pre_settings)
+
+    R = radolan_dataset['RV_recalc'].values
 
     y = radolan_dataset[radolan_variable_name].y
     x = radolan_dataset[radolan_variable_name].x
     time = radolan_dataset[radolan_variable_name].time
-    time = time[num_input_frames:]
 
-    pred_shape = (ensemble_num, lead_time_steps, len(time), len(y), len(x))
+    # The length of the time dimension is len(R) - num_input_frames + 1, as R[0 : num_input_frames] already produces
+    # a forecast: R[num_input_frames] = forecast(R[0 : num_input_frames])
+    # Say num_input_frames = 4, then we would have to remove only 3 time steps to fit the forecast data into the time
+    # dimension
+
+    len_time = len(R) - num_input_frames + 1
+
+    pred_shape = (ensemble_num, lead_time_steps, len_time, len(y), len(x))
     R_pred = np.zeros(pred_shape)
 
+    print('Creating STEPS forecast')
     with SuppressPrint():
-        for i in tqdm(range(len(R) - num_input_frames)):
+        for i in tqdm(range(len_time)):
             idx_slice = (i, i + num_input_frames)
             R_pred_one_iteration = predict(R, idx_slice, **pre_settings)
             R_pred[:, :, i, :, :] = R_pred_one_iteration
@@ -123,12 +132,13 @@ def main(
 
     # We are taking the original data set and start at the 'num_input_frames'th frame time-wise
     # as the first num_input_frames are used to make the prediction
-    steps_dataset = steps_dataset.isel(time=slice(num_input_frames, None))
+    steps_dataset = steps_dataset.isel(time=slice(num_input_frames-1, None))
 
     # Add the predictions with appropriate dimensions
     # First, ensure ensemble_num and lead_time coordinates are added to the dataset
     ensemble_nums = np.arange(R_pred.shape[0])
-    lead_times = ((np.arange(R_pred.shape[1])+1) * np.timedelta64(mins_per_time_step, 'm')
+    lead_time_steps = (np.arange(R_pred.shape[1])+1)  # We start counting at 1, as first lead time is i.e. 5 mins and not 0
+    lead_times = (lead_time_steps * np.timedelta64(mins_per_time_step, 'm')
                   .astype('timedelta64[ns]'))
 
     # Assign these coordinates to the dataset
@@ -147,12 +157,7 @@ def main(
 
     # Assign the data array to the dataset
     steps_dataset = steps_dataset.assign(steps_prediction=steps_prediction)
-    # Im Moment werden frames aus min 0, 5, 10, 15 genommen, prediction gemacht und dann die Prediction
-    # (mit mehreren lead times) auf min 20 assigned.
-    # Das heißt das ground truth von min 20 genau die prediction von min 20 mit lead time 0=5 ist.
-    # Was passiert mit der letzten prediction? Eigentlich müstte für die ja ein neuer time stamp erfunden werden, die ground truth nicht hat.
-    # Eigentlich wäre es intuitiver die prediction der minute 15 zu assignen, also dem letzten Bild, das genutzt wurde um die
-    # prediction zu machen.
+
     return steps_dataset
 
 
