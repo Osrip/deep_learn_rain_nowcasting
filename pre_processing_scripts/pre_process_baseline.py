@@ -1,14 +1,14 @@
 import os
 import xarray as xr
 import numpy as np
-import matplotlib.pyplot as plt
-from pysteps import nowcasts, rcparams
+
+from pysteps import nowcasts
 from pysteps.motion.lucaskanade import dense_lucaskanade
-from pysteps.utils import conversion, dimension, transformation
-from pysteps.visualization import plot_precip_field
-from tqdm import tqdm
+from pysteps.utils import transformation
+
 import sys
 import io
+import time
 
 
 # Temporarily redirect stdout to suppress print statements
@@ -43,8 +43,9 @@ def load_data(
     # The where function keeps values where the condition is True and replaces the rest (where it's False)
     # with the value specified, in this case 0.
     print(f'min val in dataset is {dataset.min(skipna=True, dim=None).RV_recalc.values}')
-    dataset = dataset.sel(time=slice('2019-01-01T12:00:00', '2019-01-01T12:30:00'))
 
+    # Uncomment this if only certain data range should be forecasted
+    # dataset = dataset.sel(time=slice('2019-01-01T12:00:00', '2019-01-01T12:30:00'))
 
     return dataset
 
@@ -121,7 +122,8 @@ def main(
 
     print('Creating STEPS forecast')
     with SuppressPrint():
-        for i in tqdm(range(len_time)):
+        for i in range(len_time):
+            print(f'Forecast for frame {i} to {i} + 4')
             idx_slice = (i, i + num_input_frames)
             R_pred_one_iteration = predict(R, idx_slice, **pre_settings)
             R_pred[:, :, i, :, :] = R_pred_one_iteration
@@ -163,19 +165,33 @@ def main(
 
 if __name__ == '__main__':
     pre_settings = {
-        'ensemble_num': 3, #20,
-        'lead_time_steps': 2, #6,
+        'ensemble_num': 20, #20,
+        'lead_time_steps': 24, #6,
         'seed': 24,
         'mins_per_time_step': 5,
-        'radolan_path': '/Users/jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data/'
-                           'testdata_two_days_2019_01_01-02.zarr',
         'radolan_variable_name': 'RV_recalc',
-        'num_input_frames': 4
+        'num_input_frames': 4,
+        # -- local testing ---
+        # 'radolan_path': '/Users/jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data/'
+        #                    'testdata_two_days_2019_01_01-02.zarr',
+        # 'save_zarr_path': '/Users/jan/Downloads/'
+        #                    'testdata_two_days_2019_01_01-02_steps_predictions.zarr',
+        # -- big dataset cluster --
+        'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/steps_forecasts_rv_recalc.zarr',
+        'radolan_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/RV_recalc.zarr',
+        # -- test dataset cluster --
+        # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/steps_forecast_testdata_two_days_2019_01_01-02.zarr',
+        # 'radolan_path': '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/dwd_nc/own_test_data/testdata_two_days_2019_01_01-02.zarr',
+
+
 
     }
-
+    start_time = time.time()
     steps_dataset = main(pre_settings, **pre_settings)
-    pass
+    steps_dataset.to_zarr(pre_settings['save_zarr_path'], mode='w')
+    total_time = time.time() - start_time
+    print(f'Time of script: {total_time}')
+
 
 
 
