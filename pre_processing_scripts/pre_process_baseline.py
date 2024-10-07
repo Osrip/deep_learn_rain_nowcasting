@@ -1,6 +1,7 @@
 import os
 import xarray as xr
 import numpy as np
+import dask.array as da
 
 from pysteps import nowcasts
 from pysteps.motion.lucaskanade import dense_lucaskanade
@@ -45,14 +46,13 @@ def load_data(
     print(f'min val in dataset is {dataset.min(skipna=True, dim=None).RV_recalc.values}')
 
     # Uncomment this if only certain data range should be forecasted
-    # dataset = dataset.sel(time=slice('2019-01-01T12:00:00', '2019-01-01T12:30:00'))
+    dataset = dataset.sel(time=slice('2019-01-01T12:00:00', '2019-01-01T12:30:00'))
 
     return dataset
 
 
 def predict(
-        R,
-        idx_slice: tuple,
+        radolan_slice: np.array,
 
         ensemble_num,
         lead_time_steps,
@@ -64,15 +64,15 @@ def predict(
 ):
     # --- Processing ---
     # DB transform
-    R_normed = transformation.dB_transform(R, threshold=0.1, zerovalue=-15.0)[0]
+    radolan_slice_normed = transformation.dB_transform(radolan_slice, threshold=0.1, zerovalue=-15.0)[0]
     # This returns a tuple with metatdata, where first entry is actual data
 
     # Estimate the motion field
-    V = dense_lucaskanade(R_normed[idx_slice[0]: idx_slice[1], :, :])
+    V = dense_lucaskanade(radolan_slice_normed)
     # The STEPS nowcast
     nowcast_method = nowcasts.get_method("steps")
     R_normed_f = nowcast_method(
-        R_normed[idx_slice[0]: idx_slice[1], :, :],
+        radolan_slice_normed,
         V,
         lead_time_steps,
         ensemble_num,
@@ -87,8 +87,8 @@ def predict(
     )
 
     # Back-transform to rain rates
-    R_pred = transformation.dB_transform(R_normed_f, threshold=-10.0, inverse=True)[0]
-    return R_pred  # (n_ens_members,num_timesteps,m,n)
+    radolan_pred = transformation.dB_transform(R_normed_f, threshold=-10.0, inverse=True)[0]
+    return radolan_pred  # (n_ens_members,num_timesteps,m,n)
 
 
 def main(
@@ -108,27 +108,37 @@ def main(
 
     y = radolan_dataset[radolan_variable_name].y
     x = radolan_dataset[radolan_variable_name].x
-    time = radolan_dataset[radolan_variable_name].time
+    time_dim = radolan_dataset[radolan_variable_name].time
 
     # The length of the time dimension is len(R) - num_input_frames + 1, as R[0 : num_input_frames] already produces
     # a forecast: R[num_input_frames] = forecast(R[0 : num_input_frames])
     # Say num_input_frames = 4, then we would have to remove only 3 time steps to fit the forecast data into the time
     # dimension
 
-    len_time = len(R) - num_input_frames + 1
+    len_time = len(time_dim) - num_input_frames + 1
 
-    pred_shape = (ensemble_num, lead_time_steps, len_time, len(y), len(x))
-    R_pred = np.zeros(pred_shape)
-    # In small test data I already get this error:
-    # numpy.core._exceptions._ArrayMemoryError: Unable to allocate 2.64 TiB for an array with shape (20, 24, 573, 1200, 1100) and data type float64
+    pred_shape = (ensemble_num, lead_time_steps, len_time,  len(y), len(x))
+    chunks = ('auto', 'auto', 'auto', 'auto', 'auto')  # Adjust chunks to fit your memory constraints
+
+    # Create a Dask-backed DataArray
+    radolan_pred = xr.DataArray(
+        da.zeros(pred_shape, chunks=chunks, dtype='float32'),
+        dims=('ensemble', 'lead_time', 'time', 'y', 'x')
+    )
 
     print('Creating STEPS forecast')
-    with SuppressPrint():
-        for i in range(len_time):
-            print(f'Forecast for frame {i} to {i} + 4')
-            idx_slice = (i, i + num_input_frames)
-            R_pred_one_iteration = predict(R, idx_slice, **pre_settings)
-            R_pred[:, :, i, :, :] = R_pred_one_iteration
+    for i in range(len_time):
+        print(f'Forecast for frame {i} to {i} + 4')
+        with SuppressPrint():
+
+            radolan_slice = radolan_dataset.isel(
+                time=slice(i, i + num_input_frames)
+            )
+            radolan_vals = radolan_slice[radolan_variable_name].values
+            radolan_pred_one_iteration = predict(radolan_vals, **pre_settings)
+
+            # Assign the computed slice to the Dask array --> Is this a problem as dask arrays are 'immutable'?
+            radolan_pred[:, :, i, :, :] = radolan_pred_one_iteration
 
 
     # Create a new dataset from the predictions
@@ -140,8 +150,8 @@ def main(
 
     # Add the predictions with appropriate dimensions
     # First, ensure ensemble_num and lead_time coordinates are added to the dataset
-    ensemble_nums = np.arange(R_pred.shape[0])
-    lead_time_steps = (np.arange(R_pred.shape[1])+1)  # We start counting at 1, as first lead time is i.e. 5 mins and not 0
+    ensemble_nums = np.arange(radolan_pred.shape[0])
+    lead_time_steps = (np.arange(radolan_pred.shape[1])+1)  # We start counting at 1, as first lead time is i.e. 5 mins and not 0
     lead_times = (lead_time_steps * np.timedelta64(mins_per_time_step, 'm')
                   .astype('timedelta64[ns]'))
 
@@ -151,7 +161,7 @@ def main(
     # We need to make sure that we expand `time`, `y`, and `x` to match the dimensions of `R_pred`
     # This assumes `R_pred` shape is [ensemble_num, lead_time, time, y, x]
     steps_prediction = xr.DataArray(
-        R_pred, dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
+        radolan_pred, dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
         coords={'ensemble_num': ensemble_nums,
                 'lead_time': lead_times,
                 'time': steps_dataset.time,
@@ -167,23 +177,23 @@ def main(
 
 if __name__ == '__main__':
     pre_settings = {
-        'ensemble_num': 20, #20,
-        'lead_time_steps': 24, #6,
+        'ensemble_num': 1, #20, #20,
+        'lead_time_steps': 1, #24, #6,
         'seed': 24,
         'mins_per_time_step': 5,
         'radolan_variable_name': 'RV_recalc',
         'num_input_frames': 4,
         # -- local testing ---
-        # 'radolan_path': '/Users/jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data/'
-        #                    'testdata_two_days_2019_01_01-02.zarr',
-        # 'save_zarr_path': '/Users/jan/Downloads/'
-        #                    'testdata_two_days_2019_01_01-02_steps_predictions.zarr',
+        'radolan_path': '/Users/jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data/'
+                           'testdata_two_days_2019_01_01-02.zarr',
+        'save_zarr_path': '/Users/jan/Downloads/'
+                           'testdata_two_days_2019_01_01-02_steps_predictions.zarr',
         # -- big dataset cluster --
-        # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/steps_forecasts_rv_recalc.zarr',
-        # 'radolan_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/RV_recalc.zarr',
+        # 'radolan_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/RV_recalc.zarr',
+        # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/steps_forecasts_rv_recalc.zarr',
         # -- test dataset cluster --
-        'radolan_path': '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/dwd_nc/own_test_data/testdata_two_days_2019_01_01-02.zarr',
-        'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/steps_forecast_testdata_two_days_2019_01_01-02.zarr',
+        # 'radolan_path': '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/dwd_nc/own_test_data/testdata_two_days_2019_01_01-02.zarr',
+        # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/steps_forecast_testdata_two_days_2019_01_01-02.zarr',
 
 
 
