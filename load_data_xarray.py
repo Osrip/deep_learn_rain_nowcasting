@@ -112,6 +112,7 @@ class FilteredDatasetXr(Dataset):
                     x_slice slice of x coordinates
                     )
         '''
+        # TODO: NOT FINISHED
         #TODO Centercrop this to normal s_height_width
         sample_coord = self.sample_coords[idx]
         dynamic_samples_dict, static_samples_dict, sample_metadata_dict = self.get_sample_from_coords(
@@ -230,7 +231,7 @@ class FilteredDatasetXr(Dataset):
             lon = static_sample[variable_name].longitude.values
             lon = torch.from_numpy(lon)
 
-            tolerance = 1e-2 # This should correspond to roughly 1 km error
+            tolerance = 1e-2  # This should correspond to roughly 1 km error (one lat/lon degree ~ 111km)
             if not torch.allclose(lat, lat_old, atol=tolerance) or not torch.allclose(lon, lon_old, atol=tolerance):
                 raise ValueError('Lat / Lon do not match between different variables')
             lat_old = lat
