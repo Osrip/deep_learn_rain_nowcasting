@@ -104,8 +104,6 @@ def main(
 
     radolan_dataset = load_data(**pre_settings)
 
-    R = radolan_dataset['RV_recalc'].values
-
     y = radolan_dataset[radolan_variable_name].y
     x = radolan_dataset[radolan_variable_name].x
     time_dim = radolan_dataset[radolan_variable_name].time
@@ -114,17 +112,32 @@ def main(
     # a forecast: R[num_input_frames] = forecast(R[0 : num_input_frames])
     # Say num_input_frames = 4, then we would have to remove only 3 time steps to fit the forecast data into the time
     # dimension
-
     len_time = len(time_dim) - num_input_frames + 1
 
-    pred_shape = (ensemble_num, lead_time_steps, len_time,  len(y), len(x))
-    chunks = ('auto', 'auto', 'auto', 'auto', 'auto')  # Adjust chunks to fit your memory constraints
+    pred_shape = (ensemble_num, lead_time_steps, len_time, len(y), len(x))
 
-    # Create a Dask-backed DataArray
-    radolan_pred = xr.DataArray(
-        da.zeros(pred_shape, chunks=chunks, dtype='float32'),
-        dims=('ensemble', 'lead_time', 'time', 'y', 'x')
+    dummy_dataset = radolan_dataset.copy()
+
+    # We are taking the original data set and start at the 'num_input_frames'th frame time-wise
+    # as the first num_input_frames are used to make the prediction
+    dummy_dataset = dummy_dataset.isel(time=slice(num_input_frames-1, None))
+
+    ensemble_nums = np.arange(ensemble_num)
+    lead_time_steps = np.arange(lead_time_steps)+1  # We start counting at 1, as first lead time is i.e. 5 mins and not 0
+    lead_times = (lead_time_steps * np.timedelta64(mins_per_time_step, 'm')
+                  .astype('timedelta64[ns]'))
+
+
+    steps_dataset = xr.Dataset(
+        # dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
+        coords={'ensemble_num': ensemble_nums,
+                'lead_time': lead_times,
+                'time': dummy_dataset.time.values,
+                'y': dummy_dataset.y.values,
+                'x': dummy_dataset.x.values}
     )
+    steps_dataset.to_zarr(pre_settings['save_zarr_path'], mode='w')
+
 
     print('Creating STEPS forecast')
     for i in range(len_time):
@@ -136,43 +149,25 @@ def main(
             )
             radolan_vals = radolan_slice[radolan_variable_name].values
             radolan_pred_one_iteration = predict(radolan_vals, **pre_settings)
+            radolan_pred_one_iteration = np.expand_dims(radolan_pred_one_iteration, axis=2)
 
-            # Assign the computed slice to the Dask array --> Is this a problem as dask arrays are 'immutable'?
-            radolan_pred[:, :, i, :, :] = radolan_pred_one_iteration
+            time_value = dummy_dataset.time.isel(time=i).values
+
+            radolan_pred_da = xr.DataArray(
+                radolan_pred_one_iteration,
+                dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
+                # coords={
+                #    'ensemble': ensemble_nums,
+                #    'lead_time': lead_times,
+                #    'time': [time_value],
+                #    'y': dummy_dataset.y,
+                #    'x': dummy_dataset.x,
+                # },
+                name='steps'
+            )
+            radolan_pred_da.to_zarr(pre_settings['save_zarr_path'], mode='a', append_dim='time')
 
 
-    # Create a new dataset from the predictions
-    steps_dataset = radolan_dataset.copy()
-
-    # We are taking the original data set and start at the 'num_input_frames'th frame time-wise
-    # as the first num_input_frames are used to make the prediction
-    steps_dataset = steps_dataset.isel(time=slice(num_input_frames-1, None))
-
-    # Add the predictions with appropriate dimensions
-    # First, ensure ensemble_num and lead_time coordinates are added to the dataset
-    ensemble_nums = np.arange(radolan_pred.shape[0])
-    lead_time_steps = (np.arange(radolan_pred.shape[1])+1)  # We start counting at 1, as first lead time is i.e. 5 mins and not 0
-    lead_times = (lead_time_steps * np.timedelta64(mins_per_time_step, 'm')
-                  .astype('timedelta64[ns]'))
-
-    # Assign these coordinates to the dataset
-    steps_dataset = steps_dataset.assign_coords(ensemble_num=ensemble_nums, lead_time=lead_times)
-
-    # We need to make sure that we expand `time`, `y`, and `x` to match the dimensions of `R_pred`
-    # This assumes `R_pred` shape is [ensemble_num, lead_time, time, y, x]
-    steps_prediction = xr.DataArray(
-        radolan_pred, dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
-        coords={'ensemble_num': ensemble_nums,
-                'lead_time': lead_times,
-                'time': steps_dataset.time,
-                'y': steps_dataset.y,
-                'x': steps_dataset.x}
-    )
-
-    # Assign the data array to the dataset
-    steps_dataset = steps_dataset.assign(steps_prediction=steps_prediction)
-
-    return steps_dataset
 
 
 if __name__ == '__main__':
@@ -194,13 +189,9 @@ if __name__ == '__main__':
         # -- test dataset cluster --
         # 'radolan_path': '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/dwd_nc/own_test_data/testdata_two_days_2019_01_01-02.zarr',
         # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/steps_forecast_testdata_two_days_2019_01_01-02.zarr',
-
-
-
     }
     start_time = time.time()
-    steps_dataset = main(pre_settings, **pre_settings)
-    steps_dataset.to_zarr(pre_settings['save_zarr_path'], mode='w')
+    main(pre_settings, **pre_settings)
     total_time = time.time() - start_time
     print(f'Time of script: {total_time}')
 
