@@ -112,7 +112,7 @@ def main(
     # a forecast: R[num_input_frames] = forecast(R[0 : num_input_frames])
     # Say num_input_frames = 4, then we would have to remove only 3 time steps to fit the forecast data into the time
     # dimension
-    len_time = len(time_dim) - num_input_frames + 1
+    len_time = len(time_dim) - num_input_frames
 
     pred_shape = (ensemble_num, lead_time_steps, len_time, len(y), len(x))
 
@@ -120,13 +120,12 @@ def main(
 
     # We are taking the original data set and start at the 'num_input_frames'th frame time-wise
     # as the first num_input_frames are used to make the prediction
-    dummy_dataset = dummy_dataset.isel(time=slice(num_input_frames-1, None))
+    dummy_dataset = dummy_dataset.isel(time=slice(0, num_input_frames))
 
     ensemble_nums = np.arange(ensemble_num)
-    lead_time_steps = np.arange(lead_time_steps)+1  # We start counting at 1, as first lead time is i.e. 5 mins and not 0
+    lead_time_steps = np.arange(lead_time_steps)
     lead_times = (lead_time_steps * np.timedelta64(mins_per_time_step, 'm')
                   .astype('timedelta64[ns]'))
-
 
     steps_dataset = xr.Dataset(
         # dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
@@ -137,7 +136,6 @@ def main(
                 'x': dummy_dataset.x.values}
     )
     steps_dataset.to_zarr(pre_settings['save_zarr_path'], mode='w')
-
 
     print('Creating STEPS forecast')
     for i in range(len_time):
@@ -165,12 +163,22 @@ def main(
                 # },
                 name='steps'
             )
+            # This way we are appending on disk via time dimesnion
             radolan_pred_da.to_zarr(pre_settings['save_zarr_path'], mode='a', append_dim='time')
 
 
 
 
+
 if __name__ == '__main__':
+    """
+    Data format in the end:
+    every forecast has the time stamp of the first input frame.
+    So in order top get the actual time of the forcast calculate:
+    time_stamp + input_frames + lead time (starting at 0)
+    Each forcast has ensemble_num dimesnion
+    and lead_time dimension 
+    """
     pre_settings = {
         'ensemble_num': 1, #20, #20,
         'lead_time_steps': 1, # 24, #6,
@@ -194,6 +202,7 @@ if __name__ == '__main__':
     main(pre_settings, **pre_settings)
     total_time = time.time() - start_time
     print(f'Time of script: {total_time}')
+
 
 
 
