@@ -126,22 +126,22 @@ def main(
 
     # The first time step that the predictions get assigned is the first time step of the ground truth data.
     # Therefore we substract the last four frames.
-    dummy_dataset = dummy_dataset.isel(time=slice(0, -(num_input_frames-1)))
+    dummy_dataset = dummy_dataset.isel(time=slice(0, -num_input_frames))
 
     ensemble_nums = np.arange(ensemble_num)
     lead_time_steps = np.arange(lead_time_steps)
     lead_times = (lead_time_steps * np.timedelta64(mins_per_time_step, 'm')
                   .astype('timedelta64[ns]'))
 
-    steps_dataset = xr.Dataset(
-        # dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
-        coords={'ensemble_num': ensemble_nums,
-                'lead_time': lead_times,
-                'time': dummy_dataset.time.values,
-                'y': dummy_dataset.y.values,
-                'x': dummy_dataset.x.values}
-    )
-    steps_dataset.to_zarr(pre_settings['save_zarr_path'], mode='w')
+    # steps_dataset = xr.Dataset(
+    #     # dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
+    #     coords={'ensemble_num': ensemble_nums,
+    #             'lead_time': lead_times,
+    #             'time': dummy_dataset.time.values,
+    #             'y': dummy_dataset.y.values,
+    #             'x': dummy_dataset.x.values}
+    # )
+    # steps_dataset.to_zarr(pre_settings['save_zarr_path'], mode='w')
 
     print('Creating STEPS forecast')
     for i in range(len_time):
@@ -158,22 +158,46 @@ def main(
 
             # time_value = dummy_dataset.time.isel(time=i).values
             time_value = dummy_dataset.time.values[i]
+            #
+            # radolan_pred_da = xr.DataArray(
+            #     radolan_pred_one_iteration,
+            #     dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
+            #     # coords={
+            #     #    'ensemble_num': ensemble_nums,
+            #     #    'lead_time': lead_times,
+            #     #    'time': time_value,
+            #     #    'y': dummy_dataset.y,
+            #     #    'x': dummy_dataset.x,
+            #     # },
+            #     name='steps'
+            # )
 
-            radolan_pred_da = xr.DataArray(
-                radolan_pred_one_iteration,
-                dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
-                coords={
-                   'ensemble_num': ensemble_nums,
-                   'lead_time': lead_times,
-                   'time': time_value,
-                   'y': dummy_dataset.y,
-                   'x': dummy_dataset.x,
+            # Create the dataset
+            radolan_pred_ds = xr.Dataset(
+                data_vars={
+                    'steps': (('ensemble_num', 'lead_time', 'time', 'y', 'x'), radolan_pred_one_iteration)
                 },
-                name='steps'
+                coords={
+                    'ensemble_num': ensemble_nums,
+                    'lead_time': lead_times,
+                    'time': [time_value],  # Wrap time_value in a list to make it indexable
+                    'y': dummy_dataset.y,
+                    'x': dummy_dataset.x,
+                }
             )
+
+            # Set encoding for the time coordinate
+            radolan_pred_ds['time'].encoding['units'] = 'minutes since 2019-01-01T12:00:00'
+            radolan_pred_ds['time'].encoding['dtype'] = 'float64'
+
             # This way we are appending on disk via time dimesnion
-            radolan_pred_da.to_zarr(pre_settings['save_zarr_path'], mode='a', append_dim='time')
-            pass
+            if i == 0:
+                radolan_pred_ds.to_zarr(pre_settings['save_zarr_path'], mode='w')
+            else:
+                radolan_pred_ds.to_zarr(pre_settings['save_zarr_path'], mode='a-', append_dim='time')
+
+            # Appending manual: https://docs.xarray.dev/en/latest/user-guide/io.html#io-zarr
+    pass
 
 
 if __name__ == '__main__':
