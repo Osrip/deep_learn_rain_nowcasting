@@ -99,8 +99,15 @@ def main(
         lead_time_steps,
         radolan_variable_name,
         mins_per_time_step,
+        save_zarr_path,
         **__,
     ):
+    # Delete ouput zarr if it exists
+    # if os.path.exists(save_zarr_path):
+    #     os.remove(save_zarr_path)
+    #     print("File deleted successfully.")
+    # else:
+    #     print("File does not exist.")
 
     radolan_dataset = load_data(**pre_settings)
 
@@ -108,19 +115,18 @@ def main(
     x = radolan_dataset[radolan_variable_name].x
     time_dim = radolan_dataset[radolan_variable_name].time
 
-    # The length of the time dimension is len(R) - num_input_frames + 1, as R[0 : num_input_frames] already produces
-    # a forecast: R[num_input_frames] = forecast(R[0 : num_input_frames])
-    # Say num_input_frames = 4, then we would have to remove only 3 time steps to fit the forecast data into the time
-    # dimension
+    # For code simplicity reasons len_time is simply len(time_dim) - num_input_frames
+    # If we wanted to do all possible forecasts we would have to take len(time_dim) - num_input_frames + 1.
+    # This way the very last possible forecast is ditched
     len_time = len(time_dim) - num_input_frames
 
     pred_shape = (ensemble_num, lead_time_steps, len_time, len(y), len(x))
 
     dummy_dataset = radolan_dataset.copy()
 
-    # We are taking the original data set and start at the 'num_input_frames'th frame time-wise
-    # as the first num_input_frames are used to make the prediction
-    dummy_dataset = dummy_dataset.isel(time=slice(0, num_input_frames))
+    # The first time step that the predictions get assigned is the first time step of the ground truth data.
+    # Therefore we substract the last four frames.
+    dummy_dataset = dummy_dataset.isel(time=slice(0, -(num_input_frames-1)))
 
     ensemble_nums = np.arange(ensemble_num)
     lead_time_steps = np.arange(lead_time_steps)
@@ -139,35 +145,35 @@ def main(
 
     print('Creating STEPS forecast')
     for i in range(len_time):
-        print(f'Forecast for frame {i} to {i} + 4')
+        print(f'Forecast for frame {i} to {i} + 4, forecast assigned to time of frame {i}')
         with SuppressPrint():
 
             radolan_slice = radolan_dataset.isel(
                 time=slice(i, i + num_input_frames)
             )
             radolan_vals = radolan_slice[radolan_variable_name].values
+
             radolan_pred_one_iteration = predict(radolan_vals, **pre_settings)
             radolan_pred_one_iteration = np.expand_dims(radolan_pred_one_iteration, axis=2)
 
-            time_value = dummy_dataset.time.isel(time=i).values
+            # time_value = dummy_dataset.time.isel(time=i).values
+            time_value = dummy_dataset.time.values[i]
 
             radolan_pred_da = xr.DataArray(
                 radolan_pred_one_iteration,
                 dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
-                # coords={
-                #    'ensemble': ensemble_nums,
-                #    'lead_time': lead_times,
-                #    'time': [time_value],
-                #    'y': dummy_dataset.y,
-                #    'x': dummy_dataset.x,
-                # },
+                coords={
+                   'ensemble_num': ensemble_nums,
+                   'lead_time': lead_times,
+                   'time': time_value,
+                   'y': dummy_dataset.y,
+                   'x': dummy_dataset.x,
+                },
                 name='steps'
             )
             # This way we are appending on disk via time dimesnion
             radolan_pred_da.to_zarr(pre_settings['save_zarr_path'], mode='a', append_dim='time')
-
-
-
+            pass
 
 
 if __name__ == '__main__':
@@ -203,8 +209,11 @@ if __name__ == '__main__':
     total_time = time.time() - start_time
     print(f'Time of script: {total_time}')
 
-
-
+    # Execute to check created file:
+    # dataset_predictions = xr.open_dataset(pre_settings['save_zarr_path'], engine='zarr')
+    # For plotting use
+    # from pysteps.visualization import plot_precip_field
+    #
 
 
 
