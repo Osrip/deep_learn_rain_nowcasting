@@ -46,7 +46,7 @@ def load_data(
     print(f'min val in dataset is {dataset.min(skipna=True, dim=None).RV_recalc.values}')
 
     # Uncomment this if only certain data range should be forecasted
-    dataset = dataset.sel(time=slice('2019-01-01T12:00:00', '2019-01-01T12:30:00'))
+    # dataset = dataset.sel(time=slice('2019-01-01T12:00:00', '2019-01-01T12:30:00'))
 
     return dataset
 
@@ -99,86 +99,101 @@ def main(
         lead_time_steps,
         radolan_variable_name,
         mins_per_time_step,
+        save_zarr_path,
         **__,
     ):
 
     radolan_dataset = load_data(**pre_settings)
 
-    R = radolan_dataset['RV_recalc'].values
-
     y = radolan_dataset[radolan_variable_name].y
     x = radolan_dataset[radolan_variable_name].x
     time_dim = radolan_dataset[radolan_variable_name].time
 
-    # The length of the time dimension is len(R) - num_input_frames + 1, as R[0 : num_input_frames] already produces
-    # a forecast: R[num_input_frames] = forecast(R[0 : num_input_frames])
-    # Say num_input_frames = 4, then we would have to remove only 3 time steps to fit the forecast data into the time
-    # dimension
+    # For code simplicity reasons len_time is simply len(time_dim) - num_input_frames
+    # If we wanted to do all possible forecasts we would have to take len(time_dim) - num_input_frames + 1.
+    # This way the very last possible forecast is ditched
+    len_time = len(time_dim) - num_input_frames
 
-    len_time = len(time_dim) - num_input_frames + 1
+    pred_shape = (ensemble_num, lead_time_steps, len_time, len(y), len(x))
 
-    pred_shape = (ensemble_num, lead_time_steps, len_time,  len(y), len(x))
-    chunks = ('auto', 'auto', 'auto', 'auto', 'auto')  # Adjust chunks to fit your memory constraints
+    dummy_dataset = radolan_dataset.copy()
 
-    # Create a Dask-backed DataArray
-    radolan_pred = xr.DataArray(
-        da.zeros(pred_shape, chunks=chunks, dtype='float32'),
-        dims=('ensemble', 'lead_time', 'time', 'y', 'x')
-    )
+    # The first time step that the predictions get assigned is the first time step of the ground truth data.
+    # Therefore we substract the last four frames.
+    dummy_dataset = dummy_dataset.isel(time=slice(0, -num_input_frames))
+
+    ensemble_nums = np.arange(ensemble_num)
+    lead_time_steps = np.arange(lead_time_steps)
+    lead_times = (lead_time_steps * np.timedelta64(mins_per_time_step, 'm')
+                  .astype('timedelta64[ns]'))
+
+    # steps_dataset = xr.Dataset(
+    #     # dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
+    #     coords={'ensemble_num': ensemble_nums,
+    #             'lead_time': lead_times,
+    #             'time': dummy_dataset.time.values,
+    #             'y': dummy_dataset.y.values,
+    #             'x': dummy_dataset.x.values}
+    # )
+    # steps_dataset.to_zarr(pre_settings['save_zarr_path'], mode='w')
 
     print('Creating STEPS forecast')
     for i in range(len_time):
-        print(f'Forecast for frame {i} to {i} + 4')
+        print(f'Forecast for frame {i} to {i} + 4, forecast assigned to time of frame {i}')
         with SuppressPrint():
 
             radolan_slice = radolan_dataset.isel(
                 time=slice(i, i + num_input_frames)
             )
             radolan_vals = radolan_slice[radolan_variable_name].values
+
             radolan_pred_one_iteration = predict(radolan_vals, **pre_settings)
+            radolan_pred_one_iteration = np.expand_dims(radolan_pred_one_iteration, axis=2)
 
-            # Assign the computed slice to the Dask array --> Is this a problem as dask arrays are 'immutable'?
-            radolan_pred[:, :, i, :, :] = radolan_pred_one_iteration
+            time_value = dummy_dataset.time.values[i]
 
+            # Create the dataset
+            radolan_pred_ds = xr.Dataset(
+                data_vars={
+                    'steps': (('ensemble_num', 'lead_time', 'time', 'y', 'x'), radolan_pred_one_iteration)
+                },
+                coords={
+                    'ensemble_num': ensemble_nums,
+                    'lead_time': lead_times,
+                    'time': [time_value],  # Wrap time_value in a list to make it indexable
+                    'y': dummy_dataset.y,
+                    'x': dummy_dataset.x,
+                }
+            )
 
-    # Create a new dataset from the predictions
-    steps_dataset = radolan_dataset.copy()
+            # Set encoding for the time coordinate
+            # TODO: This only works on example data! Make minutes since 2019-01-01T12:00:00 more general.
+            radolan_pred_ds['time'].encoding['units'] = 'minutes since 2019-01-01T12:00:00'
+            radolan_pred_ds['time'].encoding['dtype'] = 'float64'
 
-    # We are taking the original data set and start at the 'num_input_frames'th frame time-wise
-    # as the first num_input_frames are used to make the prediction
-    steps_dataset = steps_dataset.isel(time=slice(num_input_frames-1, None))
+            # This way we are appending on disk via time dimension
+            if i == 0:
+                radolan_pred_ds.to_zarr(pre_settings['save_zarr_path'], mode='w')
+            else:
+                radolan_pred_ds.to_zarr(pre_settings['save_zarr_path'], mode='a-', append_dim='time')
 
-    # Add the predictions with appropriate dimensions
-    # First, ensure ensemble_num and lead_time coordinates are added to the dataset
-    ensemble_nums = np.arange(radolan_pred.shape[0])
-    lead_time_steps = (np.arange(radolan_pred.shape[1])+1)  # We start counting at 1, as first lead time is i.e. 5 mins and not 0
-    lead_times = (lead_time_steps * np.timedelta64(mins_per_time_step, 'm')
-                  .astype('timedelta64[ns]'))
-
-    # Assign these coordinates to the dataset
-    steps_dataset = steps_dataset.assign_coords(ensemble_num=ensemble_nums, lead_time=lead_times)
-
-    # We need to make sure that we expand `time`, `y`, and `x` to match the dimensions of `R_pred`
-    # This assumes `R_pred` shape is [ensemble_num, lead_time, time, y, x]
-    steps_prediction = xr.DataArray(
-        radolan_pred, dims=('ensemble_num', 'lead_time', 'time', 'y', 'x'),
-        coords={'ensemble_num': ensemble_nums,
-                'lead_time': lead_times,
-                'time': steps_dataset.time,
-                'y': steps_dataset.y,
-                'x': steps_dataset.x}
-    )
-
-    # Assign the data array to the dataset
-    steps_dataset = steps_dataset.assign(steps_prediction=steps_prediction)
-
-    return steps_dataset
+            # Appending manual: https://docs.xarray.dev/en/latest/user-guide/io.html#io-zarr
+    pass
 
 
 if __name__ == '__main__':
+    """
+    Data format in the end:
+    every forecast has the time stamp of the first input frame.
+    So in order top get the actual time of the forcast calculate:
+    time_stamp + input_frames + lead time (starting at 0)
+    Each forcast has ensemble_num dimesnion
+    and lead_time dimension 
+    """
     pre_settings = {
-        'ensemble_num': 1, #20, #20,
-        'lead_time_steps': 1, # 24, #6,
+
+        'ensemble_num': 20, #20,
+        'lead_time_steps': 12, #6,
         'seed': 24,
         'mins_per_time_step': 5,
         'radolan_variable_name': 'RV_recalc',
@@ -193,17 +208,17 @@ if __name__ == '__main__':
         # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/steps_forecasts_rv_recalc.zarr',
         # -- test dataset cluster --
         # 'radolan_path': '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/dwd_nc/own_test_data/testdata_two_days_2019_01_01-02.zarr',
-        # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/steps_forecast_testdata_two_days_2019_01_01-02.zarr',
-
-
-
+        # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/steps_forecast_testdata_two_days_2019_01_01-02.zarr',
     }
     start_time = time.time()
-    steps_dataset = main(pre_settings, **pre_settings)
-    steps_dataset.to_zarr(pre_settings['save_zarr_path'], mode='w')
+    main(pre_settings, **pre_settings)
     total_time = time.time() - start_time
     print(f'Time of script: {total_time}')
 
+    # Execute to check created file:
+    # dataset_predictions = xr.open_dataset(pre_settings['save_zarr_path'], engine='zarr')
+    # For plotting use
+    # from pysteps.visualization import plot_precip_field
 
 
 
