@@ -114,6 +114,8 @@ def main(
     # This way the very last possible forecast is ditched
     len_time = len(time_dim) - num_input_frames
 
+    t0_of_radolan = str(radolan_dataset.time.values[0])
+
     pred_shape = (ensemble_num, lead_time_steps, len_time, len(y), len(x))
 
     dummy_dataset = radolan_dataset.copy()
@@ -167,8 +169,9 @@ def main(
             )
 
             # Set encoding for the time coordinate
-            # TODO: This only works on example data! Make minutes since 2019-01-01T12:00:00 more general.
-            radolan_pred_ds['time'].encoding['units'] = 'minutes since 2019-01-01T12:00:00'
+
+            radolan_pred_ds['time'].encoding['units'] = f'minutes since {t0_of_radolan}'
+
             radolan_pred_ds['time'].encoding['dtype'] = 'float64'
 
             # This way we are appending on disk via time dimension
@@ -192,23 +195,23 @@ if __name__ == '__main__':
     """
     pre_settings = {
 
-        'ensemble_num': 20, #20,
-        'lead_time_steps': 12, #6,
+        'ensemble_num': 5, #20, #20,
+        'lead_time_steps': 12, # 12, #6,
         'seed': 24,
         'mins_per_time_step': 5,
         'radolan_variable_name': 'RV_recalc',
         'num_input_frames': 4,
         # -- local testing ---
-        'radolan_path': '/Users/jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data/'
-                           'testdata_two_days_2019_01_01-02.zarr',
-        'save_zarr_path': '/Users/jan/Downloads/'
-                           'testdata_two_days_2019_01_01-02_steps_predictions.zarr',
+        # 'radolan_path': '/Users/jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data/'
+        #                    'testdata_two_days_2019_01_01-02.zarr',
+        # 'save_zarr_path': '/Users/jan/Downloads/'
+        #                    'testdata_two_days_2019_01_01-02_steps_predictions.zarr',
         # -- big dataset cluster --
-        # 'radolan_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/RV_recalc.zarr',
-        # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/steps_forecasts_rv_recalc.zarr',
+        'radolan_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/RV_recalc.zarr',
+        'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/steps_forecasts_rv_recalc_5_ens_members.zarr',
         # -- test dataset cluster --
         # 'radolan_path': '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/dwd_nc/own_test_data/testdata_two_days_2019_01_01-02.zarr',
-        # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/steps_forecast_testdata_two_days_2019_01_01-02.zarr',
+        # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/steps_forecast_testdata_two_days_2019_01_01-02_token.zarr',
     }
     start_time = time.time()
     main(pre_settings, **pre_settings)

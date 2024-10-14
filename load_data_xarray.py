@@ -437,7 +437,8 @@ def patch_indecies_to_sample_coords(
 def split_training_validation(
         data: DatasetGroupBy,
 
-        s_ratio_training_data,  #  Splitting ratio of the groups, not the samples themselves
+        s_ratio_training_data,  # Splitting ratio of the groups, not the samples themselves
+        seed=42,  # Random seed that determines random split! DO NOT CHANGE!
 ) -> tuple[xr.Dataset, xr.Dataset]:
     '''
     This randomly splits DatasetGroupBy objects into the training and validation data
@@ -453,9 +454,12 @@ def split_training_validation(
     if not 0 <= s_ratio_training_data <= 1:
         raise ValueError("s_ratio_training_data must be between 0 and 1.")
 
+    # Set random seed.
+    rng = random.Random(seed)
+
     # Shuffle the dictionary keys
     keys = list(data.groups.keys())
-    random.shuffle(keys)
+    rng.shuffle(keys)
 
     # Calculate the split index
     split_index = int(len(keys) * s_ratio_training_data)
