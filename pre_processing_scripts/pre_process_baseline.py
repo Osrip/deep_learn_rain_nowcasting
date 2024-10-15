@@ -46,7 +46,7 @@ def load_data(
     print(f'min val in dataset is {dataset.min(skipna=True, dim=None).RV_recalc.values}')
 
     # Uncomment this if only certain data range should be forecasted
-    # dataset = dataset.sel(time=slice('2019-01-01T12:00:00', '2019-01-01T12:30:00'))
+    dataset = dataset.sel(time=slice('2019-01-01T12:00:00', '2019-01-01T12:30:00'))
 
     return dataset
 
@@ -195,20 +195,20 @@ if __name__ == '__main__':
     """
     pre_settings = {
 
-        'ensemble_num': 5, #20, #20,
-        'lead_time_steps': 12, # 12, #6,
+        'ensemble_num': 1, #20, #20,
+        'lead_time_steps': 1, # 12, #6,
         'seed': 24,
         'mins_per_time_step': 5,
         'radolan_variable_name': 'RV_recalc',
         'num_input_frames': 4,
         # -- local testing ---
-        # 'radolan_path': '/Users/jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data/'
-        #                    'testdata_two_days_2019_01_01-02.zarr',
-        # 'save_zarr_path': '/Users/jan/Downloads/'
-        #                    'testdata_two_days_2019_01_01-02_steps_predictions.zarr',
+        'radolan_path': '/Users/jan/Programming/first_CNN_on_Radolan/dwd_nc/own_test_data/'
+                           'testdata_two_days_2019_01_01-02.zarr',
+        'save_zarr_path': '/Users/jan/Downloads/'
+                           'testdata_two_days_2019_01_01-02_steps_predictions.zarr',
         # -- big dataset cluster --
-        'radolan_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/RV_recalc.zarr',
-        'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/steps_forecasts_rv_recalc_5_ens_members.zarr',
+        # 'radolan_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr/RV_recalc.zarr',
+        # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/steps_forecasts_rv_recalc_5_ens_members.zarr',
         # -- test dataset cluster --
         # 'radolan_path': '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/dwd_nc/own_test_data/testdata_two_days_2019_01_01-02.zarr',
         # 'save_zarr_path': '/mnt/qb/work2/butz1/bst981/weather_data/steps_forecasts/steps_forecast_testdata_two_days_2019_01_01-02_token.zarr',
