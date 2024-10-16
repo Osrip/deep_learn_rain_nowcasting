@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 # from load_data import PrecipitationFilteredDataset
 # TODO REWRITE THIS TO HANDLE XARRAY STUFF
 
+
 def load_from_checkpoint(runs_path, checkpoint_name,
                          settings, ps_device, ps_num_gpus, **__):
     '''

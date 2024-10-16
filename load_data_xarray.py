@@ -32,10 +32,9 @@ class FilteredDatasetXr(Dataset):
 
         # In case only certain time span is used, do some cropping to save RAM
         if s_crop_data_time_span is not None:
-            if s_crop_data_time_span is not None:
-                start_time, stop_time = np.datetime64(s_crop_data_time_span[0]), np.datetime64(s_crop_data_time_span[1])
-                crop_slice = slice(start_time, stop_time)
-                radolan_data = radolan_data.sel(time=crop_slice)
+            start_time, stop_time = np.datetime64(s_crop_data_time_span[0]), np.datetime64(s_crop_data_time_span[1])
+            crop_slice = slice(start_time, stop_time)
+            radolan_data = radolan_data.sel(time=crop_slice)
 
         radolan_data = radolan_data.load()  # loading into RAM
 

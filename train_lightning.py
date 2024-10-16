@@ -152,7 +152,7 @@ def preprocess_data(
     }
 
     # --- SPLIT DATA ---
-    # TODO: Change this to '1D' for daily splitting!:
+    # TODO: Split TEST set!
     if s_local_machine_mode:
         # In local test mode split hourly ...
         resampled_valid_patches_boo = valid_patches_boo.resample(time='1h')
@@ -246,6 +246,7 @@ def create_data_loaders(
     training_steps_per_epoch = len(train_data_set)
     validation_steps_per_epoch = len(val_data_set)
 
+    # TODO: Rewrite oversampling in Xarray!
     # train_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights_train,
     #                                                       num_samples=training_steps_per_epoch,
     #                                                       replacement=True)
@@ -338,7 +339,7 @@ def save_data(
     mean_filtered_log_data = radolan_statistics_dict['mean_filtered_log_data']
     std_filtered_log_data = radolan_statistics_dict['std_filtered_log_data']
 
-    # Save linspace binning  params
+    # Save linspace binning params
     save_tuple_pickle_csv(linspace_binning_params, s_dirs['data_dir'], 'linspace_binning_params')
     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
@@ -403,7 +404,12 @@ def train_wrapper(
 
     # Increase time out for weights and biases to prevent time out on galavani
     os.environ["WANDB__SERVICE_WAIT"] = "600"
-    logger = WandbLogger(name=s_sim_name)
+    if s_local_machine_mode:
+        wandb_project_name = 'local_testing'
+    else:
+        wandb_project_name = 'cluster_runs'
+
+    logger = WandbLogger(name=s_sim_name, project=wandb_project_name)
     # logger = None
 
     callback_list = [
@@ -540,7 +546,7 @@ if __name__ == '__main__':
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'new_dataloader_1_month_training_no_ValueError'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'new_dataloader_1_month_training_1_month_100_epochs'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -575,7 +581,7 @@ if __name__ == '__main__':
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 25,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
             's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be None
@@ -703,6 +709,13 @@ if __name__ == '__main__':
     if not settings['s_plotting_only']:
         # --- Normal training ---
         data_set_vars = data_loading(settings, **settings)
+
+        (train_data_loader, validation_data_loader,
+        training_steps_per_epoch, validation_steps_per_epoch,
+        train_sample_coords, val_sample_coords,
+        radolan_statistics_dict,
+        linspace_binning_params,) = data_set_vars
+
         model_l, training_steps_per_epoch, sigma_schedule_mapping = train_wrapper(
             *data_set_vars,
             settings,
