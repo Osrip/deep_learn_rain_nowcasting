@@ -273,18 +273,42 @@ class FilteredDatasetXr(Dataset):
         return dynamic_samples_dict, static_samples_dict
 
 
-def create_and_filter_patches(
+def create_patches(
         y_target, x_target,
 
         s_num_input_time_steps,
         s_num_lead_time_steps,
         s_folder_path,
         s_data_file_name,
-        s_filter_threshold_mm_rain_each_pixel,
-        s_filter_threshold_percentage_pixels,
+
         s_crop_data_time_span,
         **__,
 ):
+    """
+    Patch data into patches of the target size
+    Input:
+        y_target, x_target: int, int
+            The size of the target patch in pixels (y_target, x_target = s_width_height_target, s_width_height_target)
+        s_num_input_time_steps: int
+            The number of input frames
+        s_num_lead_time_steps: int
+            The number of lead time steps
+        s_folder_path: str
+            The folder path where the data is stored
+        s_data_file_name: str
+            The name of the data file
+        s_crop_data_time_span: tuple(np.datetime64, np.datetime64)
+            The time span that is used for the data, if None the whole data
+    Output:
+        patches: xr.Dataset
+            xr.Dataset Patch dimensions y_outer, x_outer give one coordinate pair for each patch,
+            y_inner, x_inner give pixel dimensions for each patch
+        data: xr.Dataset
+            The unpatched data that has global pixel coordinates
+        data_shortened: xr.Dataset
+            same as data, but beginning is missing (lead_time + num input frames) such that we can go
+            'back in time' to go fram target time to input time.
+    """
 
     # Loading data into xarray
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
@@ -326,6 +350,33 @@ def create_and_filter_patches(
         x=("x_outer", "x_inner")  # Those are the pixel dimensions of the patches
     )
 
+    return patches, data, data_shortened
+
+
+def filter_patches(
+        patches,
+
+        s_filter_threshold_mm_rain_each_pixel,
+        s_filter_threshold_percentage_pixels,
+        **__,
+):
+    """
+    Called after create_patches()
+    Filter patches. Patches that passed filter are called 'valid'.
+    Input:
+        patches: xr.Dataset
+            The patches that were created by create_patches()
+            xr.Dataset Patch dimensions y_outer, x_outer give one coordinate pair for each patch,
+            y_inner, x_inner give pixel dimensions for each patch
+        s_filter_threshold_mm_rain_each_pixel: float
+            The threshold for the rain in mm that each pixel has to exceed
+        s_filter_threshold_percentage_pixels: float
+            The percentage of pixels that have to exceed the threshold
+    Output:
+        valid_patches_boo: xr.Dataset
+            Boolean xr.Dataset with y_outer and y_inner defines the valid patches
+    """
+
     # Replace NaNs with 0s for the filter (Alternatively we could also throw out all targets with NaNs in them)
     patches_no_nan = patches.fillna(0)
 
@@ -344,7 +395,7 @@ def create_and_filter_patches(
     # (valid_patches_boo is boolean, np.nonzero returns the indecies of the pixels that are non-zero, thus True)
     # valid_target_indecies_outer = np.array(np.nonzero(valid_patches_boo.RV_recalc.values)).T
 
-    return patches, valid_patches_boo, data, data_shortened
+    return valid_patches_boo
 
 
 def patch_indecies_to_sample_coords(
@@ -373,6 +424,7 @@ def patch_indecies_to_sample_coords(
     Spatial coordinates of the input size + the padding. Refer to the coordinates in the preprocessed data, not lat/lon
     So other data can be loaded with this but has to be in correct CRS and transform
     '''
+
     y_input_padded = y_input + y_input_padding
     x_input_padded = x_input + x_input_padding
 

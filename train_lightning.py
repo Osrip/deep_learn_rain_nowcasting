@@ -8,7 +8,8 @@ from network_lightning import NetworkL
 import datetime
 
 from load_data_xarray import (
-    create_and_filter_patches,
+    create_patches,
+    filter_patches,
     split_training_validation,
     calc_statistics_on_valid_batches,
     patch_indecies_to_sample_coords,
@@ -131,18 +132,19 @@ def preprocess_data(
         patches,
         # patches: xr.Dataset Patch dimensions y_outer, x_outer give one coordinate pair for each patch,
         # y_inner, x_inner give pixel dimensions for each patch
-        valid_patches_boo,
-        # valid_patches_boo: Boolean xr.Dataset with y_outer and y_inner defines the valid patches
         data,
         # data: The unpatched data that has global pixel coordinates,
         data_shortened,
         # data_shortened: same as data, but beginning is missing (lead_time + num input frames) such that we can go
         # 'back in time' to go fram target time to input time.
-     ) = create_and_filter_patches(
+     ) = create_patches(
         y_target,
         x_target,
         **settings
     )
+
+    valid_patches_boo = filter_patches(patches, **settings)
+    # valid_patches_boo: Boolean xr.Dataset with y_outer and y_inner defines the valid patches
 
     # --- CALC NORMALIZATION STATISTICS ---
     _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_batches(patches, valid_patches_boo)
