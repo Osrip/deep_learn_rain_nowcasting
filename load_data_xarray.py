@@ -275,6 +275,7 @@ class FilteredDatasetXr(Dataset):
 
 def create_and_filter_patches(
         y_target, x_target,
+
         s_num_input_time_steps,
         s_num_lead_time_steps,
         s_folder_path,
@@ -506,6 +507,7 @@ def calc_linspace_binning(
 
         s_linspace_binning_cut_off_unnormalized,
         s_num_bins_crossentropy,
+        s_data_variable_name,
         **__,
 ):
     '''
@@ -515,8 +517,8 @@ def calc_linspace_binning(
     The
     '''
     # Calculate min and max for linspace_binning:
-    binning_max_unnormed = float(data.max(dim=None, skipna=True).RV_recalc.values)
-    binning_min_unnormed = float(data.min(dim=None, skipna=True).RV_recalc.values)
+    binning_max_unnormed = float(data.max(dim=None, skipna=True)[s_data_variable_name].values)
+    binning_min_unnormed = float(data.min(dim=None, skipna=True)[s_data_variable_name].values)
 
     if binning_min_unnormed != 0.0:
         raise ValueError(f'Min of precipitation data is {binning_min_unnormed} and thus below 0')
