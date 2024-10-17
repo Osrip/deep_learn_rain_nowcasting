@@ -247,6 +247,7 @@ class FilteredDatasetXr(Dataset):
     def random_crop(self, dynamic_samples_dict, static_samples_dict):
         '''
         Doing a random crop
+        The same random crop is done on all samples of dynamic_samples_dict and static_samples_dict
         '''
         s_width_height = self.settings['s_width_height']
 
@@ -490,7 +491,7 @@ def split_training_validation(
         data: DatasetGroupBy,
 
         s_ratio_training_data,  #ter Splitting ratio of the groups, not the samples themselves
-        seed=42,  # Random seed that determines random split! DO NOT CHANGE!
+        seed=42,  # Random seed that determines random split! DO NOT CHANGE! (This of course changes actual training and val data when time periods are changed)
 ) -> tuple[xr.Dataset, xr.Dataset]:
     '''
     This randomly splits DatasetGroupBy objects into the training and validation data

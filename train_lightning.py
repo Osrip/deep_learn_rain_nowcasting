@@ -39,6 +39,7 @@ import copy
 import warnings
 from tests.test_basic_functions import test_all
 from pytorch_lightning.loggers import WandbLogger
+from evaluation.checkpoint_to_prediction import ckp_to_pred
 
 
 def data_loading(
