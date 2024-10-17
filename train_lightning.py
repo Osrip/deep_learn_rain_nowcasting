@@ -10,7 +10,6 @@ import datetime
 from load_data_xarray import (
     create_patches,
     filter_patches,
-    split_training_validation,
     calc_statistics_on_valid_batches,
     patch_indecies_to_sample_coords,
     calc_linspace_binning,
@@ -176,21 +175,6 @@ def preprocess_data(
     train_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, train_time_keys)
     val_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, val_time_keys)
 
-    #
-    #
-    # if s_local_machine_mode:
-    #     # In local test mode split hourly ...
-    #     resampled_valid_patches_boo = valid_patches_boo.resample(time='1h')
-    # else:
-    #     # ... otherwise daily
-    #     resampled_valid_patches_boo = valid_patches_boo.resample(time='1D')
-    # (
-    #     train_valid_patches_boo,
-    #     val_valid_patches_boo
-    # ) = split_training_validation(
-    #     resampled_valid_patches_boo,
-    #     **settings,
-    # )
 
     # --- INDEX CONVERSION from patch to sample ---
     #  outer coordinates (define patches in 'patches')
@@ -716,7 +700,7 @@ if __name__ == '__main__':
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
         settings['s_max_epochs'] = 2  # 2
         settings['s_num_gpus'] = 1
-        settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T10:00']
+        settings['s_crop_data_time_span'] = ['2019-01-01T00:00', '2019-01-02T00:00'] #['2019-01-01T08:00', '2019-01-01T10:00']
         settings['s_split_chunk_duration'] = '15min' #'1h'
         settings['s_ratio_train_val_test'] = (0.4, 0.3, 0.3)
 

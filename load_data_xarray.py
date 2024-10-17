@@ -523,39 +523,38 @@ def create_split_time_keys(
     Example of creating data from the keys:
         training_data = xr.concat([resampled_data[time_key] for time_key in train_time_keys])
     """
-    # Ensure s_ratio_train_val_test adds up to 1
-    if not sum(s_ratio_train_val_test) == 1:
-        raise ValueError("s_ratio_training_data must be between 0 and 1.")
+    # Ensure ratios add up to 1
+    total_ratio = sum(s_ratio_train_val_test)
+    if not abs(total_ratio - 1.0) < 1e-6:
+        raise ValueError("Ratios must sum to 1.")
 
     # Set random seed.
     rng = random.Random(s_split_seed)
 
-    # Shuffle the dictionary keys
+    # Shuffle the time keys
     time_keys = list(unfiltered_data_resampled.groups.keys())
     rng.shuffle(time_keys)
 
-    shuffled_time_keys = time_keys
+    N = len(time_keys)
 
-    # Calculate the split indecies from s_ratio_train_val_test
-    # From 3 ratios we get two split indecies to split dataset into 3 chunks
-    split_train_val_test_indecies = []
-    for i, ratio in enumerate(s_ratio_train_val_test):
-        if i == 0:
-            # Calc first index directly from ratio
-            split_idx = int(len(shuffled_time_keys) * ratio)
-            split_train_val_test_indecies.append(split_idx)
-        elif i == 1:
-            # For second index calc index from ration and add up previous index
-            split_idx = int(split_train_val_test_indecies[i-1] + len(shuffled_time_keys) * ratio)
-            split_train_val_test_indecies.append(split_idx)
-        elif i == 2:
-            # Discard last index. We only need two first ratios as two splits create three datasets
-            break
+    # Compute the counts for each split
+    ratios = s_ratio_train_val_test
+    n_train = int(N * ratios[0])
+    n_val = int(N * ratios[1])
+    n_test = N - n_train - n_val  # Ensure total sums to N
 
-    # Split time keys
-    train_time_keys = shuffled_time_keys[:split_train_val_test_indecies[0]]
-    val_time_keys = shuffled_time_keys[split_train_val_test_indecies[0]: split_train_val_test_indecies[1]]
-    test_time_keys = shuffled_time_keys[split_train_val_test_indecies[1]:]
+    # Adjust counts if necessary
+    counts = [n_train, n_val, n_test]
+
+    # Compute the split indices
+    indices = [0]
+    for count in counts:
+        indices.append(indices[-1] + count)
+
+    # Split the time keys
+    train_time_keys = time_keys[:indices[1]]
+    val_time_keys = time_keys[indices[1]:indices[2]]
+    test_time_keys = time_keys[indices[2]:]
 
     return train_time_keys, val_time_keys, test_time_keys
 
@@ -585,44 +584,6 @@ def split_data_from_time_keys(
           f'the data that you are trying to split and can be ignored.')
 
     return xr.concat(group_list, dim='time')
-
-
-
-def split_training_validation(
-        data: DatasetGroupBy,
-
-        s_ratio_training_data,  #ter Splitting ratio of the groups, not the samples themselves
-        seed=42,  # Random seed that determines random split! DO NOT CHANGE! (This of course changes actual training and val data when time periods are changed)
-) -> tuple[xr.Dataset, xr.Dataset]:
-    '''
-    This randomly splits DatasetGroupBy objects into the training and validation data
-    The splitting ratio is given by: s_ratio_training_data
-    ! This splits the grouped dataset (default is daliy groups). This means that the days are splitted according to !
-    ! the ratio, but each day can gave a different amount of samples that passed the filter !
-    The groupby object already sliced the data into slices of a given length, this randomly mixes and concatenates
-    according to the given ration of training and validation
-
-    This function has been tested on dicts (see notebook)
-    '''
-    # Ensure s_ratio_training_data   is between 0 and 1
-    if not sum():
-        raise ValueError("s_ratio_train_val_test must be between 0 and 1.")
-
-    # Set random seed.
-    rng = random.Random(seed)
-
-    # Shuffle the dictionary keys
-    keys = list(data.groups.keys())
-    rng.shuffle(keys)
-
-    # Calculate the split index
-    split_index = int(len(keys) * s_ratio_train_val_test)
-
-    # Create the training and validation dictionaries
-    training_data = xr.concat([data[key] for key in keys[:split_index]], dim='time')
-    validation_data = xr.concat([data[key] for key in keys[split_index:]], dim='time')
-
-    return training_data, validation_data
 
 
 def calc_statistics_on_valid_batches(
