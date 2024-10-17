@@ -147,7 +147,11 @@ def preprocess_data(
     # valid_patches_boo: Boolean xr.Dataset with y_outer and y_inner defines the valid patches
 
     # --- CALC NORMALIZATION STATISTICS ---
-    _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_batches(patches, valid_patches_boo)
+    _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_batches(
+        patches,
+        valid_patches_boo,
+        **settings
+    )
 
     radolan_statistics_dict = {
         'mean_filtered_log_data': mean_filtered_log_data,
@@ -178,8 +182,8 @@ def preprocess_data(
     # 1. We convert the outer coordinates that define the valid patches to indecies with respect to 'patches'
     # !The spacial and time indecies refer to data_shortened!
 
-    train_valid_target_indecies_outer = np.array(np.nonzero(train_valid_patches_boo.RV_recalc.values)).T
-    val_valid_target_indecies_outer = np.array(np.nonzero(val_valid_patches_boo.RV_recalc.values)).T
+    train_valid_target_indecies_outer = np.array(np.nonzero(train_valid_patches_boo[s_data_variable_name].values)).T
+    val_valid_target_indecies_outer = np.array(np.nonzero(val_valid_patches_boo[s_data_variable_name].values)).T
 
     # 2. We scale up the patches from target size to input + augmentation size (which is why we need the pixel indecies
     # created in 1.) and return the sample coordiantes together with the time coordinate of the target frame for the sample

@@ -280,7 +280,7 @@ def create_patches(
         s_num_lead_time_steps,
         s_folder_path,
         s_data_file_name,
-
+        s_data_variable_name,
         s_crop_data_time_span,
         **__,
 ):
@@ -322,7 +322,7 @@ def create_patches(
 
     # Set negative values to 0
     # I realized that there are quite a few extremely tiny negative values in the data (WHY?), set those to zero
-    data_min = data.min(skipna=True, dim=None).RV_recalc.values
+    data_min = data.min(skipna=True, dim=None)[s_data_variable_name].values
     if data_min < -0.1:
         raise ValueError(f'The min value of the data is {data_min}, which is below the threshold of -0.1')
     data = data.where((data >= 0) | np.isnan(data), other=0)  #All values that are NOT chosen ( >= 0 or nan) are set to 0
@@ -525,7 +525,10 @@ def split_training_validation(
 
 def calc_statistics_on_valid_batches(
         patches: xr.Dataset,
-        valid_patches_boo: xr.Dataset
+        valid_patches_boo: xr.Dataset,
+
+        s_data_variable_name,
+        **__,
 ):
     '''
     Calculates 1st and 2nd moment of all valid batches
@@ -545,10 +548,10 @@ def calc_statistics_on_valid_batches(
     log_std = only_filtered_data_log.std(dim=None, skipna=True)
 
     return (
-        float(mean.RV_recalc.values),
-        float(std.RV_recalc.values),
-        float(log_mean.RV_recalc.values),
-        float(log_std.RV_recalc.values)
+        float(mean[s_data_variable_name].values),
+        float(std[s_data_variable_name].values),
+        float(log_mean[s_data_variable_name].values),
+        float(log_std[s_data_variable_name].values)
     )
 
 
