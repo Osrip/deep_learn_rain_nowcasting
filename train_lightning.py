@@ -15,6 +15,8 @@ from load_data_xarray import (
     patch_indecies_to_sample_coords,
     calc_linspace_binning,
     FilteredDatasetXr,
+    create_split_time_keys,
+    split_data_from_time_keys,
 )
 from helper.pre_process_target_input import normalize_data, invnorm_linspace_binning, inverse_normalize_data
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -112,10 +114,9 @@ def preprocess_data(
         s_width_height_target,
         s_width_height,
         s_input_padding,
-        s_ratio_training_data,
-        s_local_machine_mode,
         s_data_variable_name,
-        **__
+        s_split_chunk_duration,
+        **__,
 ):
     '''
     Patches refer to targets
@@ -160,20 +161,36 @@ def preprocess_data(
     }
 
     # --- SPLIT DATA ---
-    # TODO: Split TEST set!
-    if s_local_machine_mode:
-        # In local test mode split hourly ...
-        resampled_valid_patches_boo = valid_patches_boo.resample(time='1h')
-    else:
-        # ... otherwise daily
-        resampled_valid_patches_boo = valid_patches_boo.resample(time='1D')
-    (
-        train_valid_patches_boo,
-        val_valid_patches_boo
-    ) = split_training_validation(
-        resampled_valid_patches_boo,
-        s_ratio_training_data
-    )
+    # We are grouping the data (i.e. daily) and then are splitting these (daily) groups into train, val and test set
+
+    # Resample full data, from which the time_keys are generated that determine the splits
+    # Each time_key represents one 'time group'
+    resampled_data = data.resample(time=s_split_chunk_duration)
+    # Randomly split the time_keys
+    train_time_keys, val_time_keys, test_time_keys = create_split_time_keys(resampled_data, **settings)
+
+    # Resample the valid_patches_boo into time groups
+    resampled_valid_patches_boo = valid_patches_boo.resample(time=s_split_chunk_duration)
+
+    # Split valid_patches_boo into train and val
+    train_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, train_time_keys)
+    val_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, val_time_keys)
+
+    #
+    #
+    # if s_local_machine_mode:
+    #     # In local test mode split hourly ...
+    #     resampled_valid_patches_boo = valid_patches_boo.resample(time='1h')
+    # else:
+    #     # ... otherwise daily
+    #     resampled_valid_patches_boo = valid_patches_boo.resample(time='1D')
+    # (
+    #     train_valid_patches_boo,
+    #     val_valid_patches_boo
+    # ) = split_training_validation(
+    #     resampled_valid_patches_boo,
+    #     **settings,
+    # )
 
     # --- INDEX CONVERSION from patch to sample ---
     #  outer coordinates (define patches in 'patches')
@@ -603,7 +620,11 @@ if __name__ == '__main__':
             's_dem_path': '/mnt/qb/work2/butz1/bst981/weather_data/dem/dem_benchmark_dataset_1200_1100.zarr',
             's_dem_variable_name': 'dem',
 
-            's_ratio_training_data': 0.8, #  This is the splitting ratio of the (daily) splitted groups, not the samples themselves!
+            # Splitting training / validation
+            's_split_chunk_duration': '1D', # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
+            's_ratio_train_val_test': (0.7, 0.15, 0.15), #  These are the splitting ratios between (train, val, test), adding up to 1
+            's_split_seed': 42,  # This is the seede that the train / validation split is generated from (only applies to training of exactly the same time of the data)
+
             's_num_workers_data_loader': 16,  # Should correspond to number of cpus, also increases cpu ram
             's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
@@ -696,6 +717,8 @@ if __name__ == '__main__':
         settings['s_max_epochs'] = 2  # 2
         settings['s_num_gpus'] = 1
         settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T10:00']
+        settings['s_split_chunk_duration'] = '15min' #'1h'
+        settings['s_ratio_train_val_test'] = (0.4, 0.3, 0.3)
 
         settings['s_multiple_sigmas'] = [2, 16]
         settings['s_data_loader_vars_path'] = '/home/jan/Programming/weather_data/data_loader_vars' #'/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars' #

@@ -421,7 +421,8 @@ def patch_indecies_to_sample_coords(
     Tuple of each coordinate:
     (datetime, of target frame
     y_slice,
-    x_slice
+    x_slice)
+
     Spatial coordinates of the input size + the padding. Refer to the coordinates in the preprocessed data, not lat/lon
     So other data can be loaded with this but has to be in correct CRS and transform
     '''
@@ -487,6 +488,106 @@ def patch_indecies_to_sample_coords(
     return np.array(valid_input_coords)
 
 
+def create_split_time_keys(
+        unfiltered_data_resampled: DatasetGroupBy,
+
+        s_split_seed: int,
+        s_ratio_train_val_test: tuple,
+        **__,
+):
+    """
+    This function splits the dataset. As an input it expects the unfiltered_data that is already grouped by
+    the time chunks we are using (i.e. 1D --> 1 day). It then returns the (time) keys for the groups that are in the
+    train / test / val set.
+    These keys can be applied to create the according train / val / test set from the unfiltered but also filtered data.
+    When handling filtered data, please watch out that some time keys might be not existent in the filtered data,
+    as all data that would fall under this time key has been filtered out.
+
+    Input:
+        unfiltered_data: DatasetGroupby
+            This is the unfiltered data, which is grouped by the time chunks we are splitting on (i.e. 1 day)
+            We use the unfiltered data, as we may want to do predictions with the unfiltered data,
+            then we want our validation and training sets to cover all of thgese time stamps
+            ! In practice make sure to use the unshortened data, where the beginning that we cannot predict but need to !
+            ! infer the predictions is not cut off !
+
+        s_ratio_train_val_test: tuple of floats (train_ration, val_ratio, test_ratio)
+            These are the splitting ratios between (train, val, test), adding up to 1
+    Output:
+        train_time_keys, val_time_keys, test_time_keys: List of np.datetime64
+            These are the keys to select the entries of the resampled DatasetGroupBy onjects from
+
+    Example of creating input data:
+        resampled_data = data.resample(time=s_split_chunk_duration)
+
+    Example of creating data from the keys:
+        training_data = xr.concat([resampled_data[time_key] for time_key in train_time_keys])
+    """
+    # Ensure s_ratio_train_val_test adds up to 1
+    if not sum(s_ratio_train_val_test) == 1:
+        raise ValueError("s_ratio_training_data must be between 0 and 1.")
+
+    # Set random seed.
+    rng = random.Random(s_split_seed)
+
+    # Shuffle the dictionary keys
+    time_keys = list(unfiltered_data_resampled.groups.keys())
+    rng.shuffle(time_keys)
+
+    shuffled_time_keys = time_keys
+
+    # Calculate the split indecies from s_ratio_train_val_test
+    # From 3 ratios we get two split indecies to split dataset into 3 chunks
+    split_train_val_test_indecies = []
+    for i, ratio in enumerate(s_ratio_train_val_test):
+        if i == 0:
+            # Calc first index directly from ratio
+            split_idx = int(len(shuffled_time_keys) * ratio)
+            split_train_val_test_indecies.append(split_idx)
+        elif i == 1:
+            # For second index calc index from ration and add up previous index
+            split_idx = int(split_train_val_test_indecies[i-1] + len(shuffled_time_keys) * ratio)
+            split_train_val_test_indecies.append(split_idx)
+        elif i == 2:
+            # Discard last index. We only need two first ratios as two splits create three datasets
+            break
+
+    # Split time keys
+    train_time_keys = shuffled_time_keys[:split_train_val_test_indecies[0]]
+    val_time_keys = shuffled_time_keys[split_train_val_test_indecies[0]: split_train_val_test_indecies[1]]
+    test_time_keys = shuffled_time_keys[split_train_val_test_indecies[1]:]
+
+    return train_time_keys, val_time_keys, test_time_keys
+
+
+def split_data_from_time_keys(
+        resampled_data: DatasetGroupBy,
+        time_keys,
+):
+    """
+    This comes into play when time_keys has been created by create_split_time_stamps with data that is different from
+    the data that you want to split.
+
+    Does the same as xr.concat([resampled_valid_patches_boo[time_key] for time_key in train_time_keys], dim='time')
+    just checks whether the keys are existent in resampled_data
+    """
+    keys_not_found = []
+
+    group_list = []
+    for time_key in time_keys:
+        try:
+            group_list.append(resampled_data[time_key])
+        except KeyError:
+            keys_not_found.append(time_key)
+
+    print(f'split_data_from_time_keys: {len(keys_not_found)} time_keys were not present in the resampled data set'
+          f'This is expected, as the data that the time_keys have been created from may be different from'
+          f'the data that you are trying to split and can be ignored.')
+
+    return xr.concat(group_list, dim='time')
+
+
+
 def split_training_validation(
         data: DatasetGroupBy,
 
@@ -504,8 +605,8 @@ def split_training_validation(
     This function has been tested on dicts (see notebook)
     '''
     # Ensure s_ratio_training_data   is between 0 and 1
-    if not 0 <= s_ratio_training_data <= 1:
-        raise ValueError("s_ratio_training_data must be between 0 and 1.")
+    if not sum():
+        raise ValueError("s_ratio_train_val_test must be between 0 and 1.")
 
     # Set random seed.
     rng = random.Random(seed)
@@ -515,7 +616,7 @@ def split_training_validation(
     rng.shuffle(keys)
 
     # Calculate the split index
-    split_index = int(len(keys) * s_ratio_training_data)
+    split_index = int(len(keys) * s_ratio_train_val_test)
 
     # Create the training and validation dictionaries
     training_data = xr.concat([data[key] for key in keys[:split_index]], dim='time')

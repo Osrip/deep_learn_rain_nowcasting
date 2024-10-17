@@ -286,7 +286,6 @@ class NetworkL(pl.LightningModule):
         self.train_step_num += 1
         dynamic_samples_dict, static_samples_dict = batched_samples
         out_dict = self.train_and_val_step(dynamic_samples_dict, static_samples_dict, batch_idx)
-
         return out_dict
 
     def validation_step(self, batched_samples, batch_idx):
