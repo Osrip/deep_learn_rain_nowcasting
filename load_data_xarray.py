@@ -440,7 +440,7 @@ def get_permuted_time_coord_spatial_indecies(
 
 def patch_indecies_to_sample_coords(
         data_shortened,
-        valid_target_indecies_outer,
+        valid_samples,
         y_target, x_target,
         y_input, x_input,
         y_input_padding, x_input_padding
@@ -458,12 +458,12 @@ def patch_indecies_to_sample_coords(
             The raw precipitation data, where the first entries have been cut along time dim (according to the length of lead time)
             As we are always using the target frame as a time reference. Thus data shortened starts at the time
             of the first target frame.
-        valid_target_indecies_outer: np.array, outer index space (patch indecies), time index space of data_shortened
+        valid_target_indecies_outer: np.array, outer index space (patch indecies), time in datetime
             np.array that includes all index permutation of the valid patches (those patches that passed the filter)
 
             shape: [num_valid_patches, num_dims=3]
             [
-            [time idx,:     with respect to data_shortened and patches
+            [time datetime, ! This is in coordinate datetime formet, not in index space !
             y_outer idx,    with respect to patches (directly recalculated to idx in data shortened)
             x_outer idx],    with respect to patches (directly recalculated to idx in data shortened)
             ...]
@@ -503,26 +503,26 @@ def patch_indecies_to_sample_coords(
 
     num_inputs_exceeding_bounds = 0
 
-    for (time, y_outer, x_outer) in valid_target_indecies_outer:
+    for (time_datetime, y_outer_idx, x_outer_idx) in valid_samples:
 
-        y_global_upper = y_outer * y_target
-        x_global_left = x_outer * x_target
+        y_global_upper = y_outer_idx * y_target
+        x_global_left = x_outer_idx * x_target
 
         # Calculate the global indecies / slices for the targets
         # TODO I think this can be removed in future
         slice_y_global = slice(y_global_upper, y_global_upper + y_target)
         slice_x_global = slice(x_global_left, x_global_left + x_target)
-        target_slices = [time, slice_y_global, slice_x_global]
+        target_slices = [time_datetime, slice_y_global, slice_x_global]
 
-        # Calculate indecies of the patche's center pixels
+        # Calculate indices of the patche's center pixels
         center_y_global = y_global_upper + y_target // 2
         center_x_global = x_global_left + x_target // 2
-        global_center_indecies = [time, center_y_global, center_x_global]
+        global_center_indecies = [time_datetime, center_y_global, center_x_global]
 
         # Calculate the global slices for input
         y_slice_input = slice(center_y_global - (y_input_padded // 2), center_y_global + (y_input_padded // 2))
         x_slice_input = slice(center_x_global - (x_input_padded // 2), center_x_global + (x_input_padded // 2))
-        input_slices = [time, y_slice_input, x_slice_input]
+        input_slices = [time_datetime, y_slice_input, x_slice_input]
 
         # Check if the larger input exceeds size, if not append the patch indecies / slices to the list
         if (
@@ -534,8 +534,9 @@ def patch_indecies_to_sample_coords(
             num_inputs_exceeding_bounds += 1
             continue  # Skips the rest of the code in the current loop iteration if input frame exceeds dataset bounds
 
-        # --- Convert indecies to coordinates ---
-        time_datetime = data_shortened.time.isel(time=time).values
+        # --- Convert spatial indices to coordinates ---
+        # No need to convert time as this is already in correct format.
+
         y_coords_input = data_shortened.y.isel(y=y_slice_input).values
         x_coords_input = data_shortened.x.isel(x=x_slice_input).values
 

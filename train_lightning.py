@@ -188,8 +188,11 @@ def preprocess_data(
 
     # 1. We convert the outer coordinates that define the valid patches to indecies with respect to 'patches'
     # !The spacial and time indecies refer to data_shortened!
-    # -> valid_target_indecies_outer contains [[time_idx, y_outer_idx, x_outer_idx],...] of all valid patches with respect
-    # to the 'patches' dataset.
+    # -> valid_target_indecies_outer contains [[time_datetime, y_outer_idx, x_outer_idx],...] permutations of all valid
+    # patches with respect to the 'patches' dataset.
+
+    # We use time_datetime instead of time_idx, as the data has already been split, and we thus cannot calculate
+    # in time idx space
 
     # TODO: MISTAKE!!
     # TODO we calculate the indecies of the valid patches on the already split train_valid_patches_boo / val_valid_patches boo
@@ -201,12 +204,13 @@ def preprocess_data(
     # val_valid_target_coords = val_valid_patches_boo[s_data_variable_name].where(
     #     val_valid_patches_boo[s_data_variable_name], drop=True).coords
 
-    train_valid_target_coords_outer = get_permuted_time_coord_spatial_indecies(train_valid_patches_boo, **settings)
-    val_valid_target_coords_outer = get_permuted_time_coord_spatial_indecies(val_valid_patches_boo, **settings)
+    train_valid_samples = get_permuted_time_coord_spatial_indecies(train_valid_patches_boo, **settings)
+    val_valid_samples = get_permuted_time_coord_spatial_indecies(val_valid_patches_boo, **settings)
 
+    # --- Check for duplicates ---
     # Check if there are any duplicates in the indices (list of tuples)
-    train_set = set(train_valid_target_coords_outer)
-    val_set = set(val_valid_target_coords_outer)
+    train_set = set(train_valid_samples)
+    val_set = set(val_valid_samples)
 
     # Find any common elements (duplicates) between the two sets
     duplicates = train_set.intersection(val_set)
@@ -225,7 +229,7 @@ def preprocess_data(
 
     train_sample_coords = patch_indecies_to_sample_coords(
         data_shortened,
-        train_valid_target_indecies_outer,
+        train_valid_samples,
         y_target, x_target,
         y_input, x_input,
         y_input_padding, x_input_padding,
@@ -233,7 +237,7 @@ def preprocess_data(
 
     val_sample_coords = patch_indecies_to_sample_coords(
         data_shortened,
-        val_valid_target_indecies_outer,
+        val_valid_samples,
         y_target, x_target,
         y_input, x_input,
         y_input_padding, x_input_padding,
