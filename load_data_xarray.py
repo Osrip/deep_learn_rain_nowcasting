@@ -555,33 +555,44 @@ def patch_indecies_to_sample_coords(
     return np.array(valid_input_coords)
 
 
-def get_index_permutations(dataset: xr.Dataset, dims: list) -> np.ndarray:
+def get_index_permutations(
+        dataset: xr.Dataset,
+        time_dim: str,
+        y_dim: str,
+        x_dim: str,
+) -> list[tuple[np.datetime64, int, int]]:
     """
-    Generate all index permutations for the specified dimensions of an xarray dataset.
+    Generate all index permutations for the specified dimensions of an xarray dataset, where the time dimension
+    uses actual time coordinates (`np.datetime64`), and the spatial dimensions use indices.
 
     Input:
         dataset: xr.Dataset
-            The xarray dataset containing the dimensions.
-        dims: list
-            A list of dimension names (strings) for which to generate the index permutations.
+            The xarray dataset containing the dimensions and coordinates.
+        time_dim: str
+            The name of the time dimension in the dataset.
+        y_dim: str
+            The name of the y (vertical) spatial dimension.
+        x_dim: str
+            The name of the x (horizontal) spatial dimension.
 
     Output:
-        index_permutations: np.ndarray
-            A NumPy array containing all permutations of indices for the specified dimensions.
-            The shape will be [num_permutations, len(dims)] where num_permutations is the
-            product of the sizes of the specified dimensions, and len(dims) is the number of dimensions.
+        index_permutations: List[Tuple[np.datetime64, int, int]]
+            A list containing all permutations of time coordinates and spatial indices.
+            Each element is a tuple in the format:
+                (time coordinate as np.datetime64, y index as int, x index as int)
     """
-    # Retrieve the sizes of the specified dimensions
-    sizes = [dataset.dims[dim] for dim in dims]
+    # Retrieve the time coordinates (as np.datetime64)
+    times = dataset.coords[time_dim].values  # This should be an array of np.datetime64
 
-    # Generate index arrays for each dimension
-    indices = [np.arange(size) for size in sizes]
+    # Generate index arrays for the spatial dimensions
+    y_indices = np.arange(dataset.dims[y_dim])
+    x_indices = np.arange(dataset.dims[x_dim])
 
-    # Generate all permutations of indices using itertools.product
-    index_permutations = itertools.product(*indices)
+    # Generate all permutations using itertools.product
+    index_permutations = itertools.product(times, y_indices, x_indices)
 
-    # Convert the permutations into a NumPy array
-    return np.array(list(index_permutations))
+    # Convert the permutations into a list of tuples
+    return list(index_permutations)
 
 
 def create_split_time_keys(

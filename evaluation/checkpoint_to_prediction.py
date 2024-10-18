@@ -52,7 +52,7 @@ def ckp_to_pred(
 
     # As we want all patches and do not do any filtering in this case we simply permute the _outer patch indecies
 
-    dims_to_permute = [
+    time_dim, y_dim, x_dim = [
         'time',
         'y_outer',
         'x_outer',
@@ -60,9 +60,25 @@ def ckp_to_pred(
 
     # TODO MISTAKE: indecies of index_permuts_patches_train / val / test are used to directly load from
     # TODO data_shortened
-    index_permuts_patches_train = get_index_permutations(patches_train, dims_to_permute)
-    index_permuts_patches_val = get_index_permutations(patches_val, dims_to_permute)
-    index_permuts_patches_test = get_index_permutations(patches_test, dims_to_permute)
+    index_permuts_patches_train = get_index_permutations(patches_train, time_dim, y_dim, x_dim)
+    index_permuts_patches_val = get_index_permutations(patches_val, time_dim, y_dim, x_dim)
+    index_permuts_patches_test = get_index_permutations(patches_test, time_dim, y_dim, x_dim)
+
+
+    # --- Check for duplicates ---
+    # Combine all sample coordinates
+    all_sample_coords = index_permuts_patches_train + index_permuts_patches_val + index_permuts_patches_test
+
+    # Calculate the total number of samples and the number of unique samples
+    total_samples = len(all_sample_coords)
+    unique_samples = len(set(all_sample_coords))
+
+    # Check for duplicates
+    if total_samples != unique_samples:
+        num_duplicates = total_samples - unique_samples
+        raise ValueError(
+            f'There are {num_duplicates} duplicates among train, val, and test sets.'
+        )
 
     # ... and calculate the sample coords with respect to the CRS and projection of data_shortened of them
     train_sample_coords = patch_indecies_to_sample_coords(

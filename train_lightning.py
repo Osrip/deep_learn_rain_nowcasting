@@ -25,8 +25,6 @@ import numpy as np
 from helper.helper_functions import save_zipped_pickle, save_dict_pickle_csv,\
     save_tuple_pickle_csv, save_project_code, load_zipped_pickle, save_data_loader_vars, load_data_loader_vars
 
-from helper.pre_process_target_input import find_duplicates
-
 import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
 from logger import (ValidationLogsCallback,
@@ -737,7 +735,7 @@ if __name__ == '__main__':
         settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
-        settings['s_max_epochs'] = 2  # 2
+        settings['s_max_epochs'] = 1  # 2
         settings['s_num_gpus'] = 1
         settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T10:00']
         settings['s_split_chunk_duration'] = '15min' #'1h'
