@@ -24,6 +24,8 @@ import numpy as np
 from helper.helper_functions import save_zipped_pickle, save_dict_pickle_csv,\
     save_tuple_pickle_csv, save_project_code, load_zipped_pickle, save_data_loader_vars, load_data_loader_vars
 
+from helper.pre_process_target_input import find_duplicates
+
 import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
 from logger import (ValidationLogsCallback,
@@ -188,8 +190,17 @@ def preprocess_data(
     # -> valid_target_indecies_outer contains [[time_idx, y_outer_idx, x_outer_idx],...] of all valid patches with respect
     # to the 'patches' dataset.
 
+    # TODO: MISTAKE!!
+    # TODO we calculate the indecies of the valid patches on the already split train_valid_patches_boo / val_valid_patches boo
+    # TODO And use these indecies to load directly from data_shortened. Therefore time entries can be doubled
+
     train_valid_target_indecies_outer = np.array(np.nonzero(train_valid_patches_boo[s_data_variable_name].values)).T
     val_valid_target_indecies_outer = np.array(np.nonzero(val_valid_patches_boo[s_data_variable_name].values)).T
+
+    # Check if there are any duplicates in the indecies
+    duplicates = find_duplicates(train_valid_target_indecies_outer, val_valid_target_indecies_outer, axis=0)
+    if len(duplicates) > 0:
+        raise ValueError(f'There are {len(duplicates)} duplicates in the split indecies that train and val data is created from')
 
     # 2. We scale up the patches from target size to input + augmentation size (which is why we need the pixel indecies
     # created in 1.) and return the sample coordiantes together with the time coordinate of the target frame for the sample

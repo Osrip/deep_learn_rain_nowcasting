@@ -376,7 +376,7 @@ def filter_patches(
             The percentage of pixels that have to exceed the threshold
     Output:
         valid_patches_boo: xr.Dataset
-            Boolean xr.Dataset with y_outer and y_inner defines the valid patches
+            Boolean xr.Dataset with y_outer and x_outer that defines the valid patches
     """
 
     # Replace NaNs with 0s for the filter (Alternatively we could also throw out all targets with NaNs in them)
@@ -427,8 +427,7 @@ def patch_indecies_to_sample_coords(
             [
             [time idx,:     with respect to data_shortened and patches
             y_outer idx,    with respect to patches (directly recalculated to idx in data shortened)
-            x_outer idx]    with respect to patches (directly recalculated to idx in data shortened)
-            ,
+            x_outer idx],    with respect to patches (directly recalculated to idx in data shortened)
             ...]
 
             All those are _outer indecies (so ints) and not coordinates

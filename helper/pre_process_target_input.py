@@ -119,3 +119,25 @@ def invnorm_linspace_binning(linspace_binning, linspace_binning_max, mean_filter
     linspace_binning_inv_norm = inverse_normalize_data(np.array(linspace_binning), mean_filtered_log_data, std_filtered_log_data)
     linspace_binning_max_inv_norm = inverse_normalize_data(np.array(linspace_binning_max), mean_filtered_log_data, std_filtered_log_data)
     return linspace_binning_inv_norm, linspace_binning_max_inv_norm.item()
+
+
+def find_duplicates(arr1, arr2, axis):
+    """
+    This function finds duplicate rows between two numpy arrays along dimension 0.
+
+    Parameters:
+    arr1, arr2: numpy arrays of shape (x, y)
+
+    Returns:
+    A numpy array containing the duplicate rows.
+    """
+    # Concatenate the two arrays along axis 0
+    combined = np.concatenate((arr1, arr2), axis=axis)
+
+    # Find unique rows and their counts
+    unique_rows, counts = np.unique(combined, axis=axis, return_counts=True)
+
+    # Return rows that appear more than once
+    duplicates = unique_rows[counts > 1]
+
+    return duplicates
