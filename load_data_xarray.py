@@ -557,9 +557,9 @@ def patch_indecies_to_sample_coords(
 
 def get_index_permutations(
         dataset: xr.Dataset,
-        time_dim: str,
-        y_dim: str,
-        x_dim: str,
+        time_dim_name: str,
+        y_dim_name: str,
+        x_dim_name: str,
 ) -> list[tuple[np.datetime64, int, int]]:
     """
     Generate all index permutations for the specified dimensions of an xarray dataset, where the time dimension
@@ -582,11 +582,11 @@ def get_index_permutations(
                 (time coordinate as np.datetime64, y index as int, x index as int)
     """
     # Retrieve the time coordinates (as np.datetime64)
-    times = dataset.coords[time_dim].values  # This should be an array of np.datetime64
+    times = dataset.coords[time_dim_name].values  # This should be an array of np.datetime64
 
     # Generate index arrays for the spatial dimensions
-    y_indices = np.arange(dataset.dims[y_dim])
-    x_indices = np.arange(dataset.dims[x_dim])
+    y_indices = np.arange(dataset.dims[y_dim_name])
+    x_indices = np.arange(dataset.dims[x_dim_name])
 
     # Generate all permutations using itertools.product
     index_permutations = itertools.product(times, y_indices, x_indices)

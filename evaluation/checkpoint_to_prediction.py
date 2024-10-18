@@ -52,7 +52,7 @@ def ckp_to_pred(
 
     # As we want all patches and do not do any filtering in this case we simply permute the _outer patch indecies
 
-    time_dim, y_dim, x_dim = [
+    time_dim_name, y_dim_name, x_dim_name = [
         'time',
         'y_outer',
         'x_outer',
@@ -60,9 +60,9 @@ def ckp_to_pred(
 
     # TODO MISTAKE: indecies of index_permuts_patches_train / val / test are used to directly load from
     # TODO data_shortened
-    index_permuts_patches_train = get_index_permutations(patches_train, time_dim, y_dim, x_dim)
-    index_permuts_patches_val = get_index_permutations(patches_val, time_dim, y_dim, x_dim)
-    index_permuts_patches_test = get_index_permutations(patches_test, time_dim, y_dim, x_dim)
+    index_permuts_patches_train = get_index_permutations(patches_train, time_dim_name, y_dim_name, x_dim_name)
+    index_permuts_patches_val = get_index_permutations(patches_val, time_dim_name, y_dim_name, x_dim_name)
+    index_permuts_patches_test = get_index_permutations(patches_test, time_dim_name, y_dim_name, x_dim_name)
 
 
     # --- Check for duplicates ---
@@ -104,7 +104,7 @@ def ckp_to_pred(
         y_input, x_input,
         y_input_padding, x_input_padding,
     )
-    
+
 
 
 
