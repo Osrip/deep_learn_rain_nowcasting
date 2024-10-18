@@ -16,6 +16,7 @@ from load_data_xarray import (
     FilteredDatasetXr,
     create_split_time_keys,
     split_data_from_time_keys,
+    get_permuted_time_coord_spatial_indecies
 )
 from helper.pre_process_target_input import normalize_data, invnorm_linspace_binning, inverse_normalize_data
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -194,17 +195,27 @@ def preprocess_data(
     # TODO we calculate the indecies of the valid patches on the already split train_valid_patches_boo / val_valid_patches boo
     # TODO And use these indecies to load directly from data_shortened. Therefore time entries can be doubled
 
-    train_valid_target_indecies_outer = np.array(np.nonzero(train_valid_patches_boo[s_data_variable_name].values)).T
-    val_valid_target_indecies_outer = np.array(np.nonzero(val_valid_patches_boo[s_data_variable_name].values)).T
+    # train_valid_target_indecies_outer = np.array(np.nonzero(train_valid_patches_boo[s_data_variable_name].values)).T
+    # val_valid_target_indecies_outer = np.array(np.nonzero(val_valid_patches_boo[s_data_variable_name].values)).T
 
     # val_valid_target_coords = val_valid_patches_boo[s_data_variable_name].where(
     #     val_valid_patches_boo[s_data_variable_name], drop=True).coords
 
+    train_valid_target_coords_outer = get_permuted_time_coord_spatial_indecies(train_valid_patches_boo, **settings)
+    val_valid_target_coords_outer = get_permuted_time_coord_spatial_indecies(val_valid_patches_boo, **settings)
 
-    # Check if there are any duplicates in the indecies
-    # duplicates = find_duplicates(train_valid_target_indecies_outer, val_valid_target_indecies_outer, axis=0)
-    # if len(duplicates) > 0:
-    #     raise ValueError(f'There are {len(duplicates)} duplicates in the split indecies that train and val data is created from')
+    # Check if there are any duplicates in the indices (list of tuples)
+    train_set = set(train_valid_target_coords_outer)
+    val_set = set(val_valid_target_coords_outer)
+
+    # Find any common elements (duplicates) between the two sets
+    duplicates = train_set.intersection(val_set)
+
+    # Raise an error if there are duplicates in train and val
+    if len(duplicates) > 0:
+        raise ValueError(
+            f'There are {len(duplicates)} duplicates in the split indices that train and val data is created from')
+
 
     # 2. We scale up the patches from target size to input + augmentation size (which is why we need the pixel indecies
     # created in 1.) and return the sample coordiantes together with the time coordinate of the target frame for the sample

@@ -349,8 +349,11 @@ def create_patches(
     patches = coarse.construct(
         # time = ("time_outer", "time_inner"),
         y=("y_outer", "y_inner"),  # Those are the patche indecies / the patch dimesnion, each index pair corresponds to one patch
-        x=("x_outer", "x_inner")  # Those are the pixel dimensions of the patches
+        x=("x_outer", "x_inner"),  # Those are the pixel dimensions of the patches
+        # keep_attrs=True
     )
+    # The coordinates are killed this way for the _inner and _outer dims
+    # Dimensions without coordinates: y_outer, y_inner, x_outer, x_inner
 
     return patches, data, data_shortened
 
@@ -398,6 +401,41 @@ def filter_patches(
     # valid_target_indecies_outer = np.array(np.nonzero(valid_patches_boo.RV_recalc.values)).T
 
     return valid_patches_boo
+
+
+def get_permuted_time_coord_spatial_indecies(
+        valid_patches_boo,
+
+        s_data_variable_name,
+        **__,
+):
+    '''
+    Extracts the time coordinate (np.datetime64) and spatial indices (y_outer, x_outer) for valid patches from xr.dataset.
+
+    Input
+        valid_patches_boo: xr.Dataset
+            Boolean dataset indicating valid patches, with dimensions `time`, `y_outer`, and `x_outer`.
+        s_data_variable_name: str
+            Name of the data variable containing the boolean mask.
+
+    Output
+        valid_target_coords_outer: list of tuples
+            A list of tuples (time, y_outer, x_outer) for each valid patch:
+                - `np.datetime64 time`: Time coordinate of the valid patch.
+                - `int y_outer`: Spatial index in the y-direction.
+                - `int x_outer`: Spatial index in the x-direction.
+
+    Example
+        Returns: [(time, y_idx, x_idx), ...] for each valid patch.
+    '''
+
+    valid_patches_da = valid_patches_boo[s_data_variable_name]
+    indices = np.nonzero(valid_patches_da.values)
+    times = valid_patches_da.coords['time'].values[indices[0]]
+    y_indices = indices[1]
+    x_indices = indices[2]
+    valid_target_coords_outer = list(zip(times, y_indices, x_indices))
+    return valid_target_coords_outer
 
 
 def patch_indecies_to_sample_coords(
