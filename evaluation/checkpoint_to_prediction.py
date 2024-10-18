@@ -1,6 +1,8 @@
 from load_data_xarray import create_patches
 
 def ckp_to_pred(
+        train_time_keys, val_time_keys, test_time_keys,
+
         settings,
         s_width_height_target,
         s_width_height,
@@ -26,3 +28,4 @@ def ckp_to_pred(
         x_target,
         **settings
     )
+

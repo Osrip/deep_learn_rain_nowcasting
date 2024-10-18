@@ -64,8 +64,8 @@ def data_loading(
         data_loader_vars = load_data_loader_vars(settings, **settings)
 
         (
-            train_sample_coords,
-            val_sample_coords,
+            train_sample_coords, val_sample_coords,
+            train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
             linspace_binning_params
         ) = data_loader_vars
@@ -74,12 +74,13 @@ def data_loading(
         print('Data loader vars not found, preprocessing data!')
 
         (train_sample_coords, val_sample_coords,
+        train_time_keys, val_time_keys, test_time_keys,
         radolan_statistics_dict,
         linspace_binning_params) = preprocess_data(settings, **settings)
 
         data_loader_vars = (
-            train_sample_coords,
-            val_sample_coords,
+            train_sample_coords, val_sample_coords,
+            train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
             linspace_binning_params
         )
@@ -87,8 +88,7 @@ def data_loading(
         save_data_loader_vars(data_loader_vars, settings, **settings)
 
     (
-        train_data_loader,
-        validation_data_loader,
+        train_data_loader, validation_data_loader,
         training_steps_per_epoch,
         validation_steps_per_epoch
     ) = create_data_loaders(
@@ -96,12 +96,14 @@ def data_loading(
         val_sample_coords,
         radolan_statistics_dict,
         settings,
-        **settings)
+        **settings
+    )
 
     # This has the same order as input in train_wrapper
     return (
         train_data_loader, validation_data_loader,
         training_steps_per_epoch, validation_steps_per_epoch,
+        train_time_keys, val_time_keys, test_time_keys,
         train_sample_coords, val_sample_coords,
         radolan_statistics_dict,
         linspace_binning_params,
@@ -124,7 +126,7 @@ def preprocess_data(
     # Define constants for pre-processing
     y_target, x_target = s_width_height_target, s_width_height_target  # 73, 137 # how many pixels in y and x direction
     y_input, x_input = s_width_height, s_width_height
-    y_input_padding, x_input_padding = s_input_padding, s_input_padding # Additional padding that the frames that will be returned to data loader get for Augmentation
+    y_input_padding, x_input_padding = s_input_padding, s_input_padding  # Additional padding that the frames that will be returned to data loader get for Augmentation
 
     # --- PATCH AND FILTER ---
     # Patch data into patches of the target size and filter these patches. Patches that passed filter are called 'valid'
@@ -139,13 +141,13 @@ def preprocess_data(
         # data_shortened: same as data, but beginning is missing (lead_time + num input frames) such that we can go
         # 'back in time' to go fram target time to input time.
      ) = create_patches(
-        y_target,
-        x_target,
+        y_target, x_target,
         **settings
     )
 
+    # Filter patches
     valid_patches_boo = filter_patches(patches, **settings)
-    # valid_patches_boo: Boolean xr.Dataset with y_outer and y_inner defines the valid patches
+    # valid_patches_boo: Boolean xr.Dataset with y_outer and x_outer defines the valid patches
 
     # --- CALC NORMALIZATION STATISTICS ---
     _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_batches(
@@ -183,12 +185,17 @@ def preprocess_data(
 
     # 1. We convert the outer coordinates that define the valid patches to indecies with respect to 'patches'
     # !The spacial and time indecies refer to data_shortened!
+    # -> valid_target_indecies_outer contains [[time_idx, y_outer_idx, x_outer_idx],...] of all valid patches with respect
+    # to the 'patches' dataset.
 
     train_valid_target_indecies_outer = np.array(np.nonzero(train_valid_patches_boo[s_data_variable_name].values)).T
     val_valid_target_indecies_outer = np.array(np.nonzero(val_valid_patches_boo[s_data_variable_name].values)).T
 
     # 2. We scale up the patches from target size to input + augmentation size (which is why we need the pixel indecies
     # created in 1.) and return the sample coordiantes together with the time coordinate of the target frame for the sample
+    # -> patch_indecies_to_sample_coords takes all these indecies and converts them to the slices that are needed to
+    # cut out the patches from data_shortened.
+    # sample coords: [[np.datetime64 of target frame, y slice (coordinates), x slice (coordinates)],...]
 
     train_sample_coords = patch_indecies_to_sample_coords(
         data_shortened,
@@ -219,8 +226,8 @@ def preprocess_data(
     #TODO # --- Sample weighting / Class count for random sampler ---
 
     return (
-        train_sample_coords,
-        val_sample_coords,
+        train_sample_coords, val_sample_coords,
+        train_time_keys, val_time_keys, test_time_keys,
         radolan_statistics_dict,
         linspace_binning_params
     )
@@ -378,6 +385,7 @@ def save_data(
 def train_wrapper(
         train_data_loader, validation_data_loader,
         training_steps_per_epoch, validation_steps_per_epoch,
+        train_time_keys, val_time_keys, test_time_keys,
         train_sample_coords, val_sample_coords,
         radolan_statistics_dict,
         linspace_binning_params,
@@ -583,6 +591,7 @@ if __name__ == '__main__':
 
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20240620-174257_ID_430383default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+
             # Save data loader variables
             's_save_prefix_data_loader_vars': 'switching_regions_filter_min_amount_rain_0_2_fixed_binning_bug_2',
             's_data_loader_vars_path': '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
@@ -700,7 +709,7 @@ if __name__ == '__main__':
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
         settings['s_max_epochs'] = 2  # 2
         settings['s_num_gpus'] = 1
-        settings['s_crop_data_time_span'] = ['2019-01-01T00:00', '2019-01-02T00:00'] #['2019-01-01T08:00', '2019-01-01T10:00']
+        settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T10:00']
         settings['s_split_chunk_duration'] = '15min' #'1h'
         settings['s_ratio_train_val_test'] = (0.4, 0.3, 0.3)
 
@@ -727,6 +736,7 @@ if __name__ == '__main__':
 
         (train_data_loader, validation_data_loader,
         training_steps_per_epoch, validation_steps_per_epoch,
+        train_time_keys, val_time_keys, test_time_keys,
         train_sample_coords, val_sample_coords,
         radolan_statistics_dict,
         linspace_binning_params,) = data_set_vars
@@ -743,7 +753,11 @@ if __name__ == '__main__':
             settings, **settings
         )
 
-        # plot_from_checkpoint_wrapper(settings, **settings)
+        ckp_to_pred(
+            train_time_keys, val_time_keys, test_time_keys,
+            settings,
+            **settings,
+        )
 
     else:
         # --- Plotting only ---

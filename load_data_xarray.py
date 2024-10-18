@@ -409,22 +409,33 @@ def patch_indecies_to_sample_coords(
     '''
     This functions converts the 'valid_target_indecies_outer' which give the outer indecies with respect to 'patches' to
      global coordinates that refer to 'data_shortened'
-     !valid_target_indecies_outer includes time and spatial indecies not coordinates!
 
-    The datetime time index of the input and output indecies always refer to the target frame, which the filtering was done on!
+    Input
+        data_shortened: xr.dataset
+            The raw precipitation data, where the first entries have been cut along time dim (according to the length of lead time)
+            As we are always using the target frame as a time reference. Thus data shortened starts at the time
+            of the first target frame.
+        valid_target_indecies_outer: np.array, outer index space (patch indecies)
+            np.array that includes all index permutation of the valid patches (those patches that passed the filter)
+            shape: [num patches that passed filter, num dimensions = 3 (time, y_outer, x_outer)]
+            [[np.datetime64 (time of target frame), y_outer, x_outer], ...]
+            All those are _outer indecies (so ints) and not coordinates
+            If all patches should be converted use get_index_permutations() to create all possible index permutations
+            of patches dataset along dims = time, y_outer, x_outer
+        y_target, x_target: float(), pixel index space
+            target size
+        y_input, x_input: float(), pixel index space
+            network input size
+        y_input_padding, x_input_padding: float(), pixel index space
+            input padding
 
-    The patches where the larger input patch exceeds the bounds of data_shortened are dropped!
-    Therefore the outputs are shorter than valid_target_indecies_outer
-
-    Returns an array of tuples of valid Patch coordinates
-
-    Tuple of each coordinate:
-    (datetime, of target frame
-    y_slice,
-    x_slice)
-
-    Spatial coordinates of the input size + the padding. Refer to the coordinates in the preprocessed data, not lat/lon
-    So other data can be loaded with this but has to be in correct CRS and transform
+    Output
+        valid_input_coords: np.array: Coordinate space
+            array of arrays with valid patch coordinates
+            [[np.datetime64 target frame, slice of y coordinates, slice of x coordinates], ...]
+            shape: [num_patches, num_dims=3]
+            x and y coordinates refer to the coordinate system with respect to corred CRS and projection,
+            not to lat/lon and also not to the patch coordinates _inner and _outer
     '''
 
     y_input_padded = y_input + y_input_padding
@@ -486,6 +497,32 @@ def patch_indecies_to_sample_coords(
     print(f'{num_inputs_exceeding_bounds} patches dropped as padded input exceeded spatial data bounds')
 
     return np.array(valid_input_coords)
+
+
+def get_index_permutations(dataset: xr.Dataset, dims: list) -> np.ndarray:
+    """
+    Generate all index permutations for the specified dimensions of an xarray dataset.
+
+    Parameters:
+    - dataset (xr.Dataset): The xarray dataset containing the dimensions.
+    - dims (list): A list of dimension names (strings) for which to generate the index permutations.
+
+    Returns:
+    - np.ndarray: A NumPy array containing all permutations of indices for the specified dimensions.
+                  The shape will be [num_permutations, len(dims)] where num_permutations is the
+                  product of the sizes of the specified dimensions, and len(dims) is the number of dimensions.
+    """
+    # Retrieve the sizes of the specified dimensions
+    sizes = [dataset.dims[dim] for dim in dims]
+
+    # Generate index arrays for each dimension
+    indices = [np.arange(size) for size in sizes]
+
+    # Generate all permutations of indices using itertools.product
+    index_permutations = itertools.product(*indices)
+
+    # Convert the permutations into a NumPy array
+    return np.array(list(index_permutations))
 
 
 def create_split_time_keys(
