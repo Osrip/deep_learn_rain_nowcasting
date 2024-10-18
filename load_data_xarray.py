@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+import itertools
 from xarray.core.groupby import DatasetGroupBy
 import random
 from torch.utils.data import Dataset
@@ -131,10 +132,10 @@ class FilteredDatasetXr(Dataset):
         '''
         TODO: For evaluation try and call this method directly from DataSet
         This function takes in the coordinates 'input_coord'
-            Each input_coord represents one patch that passed the filter.
-            The spatial slices in input_coord have the spatial size of the input + the augmentation padding
-            The temporal datetime point gives the time of the target frame (as the filter was applied to the target)
-            Therefore to get the inputs we have to go back in time relative to the given time in input_coord (depending on lead time and num_input_frames)
+        Each input_coord represents one patch that passed the filter.
+        The spatial slices in input_coord have the spatial size of the input + the augmentation padding
+        The temporal datetime point gives the time of the target frame (as the filter was applied to the target)
+        Therefore to get the inputs we have to go back in time relative to the given time in input_coord (depending on lead time and num_input_frames)
         Input:
             sample_coord: tuple(
                 time: np.datetime64,
@@ -407,18 +408,29 @@ def patch_indecies_to_sample_coords(
         y_input_padding, x_input_padding
 ) -> np.array(tuple):
     '''
-    This functions converts the 'valid_target_indecies_outer' which give the outer indecies with respect to 'patches' to
-     global coordinates that refer to 'data_shortened'
+    This functions converts the 'valid_target_indecies_outer' which give the outer indecies with respect to 'patches',
+    directly recalculates those to indecies with respect to data_shortened and returns global coordinates that refer
+    to any data that has the same CRS and projection as data_shortened
+
+    All patches, where the input frame exceeds the size of data_shortened is dropped at the moment! Keep in mind
+    that data_shortened has a quite large nan padding by default at the moment
 
     Input
         data_shortened: xr.dataset
             The raw precipitation data, where the first entries have been cut along time dim (according to the length of lead time)
             As we are always using the target frame as a time reference. Thus data shortened starts at the time
             of the first target frame.
-        valid_target_indecies_outer: np.array, outer index space (patch indecies)
+        valid_target_indecies_outer: np.array, outer index space (patch indecies), time index space of data_shortened
             np.array that includes all index permutation of the valid patches (those patches that passed the filter)
-            shape: [num patches that passed filter, num dimensions = 3 (time, y_outer, x_outer)]
-            [[np.datetime64 (time of target frame), y_outer, x_outer], ...]
+
+            shape: [num_valid_patches, num_dims=3]
+            [
+            [time idx,:     with respect to data_shortened and patches
+            y_outer idx,    with respect to patches (directly recalculated to idx in data shortened)
+            x_outer idx]    with respect to patches (directly recalculated to idx in data shortened)
+            ,
+            ...]
+
             All those are _outer indecies (so ints) and not coordinates
             If all patches should be converted use get_index_permutations() to create all possible index permutations
             of patches dataset along dims = time, y_outer, x_outer
@@ -432,9 +444,15 @@ def patch_indecies_to_sample_coords(
     Output
         valid_input_coords: np.array: Coordinate space
             array of arrays with valid patch coordinates
-            [[np.datetime64 target frame, slice of y coordinates, slice of x coordinates], ...]
-            shape: [num_patches, num_dims=3]
-            x and y coordinates refer to the coordinate system with respect to corred CRS and projection,
+
+            shape: [num_valid_patches, num_dims=3]
+            [
+            [np.datetime64 target frame,
+            slice of y coordinates,
+            slice of x coordinates],
+            ...]
+
+            x and y coordinates refer to the coordinate system with respect to corred CRS and projection in data_shortened,
             not to lat/lon and also not to the patch coordinates _inner and _outer
     '''
 
@@ -503,14 +521,17 @@ def get_index_permutations(dataset: xr.Dataset, dims: list) -> np.ndarray:
     """
     Generate all index permutations for the specified dimensions of an xarray dataset.
 
-    Parameters:
-    - dataset (xr.Dataset): The xarray dataset containing the dimensions.
-    - dims (list): A list of dimension names (strings) for which to generate the index permutations.
+    Input:
+        dataset: xr.Dataset
+            The xarray dataset containing the dimensions.
+        dims: list
+            A list of dimension names (strings) for which to generate the index permutations.
 
-    Returns:
-    - np.ndarray: A NumPy array containing all permutations of indices for the specified dimensions.
-                  The shape will be [num_permutations, len(dims)] where num_permutations is the
-                  product of the sizes of the specified dimensions, and len(dims) is the number of dimensions.
+    Output:
+        index_permutations: np.ndarray
+            A NumPy array containing all permutations of indices for the specified dimensions.
+            The shape will be [num_permutations, len(dims)] where num_permutations is the
+            product of the sizes of the specified dimensions, and len(dims) is the number of dimensions.
     """
     # Retrieve the sizes of the specified dimensions
     sizes = [dataset.dims[dim] for dim in dims]
@@ -729,11 +750,13 @@ def convert_datetime64_array_to_float_tensor(datetime_array):
     """
     Converts a numpy datetime64 array into a PyTorch float tensor.
 
-    Args:
-        datetime_array (np.ndarray): An array of numpy datetime64[ns] objects.
+    Input
+        datetime_array: np.ndarray
+            An array of numpy datetime64[ns] objects.
 
-    Returns:
-        torch.Tensor: A 1D PyTorch tensor where each datetime64 is converted to a float timestamp.
+    Output:
+        float_tensor: torch.Tensor
+            A 1D PyTorch tensor where each datetime64 is converted to a float timestamp.
     """
     # Convert each datetime64 to float timestamp
     float_array = datetime_array.astype('float64')  # datetime64[ns] to float64
