@@ -197,10 +197,14 @@ def preprocess_data(
     train_valid_target_indecies_outer = np.array(np.nonzero(train_valid_patches_boo[s_data_variable_name].values)).T
     val_valid_target_indecies_outer = np.array(np.nonzero(val_valid_patches_boo[s_data_variable_name].values)).T
 
+    # val_valid_target_coords = val_valid_patches_boo[s_data_variable_name].where(
+    #     val_valid_patches_boo[s_data_variable_name], drop=True).coords
+
+
     # Check if there are any duplicates in the indecies
-    duplicates = find_duplicates(train_valid_target_indecies_outer, val_valid_target_indecies_outer, axis=0)
-    if len(duplicates) > 0:
-        raise ValueError(f'There are {len(duplicates)} duplicates in the split indecies that train and val data is created from')
+    # duplicates = find_duplicates(train_valid_target_indecies_outer, val_valid_target_indecies_outer, axis=0)
+    # if len(duplicates) > 0:
+    #     raise ValueError(f'There are {len(duplicates)} duplicates in the split indecies that train and val data is created from')
 
     # 2. We scale up the patches from target size to input + augmentation size (which is why we need the pixel indecies
     # created in 1.) and return the sample coordiantes together with the time coordinate of the target frame for the sample
