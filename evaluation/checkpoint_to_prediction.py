@@ -1,13 +1,13 @@
 from load_data_xarray import (
     create_patches,
-    get_index_permutations,
+    all_patches_to_datetime_idx_permuts,
     patch_indecies_to_sample_coords,
     split_data_from_time_keys,
     FilteredDatasetXr
 )
 from helper.checkpoint_handling import load_from_checkpoint, get_checkpoint_names
 
-from torch.utils.data import DataLoader,
+from torch.utils.data import DataLoader
 
 
 def sample_coords_for_all_patches(
@@ -87,13 +87,13 @@ def sample_coords_for_all_patches(
     ]
 
     # Get index permutations [[time: np.datetime64, y_idx: int, x_idx: int], ...] for all patches
-    index_permuts_patches_train = get_index_permutations(patches_train, time_dim_name, y_dim_name, x_dim_name)
-    index_permuts_patches_val = get_index_permutations(patches_val, time_dim_name, y_dim_name, x_dim_name)
-    index_permuts_patches_test = get_index_permutations(patches_test, time_dim_name, y_dim_name, x_dim_name)
+    train_datetime_idx_permuts = all_patches_to_datetime_idx_permuts(patches_train, time_dim_name, y_dim_name, x_dim_name)
+    val_datetime_idx_permuts = all_patches_to_datetime_idx_permuts(patches_val, time_dim_name, y_dim_name, x_dim_name)
+    test_datetime_idx_permuts = all_patches_to_datetime_idx_permuts(patches_test, time_dim_name, y_dim_name, x_dim_name)
 
     # --- Check for duplicates ---
     # Combine all sample coordinates
-    all_sample_coords = index_permuts_patches_train + index_permuts_patches_val + index_permuts_patches_test
+    all_sample_coords = train_datetime_idx_permuts + val_datetime_idx_permuts + test_datetime_idx_permuts
 
     # Calculate the total number of samples and the number of unique samples
     total_samples = len(all_sample_coords)
@@ -109,7 +109,7 @@ def sample_coords_for_all_patches(
     # ... and calculate the sample coords with respect to the CRS and projection of data_shortened of them
     train_sample_coords = patch_indecies_to_sample_coords(
         data_shortened,
-        index_permuts_patches_train,
+        train_datetime_idx_permuts,
         y_target, x_target,
         y_input, x_input,
         y_input_padding, x_input_padding,
@@ -117,7 +117,7 @@ def sample_coords_for_all_patches(
 
     val_sample_coords = patch_indecies_to_sample_coords(
         data_shortened,
-        index_permuts_patches_val,
+        val_datetime_idx_permuts,
         y_target, x_target,
         y_input, x_input,
         y_input_padding, x_input_padding,
@@ -125,7 +125,7 @@ def sample_coords_for_all_patches(
 
     test_sample_coords = patch_indecies_to_sample_coords(
         data_shortened,
-        index_permuts_patches_test,
+        test_datetime_idx_permuts,
         y_target, x_target,
         y_input, x_input,
         y_input_padding, x_input_padding,
@@ -191,6 +191,7 @@ def create_eval_dataloaders(
 
     return train_data_loader_eval, val_data_loader_eval, test_data_loader_eval
 
+
 def ckpt_to_pred(
         train_time_keys, val_time_keys, test_time_keys,
         radolan_statistics_dict,
@@ -225,24 +226,39 @@ def ckpt_to_pred(
     checkpoint_names = get_checkpoint_names(save_dir)
     for checkpoint_name in checkpoint_names:
 
+        # TODO: make this savable / loadable?
         train_sample_coords, val_sample_coords, test_sample_coords = sample_coords_for_all_patches(
             train_time_keys, val_time_keys, test_time_keys,
+            ckp_settings,
             **ckp_settings,
         )
 
         train_data_loader_eval, val_data_loader_eval, test_data_loader_eval = create_eval_dataloaders(
             train_sample_coords, val_sample_coords, test_sample_coords,
             radolan_statistics_dict,
+            ckp_settings,
             **ckp_settings,
         )
 
-        load_from_checkpoint(
+        model = load_from_checkpoint(
             save_dir,
             checkpoint_name,
 
+            ckp_settings,
             **ckp_settings,
         )
 
+
+        #Todo somehow do predictions and chunk them in time
+        # such that we can iteratively write zarr to disk and dont overload RAM
+
+        # TODO: initialize NetworkL and lightning trainer
+        # Or maybe it is better not to use lightning in this case?
+
+        # # Perform predictions
+        # predictions_train = trainer.predict(model, dataloaders=train_data_loader_eval)
+        # predictions_val = trainer.predict(model, dataloaders=val_data_loader_eval)
+        # predictions_test = trainer.predict(model, dataloaders=test_data_loader_eval)
 
 
 

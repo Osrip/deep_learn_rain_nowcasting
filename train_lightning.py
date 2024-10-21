@@ -16,7 +16,7 @@ from load_data_xarray import (
     FilteredDatasetXr,
     create_split_time_keys,
     split_data_from_time_keys,
-    get_permuted_time_coord_spatial_indecies
+    patches_boo_to_datetime_idx_permuts
 )
 from helper.pre_process_target_input import normalize_data, invnorm_linspace_binning, inverse_normalize_data
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -192,13 +192,13 @@ def preprocess_data(
     # in time idx space
     # valid_samples: [[time: np.datetime64, y_idx: int, x_idx: int], ...]
 
-    train_valid_patches_idx_permuts = get_permuted_time_coord_spatial_indecies(train_valid_patches_boo, **settings)
-    val_valid_patches_idx_permuts = get_permuted_time_coord_spatial_indecies(val_valid_patches_boo, **settings)
+    train_valid_datetime_idx_permuts = patches_boo_to_datetime_idx_permuts(train_valid_patches_boo, **settings)
+    val_valid_datetime_idx_permuts = patches_boo_to_datetime_idx_permuts(val_valid_patches_boo, **settings)
 
     # --- Check for duplicates ---
     # Check if there are any duplicates in the indices (list of tuples)
-    train_set = set(train_valid_patches_idx_permuts)
-    val_set = set(val_valid_patches_idx_permuts)
+    train_set = set(train_valid_datetime_idx_permuts)
+    val_set = set(val_valid_datetime_idx_permuts)
 
     # Find any common elements (duplicates) between the two sets
     duplicates = train_set.intersection(val_set)
@@ -217,7 +217,7 @@ def preprocess_data(
 
     train_sample_coords = patch_indecies_to_sample_coords(
         data_shortened,
-        train_valid_patches_idx_permuts,
+        train_valid_datetime_idx_permuts,
         y_target, x_target,
         y_input, x_input,
         y_input_padding, x_input_padding,
@@ -225,7 +225,7 @@ def preprocess_data(
 
     val_sample_coords = patch_indecies_to_sample_coords(
         data_shortened,
-        val_valid_patches_idx_permuts,
+        val_valid_datetime_idx_permuts,
         y_target, x_target,
         y_input, x_input,
         y_input_padding, x_input_padding,

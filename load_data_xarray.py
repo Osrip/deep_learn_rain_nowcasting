@@ -403,7 +403,7 @@ def filter_patches(
     return valid_patches_boo
 
 
-def get_permuted_time_coord_spatial_indecies(
+def patches_boo_to_datetime_idx_permuts(
         valid_patches_boo,
 
         s_data_variable_name,
@@ -419,8 +419,7 @@ def get_permuted_time_coord_spatial_indecies(
             Name of the data variable containing the boolean mask.
 
     Output
-        valid_target_coords_outer: list of tuples
-        datetime_idx_permuts
+        valid_datetime_idx_permuts: list of tuples
             A list of tuples (time, y_outer, x_outer) for each valid patch:
                 - `np.datetime64 time`: Time coordinate of the valid patch.
                 - `int y_outer`: Spatial index in the y-direction.
@@ -435,8 +434,8 @@ def get_permuted_time_coord_spatial_indecies(
     times = valid_patches_da.coords['time'].values[indices[0]]
     y_indices = indices[1]
     x_indices = indices[2]
-    valid_target_coords_outer = list(zip(times, y_indices, x_indices))
-    return valid_target_coords_outer
+    valid_datetime_idx_permuts = list(zip(times, y_indices, x_indices))
+    return valid_datetime_idx_permuts
 
 
 def patch_indecies_to_sample_coords(
@@ -556,11 +555,11 @@ def patch_indecies_to_sample_coords(
     return np.array(sample_coords)
 
 
-def get_index_permutations(
-        dataset: xr.Dataset,
+def all_patches_to_datetime_idx_permuts(
+        patches_dataset: xr.Dataset,
         time_dim_name: str,
-        y_dim_name: str,
-        x_dim_name: str,
+        y_outer_name: str,
+        x_outer_name: str,
 ) -> list[tuple[np.datetime64, int, int]]:
     """
     Generate all index permutations for the specified dimensions of an xarray dataset, where the time dimension
@@ -571,10 +570,10 @@ def get_index_permutations(
             The xarray dataset containing the dimensions and coordinates.
         time_dim: str
             The name of the time dimension in the dataset.
-        y_dim: str
-            The name of the y (vertical) spatial dimension.
-        x_dim: str
-            The name of the x (horizontal) spatial dimension.
+        y_outer_name: str
+            The name of the y (vertical) spatial dimension indicating the patch index.
+        x_outer_name: str
+            The name of the x (horizontal) spatial dimension indicating the patch index.
 
     Output:
         index_permutations: List[Tuple[np.datetime64, int, int]]
@@ -583,11 +582,11 @@ def get_index_permutations(
                 (time coordinate as np.datetime64, y index as int, x index as int)
     """
     # Retrieve the time coordinates (as np.datetime64)
-    times = dataset.coords[time_dim_name].values  # This should be an array of np.datetime64
+    times = patches_dataset.coords[time_dim_name].values  # This should be an array of np.datetime64
 
     # Generate index arrays for the spatial dimensions
-    y_indices = np.arange(dataset.dims[y_dim_name])
-    x_indices = np.arange(dataset.dims[x_dim_name])
+    y_indices = np.arange(patches_dataset.sizes[y_outer_name])
+    x_indices = np.arange(patches_dataset.sizes[x_outer_name])
 
     # Generate all permutations using itertools.product
     index_permutations = itertools.product(times, y_indices, x_indices)

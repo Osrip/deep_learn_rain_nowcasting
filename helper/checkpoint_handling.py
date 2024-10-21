@@ -12,7 +12,7 @@ def load_from_checkpoint(
         checkpoint_name,
 
         settings,
-        s_device,
+        device,
         s_num_gpus,
         **__):
     '''
@@ -25,7 +25,7 @@ def load_from_checkpoint(
     model = NetworkL.load_from_checkpoint(checkpoint_path=checkpoint_path,
                                           devices=s_num_gpus, )
 
-    model = model.to(s_device)
+    model = model.to(device)
     return model
 
 
