@@ -420,6 +420,7 @@ def get_permuted_time_coord_spatial_indecies(
 
     Output
         valid_target_coords_outer: list of tuples
+        datetime_idx_permuts
             A list of tuples (time, y_outer, x_outer) for each valid patch:
                 - `np.datetime64 time`: Time coordinate of the valid patch.
                 - `int y_outer`: Spatial index in the y-direction.
@@ -479,7 +480,7 @@ def patch_indecies_to_sample_coords(
             input padding
 
     Output
-        valid_input_coords: np.array: Coordinate space
+        sample_coords: np.array: Coordinate space
             array of arrays with valid patch coordinates
 
             shape: [num_valid_patches, num_dims=3]
@@ -499,7 +500,7 @@ def patch_indecies_to_sample_coords(
     valid_target_indecies_global = []
     valid_center_indecies_global = []
     valid_input_indecies_global = []
-    valid_input_coords = []  # These are defined
+    sample_coords = []  # These are defined
 
     num_inputs_exceeding_bounds = 0
 
@@ -543,16 +544,16 @@ def patch_indecies_to_sample_coords(
         y_coords_slices_input = slice(y_coords_input[0], y_coords_input[-1])
         x_coords_slices_input = slice(x_coords_input[0], x_coords_input[-1])
 
-        input_coords = [time_datetime, y_coords_slices_input, x_coords_slices_input]
+        coords_one_sample = [time_datetime, y_coords_slices_input, x_coords_slices_input]
 
         valid_target_indecies_global.append(target_slices)
         valid_center_indecies_global.append(global_center_indecies)
         valid_input_indecies_global.append(input_slices)
-        valid_input_coords.append(input_coords)
+        sample_coords.append(coords_one_sample)
 
     print(f'{num_inputs_exceeding_bounds} patches dropped as padded input exceeded spatial data bounds')
 
-    return np.array(valid_input_coords)
+    return np.array(sample_coords)
 
 
 def get_index_permutations(

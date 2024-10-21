@@ -76,33 +76,37 @@ def save_project_code(save_folder):
         save_code(save_folder, file)
 
 
-def create_save_name_for_data_loader_vars(s_folder_path, s_normalize, s_local_machine_mode,
-                                          s_save_prefix_data_loader_vars, s_num_bins_crossentropy, s_linspace_binning_cut_off_unnormalized,
-                                          s_width_height, **__):
-
-
-    if s_normalize:
-        normalize_str = 'normalize'
-    else:
-        normalize_str = 'no_normalize'
+def create_save_name_for_data_loader_vars(
+        s_folder_path,
+        s_local_machine_mode,
+        s_save_prefix_data_loader_vars,
+        s_num_bins_crossentropy,
+        s_linspace_binning_cut_off_unnormalized,
+        s_width_height,
+        s_crop_data_time_span,
+        **__,
+):
 
     if s_local_machine_mode:
         local_machine_str = 'local_machine_dataset'
     else:
         local_machine_str = 'big_dataset'
 
+    if s_crop_data_time_span is None:
+        time_crop_str = 'no_time_cropping'
+    else:
+        time_crop_str = f'cropped_{s_crop_data_time_span[0]}_to_{s_crop_data_time_span[1]}'
+
 
     original_file_name = s_folder_path.split('/')[-1]
 
-    return '{}_{}_{}_{}_{}_{}_{}'.format(
-        s_save_prefix_data_loader_vars,
-        normalize_str,
-        original_file_name,
-        local_machine_str,
-        s_num_bins_crossentropy,
-        s_linspace_binning_cut_off_unnormalized,
-        s_width_height
-    )
+    return (f'{s_save_prefix_data_loader_vars}_'
+            f'{original_file_name}_'
+            f'{local_machine_str}_'
+            f'{s_num_bins_crossentropy}_'
+            f'{s_linspace_binning_cut_off_unnormalized}_'
+            f'{s_width_height}_'
+            f'{time_crop_str}')
 
 
 def save_data_loader_vars(data_loader_vars, settings, s_data_loader_vars_path, **__):

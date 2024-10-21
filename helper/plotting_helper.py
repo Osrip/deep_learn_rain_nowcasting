@@ -2,21 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
-import os
 
-
-def get_checkpoint_names(ps_runs_path, **__):
-    '''
-    Get the filenames of all checkpoints
-    '''
-    checkpoint_path = '{}/model'.format(ps_runs_path)
-    checkpoint_names = []
-    for file in os.listdir(checkpoint_path):
-        # check only checkpoint files
-        if file.endswith('.ckpt'):
-            checkpoint_names.append(file)
-
-    return checkpoint_names
 
 def load_data_from_logs(s_calc_baseline, s_dirs,
     rel_path_train='logs/train_log/version_0/metrics.csv',

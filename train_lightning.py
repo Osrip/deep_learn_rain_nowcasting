@@ -41,7 +41,7 @@ import copy
 import warnings
 from tests.test_basic_functions import test_all
 from pytorch_lightning.loggers import WandbLogger
-from evaluation.checkpoint_to_prediction import ckp_to_pred
+from evaluation.checkpoint_to_prediction import ckpt_to_pred
 
 
 def data_loading(
@@ -178,7 +178,6 @@ def preprocess_data(
     train_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, train_time_keys)
     val_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, val_time_keys)
 
-
     # --- INDEX CONVERSION from patch to sample ---
     #  outer coordinates (define patches in 'patches')
     # 1. -> outer indecies (define patches in 'patches')
@@ -191,24 +190,15 @@ def preprocess_data(
 
     # We use time_datetime instead of time_idx, as the data has already been split, and we thus cannot calculate
     # in time idx space
+    # valid_samples: [[time: np.datetime64, y_idx: int, x_idx: int], ...]
 
-    # TODO: MISTAKE!!
-    # TODO we calculate the indecies of the valid patches on the already split train_valid_patches_boo / val_valid_patches boo
-    # TODO And use these indecies to load directly from data_shortened. Therefore time entries can be doubled
-
-    # train_valid_target_indecies_outer = np.array(np.nonzero(train_valid_patches_boo[s_data_variable_name].values)).T
-    # val_valid_target_indecies_outer = np.array(np.nonzero(val_valid_patches_boo[s_data_variable_name].values)).T
-
-    # val_valid_target_coords = val_valid_patches_boo[s_data_variable_name].where(
-    #     val_valid_patches_boo[s_data_variable_name], drop=True).coords
-
-    train_valid_samples = get_permuted_time_coord_spatial_indecies(train_valid_patches_boo, **settings)
-    val_valid_samples = get_permuted_time_coord_spatial_indecies(val_valid_patches_boo, **settings)
+    train_valid_patches_idx_permuts = get_permuted_time_coord_spatial_indecies(train_valid_patches_boo, **settings)
+    val_valid_patches_idx_permuts = get_permuted_time_coord_spatial_indecies(val_valid_patches_boo, **settings)
 
     # --- Check for duplicates ---
     # Check if there are any duplicates in the indices (list of tuples)
-    train_set = set(train_valid_samples)
-    val_set = set(val_valid_samples)
+    train_set = set(train_valid_patches_idx_permuts)
+    val_set = set(val_valid_patches_idx_permuts)
 
     # Find any common elements (duplicates) between the two sets
     duplicates = train_set.intersection(val_set)
@@ -227,7 +217,7 @@ def preprocess_data(
 
     train_sample_coords = patch_indecies_to_sample_coords(
         data_shortened,
-        train_valid_samples,
+        train_valid_patches_idx_permuts,
         y_target, x_target,
         y_input, x_input,
         y_input_padding, x_input_padding,
@@ -235,7 +225,7 @@ def preprocess_data(
 
     val_sample_coords = patch_indecies_to_sample_coords(
         data_shortened,
-        val_valid_samples,
+        val_valid_patches_idx_permuts,
         y_target, x_target,
         y_input, x_input,
         y_input_padding, x_input_padding,
@@ -428,8 +418,6 @@ def train_wrapper(
     Please keep intput arguments in the same order as the output of create_data_loaders()
     """
 
-
-
     train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)
 
     # This is used to save checkpoints of the model
@@ -589,7 +577,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
+    s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
 
     s_sim_name_suffix = 'x'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
@@ -630,7 +618,7 @@ if __name__ == '__main__':
             's_max_epochs': 100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be None
+            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
 
             # Load Radolan
             's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
@@ -706,9 +694,6 @@ if __name__ == '__main__':
             's_calc_baseline': False,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000,  # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
-            # Log transform input/ validation data --> log binning --> log(x+1)
-            's_normalize': True,  # False not tested, leave this true
-
             's_testing': True,  # Runs tests before starting training
             's_profiling': False,  # Runs profiler
 
@@ -781,8 +766,9 @@ if __name__ == '__main__':
             settings, **settings
         )
 
-        ckp_to_pred(
+        ckpt_to_pred(
             train_time_keys, val_time_keys, test_time_keys,
+            radolan_statistics_dict,
             settings,
             **settings,
         )

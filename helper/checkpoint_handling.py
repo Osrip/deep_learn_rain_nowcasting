@@ -1,3 +1,5 @@
+import os
+
 from network_lightning import NetworkL
 from helper.helper_functions import load_zipped_pickle
 from torch.utils.data import DataLoader
@@ -5,19 +7,25 @@ from torch.utils.data import DataLoader
 # TODO REWRITE THIS TO HANDLE XARRAY STUFF
 
 
-def load_from_checkpoint(runs_path, checkpoint_name,
-                         settings, ps_device, ps_num_gpus, **__):
+def load_from_checkpoint(
+        save_dir,
+        checkpoint_name,
+
+        settings,
+        s_device,
+        s_num_gpus,
+        **__):
     '''
     filter_and_normalization_params is needed for crps loss in Network_l
     '''
-    checkpoint_path = '{}/model/{}'.format(runs_path, checkpoint_name)
+    checkpoint_path = '{}/model/{}'.format(save_dir, checkpoint_name)
 
     print("Loading checkpoint '{}'".format(checkpoint_path))
 
     model = NetworkL.load_from_checkpoint(checkpoint_path=checkpoint_path,
-                                          devices=ps_num_gpus,)
+                                          devices=s_num_gpus, )
 
-    model = model.to(ps_device)
+    model = model.to(s_device)
     return model
 
 
@@ -27,8 +35,9 @@ def create_data_loaders_ckpt_plotting(
         filtered_indecies_validation,
         linspace_binning_params,
         filter_and_normalization_params,
-        settings):
-
+        settings
+):
+    # TODO !remove this funktion as this is still part of old plotting pipeline!
     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
     filtered_indecies, mean_filtered_log_data, std_filtered_log_data, _, _, linspace_binning_min_unnormalized,\
@@ -80,3 +89,17 @@ def load_data_from_run(runs_path, run_name):
     filter_and_normalization_params = load_zipped_pickle('{}/data/filter_and_normalization_params'.format(runs_path))
 
     return settings, filtered_indecies_training, filtered_indecies_validation, linspace_binning_params, filter_and_normalization_params
+
+
+def get_checkpoint_names(save_dir, **__):
+    '''
+    Get the filenames of all checkpoints
+    '''
+    checkpoint_path = '{}/model'.format(save_dir)
+    checkpoint_names = []
+    for file in os.listdir(checkpoint_path):
+        # check only checkpoint files
+        if file.endswith('.ckpt'):
+            checkpoint_names.append(file)
+
+    return checkpoint_names
