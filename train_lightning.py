@@ -150,17 +150,6 @@ def preprocess_data(
     valid_patches_boo = filter_patches(patches, **settings)
     # valid_patches_boo: Boolean xr.Dataset with y_outer and x_outer defines the valid patches
 
-    # --- CALC NORMALIZATION STATISTICS ---
-    _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_batches(
-        patches,
-        valid_patches_boo,
-        **settings
-    )
-
-    radolan_statistics_dict = {
-        'mean_filtered_log_data': mean_filtered_log_data,
-        'std_filtered_log_data': std_filtered_log_data
-    }
 
     # --- SPLIT DATA ---
     # We are grouping the data (i.e. daily) and then are splitting these (daily) groups into train, val and test set
@@ -177,6 +166,18 @@ def preprocess_data(
     # Split valid_patches_boo into train and val
     train_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, train_time_keys)
     val_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, val_time_keys)
+
+    # --- CALC NORMALIZATION STATISTICS on valid training patches---
+    _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_batches(
+        patches,
+        train_valid_patches_boo,
+        **settings
+    )
+
+    radolan_statistics_dict = {
+        'mean_filtered_log_data': mean_filtered_log_data,
+        'std_filtered_log_data': std_filtered_log_data
+    }
 
     # --- INDEX CONVERSION from patch to sample ---
     #  outer coordinates (define patches in 'patches')
