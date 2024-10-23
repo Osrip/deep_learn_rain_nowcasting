@@ -241,7 +241,6 @@ def predict_and_save_to_zarr(
     )
 
 
-
 def ckpt_to_pred(
         train_time_keys, val_time_keys, test_time_keys,
         radolan_statistics_dict,

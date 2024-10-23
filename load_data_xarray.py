@@ -12,6 +12,9 @@ import torchvision.transforms.functional as TF
 
 class FilteredDatasetXr(Dataset):
     def __init__(self, sample_coords, radolan_statistics_dict, settings):
+        """
+
+        """
         # super().__init__()
         self.sample_coords = sample_coords
         self.settings = settings
@@ -79,6 +82,7 @@ class FilteredDatasetXr(Dataset):
             'radolan': [radolan_statistics_dict['mean_filtered_log_data'],
                         radolan_statistics_dict['std_filtered_log_data']]
         }
+        
 
         self.static_statistics_dict = {
             'dem': [dem_mean, dem_std]
@@ -209,7 +213,7 @@ class FilteredDatasetXr(Dataset):
             )
             variable_name = self.dynamic_variable_name_dict[key]
 
-            dynamic_sample_values = spacetime_sample[variable_name].values  # spacetime_sample.RV_recalc.values
+            dynamic_sample_values = spacetime_sample[variable_name].values
             dynamic_sample_values = torch.from_numpy(dynamic_sample_values)
             dynamic_samples_dict[key] = dynamic_sample_values
 
@@ -256,11 +260,11 @@ class FilteredDatasetXr(Dataset):
             lat_old = lat
             lon_old = lon
 
-            sample_metadata_dict = {
-                'latitude': lat,
-                'longitude': lon,
-                'time_points_each_frame': time_points_each_frame
-            }
+        sample_metadata_dict = {
+            'latitude': lat,
+            'longitude': lon,
+            'time_points_each_frame': time_points_each_frame
+        }
 
         return dynamic_samples_dict, static_samples_dict, sample_metadata_dict
 
