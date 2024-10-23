@@ -535,7 +535,6 @@ def train_l(
         static_statistics_dict_train_data,
         linspace_binning_params,
         sigma_schedule_mapping,
-        radolan_statistics_dict,
         settings,
         training_steps_per_epoch=training_steps_per_epoch,
         **settings)

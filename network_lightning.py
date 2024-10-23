@@ -23,7 +23,6 @@ class NetworkL(pl.LightningModule):
             static_statistics_dict_train_data,
             linspace_binning_params,
             sigma_schedule_mapping,
-            radolan_statistics_dict,
 
 
             settings,
@@ -67,19 +66,23 @@ class NetworkL(pl.LightningModule):
         self.sum_train_mean_target = 0
         self.sum_train_mean_target_squared = 0
 
+        # Normlaization statistics
+        self.dynamic_statistics_dict_train_data = dynamic_statistics_dict_train_data
+        self.static_statistics_dict_train_data = static_statistics_dict_train_data
+
+        # Extract normlaization statistics from radolan as this has to be frequently accessed for logging
+        radolan_statistics = self.dynamic_statistics_dict_train_data['radolan']
+        self.mean_filtered_log_data = radolan_statistics['mean_filtered_log_data']
+        self.std_filtered_log_data = radolan_statistics['std_filtered_log_data']
+
+
+
+
+
         self.sigma_schedule_mapping = sigma_schedule_mapping
         self.settings = settings
 
-        # radolan_statistics_dict can be None if no training, but only forward pass is performed (for checkpoint loading)
-        if radolan_statistics_dict is None:
-            self.mean_filtered_log_data = None
-            self.std_filtered_log_data = None
-        else:
-            self.mean_filtered_log_data = radolan_statistics_dict['mean_filtered_log_data']
-            self.std_filtered_log_data = radolan_statistics_dict['std_filtered_log_data']
 
-        self.dynamic_statistics_dict_train_data = dynamic_statistics_dict_train_data
-        self.static_statistics_dict_train_data = static_statistics_dict_train_data
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
@@ -104,12 +107,17 @@ class NetworkL(pl.LightningModule):
 
         if s_crps_loss:
 
+            radolan_statistics = self.dynamic_statistics_dict_train_data['radolan']
+            mean_filtered_log_data_radolan = radolan_statistics['mean_filtered_log_data']
+            std_filtered_log_data_radolan = radolan_statistics['std_filtered_log_data']
+
             linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
             linspace_binning_inv_norm, linspace_binning_max_inv_norm = invnorm_linspace_binning(
                 linspace_binning,
                 linspace_binning_max,
-                self.mean_filtered_log_data,
-                self.std_filtered_log_data)
+                mean_filtered_log_data_radolan,
+                std_filtered_log_data_radolan
+            )
 
             self.loss_func = lambda pred, target: torch.mean(crps_vectorized(pred, target,
                                                                   linspace_binning_inv_norm,
@@ -237,10 +245,14 @@ class NetworkL(pl.LightningModule):
         # target sequence
 
         # Normalize data
+        radolan_statistics = self.dynamic_statistics_dict_train_data['radolan']
+        mean_filtered_log_data_radolan = radolan_statistics['mean_filtered_log_data']
+        std_filtered_log_data_radolan = radolan_statistics['std_filtered_log_data']
+
         radolan_spacetime_batch = normalize_data(
             radolan_spacetime_batch,
-            self.mean_filtered_log_data,
-            self.std_filtered_log_data
+            mean_filtered_log_data_radolan,
+            std_filtered_log_data_radolan
         )
 
         # Extract target and input

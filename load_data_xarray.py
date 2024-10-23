@@ -82,7 +82,6 @@ class FilteredDatasetXr(Dataset):
             'radolan': radolan_statistics_dict
         }
 
-
         self.static_statistics_dict = {
             'dem': {'mean': dem_mean, 'std': dem_std}
         }
