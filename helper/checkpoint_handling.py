@@ -16,6 +16,7 @@ def load_from_checkpoint(
         s_num_gpus,
         **__):
     '''
+    This directly loads the NetworkL class.
     filter_and_normalization_params is needed for crps loss in Network_l
     '''
     checkpoint_path = '{}/model/{}'.format(save_dir, checkpoint_name)

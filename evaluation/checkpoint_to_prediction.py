@@ -8,6 +8,43 @@ from load_data_xarray import (
 from helper.checkpoint_handling import load_from_checkpoint, get_checkpoint_names
 
 from torch.utils.data import DataLoader
+import pytorch_lightning as pl
+
+
+class PredictionsToZarrCallback(pl.Callback):
+
+    def __init__(self):
+        super().__init__()
+
+    def on_predict_batch_end(
+            self,
+            trainer,
+            pl_module,
+            outputs,
+            batch,
+            batch_idx,
+            dataloader_idx
+    ):
+        """
+        This is called after predict_step()
+        """
+
+
+        #  TODO save zarr batch wise
+
+        # # Set encoding for the time coordinate
+        #
+        # radolan_pred_ds['time'].encoding['units'] = f'minutes since {t0_of_radolan}'
+        #
+        # radolan_pred_ds['time'].encoding['dtype'] = 'float64'
+        #
+        # # This way we are appending on disk via time dimension
+        # if i == 0:
+        #     radolan_pred_ds.to_zarr(pre_settings['save_zarr_path'], mode='w')
+        # else:
+        #     radolan_pred_ds.to_zarr(pre_settings['save_zarr_path'], mode='a-', append_dim='time')
+        #
+        # # Appending manual: https://docs.xarray.dev/en/latest/user-guide/io.html#io-zarr
 
 
 def sample_coords_for_all_patches(
@@ -192,6 +229,19 @@ def create_eval_dataloaders(
     return train_data_loader_eval, val_data_loader_eval, test_data_loader_eval
 
 
+def predict_and_save_to_zarr(
+        model,
+        data_loader
+):
+    trainer = pl.Trainer()
+
+    trainer.predict(
+        model=model,
+        dataloaders=data_loader,
+    )
+
+
+
 def ckpt_to_pred(
         train_time_keys, val_time_keys, test_time_keys,
         radolan_statistics_dict,
@@ -214,14 +264,17 @@ def ckpt_to_pred(
             whole dataset
 
         ckp_settings: dict
-                ckp_settings are the settings of the run that the checkpoint was created with.
-                The entries of settings are expected to start with s_...
-                Make sure to modify settings that influence the forward pass according to your wishes
-                This is particularly true for the entries:
-                s_device
-                s_num_gpus
+            ckp_settings are the settings of the run that the checkpoint was created with.
+            The entries of settings are expected to start with s_...
+            Make sure to modify settings that influence the forward pass according to your wishes
+            This is particularly true for the entries:
+            s_device
+            s_num_gpus
     """
     save_dir = s_dirs['save_dir']
+
+    # TODO: Implement taking a subset of train_time_keys, val_time_keys, test_time_keys,
+    #  to save resources with predictions? Maybe just a date range?
 
     checkpoint_names = get_checkpoint_names(save_dir)
     for checkpoint_name in checkpoint_names:
@@ -248,12 +301,20 @@ def ckpt_to_pred(
             **ckp_settings,
         )
 
+        predict_and_save_to_zarr(model, val_data_loader_eval)
+
+        # TODO: Predictions, Patch assembly, chunk-wise saving to zarr
 
         #Todo somehow do predictions and chunk them in time
         # such that we can iteratively write zarr to disk and dont overload RAM
 
         # TODO: initialize NetworkL and lightning trainer
         # Or maybe it is better not to use lightning in this case?
+
+
+        # define a def predict function in NetworkL
+
+        # load data with __getitem_evaluation__
 
         # # Perform predictions
         # predictions_train = trainer.predict(model, dataloaders=train_data_loader_eval)

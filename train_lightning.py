@@ -521,6 +521,9 @@ def train_l(
     Train loop, keep this clean!
     '''
 
+    # TODO load static and dynamic statistics dicts here from train data loader
+    #  and pass them to Network_l
+
     model_l = NetworkL(
         linspace_binning_params,
         sigma_schedule_mapping,

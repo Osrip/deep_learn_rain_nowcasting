@@ -210,6 +210,13 @@ class NetworkL(pl.LightningModule):
         return target_binned
 
     def train_and_val_step(self, dynamic_samples_dict, static_samples_dict, batch_idx):
+        """
+        Prediction and validation step
+
+        Input
+            dynamic_samples_dict
+
+        """
         s_gaussian_smoothing_target = self.settings['s_gaussian_smoothing_target']
         s_width_height_target = self.settings['s_width_height_target']
         s_data_variable_name = self.settings['s_data_variable_name']
@@ -255,6 +262,7 @@ class NetworkL(pl.LightningModule):
         dem_spatial_batch = static_samples_dict['dem']
 
         # Normalize
+        # TODO: This is an ugly way of accessing the
         dem_mean, dem_std = self.trainer.train_dataloader.dataset.static_statistics_dict['dem']
         dem_spatial_batch = (dem_spatial_batch - dem_mean) / dem_std
         # Add channel dim of size 1
@@ -293,3 +301,15 @@ class NetworkL(pl.LightningModule):
         dynamic_samples_dict, static_samples_dict = batched_samples
         out_dict = self.train_and_val_step(dynamic_samples_dict, static_samples_dict, batch_idx)
         return out_dict
+
+    def predict_step(self, batched_samples, batch_idx: int, dataloader_idx: int = 0):
+        '''
+        This is called by trainer.predict
+        https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict
+        '''
+        pass
+
+        # Hier einen Callback schreiben, der sich alle predictions in eine Liste schreibt und nach bestimmter chunk größe
+        # dann alles auf die Disk schreibt.
+
+

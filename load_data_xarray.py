@@ -144,15 +144,31 @@ class FilteredDatasetXr(Dataset):
                 )
             time_step_precipitation_data_minutes: int, default = 5
                 The time step of the precipitation data in minutes
-        dynamic_data_dict has the following format: {'variable_name': xr.Dataset, ...} Of all variables that are used for the input
-        it includes all data that has a time dimension
 
-        static_data_dict has the same format {'variable_name': xr.Dataset, ...} and includes static all data that does
-        not have a time dimension
+        Used self.attributes
+            self.dynamic_data_dict
+                has the following format: {'variable_name': xr.Dataset, ...} Of all variables that are used for the input
+                it includes all data that has a time dimension
+
+            self.static_data_dict
+                has the same format {'variable_name': xr.Dataset, ...} and includes static all data that does
+                not have a time dimension
 
         Output:
-            dynamic_samples_dict: {'variable_name': timespace chunk that includes input frames and target frame, np.array}
-            static_samples_dict: {'variable_name': spacial chunk, np.array}
+            dynamic_samples_dict:
+                {'variable_name': timespace chunk that includes input frames and target frame, np.array}
+                Dictionary, that includes all 'dynamic' variables - thus time-space np.arrays shape: (time, y | height, x | width)
+
+                dynamic_samples_dict['radolan'] receives special treatment, as this is the data that has been filtered
+
+            static_samples_dict:
+                {'variable_name': spacial chunk, np.array}
+                Dictionary, that includes all 'static' variables - thus space np. arrays  shape: (y | height, x | width)
+
+                - The dataset's __get_item__() method will batch all entries of the dicts and convert them from np.array
+                 to torch.Tensor
+                - The data is not normalized. All normalization statistics will be calculated
+
         '''
 
         num_input_frames = self.settings['s_num_input_time_steps']
