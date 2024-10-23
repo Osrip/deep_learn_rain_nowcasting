@@ -229,8 +229,6 @@ class NetworkL(pl.LightningModule):
         s_width_height_target = self.settings['s_width_height_target']
         s_data_variable_name = self.settings['s_data_variable_name']
 
-        # TODO: Is there a better way to handle the dicts here?
-
         # --- Process Radolan ---
         radolan_spacetime_batch = dynamic_samples_dict['radolan']
 
@@ -322,7 +320,10 @@ class NetworkL(pl.LightningModule):
         This is called by trainer.predict
         https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict
         '''
-        pass
+        # TODO: How can I get batched_samples from __getitem_evaluation__ instead of __get_itme__?
+        dynamic_samples_dict, static_samples_dict = batched_samples
+
+
 
         # Hier einen Callback schreiben, der sich alle predictions in eine Liste schreibt und nach bestimmter chunk größe
         # dann alles auf die Disk schreibt.

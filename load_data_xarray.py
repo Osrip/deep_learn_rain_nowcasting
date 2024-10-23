@@ -42,6 +42,7 @@ class FilteredDatasetXr(Dataset):
             self.static_data_dict
                 has the same format {'name': xr.Dataset, ...} and includes static all data that does
                 not have a time dimension
+                    NOTE: THERE IS NO TRAIN / VAL / TEST SPLIT FOR STATIC DATA as we split along time only
 
             self.dynamic_variable_name_dict, self.static_variable_name_dict
                 {'name': 'variable_name (in xr.Dataset)', ...}
@@ -92,8 +93,11 @@ class FilteredDatasetXr(Dataset):
         # set all values below 0 to 0
         radolan_data = radolan_data.where(radolan_data >= 0, 0)
 
+        #  !!! DONT CALC Z-NORM STATISTICS HERE FOR DYNAMIC DATA AS THIS HAS TO BE DONE ON TRAINING DATA ONLY !!!
+
         # DEM
-        # Only z normalization, no log norm for DEM!
+        # z normalization, without log norm for DEM!
+        # We can do this here on all data as there is no train / val /test split for static data
         dem_mean = float(np.mean(dem_data)[s_dem_variable_name].values)
         dem_std = float(np.std(dem_data)[s_dem_variable_name].values)
 
@@ -180,8 +184,8 @@ class FilteredDatasetXr(Dataset):
         Input:
             sample_coord: tuple(
                 time: np.datetime64,
-                y_slice: slice of y coordinates, (s_width_height + s_padding)
-                x_slice slice of x coordinates (s_width_height + s_padding)
+                y_slice: slice of y coordinates, (s_width_height + s_padding or s_width_height)
+                x_slice slice of x coordinates (s_width_height + s_padding or s_width_height)
                 )
             time_step_precipitation_data_minutes: int, default = 5
                 The time step of the precipitation data in minutes
@@ -203,6 +207,19 @@ class FilteredDatasetXr(Dataset):
                 - The dataset's __get_item__() method will batch all entries of the dicts and convert them from np.array
                  to torch.Tensor
                 - The data is not normalized. All normalization statistics will be calculated
+
+            sample_metadata_dict:
+                TODO: Do we really need lat lon here? Wouldn't x/y be better. Or both?
+                {
+                'latitude':                latitude of (time) space chunk, np.array,
+                                            (same as .latitude attribute of xr.Dataset)
+                 'longitude':               longitude of (time) space chunk, np.array,
+                                            (same as .longitude attribute of xr.Dataset)
+                 'time_points_each_frame':  time points of each frame converted to float
+                                            (created from .time attribute of xr.Dataset)
+                                            Can be converted back to datetime64 using
+                                            convert_float_tensor_to_datetime64_array()
+                }
         '''
 
         num_input_frames = self.settings['s_num_input_time_steps']
@@ -230,6 +247,10 @@ class FilteredDatasetXr(Dataset):
 
         time_slice = slice(time_start, time_end)
 
+        # -- We load the samples. At the same time we check whether the samples are coherent and extract metadata --
+        # TODO: Extracting and comparing all metadata may be too slow, particularly as we are doing it not in xr but torch
+        #  MAKE THIS NICER!
+
         # Load dynamic samples (samples with time dimension)
         dynamic_samples_dict = {}
         for i, (key, dynamic_data) in enumerate(self.dynamic_data_dict.items()):
@@ -247,11 +268,12 @@ class FilteredDatasetXr(Dataset):
             if not np.shape(dynamic_sample_values)[0] == num_input_frames + lead_time + 1:
                 raise ValueError('The time dim of the sample values is not as expected, check the slicing')
 
-            # Extract lat / lon
+            # Extract lat / lon / time for metadata and check whether samples are cut out coherently
             lat = spacetime_sample[variable_name].latitude.values
             lat = torch.from_numpy(lat)
             lon = spacetime_sample[variable_name].longitude.values
             lon = torch.from_numpy(lon)
+            # Convert time to float tensor, such that it can be passed through dataloader
             time_points_each_frame = spacetime_sample.time.values
             time_points_each_frame = convert_datetime64_array_to_float_tensor(time_points_each_frame)
 
@@ -261,6 +283,8 @@ class FilteredDatasetXr(Dataset):
                     raise ValueError('Lat / Lon do not match between different variables')
             lat_old = lat
             lon_old = lon
+
+        # We transfer lat / lon of dynamic samples to check coherence with static samples
 
         # Load static samples:
         static_samples_dict = {}
@@ -274,7 +298,7 @@ class FilteredDatasetXr(Dataset):
             static_sample_values = torch.from_numpy(static_sample_values)
             static_samples_dict[key] = static_sample_values
 
-            # Extract lat / lon
+            # Extract lat / lon for metadata and to check whether samples are cut out coherently
             lat = static_sample[variable_name].latitude.values
             lat = torch.from_numpy(lat)
             lon = static_sample[variable_name].longitude.values
@@ -396,10 +420,9 @@ def create_patches(
 
     # construct a new data set, where the patches are folded into a new dimension
     patches = coarse.construct(
-        # time = ("time_outer", "time_inner"),
         y=("y_outer", "y_inner"),  # Those are the patche indecies / the patch dimesnion, each index pair corresponds to one patch
         x=("x_outer", "x_inner"),  # Those are the pixel dimensions of the patches
-        # keep_attrs=True
+        # keep_attrs=True          # This would keep attrs (not coordinates!) not needed here.
     )
     # The coordinates are killed this way for the _inner and _outer dims
     # Dimensions without coordinates: y_outer, y_inner, x_outer, x_inner

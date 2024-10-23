@@ -28,7 +28,7 @@ class PredictionsToZarrCallback(pl.Callback):
         """
         This is called after predict_step()
         """
-
+        pass
 
         #  TODO save zarr batch wise
 
