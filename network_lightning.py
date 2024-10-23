@@ -75,14 +75,8 @@ class NetworkL(pl.LightningModule):
         self.mean_filtered_log_data = radolan_statistics['mean_filtered_log_data']
         self.std_filtered_log_data = radolan_statistics['std_filtered_log_data']
 
-
-
-
-
         self.sigma_schedule_mapping = sigma_schedule_mapping
         self.settings = settings
-
-
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
