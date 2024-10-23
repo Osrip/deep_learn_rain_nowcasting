@@ -79,13 +79,12 @@ class FilteredDatasetXr(Dataset):
 
         # Normalization statistics dict (always logmean, logstd - meaning mean and std of logtransformed data)
         self.dynamic_statistics_dict = {
-            'radolan': [radolan_statistics_dict['mean_filtered_log_data'],
-                        radolan_statistics_dict['std_filtered_log_data']]
+            'radolan': radolan_statistics_dict
         }
-        
+
 
         self.static_statistics_dict = {
-            'dem': [dem_mean, dem_std]
+            'dem': {'mean': dem_mean, 'std': dem_std}
         }
 
     def __getitem__(self, idx):

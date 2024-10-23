@@ -268,10 +268,10 @@ class NetworkL(pl.LightningModule):
         dem_spatial_batch = static_samples_dict['dem']
 
         # Normalize
-        # TODO: This is an ugly way of accessing the
 
         # dem_mean, dem_std = self.trainer.train_dataloader.dataset.static_statistics_dict['dem']
-        dem_mean, dem_std = self.static_statistics_dict_train_data['dem']
+        dem_statistics = self.static_statistics_dict_train_data['dem']
+        dem_mean, dem_std = dem_statistics['mean'], dem_statistics['std']
 
         dem_spatial_batch = (dem_spatial_batch - dem_mean) / dem_std
         # Add channel dim of size 1
