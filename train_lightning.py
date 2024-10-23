@@ -269,13 +269,15 @@ def create_data_loaders(
     train_data_set = FilteredDatasetXr(
         train_sample_coords,
         radolan_statistics_dict,
-        settings,
+        mode='train',
+        settings=settings,
     )
 
     val_data_set = FilteredDatasetXr(
         val_sample_coords,
         radolan_statistics_dict,
-        settings,
+        mode='train',
+        settings=settings,
     )
 
     training_steps_per_epoch = len(train_data_set)

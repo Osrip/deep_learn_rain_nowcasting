@@ -184,19 +184,22 @@ def create_eval_dataloaders(
     train_data_set_eval = FilteredDatasetXr(
         train_sample_coords,
         radolan_statistics_dict,
-        settings,
+        mode='predict',
+        settings=settings,
     )
 
     val_data_set_eval = FilteredDatasetXr(
         val_sample_coords,
         radolan_statistics_dict,
-        settings,
+        mode='predict',
+        settings=settings,
     )
 
     test_data_set_eval = FilteredDatasetXr(
         test_sample_coords,
         radolan_statistics_dict,
-        settings,
+        mode='predict',
+        settings=settings,
     )
 
     train_data_loader_eval = DataLoader(

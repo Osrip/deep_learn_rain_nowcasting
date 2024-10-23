@@ -11,7 +11,13 @@ import torchvision.transforms.functional as TF
 
 
 class FilteredDatasetXr(Dataset):
-    def __init__(self, sample_coords, radolan_statistics_dict, settings, data_into_ram=True):
+    def __init__(
+            self,
+            sample_coords,
+            radolan_statistics_dict,
+            mode,
+            settings,
+            data_into_ram=True):
         """
 
         Input:
@@ -26,12 +32,22 @@ class FilteredDatasetXr(Dataset):
                 slice of x coordinates],
                 ...]
 
+                in mode == 'train':
+                    slice of y coordinates should be s_height_width + input_padding
+                mode == 'predict'
+                    slice of y coordinates should be s_height_width
+
                 x and y coordinates refer to the coordinate system with respect to corred CRS and projection in data_shortened,
                 not to lat/lon and also not to the patch coordinates _inner and _outer
 
             radolan_statistics_dict: dict
                 {'mean_filtered_log_data': float, 'std_filtered_log_data': float}
                 Make sure this has been only calculated on training data!
+
+            mode: str
+                'train':    training mode. __getitem_train__    is called which handles padding and augmentation
+                'predict':  evaluation mode: __getitem_eval__   is called which handles non-padded data to do
+                                                                operate on unfiltered patches that will be reassembled
 
         Attributes (most important ones)
 
@@ -54,6 +70,7 @@ class FilteredDatasetXr(Dataset):
         """
         # super().__init__()
         self.sample_coords = sample_coords
+        self.mode = mode
         self.settings = settings
 
         s_folder_path = settings['s_folder_path']
@@ -129,7 +146,18 @@ class FilteredDatasetXr(Dataset):
             'dem': {'mean': dem_mean, 'std': dem_std}
         }
 
+        # Verify whether sample_coords have been passed according to the mode
+        self._verify_sample_coord_lengths()
+
     def __getitem__(self, idx):
+        if self.mode == 'train':
+            return self._get_item_train_(idx)
+        elif self.mode == 'predict':
+            return self._get_item_predict_(idx)
+        else:
+            raise ValueError(f"Invalid mode: {self.mode} has to be either 'train' or 'predict'")
+
+    def _get_item_train_(self, idx):
         '''
         This is the getitem method for training / validation.
         The samples are augmented (including random cropping)
@@ -144,7 +172,7 @@ class FilteredDatasetXr(Dataset):
         dynamic_samples_dict, static_samples_dict = self.augment(dynamic_samples_dict, static_samples_dict)
         return dynamic_samples_dict, static_samples_dict
 
-    def __getitem_evaluation__(self, idx):
+    def _get_item_predict_(self, idx):
         '''
         This is the getitem method for evaluation, where the coordinate is also returned
         Output: (also see get_sample_from_coords())
@@ -158,7 +186,6 @@ class FilteredDatasetXr(Dataset):
                     )
         '''
         # TODO: NOT FINISHED
-        #TODO Centercrop this to normal s_height_width
         sample_coord = self.sample_coords[idx]
         dynamic_samples_dict, static_samples_dict, sample_metadata_dict = self.get_sample_from_coords(
             sample_coord,
@@ -317,6 +344,49 @@ class FilteredDatasetXr(Dataset):
         }
 
         return dynamic_samples_dict, static_samples_dict, sample_metadata_dict
+
+    def _verify_sample_coord_lengths(self):
+        """
+        Verify that the length of y and x slices in sample_coord[1] and sample_coord[2]
+        match the expected lengths based on the mode and settings.
+
+        In mode == 'train':
+            The length of y and x slices should be s_width_height + s_input_padding.
+        In mode == 'predict':
+            The length of y and x slices should be s_width_height.
+        """
+        if len(self.sample_coords) == 0:
+            raise ValueError("sample_coords is empty. Cannot perform verification of sample coordinate lengths.")
+
+        # Get a sample coordinate to test
+        _, y_slice, x_slice = self.sample_coords[0]
+
+        # Now compute the length of the slices in terms of number of elements
+        # Use one of the datasets to get the coordinate arrays
+        # Assuming that self.dynamic_data_dict['radolan'] has coordinate arrays 'y' and 'x'
+
+        # Get the coordinate arrays for the slices
+        y_coords = self.dynamic_data_dict['radolan'].y.sel(y=y_slice)
+        x_coords = self.dynamic_data_dict['radolan'].x.sel(x=x_slice)
+
+        y_length = y_coords.size
+        x_length = x_coords.size
+
+        # Compute the expected lengths based on the mode
+        s_width_height = self.settings['s_width_height']
+        if self.mode == 'train':
+            expected_length = s_width_height + self.settings['s_input_padding']
+        elif self.mode == 'predict':
+            expected_length = s_width_height
+        else:
+            raise ValueError(f"Invalid mode: {self.mode}. Must be 'train' or 'predict'.")
+
+        # Perform the checks and raise errors if lengths do not match
+        if y_length != expected_length:
+            raise ValueError(
+                f"In mode '{self.mode}': slice of y coordinates length ({y_length}) does not match expected length "
+                f"({expected_length}). Expected: s_width_height + s_input_padding in 'train' mode, or s_width_height in  'predict' mode."
+        )
 
     def random_crop(self, dynamic_samples_dict, static_samples_dict):
         '''
