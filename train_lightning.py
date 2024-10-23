@@ -521,10 +521,17 @@ def train_l(
     Train loop, keep this clean!
     '''
 
-    # TODO load static and dynamic statistics dicts here from train data loader
-    #  and pass them to Network_l
+    # load static and dynamic statistics dicts here from train data loader
+    # and pass them to Network_l
+    dynamic_statistics_dict_train_data = train_data_loader.dataset.dynamic_statistics_dict
+    static_statistics_dict_train_data = train_data_loader.dataset.static_statistics_dict
+
+    # Statistics are only extracted from training data to prevent data leakage and ensure
+    # consistency for model learning.
 
     model_l = NetworkL(
+        dynamic_statistics_dict_train_data,
+        static_statistics_dict_train_data,
         linspace_binning_params,
         sigma_schedule_mapping,
         radolan_statistics_dict,

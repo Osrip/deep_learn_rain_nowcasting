@@ -135,7 +135,8 @@ class FilteredDatasetXr(Dataset):
         Each input_coord represents one patch that passed the filter.
         The spatial slices in input_coord have the spatial size of the input + the augmentation padding
         The temporal datetime point gives the time of the target frame (as the filter was applied to the target)
-        Therefore to get the inputs we have to go back in time relative to the given time in input_coord (depending on lead time and num_input_frames)
+        Therefore to get the inputs we have to go back in time relative to the given time in input_coord
+        (depending on lead time and num_input_frames)
         Input:
             sample_coord: tuple(
                 time: np.datetime64,
@@ -157,18 +158,20 @@ class FilteredDatasetXr(Dataset):
         Output:
             dynamic_samples_dict:
                 {'variable_name': timespace chunk that includes input frames and target frame, np.array}
-                Dictionary, that includes all 'dynamic' variables - thus time-space np.arrays shape: (time, y | height, x | width)
+                Dictionary, that includes all 'dynamic' variables
+                -- thus time-space np.arrays shape: (time, y | height, x | width)
 
                 dynamic_samples_dict['radolan'] receives special treatment, as this is the data that has been filtered
 
             static_samples_dict:
                 {'variable_name': spacial chunk, np.array}
-                Dictionary, that includes all 'static' variables - thus space np. arrays  shape: (y | height, x | width)
+                Dictionary, that includes all 'static' variables
+                -- thus space np. arrays  shape: (y | height, x | width)
 
+            General info ..._samples_dict:
                 - The dataset's __get_item__() method will batch all entries of the dicts and convert them from np.array
                  to torch.Tensor
                 - The data is not normalized. All normalization statistics will be calculated
-
         '''
 
         num_input_frames = self.settings['s_num_input_time_steps']

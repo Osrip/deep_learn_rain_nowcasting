@@ -19,9 +19,12 @@ from pysteps import verification
 class NetworkL(pl.LightningModule):
     def __init__(
             self,
+            dynamic_statistics_dict_train_data,
+            static_statistics_dict_train_data,
             linspace_binning_params,
             sigma_schedule_mapping,
             radolan_statistics_dict,
+
 
             settings,
             device,
@@ -74,6 +77,9 @@ class NetworkL(pl.LightningModule):
         else:
             self.mean_filtered_log_data = radolan_statistics_dict['mean_filtered_log_data']
             self.std_filtered_log_data = radolan_statistics_dict['std_filtered_log_data']
+
+        self.dynamic_statistics_dict_train_data = dynamic_statistics_dict_train_data
+        self.static_statistics_dict_train_data = static_statistics_dict_train_data
 
         self._linspace_binning_params = linspace_binning_params
         self.training_steps_per_epoch = training_steps_per_epoch
@@ -263,7 +269,10 @@ class NetworkL(pl.LightningModule):
 
         # Normalize
         # TODO: This is an ugly way of accessing the
-        dem_mean, dem_std = self.trainer.train_dataloader.dataset.static_statistics_dict['dem']
+
+        # dem_mean, dem_std = self.trainer.train_dataloader.dataset.static_statistics_dict['dem']
+        dem_mean, dem_std = self.static_statistics_dict_train_data['dem']
+
         dem_spatial_batch = (dem_spatial_batch - dem_mean) / dem_std
         # Add channel dim of size 1
         dem_spatial_batch_unsqueezed = dem_spatial_batch.unsqueeze(dim=1)
