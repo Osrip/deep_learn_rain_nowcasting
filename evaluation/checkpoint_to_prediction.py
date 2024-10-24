@@ -18,17 +18,23 @@ class PredictionsToZarrCallback(pl.Callback):
 
     def on_predict_batch_end(
             self,
-            trainer,
-            pl_module,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
             outputs,
             batch,
-            batch_idx,
-            dataloader_idx
+            batch_idx: int,
+            dataloader_idx: int = 0, # Set this to 0 by default if no data_loader_list is passed to trainer
     ):
         """
         This is called after predict_step()
         """
-        pass
+        # Unpacking outputs
+        loss = outputs['loss']
+        pred = outputs['pred']
+        target = outputs['target']
+        target_binned = outputs['target_binned']
+        sample_metadata_dict = outputs['sample_metadata_dict']
+
 
         #  TODO save zarr batch wise
 
@@ -239,7 +245,11 @@ def predict_and_save_to_zarr(
         model,
         data_loader
 ):
-    trainer = pl.Trainer()
+
+
+    trainer = pl.Trainer(
+        callbacks=PredictionsToZarrCallback()
+    )
 
     trainer.predict(
         model=model,

@@ -34,11 +34,6 @@ class NetworkL(pl.LightningModule):
             s_crps_loss,
             training_steps_per_epoch=None,
             **__):
-        '''
-        Both radolan_statistics_dict and  sigma_schedule_mapping  can be None if no training,
-        but only forward pass is performed (for checkpoint loading)
-        Set training_mode to False for forward pass, when the upper variables are not available during initilization
-        '''
 
         super().__init__()
 
@@ -217,13 +212,29 @@ class NetworkL(pl.LightningModule):
                                                   kernel_size=128)
         return target_binned
 
-    def train_and_val_step(self, dynamic_samples_dict, static_samples_dict, batch_idx):
+    def train_val_and_predict_step(self, dynamic_samples_dict, static_samples_dict, batch_idx):
         """
-        Training and validation step
-        
+        Training and Validation step
 
+        Data processing:
+            dynamic_samples_dict:
+                - Data normalization (on training data statistics)
+                - Extracting input and target from time space chunk
+                - pre-process target: --> one hot binning where nans get 0 prob on all bins
+                - pre-processing input --> replaces NaNs with Zeros
+                - center crop target
+            static_samples_dict
+                - Data normalization (on all statistics as there is no train/ val / test split here)
+
+            -> Concatenate all samples along channel dim
+
+            - Forward pass
+            - Calculate loss from generated prediction
 
         Input:
+            - Samples have been augmented by _get_item_train_() already or are non-padded when received through
+             _get_item_predict_()
+
             dynamic_samples_dict:
                 {'variable_name': batched timespace chunk that includes input frames and target frame, torch.Tensor}
 
@@ -234,13 +245,25 @@ class NetworkL(pl.LightningModule):
                 dynamic_samples_dict['radolan'] receives special treatment, as this is the data that has been filtered
 
             static_samples_dict:
-                {'variable_name': bacthed spacial chunk, torch.Tensor }
+                {'variable_name': batched spacial chunk, torch.Tensor }
                 Dictionary, that includes all 'static' variables
                 -- thus space tensor shape: (batch, y | height, x | width)
 
             General info ..._samples_dict:
                 - The data is not normalized. All normalization statistics will be calculated
-                - The data has already been augmented, thus len(y, x) = s_input_height_width
+                - The data has already been augmented, thus len(y, x) = s_input_height_width : no padding!
+
+        Output:
+            Dictionary with the following           NaNs:
+            - 'loss': torch.Tensor (l)              Loss cannot be NaN
+            - 'pred': torch.Tensor (b x c x h x w)  Pred is inherently not NaN
+            - 'target': torch.Tensor (b x h x w)    Target can have NaNs (depending on filter condition in pre-processing)
+            - 'target_binned': torch.Tensor (b x c x h x w)
+                                                    In target binned for all values that have been NaNs in target simply
+                                                    all bins have been set to zero
+
+            The dictionary can be accessed under the 'ouputs' arg in the callbacks
+            'loss' is accessed by the trainer to do the backward pass
         """
         s_gaussian_smoothing_target = self.settings['s_gaussian_smoothing_target']
         s_target_height_width = self.settings['s_target_height_width']
@@ -289,8 +312,6 @@ class NetworkL(pl.LightningModule):
         dem_spatial_batch = static_samples_dict['dem']
 
         # Normalize
-
-        # dem_mean, dem_std = self.trainer.train_dataloader.dataset.static_statistics_dict['dem']
         dem_statistics = self.static_statistics_dict_train_data['dem']
         dem_mean, dem_std = dem_statistics['mean'], dem_statistics['std']
 
@@ -298,6 +319,7 @@ class NetworkL(pl.LightningModule):
         # Add channel dim of size 1
         dem_spatial_batch_unsqueezed = dem_spatial_batch.unsqueeze(dim=1)
 
+        # Concatenate along channel dim
         net_input = torch.cat((radolan_input_sequence, dem_spatial_batch_unsqueezed), dim=1)
 
         # --- Forward Pass ---
@@ -323,13 +345,13 @@ class NetworkL(pl.LightningModule):
     def training_step(self, batched_samples, batch_idx):
         self.train_step_num += 1
         dynamic_samples_dict, static_samples_dict = batched_samples
-        out_dict = self.train_and_val_step(dynamic_samples_dict, static_samples_dict, batch_idx)
+        out_dict = self.train_val_and_predict_step(dynamic_samples_dict, static_samples_dict, batch_idx)
         return out_dict
 
     def validation_step(self, batched_samples, batch_idx):
         self.val_step_num += 1
         dynamic_samples_dict, static_samples_dict = batched_samples
-        out_dict = self.train_and_val_step(dynamic_samples_dict, static_samples_dict, batch_idx)
+        out_dict = self.train_val_and_predict_step(dynamic_samples_dict, static_samples_dict, batch_idx)
         return out_dict
 
     def predict_step(self, batched_samples, batch_idx: int, dataloader_idx: int = 0):
@@ -337,8 +359,11 @@ class NetworkL(pl.LightningModule):
         This is called by trainer.predict
         https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict
         '''
-        # TODO: How can I get batched_samples from __getitem_evaluation__ instead of __get_itme__?
-        dynamic_samples_dict, static_samples_dict = batched_samples
+
+        dynamic_samples_dict, static_samples_dict, sample_metadata_dict = batched_samples
+        out_dict = self.train_val_and_predict_step(dynamic_samples_dict, static_samples_dict, batch_idx)
+        out_dict['sample_metadata_dict'] = sample_metadata_dict
+        return out_dict
 
         # Hier einen Callback schreiben, der sich alle predictions in eine Liste schreibt und nach bestimmter chunk größe
         # dann alles auf die Disk schreibt.
