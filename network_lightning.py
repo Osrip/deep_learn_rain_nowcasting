@@ -323,8 +323,6 @@ class NetworkL(pl.LightningModule):
         # TODO: How can I get batched_samples from __getitem_evaluation__ instead of __get_itme__?
         dynamic_samples_dict, static_samples_dict = batched_samples
 
-
-
         # Hier einen Callback schreiben, der sich alle predictions in eine Liste schreibt und nach bestimmter chunk größe
         # dann alles auf die Disk schreibt.
 

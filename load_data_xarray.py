@@ -276,7 +276,7 @@ class FilteredDatasetXr(Dataset):
 
         # -- We load the samples. At the same time we check whether the samples are coherent and extract metadata --
         # TODO: Extracting and comparing all metadata may be too slow, particularly as we are doing it not in xr but torch
-        #  MAKE THIS NICER!
+        #  does the job for now but MAKE THIS NICER! -> externalize methods
 
         # Load dynamic samples (samples with time dimension)
         dynamic_samples_dict = {}
