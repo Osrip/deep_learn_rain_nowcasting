@@ -219,11 +219,28 @@ class NetworkL(pl.LightningModule):
 
     def train_and_val_step(self, dynamic_samples_dict, static_samples_dict, batch_idx):
         """
-        Prediction and validation step
+        Training and validation step
+        
 
-        Input
-            dynamic_samples_dict
 
+        Input:
+            dynamic_samples_dict:
+                {'variable_name': batched timespace chunk that includes input frames and target frame, torch.Tensor}
+
+                Dictionary, that includes all 'dynamic' variables
+                -- thus time-space tensor shape: (batch, time, y | height, x | width)
+                len(time) = s_num_input_time_steps + s_num_lead_time_steps + 1
+
+                dynamic_samples_dict['radolan'] receives special treatment, as this is the data that has been filtered
+
+            static_samples_dict:
+                {'variable_name': bacthed spacial chunk, torch.Tensor }
+                Dictionary, that includes all 'static' variables
+                -- thus space tensor shape: (batch, y | height, x | width)
+
+            General info ..._samples_dict:
+                - The data is not normalized. All normalization statistics will be calculated
+                - The data has already been augmented, thus len(y, x) = s_width_height
         """
         s_gaussian_smoothing_target = self.settings['s_gaussian_smoothing_target']
         s_width_height_target = self.settings['s_width_height_target']
