@@ -35,7 +35,6 @@ class PredictionsToZarrCallback(pl.Callback):
         target_binned = outputs['target_binned']
         sample_metadata_dict = outputs['sample_metadata_dict']
 
-
         #  TODO save zarr batch wise
 
         # # Set encoding for the time coordinate
