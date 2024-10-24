@@ -113,8 +113,8 @@ def data_loading(
 
 def preprocess_data(
         settings,
-        s_width_height_target,
-        s_width_height,
+        s_target_height_width,
+        s_input_height_width,
         s_input_padding,
         s_data_variable_name,
         s_split_chunk_duration,
@@ -125,8 +125,8 @@ def preprocess_data(
     Samples refer to the data delivered by data loader
     '''
     # Define constants for pre-processing
-    y_target, x_target = s_width_height_target, s_width_height_target  # 73, 137 # how many pixels in y and x direction
-    y_input, x_input = s_width_height, s_width_height
+    y_target, x_target = s_target_height_width, s_target_height_width  # 73, 137 # how many pixels in y and x direction
+    y_input, x_input = s_input_height_width, s_input_height_width
     y_input_padding, x_input_padding = s_input_padding, s_input_padding  # Additional padding that the frames that will be returned to data loader get for Augmentation
 
     # --- PATCH AND FILTER ---
@@ -664,9 +664,9 @@ if __name__ == '__main__':
             # Let's cut that off ad-hoc (in mm/h) , everything above is sorted into the last bin
 
             # -- Everything related to the patching and space time of network input / ouyput --
-            's_width_height': 256, # width / height of input for network
-            's_input_padding': 32, # Additional padding of input for randomcrop augmentation. Dataloader returns patches of size s_width_height + s_input_padding
-            's_width_height_target': 32, # width / height of target - this is what is used to patch the data
+            's_input_height_width': 256, # width / height of input for network
+            's_input_padding': 32, # Additional padding of input for randomcrop augmentation. Dataloader returns patches of size s_input_height_width + s_input_padding
+            's_target_height_width': 32, # width / height of target - this is what is used to patch the data
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for prediction
             's_num_lead_time_steps': 3, # 0 --> 0 min prediction (target == last input) ; 1 --> 5 min predicition, 3 --> 15min etc
             # This is substracted by 2: settings['s_num_lead_time_steps'] = 's_num_lead_time_steps' -2 for following reasons:

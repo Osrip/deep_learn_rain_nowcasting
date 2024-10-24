@@ -51,8 +51,8 @@ def sample_coords_for_all_patches(
         train_time_keys, val_time_keys, test_time_keys,
 
         settings,
-        s_width_height_target,
-        s_width_height,
+        s_target_height_width,
+        s_input_height_width,
         s_split_chunk_duration,
         **__,
 ):
@@ -81,8 +81,8 @@ def sample_coords_for_all_patches(
     """
 
     # Define constants for pre-processing
-    y_target, x_target = s_width_height_target, s_width_height_target  # 73, 137 # how many pixels in y and x direction
-    y_input, x_input = s_width_height, s_width_height
+    y_target, x_target = s_target_height_width, s_target_height_width  # 73, 137 # how many pixels in y and x direction
+    y_input, x_input = s_input_height_width, s_input_height_width
     y_input_padding, x_input_padding = 0, 0  # No augmentation, thus no padding for evaluation
 
     # --- Load patches ---

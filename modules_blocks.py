@@ -7,13 +7,13 @@ from helper.helper_functions import create_dilation_list
 
 
 class Network(nn.Module):
-    def __init__(self, c_in: int, s_upscale_c_to, s_num_bins_crossentropy, s_width_height: int,
+    def __init__(self, c_in: int, s_upscale_c_to, s_num_bins_crossentropy, s_input_height_width: int,
                  s_gaussian_smoothing_multiple_sigmas, s_multiple_sigmas, **__):
         """
         s_upscale_c_to: the number of channels, that the first convolution scales up to
         """
         super().__init__()
-        s_width_height_in = s_width_height
+        s_width_height_in = s_input_height_width
 
         # TODO No doubling of channels in conv 2d???!!!
         self.conv1_1_upscale = nn.Conv2d(c_in, s_upscale_c_to, kernel_size=1, dilation=1, stride=1, padding=0)
@@ -29,7 +29,7 @@ class Network(nn.Module):
             i += 1
             self.net_modules.add_module(
                 name='res_module_{}'.format(i),
-                module=MetResModule(c_num=c_curr, s_width_height=int(s_width_height_in / (2 ** (i-1))), kernel_size=3,
+                module=MetResModule(c_num=c_curr, s_input_height_width=int(s_width_height_in / (2 ** (i-1))), kernel_size=3,
                                     stride=1, inverse_ratio=2)
             )
             self.net_modules.add_module(
@@ -83,15 +83,15 @@ class MetResModule(nn.Module):
     dilation rate that results in a virtual kernel size of 1/2 (or whatever is given by inverse_ratio)
     of the width and height
     """
-    def __init__(self, c_num: int, s_width_height: int, kernel_size: int = 3, stride: int = 1, inverse_ratio=2):
+    def __init__(self, c_num: int, s_input_height_width: int, kernel_size: int = 3, stride: int = 1, inverse_ratio=2):
         super().__init__()
-        self.dilation_list = create_dilation_list(s_width_height, inverse_ratio=inverse_ratio)
+        self.dilation_list = create_dilation_list(s_input_height_width, inverse_ratio=inverse_ratio)
         self.dilation_blocks = nn.ModuleList()
         # Create the amount of dilation blocks needed to increase dilation factor exponentially until kernel reaches
         # size defined by inverse_ratio
         for i, dilation in enumerate(self.dilation_list):
             self.dilation_blocks.add_module(
-                name='dil_block_{}'.format(i), module=MetDilBlock(c_num, s_width_height, dilation, kernel_size, stride)
+                name='dil_block_{}'.format(i), module=MetDilBlock(c_num, s_input_height_width, dilation, kernel_size, stride)
             )
 
     def forward(self, x: torch.Tensor):
@@ -105,20 +105,20 @@ class MetDilBlock(nn.Module):
     The Dilation Block. Similar to MetNet2's Dilation Block
     height, width reimain conserved, channel number remains conserved
     """
-    def __init__(self, c_num: int, s_width_height: int, dilation: int, kernel_size: int, stride: int = 1):
+    def __init__(self, c_num: int, s_input_height_width: int, dilation: int, kernel_size: int, stride: int = 1):
         super().__init__()
         # TODO implement formula
 
         padding = 'same'
         self.dilation1 = nn.Conv2d(c_num, c_num, kernel_size, dilation=dilation, stride=stride, padding=padding)
-        # self.layer_norm1_wrong = nn.LayerNorm(s_width_height)
-        # self.layer_norm1 = nn.LayerNorm([c_num, s_width_height, s_width_height])
+        # self.layer_norm1_wrong = nn.LayerNorm(s_input_height_width)
+        # self.layer_norm1 = nn.LayerNorm([c_num, s_input_height_width, s_input_height_width])
         # self.layer_norm_c_wise1 = nn.LayerNorm(c_num, eps=1e-6)
         self.instance_norm1 = nn.InstanceNorm2d(c_num)
         # self.group_norm1 = nn.GroupNorm(1, c_num)
         self.dilation2 = nn.Conv2d(c_num, c_num, kernel_size, dilation=dilation, stride=stride, padding=padding)
-        # self.layer_norm2_wrong = nn.LayerNorm(s_width_height)
-        # self.layer_norm2 = nn.LayerNorm([c_num, s_width_height, s_width_height])
+        # self.layer_norm2_wrong = nn.LayerNorm(s_input_height_width)
+        # self.layer_norm2 = nn.LayerNorm([c_num, s_input_height_width, s_input_height_width])
         # self.layer_norm_c_wise2 = nn.LayerNorm(c_num, eps=1e-6)
         self.instance_norm2 = nn.InstanceNorm2d(c_num)
         # self.group_norm2 = nn.GroupNorm(1, c_num)

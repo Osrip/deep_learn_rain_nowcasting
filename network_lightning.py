@@ -29,7 +29,7 @@ class NetworkL(pl.LightningModule):
             device,
             s_num_input_time_steps,
             s_num_bins_crossentropy,
-            s_width_height_target,
+            s_target_height_width,
             s_convnext,
             s_crps_loss,
             training_steps_per_epoch=None,
@@ -131,7 +131,7 @@ class NetworkL(pl.LightningModule):
                 num_blocks_list=[1, 2, 4],
                 c_in=5,
                 c_target=s_num_bins_crossentropy,
-                height_width_target=s_width_height_target
+                height_width_target=s_target_height_width
             )
         else:
             self.model = Network(c_in=s_num_input_time_steps, **settings)
@@ -240,10 +240,10 @@ class NetworkL(pl.LightningModule):
 
             General info ..._samples_dict:
                 - The data is not normalized. All normalization statistics will be calculated
-                - The data has already been augmented, thus len(y, x) = s_width_height
+                - The data has already been augmented, thus len(y, x) = s_input_height_width
         """
         s_gaussian_smoothing_target = self.settings['s_gaussian_smoothing_target']
-        s_width_height_target = self.settings['s_width_height_target']
+        s_target_height_width = self.settings['s_target_height_width']
         s_data_variable_name = self.settings['s_data_variable_name']
 
         # --- Process Radolan ---
@@ -278,7 +278,7 @@ class NetworkL(pl.LightningModule):
             target_binned = self.dlbd_target_pre_processing(target_binned)
 
         # Center crop target to correct size
-        center_crop_target = transforms.CenterCrop(s_width_height_target)
+        center_crop_target = transforms.CenterCrop(s_target_height_width)
         target_binned = center_crop_target(target_binned)
         target = center_crop_target(target)
 

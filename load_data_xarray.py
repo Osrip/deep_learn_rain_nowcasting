@@ -211,8 +211,8 @@ class FilteredDatasetXr(Dataset):
         Input:
             sample_coord: tuple(
                 time: np.datetime64,
-                y_slice: slice of y coordinates, (s_width_height + s_padding or s_width_height)
-                x_slice slice of x coordinates (s_width_height + s_padding or s_width_height)
+                y_slice: slice of y coordinates, (s_input_height_width + s_padding or s_input_height_width)
+                x_slice slice of x coordinates (s_input_height_width + s_padding or s_input_height_width)
                 )
             time_step_precipitation_data_minutes: int, default = 5
                 The time step of the precipitation data in minutes
@@ -351,9 +351,9 @@ class FilteredDatasetXr(Dataset):
         match the expected lengths based on the mode and settings.
 
         In mode == 'train':
-            The length of y and x slices should be s_width_height + s_input_padding.
+            The length of y and x slices should be s_input_height_width + s_input_padding.
         In mode == 'predict':
-            The length of y and x slices should be s_width_height.
+            The length of y and x slices should be s_input_height_width.
         """
         if len(self.sample_coords) == 0:
             raise ValueError("sample_coords is empty. Cannot perform verification of sample coordinate lengths.")
@@ -373,11 +373,11 @@ class FilteredDatasetXr(Dataset):
         x_length = x_coords.size
 
         # Compute the expected lengths based on the mode
-        s_width_height = self.settings['s_width_height']
+        s_input_height_width = self.settings['s_input_height_width']
         if self.mode == 'train':
-            expected_length = s_width_height + self.settings['s_input_padding']
+            expected_length = s_input_height_width + self.settings['s_input_padding']
         elif self.mode == 'predict':
-            expected_length = s_width_height
+            expected_length = s_input_height_width
         else:
             raise ValueError(f"Invalid mode: {self.mode}. Must be 'train' or 'predict'.")
 
@@ -385,7 +385,7 @@ class FilteredDatasetXr(Dataset):
         if y_length != expected_length:
             raise ValueError(
                 f"In mode '{self.mode}': slice of y coordinates length ({y_length}) does not match expected length "
-                f"({expected_length}). Expected: s_width_height + s_input_padding in 'train' mode, or s_width_height in  'predict' mode."
+                f"({expected_length}). Expected: s_input_height_width + s_input_padding in 'train' mode, or s_input_height_width in  'predict' mode."
         )
 
     def random_crop(self, dynamic_samples_dict, static_samples_dict):
@@ -393,14 +393,14 @@ class FilteredDatasetXr(Dataset):
         Doing a random crop
         The same random crop is done on all samples of dynamic_samples_dict and static_samples_dict
         '''
-        s_width_height = self.settings['s_width_height']
+        s_input_height_width = self.settings['s_input_height_width']
 
         crop_indices = transforms.RandomCrop.get_params(
             dynamic_samples_dict['radolan'],
-            output_size=(s_width_height, s_width_height)
+            output_size=(s_input_height_width, s_input_height_width)
         )
 
-        i, j, h, w = crop_indices  # i,j give random position of the crop, h,w give height, width (=s_width_height)
+        i, j, h, w = crop_indices  # i,j give random position of the crop, h,w give height, width (=s_input_height_width)
 
         dynamic_samples_dict_cropped = {
             key: TF.crop(spacetime_sample, i, j, h, w) for key, spacetime_sample in dynamic_samples_dict.items()
@@ -433,7 +433,7 @@ def create_patches(
     Patch data into patches of the target size
     Input:
         y_target, x_target: int, int
-            The size of the target patch in pixels (y_target, x_target = s_width_height_target, s_width_height_target)
+            The size of the target patch in pixels (y_target, x_target = s_target_height_width, s_target_height_width)
         s_num_input_time_steps: int
             The number of input frames
         s_num_lead_time_steps: int

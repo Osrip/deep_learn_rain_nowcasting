@@ -87,7 +87,7 @@ def calc_CRPS(model, data_loader, filter_and_normalization_params, linspace_binn
                 # Baseline Prediction
                 input_sequence_inv_normed = inv_norm(input_sequence).to('cpu')
                 pred_ensemble_steps_baseline, _, _ = steps_baseline(input_sequence_inv_normed)
-                pred_ensemble_steps_baseline = T.CenterCrop(size=settings['s_width_height_target'])(pred_ensemble_steps_baseline)
+                pred_ensemble_steps_baseline = T.CenterCrop(size=settings['s_target_height_width'])(pred_ensemble_steps_baseline)
 
                 # target = target.detach().cpu().numpy()
 

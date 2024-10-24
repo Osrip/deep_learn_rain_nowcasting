@@ -324,7 +324,7 @@ class ConvNeXtUNet(nn.Module):
                 spatial_factor_list=[2, 2, 2, 2],
                 num_blocks_list=[2, 2, 2, 2],
                 c_target=s_num_bins_crossentropy,
-                height_width_target=s_width_height_target
+                height_width_target=s_target_height_width
             )
     """
     # TODO: Initialize the skip connections to 0 for performance gain!!

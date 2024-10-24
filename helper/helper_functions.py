@@ -11,10 +11,10 @@ import einops
 from helper.pre_process_target_input import img_one_hot, one_hot_to_lognormed_mm
 
 
-def create_dilation_list(s_width_height, inverse_ratio=4):
+def create_dilation_list(s_input_height_width, inverse_ratio=4):
     out = []
     en = 1
-    while en <= s_width_height / inverse_ratio:
+    while en <= s_input_height_width / inverse_ratio:
         out.append(en)
         en = en * 2
         if len(out) > 100:
@@ -82,7 +82,7 @@ def create_save_name_for_data_loader_vars(
         s_save_prefix_data_loader_vars,
         s_num_bins_crossentropy,
         s_linspace_binning_cut_off_unnormalized,
-        s_width_height,
+        s_input_height_width,
         s_crop_data_time_span,
         **__,
 ):
@@ -105,7 +105,7 @@ def create_save_name_for_data_loader_vars(
             f'{local_machine_str}_'
             f'{s_num_bins_crossentropy}_'
             f'{s_linspace_binning_cut_off_unnormalized}_'
-            f'{s_width_height}_'
+            f'{s_input_height_width}_'
             f'{time_crop_str}')
 
 
