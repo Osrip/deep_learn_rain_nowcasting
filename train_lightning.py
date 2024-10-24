@@ -589,7 +589,7 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
+    s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
     s_sim_name_suffix = 'x'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
@@ -721,8 +721,8 @@ if __name__ == '__main__':
 
     if settings['s_local_machine_mode']:
 
-        settings['s_plotting_only'] = False
-        settings['s_plot_sim_name'] = 'Run_20240624-155322default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning_TEST'
+        settings['s_plotting_only'] = True
+        settings['s_plot_sim_name'] = 'Run_20241024-132451x'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
@@ -786,23 +786,33 @@ if __name__ == '__main__':
         )
 
     else:
+
         # --- Plotting only ---
         load_dirs = create_s_dirs(settings['s_plot_sim_name'], settings['s_local_machine_mode'])
         training_steps_per_epoch = load_zipped_pickle('{}/training_steps_per_epoch'.format(load_dirs['data_dir']))
         sigma_schedule_mapping = load_zipped_pickle('{}/sigma_schedule_mapping'.format(load_dirs['data_dir']))
         settings_loaded = load_zipped_pickle('{}/settings'.format(load_dirs['data_dir']))
+
         # Convert some of the loaded settings to the current settings
         settings_loaded['s_num_gpus'] = settings['s_num_gpus']
 
-        if False:
-            plot_logs_pipeline(
-                training_steps_per_epoch,
-                model_l=None,
-                settings=settings_loaded,
-                plot_lr_schedule_boo=False
-            )
+        # Pass settings of the loaded run to get the according data_set_vars
+        data_set_vars = data_loading(settings_loaded, **settings_loaded)
 
-        plot_from_checkpoint_wrapper(settings_loaded, **settings_loaded)
+        (train_data_loader, validation_data_loader,
+        training_steps_per_epoch, validation_steps_per_epoch,
+        train_time_keys, val_time_keys, test_time_keys,
+        train_sample_coords, val_sample_coords,
+        radolan_statistics_dict,
+        linspace_binning_params,) = data_set_vars
+
+        ckpt_to_pred(
+            train_time_keys, val_time_keys, test_time_keys,
+            radolan_statistics_dict,
+            settings_loaded,
+            **settings_loaded,
+        )
+
 
 
 

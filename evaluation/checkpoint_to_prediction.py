@@ -250,6 +250,8 @@ def predict_and_save_to_zarr(
         callbacks=PredictionsToZarrCallback()
     )
 
+    # trainer.predict already does torch.no_grad() and calls model.eval(), (according to o1), so no need for extras here
+
     trainer.predict(
         model=model,
         dataloaders=data_loader,
@@ -265,7 +267,7 @@ def ckpt_to_pred(
         **__,
 ):
     """
-    This creates a .zarr file for all predictions of the model checkpoints
+    This creates a .zarr file for all predictions of the model checkpoint
 
     Input
         train_time_keys, val_time_keys, test_time_keys: list(np.datetime64)
