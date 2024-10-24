@@ -168,6 +168,9 @@ def main(
                 }
             )
 
+
+            # TODO: ! SET ATTRIBUTES (CRS, Projection etc.) !
+
             # Set encoding for the time coordinate
 
             radolan_pred_ds['time'].encoding['units'] = f'minutes since {t0_of_radolan}'

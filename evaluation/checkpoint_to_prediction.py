@@ -9,7 +9,9 @@ from helper.checkpoint_handling import load_from_checkpoint, get_checkpoint_name
 
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-
+import xarray as xr
+import einops
+from load_data_xarray import convert_float_tensor_to_datetime64_array
 
 class PredictionsToZarrCallback(pl.Callback):
 
@@ -28,12 +30,115 @@ class PredictionsToZarrCallback(pl.Callback):
         """
         This is called after predict_step()
         """
-        # Unpacking outputs
+        # Get strings to name zarr
+        checkpoint_name = trainer.checkpoint_name
+        data_loader_name = trainer.data_loader_names[dataloader_idx]
+
+        zarr_file_name = f'model_predictions_{data_loader_name}_{checkpoint_name}.zarr'
+        # TODO get path to save zarr in (save this globally instead of run folder?
+        save_zarr_path = zarr_file_name
+        # TODO get t0 of radolan
+        t0_of_radolan = None
+
+
+        # Unpacking outputs -> except for loss they are all batched tensors
         loss = outputs['loss']
         pred = outputs['pred']
         target = outputs['target']
         target_binned = outputs['target_binned']
         sample_metadata_dict = outputs['sample_metadata_dict']
+
+        # --- Unpack metadata ---
+
+        # Convert time from float tensor back to np.datetime64
+        time_float_tensor_spacetime_chunk = sample_metadata_dict['time_points_of_spacetime'].detach().cpu()
+        # Choose the time point of the target out of the spacetime chunk (last entry)
+        time_float_tensor_target = time_float_tensor_spacetime_chunk[:, -1]
+        time_datetime64_array_target = convert_float_tensor_to_datetime64_array(time_float_tensor_target)
+
+        y = sample_metadata_dict['y'].detach().cpu().numpy()
+        x = sample_metadata_dict['x'].detach().cpu().numpy()
+
+        # --- Unchanging metadata ---
+        linspace_binning_params = trainer.linspace_binning_params
+        linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
+
+        lead_times = trainer.lead_times
+
+        # batch becomes time, channel becomes bin for our xr dataset
+        # pred shape: b c h w = batch bin y x
+
+        # Create a dataset from the batch:
+
+        # Add a lead time dimension for current fixed lead time implementation
+        pred = einops.rearrange(pred, 'batch bin y x -> 1 batch bin y x')
+        # pred = pred.unsqueeze(0)
+        pred = pred.detach().cpu().numpy()
+
+        batch_size = pred.shape[0]
+
+        # Process each sample individually
+        for i in range(batch_size):
+            pred_i = pred[:, i, :, :, :]  # Choose pred from sample i along batch dim
+            # Add empty time dimension that we just removed
+            pred_i = einops.rearrange(pred_i, 'lead_time bin y x -> lead_time 1 bin y x')
+            time_datetime64_array_target_i = time_datetime64_array_target[i]
+            y_i = y[:, i]
+            x_i = x[:, i]
+
+            ds_i = xr.Dataset(
+                data_vars={
+                    'ml_predictions': (('lead_time', 'time', 'bin', 'y', 'x'), pred_i)
+                },
+                coords={
+                    'lead_time': lead_times,
+                    'bin': linspace_binning,
+                    'time': time_datetime64_array_target_i,  # Wrap time_value in a list to make it indexable
+                    'y': y_i,
+                    'x': x_i,
+                }
+            )
+
+            ds_i['time'].encoding['units'] = f'minutes since {t0_of_radolan}'
+
+            ds_i['time'].encoding['dtype'] = 'float64'
+
+            # Save sample to disk:
+            if i == 0 and batch_idx == 0:
+                # Initialize the zarr file
+                ds_i.to_zarr(save_zarr_path, mode='w')
+            else:
+                # Append to the zarr file
+                #TODO: We are really appending in time, y and x ... how do I do that with arg append_dim= ?
+                ds_i.to_zarr(ds_i['save_zarr_path'], mode='a-', append_dim='time')
+        #
+
+
+        # TODO Seems not to be possible to save the whole batch at once ... or maybe?
+        #  Error:
+        # xarray.core.variable.MissingDimensionsError: cannot set variable 'y' with 2-dimensional data without explicit dimension names. Pass a tuple of (dims, data) instead.
+        radolan_pred_ds = xr.Dataset(
+            data_vars={
+                'ml_predictions': (('lead_time', 'time', 'bin', 'y', 'x'), pred)
+            },
+            coords={
+                'lead_time': lead_times,
+                'bin': linspace_binning,
+                'time': time_datetime64_array_target,  # Wrap time_value in a list to make it indexable
+                'y': y,
+                'x': x,
+            }
+        )
+
+
+
+
+
+        if batch_idx == 0:
+            pass
+
+
+
 
         #  TODO save zarr batch wise
 
@@ -51,6 +156,31 @@ class PredictionsToZarrCallback(pl.Callback):
         #
         # # Appending manual: https://docs.xarray.dev/en/latest/user-guide/io.html#io-zarr
 
+def predict_and_save_to_zarr(
+        model,
+        data_loader_dict,
+        checkpoint_name,
+        linspace_binning_params,
+        lead_times
+):
+    data_loader_list = [data_loader_dict[key] for key in data_loader_dict.keys()]
+    trainer = pl.Trainer(
+        callbacks=PredictionsToZarrCallback()
+    )
+
+    trainer.data_loader_names = list(data_loader_dict.keys())
+    trainer.checkpoint_name = checkpoint_name
+
+    trainer.linspace_binning_params =linspace_binning_params
+    trainer.lead_times = lead_times
+
+    # trainer.predict already does torch.no_grad() and calls model.eval(), (according to o1), so no need for extras here
+    # https://lightning.ai/docs/pytorch/stable/deploy/production_basic.html
+
+    trainer.predict(
+        model=model,
+        dataloaders=data_loader_list,
+    )
 
 def sample_coords_for_all_patches(
         train_time_keys, val_time_keys, test_time_keys,
@@ -176,7 +306,7 @@ def sample_coords_for_all_patches(
     return train_sample_coords, val_sample_coords, test_sample_coords
 
 
-def create_eval_dataloaders(
+def create_predict_dataloaders(
         train_sample_coords, val_sample_coords, test_sample_coords,
         radolan_statistics_dict,
 
@@ -240,27 +370,10 @@ def create_eval_dataloaders(
     return train_data_loader_eval, val_data_loader_eval, test_data_loader_eval
 
 
-def predict_and_save_to_zarr(
-        model,
-        data_loader
-):
-
-
-    trainer = pl.Trainer(
-        callbacks=PredictionsToZarrCallback()
-    )
-
-    # trainer.predict already does torch.no_grad() and calls model.eval(), (according to o1), so no need for extras here
-
-    trainer.predict(
-        model=model,
-        dataloaders=data_loader,
-    )
-
-
 def ckpt_to_pred(
         train_time_keys, val_time_keys, test_time_keys,
         radolan_statistics_dict,
+        linspace_binning_params,
 
         ckp_settings,  # Make sure to pass the settings of the checkpoint
         s_dirs,
@@ -287,6 +400,9 @@ def ckpt_to_pred(
             s_device
             s_num_gpus
     """
+
+    # For now, with fixed lead time simply create lead times like this:
+    lead_times = [ckp_settings['s_num_lead_time_steps']]
     save_dir = s_dirs['save_dir']
 
     # TODO: Implement taking a subset of train_time_keys, val_time_keys, test_time_keys,
@@ -295,14 +411,15 @@ def ckpt_to_pred(
     checkpoint_names = get_checkpoint_names(save_dir)
     for checkpoint_name in checkpoint_names:
 
-        # TODO: make this savable / loadable?
+        # Get the sample coords for all -unfiltered- patches
         train_sample_coords, val_sample_coords, test_sample_coords = sample_coords_for_all_patches(
             train_time_keys, val_time_keys, test_time_keys,
             ckp_settings,
             **ckp_settings,
         )
 
-        train_data_loader_eval, val_data_loader_eval, test_data_loader_eval = create_eval_dataloaders(
+        # Create dataloaders
+        train_data_loader_predict, val_data_loader_predict, test_data_loader_predict = create_predict_dataloaders(
             train_sample_coords, val_sample_coords, test_sample_coords,
             radolan_statistics_dict,
             ckp_settings,
@@ -317,7 +434,15 @@ def ckpt_to_pred(
             **ckp_settings,
         )
 
-        predict_and_save_to_zarr(model, val_data_loader_eval)
+        data_loader_dict = {'train': train_data_loader_predict, 'val': val_data_loader_predict}
+
+        predict_and_save_to_zarr(
+            model,
+            data_loader_dict,
+            checkpoint_name,
+            linspace_binning_params,
+            lead_times,
+        )
 
         # TODO: Predictions, Patch assembly, chunk-wise saving to zarr
 

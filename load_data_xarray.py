@@ -151,19 +151,20 @@ class FilteredDatasetXr(Dataset):
 
     def __getitem__(self, idx):
         if self.mode == 'train':
-            return self._get_item_train_(idx)
+            return self._getitem_train_(idx)
         elif self.mode == 'predict':
-            return self._get_item_predict_(idx)
+            return self._getitem_predict_(idx)
         else:
             raise ValueError(f"Invalid mode: {self.mode} has to be either 'train' or 'predict'")
 
-    def _get_item_train_(self, idx):
+    def _getitem_train_(self, idx):
         '''
         This is the getitem method for training / validation.
         The samples are augmented (including random cropping)
         More detailed output information see get_sample_from_coords()
         '''
         sample_coord = self.sample_coords[idx]
+        # TODO: !!! REWRITE get_sample_from_coords FOR TRAINING SUCH THAT METADATA IS NOT LOADED
         dynamic_samples_dict, static_samples_dict, sample_metadata_dict = self.get_sample_from_coords(
             sample_coord,
         )
@@ -172,7 +173,7 @@ class FilteredDatasetXr(Dataset):
         dynamic_samples_dict, static_samples_dict = self.augment(dynamic_samples_dict, static_samples_dict)
         return dynamic_samples_dict, static_samples_dict
 
-    def _get_item_predict_(self, idx):
+    def _getitem_predict_(self, idx):
         '''
         This is the getitem method for evaluation, where the coordinate is also returned
         Output: (also see get_sample_from_coords())
@@ -242,7 +243,7 @@ class FilteredDatasetXr(Dataset):
                                             (same as .latitude attribute of xr.Dataset)
                  'longitude':               longitude of (time) space chunk, np.array,
                                             (same as .longitude attribute of xr.Dataset)
-                 'time_points_each_frame':  time points of each frame converted to float
+                 'time_points_of_spacetime':  time points of each frame converted to float
                                             (created from .time attribute of xr.Dataset)
                                             Can be converted back to datetime64 using
                                             convert_float_tensor_to_datetime64_array()
@@ -262,21 +263,22 @@ class FilteredDatasetXr(Dataset):
         lead_time = int(lead_time)
 
         # extract coordinates / coordinat slices
-        time, y_slice, x_slice = sample_coord
+        time_target, y_slice, x_slice = sample_coord
 
         # TODO: IS LEAD TIME CORRECT? I had to take input 5min * input frame -1 to not choose 4, how about the lead time?
         # Go back in time to get the time slice of the input
         # in oppose to np or list indexing where the last index is not included, the last index is included when taking the datetime slices,
         # therefore num_input_frames - 1!
-        time_start = (time -
+        time_start = (time_target -
                       np.timedelta64(time_step_precipitation_data_minutes * (num_input_frames + lead_time), 'm'))
-        time_end = time
+        time_end = time_target
 
         time_slice = slice(time_start, time_end)
 
         # -- We load the samples. At the same time we check whether the samples are coherent and extract metadata --
         # TODO: Extracting and comparing all metadata may be too slow, particularly as we are doing it not in xr but torch
         #  does the job for now but MAKE THIS NICER! -> externalize methods
+        #  ! ONLY EXTRACT METADATA FOR PREDICTION TO SAVE LOADING TIME IN TRAINING! -> two methods for train and predict?
 
         # Load dynamic samples (samples with time dimension)
         dynamic_samples_dict = {}
@@ -296,20 +298,31 @@ class FilteredDatasetXr(Dataset):
                 raise ValueError('The time dim of the sample values is not as expected, check the slicing')
 
             # Extract lat / lon / time for metadata and check whether samples are cut out coherently
-            lat = spacetime_sample[variable_name].latitude.values
+            lat = spacetime_sample.latitude.values
             lat = torch.from_numpy(lat)
-            lon = spacetime_sample[variable_name].longitude.values
+            lon = spacetime_sample.longitude.values
             lon = torch.from_numpy(lon)
+            x = spacetime_sample.x.values
+            x = torch.from_numpy(x)
+            y = spacetime_sample.y.values
+            y = torch.from_numpy(y)
             # Convert time to float tensor, such that it can be passed through dataloader
-            time_points_each_frame = spacetime_sample.time.values
-            time_points_each_frame = convert_datetime64_array_to_float_tensor(time_points_each_frame)
+            time_points_of_spacetime = spacetime_sample.time.values
+            time_points_of_spacetime = convert_datetime64_array_to_float_tensor(time_points_of_spacetime)
 
             if i != 0:
                 tolerance = 1e-2  # This should correspond to roughly 1 km error
                 if not torch.allclose(lat, lat_old, atol=tolerance) or not torch.allclose(lon, lon_old, atol=tolerance):
                     raise ValueError('Lat / Lon do not match between different variables')
+
+                if not torch.allclose(x, x_old, atol=tolerance) or not torch.allclose(y, y_old, atol=tolerance):
+                    raise ValueError('x / y do not match between different variables')
+
             lat_old = lat
             lon_old = lon
+
+            x_old = x
+            y_old = y
 
         # We transfer lat / lon of dynamic samples to check coherence with static samples
 
@@ -326,21 +339,35 @@ class FilteredDatasetXr(Dataset):
             static_samples_dict[key] = static_sample_values
 
             # Extract lat / lon for metadata and to check whether samples are cut out coherently
-            lat = static_sample[variable_name].latitude.values
+            lat = static_sample.latitude.values
             lat = torch.from_numpy(lat)
-            lon = static_sample[variable_name].longitude.values
+            lon = static_sample.longitude.values
             lon = torch.from_numpy(lon)
+
+            x = spacetime_sample.x.values
+            x = torch.from_numpy(x)
+            y = spacetime_sample.y.values
+            y = torch.from_numpy(y)
 
             tolerance = 1e-2  # This should correspond to roughly 1 km error (one lat/lon degree ~ 111km)
             if not torch.allclose(lat, lat_old, atol=tolerance) or not torch.allclose(lon, lon_old, atol=tolerance):
                 raise ValueError('Lat / Lon do not match between different variables')
+
+            if not torch.allclose(x, x_old, atol=tolerance) or not torch.allclose(y, y_old, atol=tolerance):
+                raise ValueError('x / y do not match between different variables')
+
             lat_old = lat
             lon_old = lon
 
+            x_old = x
+            y_old = y
+
         sample_metadata_dict = {
+            'y': y,
+            'x': x,
             'latitude': lat,
             'longitude': lon,
-            'time_points_each_frame': time_points_each_frame
+            'time_points_of_spacetime': time_points_of_spacetime
         }
 
         return dynamic_samples_dict, static_samples_dict, sample_metadata_dict

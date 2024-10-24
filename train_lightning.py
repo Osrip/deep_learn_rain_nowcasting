@@ -781,6 +781,7 @@ if __name__ == '__main__':
         ckpt_to_pred(
             train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
+            linspace_binning_params,
             settings,
             **settings,
         )
@@ -809,6 +810,7 @@ if __name__ == '__main__':
         ckpt_to_pred(
             train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
+            linspace_binning_params,
             settings_loaded,
             **settings_loaded,
         )
