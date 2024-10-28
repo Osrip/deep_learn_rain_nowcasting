@@ -16,10 +16,29 @@ from load_data_xarray import convert_float_tensor_to_datetime64_array
 
 class PredictionsToZarrCallback(pl.Callback):
 
-    def __init__(self):
+    def __init__(self, settings, t0_data=None):
         super().__init__()
+        self.settings = settings
+        self.mode = 'sample'
+        # TODO pass t0_data
+        self.t0_data = t0_data
 
     def on_predict_batch_end(
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        outputs,
+        batch,
+        batch_idx: int,
+        dataloader_idx: int = 0  # Default to 0 if no data_loader_list is passed to trainer
+    ):
+        # Dynamically call the appropriate method based on the mode
+        if self.mode == "sample":
+            return self.on_predict_batch_end_sample_wise(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+        else:
+            return self.on_predict_batch_end_batch_wise(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+
+    def on_predict_batch_end_sample_wise(
             self,
             trainer: "pl.Trainer",
             pl_module: "pl.LightningModule",
@@ -27,6 +46,113 @@ class PredictionsToZarrCallback(pl.Callback):
             batch,
             batch_idx: int,
             dataloader_idx: int = 0, # Set this to 0 by default if no data_loader_list is passed to trainer
+    ):
+        """
+        This is called after predict_step()
+        """
+        # Get settings from NetworkL instance
+
+        s_target_height_width = self.settings['s_target_height_width']
+
+        # Get strings to name zarr
+        checkpoint_name = trainer.checkpoint_name
+        data_loader_name = trainer.data_loader_names[dataloader_idx]
+
+        zarr_file_name = f'model_predictions_{data_loader_name}_{checkpoint_name}.zarr'
+        # TODO get path to save zarr in (save this globally instead of run folder?
+        save_zarr_path = zarr_file_name
+        # TODO get t0 of radolan
+
+
+
+        # Unpacking outputs -> except for loss they are all batched tensors
+        loss = outputs['loss']
+        pred = outputs['pred']
+        target = outputs['target']
+        target_binned = outputs['target_binned']
+        sample_metadata_dict = outputs['sample_metadata_dict']
+
+        # --- Unpack metadata ---
+        # The datalaoder added a batch dimension to all entries of the metadata
+
+        # Convert time from float tensor back to np.datetime64
+        time_float_tensor_spacetime_chunk = sample_metadata_dict['time_points_of_spacetime'].detach().cpu()
+        # Choose the time point of the target out of the spacetime chunk (last entry)
+        time_float_tensor_target = time_float_tensor_spacetime_chunk[:, -1]
+        time_datetime64_array_target = convert_float_tensor_to_datetime64_array(time_float_tensor_target)
+
+        y_space_chunk = sample_metadata_dict['y']
+        x_space_chunk = sample_metadata_dict['x']
+
+        # Centercrop spatial metadata to target size = prediction size
+        # Centercrop spatial metadata to target size = prediction size
+        y_target = self._centercrop_on_last_dim_(y_space_chunk, size=s_target_height_width)
+        x_target = self._centercrop_on_last_dim_(x_space_chunk, size=s_target_height_width)
+
+        y_target = y_target.cpu().numpy()
+        x_target = x_target.cpu().numpy()
+
+        # --- Unchanging metadata ---
+        linspace_binning_params = trainer.linspace_binning_params
+        linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
+
+        lead_times = trainer.lead_times
+
+        # batch becomes time, channel becomes bin for our xr dataset
+        # pred shape: b c h w = batch bin y x
+
+        # Create a dataset from the batch:
+
+        # Add a lead time dimension for current fixed lead time implementation
+        pred = einops.rearrange(pred, 'batch bin y x -> 1 batch bin y x')
+        pred = pred.detach().cpu().numpy()
+
+        batch_size = pred.shape[0]
+
+        # Process each sample individually
+        for i in range(batch_size):
+            pred_i = pred[:, i, :, :, :]  # Choose pred from sample i along batch dim
+            # Add empty time dimension that we just removed
+            pred_i = einops.rearrange(pred_i, 'lead_time bin y x -> lead_time 1 bin y x')
+            time_datetime64_array_target_i = time_datetime64_array_target[i]
+            y_target_i = y_target[i, :]
+            x_target_i = x_target[i, :]
+
+            ds_i = xr.Dataset(
+                data_vars={
+                    'ml_predictions': (('lead_time', 'time', 'bin', 'y', 'x'), pred_i)
+                },
+                coords={
+                    'lead_time': lead_times,
+                    'bin': linspace_binning,
+                    'time': [time_datetime64_array_target_i],  # Wrap time_value in a list to make it indexable
+                    'y': y_target_i,
+                    'x': x_target_i,
+                }
+            )
+
+            # ds_i['time'].encoding['units'] = f'minutes since {self.t0_data}'
+            #
+            # ds_i['time'].encoding['dtype'] = 'float64'
+
+            # Save sample to disk:
+            if i == 0 and batch_idx == 0:
+                # Initialize the zarr file
+                ds_i.to_zarr(save_zarr_path, mode='w')
+            else:
+                # Append to the zarr file
+                #TODO: We are really appending in time, y and x ... how do I do that with arg append_dim= ?
+                ds_i.to_zarr(save_zarr_path, mode='a-', append_dim='time')
+
+
+    def on_predict_batch_end_batch_wise(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch,
+            batch_idx: int,
+            dataloader_idx: int = 0,  # Set this to 0 by default if no data_loader_list is passed to trainer
     ):
         """
         This is called after predict_step()
@@ -45,7 +171,6 @@ class PredictionsToZarrCallback(pl.Callback):
         # TODO get t0 of radolan
         t0_of_radolan = None
 
-
         # Unpacking outputs -> except for loss they are all batched tensors
         loss = outputs['loss']
         pred = outputs['pred']
@@ -54,6 +179,7 @@ class PredictionsToZarrCallback(pl.Callback):
         sample_metadata_dict = outputs['sample_metadata_dict']
 
         # --- Unpack metadata ---
+        # The datalaoder added a batch dimension to all entries of the metadata
 
         # Convert time from float tensor back to np.datetime64
         time_float_tensor_spacetime_chunk = sample_metadata_dict['time_points_of_spacetime'].detach().cpu()
@@ -61,12 +187,15 @@ class PredictionsToZarrCallback(pl.Callback):
         time_float_tensor_target = time_float_tensor_spacetime_chunk[:, -1]
         time_datetime64_array_target = convert_float_tensor_to_datetime64_array(time_float_tensor_target)
 
-        y_space_chunk = sample_metadata_dict['y'].detach().cpu()
-        x_space_chunk = sample_metadata_dict['x'].detach().cpu()
+        y_space_chunk = sample_metadata_dict['y']
+        x_space_chunk = sample_metadata_dict['x']
 
         # Centercrop spatial metadata to target size = prediction size
-        y_target = T.CenterCrop(size=s_target_height_width)(y_space_chunk).numpy()
-        x_target = T.CenterCrop(size=s_target_height_width)(x_space_chunk).numpy()
+        y_target = self._centercrop_on_last_dim_(y_space_chunk, size=s_target_height_width)
+        x_target = self._centercrop_on_last_dim_(x_space_chunk, size=s_target_height_width)
+
+        y_target = y_target.cpu().numpy()
+        x_target = x_target.cpu().numpy()
 
         # --- Unchanging metadata ---
         linspace_binning_params = trainer.linspace_binning_params
@@ -86,45 +215,11 @@ class PredictionsToZarrCallback(pl.Callback):
 
         batch_size = pred.shape[0]
 
-        # Process each sample individually
-        for i in range(batch_size):
-            pred_i = pred[:, i, :, :, :]  # Choose pred from sample i along batch dim
-            # Add empty time dimension that we just removed
-            pred_i = einops.rearrange(pred_i, 'lead_time bin y x -> lead_time 1 bin y x')
-            time_datetime64_array_target_i = time_datetime64_array_target[i]
-            y_target_i = y_target[:, i]
-            x_target_i = x_target[:, i]
+        # ds_i['time'].encoding['units'] = f'minutes since {t0_of_radolan}'
+        #
+        # ds_i['time'].encoding['dtype'] = 'float64'
 
-            ds_i = xr.Dataset(
-                data_vars={
-                    'ml_predictions': (('lead_time', 'time', 'bin', 'y', 'x'), pred_i)
-                },
-                coords={
-                    'lead_time': lead_times,
-                    'bin': linspace_binning,
-                    'time': [time_datetime64_array_target_i],  # Wrap time_value in a list to make it indexable
-                    'y': y_target_i,
-                    'x': x_target_i,
-                }
-            )
-
-            # ds_i['time'].encoding['units'] = f'minutes since {t0_of_radolan}'
-            #
-            # ds_i['time'].encoding['dtype'] = 'float64'
-
-            # Save sample to disk:
-            if i == 0 and batch_idx == 0:
-                # Initialize the zarr file
-                ds_i.to_zarr(save_zarr_path, mode='w')
-            else:
-                # Append to the zarr file
-                #TODO: We are really appending in time, y and x ... how do I do that with arg append_dim= ?
-                ds_i.to_zarr(save_zarr_path, mode='a-', append_dim='time')
-
-        # TODO Seems not to be possible to save the whole batch at once ... or maybe?
-        #  Error:
-        # xarray.core.variable.MissingDimensionsError: cannot set variable 'y' with 2-dimensional data without explicit dimension names. Pass a tuple of (dims, data) instead.
-        radolan_pred_ds = xr.Dataset(
+        batch_ds = xr.Dataset(
             data_vars={
                 'ml_predictions': (('lead_time', 'time', 'bin', 'y', 'x'), pred)
             },
@@ -132,15 +227,22 @@ class PredictionsToZarrCallback(pl.Callback):
                 'lead_time': lead_times,
                 'bin': linspace_binning,
                 'time': time_datetime64_array_target,  # Wrap time_value in a list to make it indexable
-                'y': y_target_i,
-                'x': x_target_i,
+                'y': (('time', 'y'), y_target),
+                'x': (('time', 'x'), x_target),
             }
         )
+        # It looks like this is not possible:
+        # xarray.core.merge.MergeError: coordinate y shares a name with a dataset dimension,
+        # but is not a 1D variable along that dimension. This is disallowed by the xarray data model.
 
+        # Save sample to disk:
         if batch_idx == 0:
-            pass
-
-
+            # Initialize the zarr file
+            batch_ds.to_zarr(save_zarr_path, mode='w')
+        else:
+            # Append to the zarr file
+            # TODO: We are really appending in time, y and x ... how do I do that with arg append_dim= ?
+            batch_ds.to_zarr(save_zarr_path, mode='a-', append_dim='time')
 
 
         #  TODO save zarr batch wise
@@ -159,16 +261,43 @@ class PredictionsToZarrCallback(pl.Callback):
         #
         # # Appending manual: https://docs.xarray.dev/en/latest/user-guide/io.html#io-zarr
 
+    def _centercrop_on_last_dim_(self, crop_last_dim_tensor: torch.Tensor, size: int) -> torch.Tensor:
+        '''
+        Per default torchvisions centercrop crops along h and w. This function adds a placeholder dimension
+        to do centercropping only along the last dim (dim=-1)
+        '''
+        # Unsqueeze to add placeholder dimension
+        len_d = crop_last_dim_tensor.shape[-1]
+        crop_last_dim_tensor_expanded = einops.repeat(crop_last_dim_tensor, '... d -> ... d_new d', d_new=len_d)
+        cropped_expanded = T.CenterCrop(size=size)(crop_last_dim_tensor_expanded)
+
+        # **Equality Check**
+        # Compare all values along d_new with the first slice
+        is_equal = torch.all(
+            cropped_expanded == cropped_expanded[..., 0:1, :],
+            dim=-2
+        )
+
+        # If not all values are equal, raise an error
+        if not torch.all(is_equal):
+            raise ValueError("Values across 'd_new' are not equal after the operation.")
+
+        # Reduce the tensor back to the original shape
+        cropped_orig_shape = einops.reduce(cropped_expanded, '... d_new d -> ... d', 'mean')
+        return cropped_orig_shape
+
+
 def predict_and_save_to_zarr(
         model,
         data_loader_dict,
         checkpoint_name,
         linspace_binning_params,
-        lead_times
+        lead_times,
+        ckp_settings
 ):
     data_loader_list = [data_loader_dict[key] for key in data_loader_dict.keys()]
     trainer = pl.Trainer(
-        callbacks=PredictionsToZarrCallback()
+        callbacks=PredictionsToZarrCallback(ckp_settings)
     )
 
     trainer.data_loader_names = list(data_loader_dict.keys())
@@ -445,6 +574,7 @@ def ckpt_to_pred(
             checkpoint_name,
             linspace_binning_params,
             lead_times,
+            ckp_settings,
         )
 
         # TODO: Predictions, Patch assembly, chunk-wise saving to zarr
