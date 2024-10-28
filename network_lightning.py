@@ -258,7 +258,7 @@ class NetworkL(pl.LightningModule):
             - 'loss': torch.Tensor (l)              Loss cannot be NaN
             - 'pred': torch.Tensor (b x c x h x w)  Pred is inherently not NaN
             - 'target': torch.Tensor (b x h x w)    Target can have NaNs (depending on filter condition in pre-processing)
-            - 'target_binned': torch.Tensor (b x c x h x w)
+            - 'target_binned': torch.Tensor (b x c x h x w),
                                                     In target binned for all values that have been NaNs in target simply
                                                     all bins have been set to zero
 

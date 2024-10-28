@@ -6,7 +6,8 @@ from load_data_xarray import (
     FilteredDatasetXr
 )
 from helper.checkpoint_handling import load_from_checkpoint, get_checkpoint_names
-
+import torch
+import torchvision.transforms as T
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import xarray as xr
@@ -30,6 +31,10 @@ class PredictionsToZarrCallback(pl.Callback):
         """
         This is called after predict_step()
         """
+        # Get settings from NetworkL instance
+        settings = trainer.lightning_module.settings
+        s_target_height_width = settings['s_target_height_width']
+
         # Get strings to name zarr
         checkpoint_name = trainer.checkpoint_name
         data_loader_name = trainer.data_loader_names[dataloader_idx]
@@ -56,8 +61,12 @@ class PredictionsToZarrCallback(pl.Callback):
         time_float_tensor_target = time_float_tensor_spacetime_chunk[:, -1]
         time_datetime64_array_target = convert_float_tensor_to_datetime64_array(time_float_tensor_target)
 
-        y = sample_metadata_dict['y'].detach().cpu().numpy()
-        x = sample_metadata_dict['x'].detach().cpu().numpy()
+        y_space_chunk = sample_metadata_dict['y'].detach().cpu()
+        x_space_chunk = sample_metadata_dict['x'].detach().cpu()
+
+        # Centercrop spatial metadata to target size = prediction size
+        y_target = T.CenterCrop(size=s_target_height_width)(y_space_chunk).numpy()
+        x_target = T.CenterCrop(size=s_target_height_width)(x_space_chunk).numpy()
 
         # --- Unchanging metadata ---
         linspace_binning_params = trainer.linspace_binning_params
@@ -83,8 +92,8 @@ class PredictionsToZarrCallback(pl.Callback):
             # Add empty time dimension that we just removed
             pred_i = einops.rearrange(pred_i, 'lead_time bin y x -> lead_time 1 bin y x')
             time_datetime64_array_target_i = time_datetime64_array_target[i]
-            y_i = y[:, i]
-            x_i = x[:, i]
+            y_target_i = y_target[:, i]
+            x_target_i = x_target[:, i]
 
             ds_i = xr.Dataset(
                 data_vars={
@@ -93,15 +102,15 @@ class PredictionsToZarrCallback(pl.Callback):
                 coords={
                     'lead_time': lead_times,
                     'bin': linspace_binning,
-                    'time': time_datetime64_array_target_i,  # Wrap time_value in a list to make it indexable
-                    'y': y_i,
-                    'x': x_i,
+                    'time': [time_datetime64_array_target_i],  # Wrap time_value in a list to make it indexable
+                    'y': y_target_i,
+                    'x': x_target_i,
                 }
             )
 
-            ds_i['time'].encoding['units'] = f'minutes since {t0_of_radolan}'
-
-            ds_i['time'].encoding['dtype'] = 'float64'
+            # ds_i['time'].encoding['units'] = f'minutes since {t0_of_radolan}'
+            #
+            # ds_i['time'].encoding['dtype'] = 'float64'
 
             # Save sample to disk:
             if i == 0 and batch_idx == 0:
@@ -110,9 +119,7 @@ class PredictionsToZarrCallback(pl.Callback):
             else:
                 # Append to the zarr file
                 #TODO: We are really appending in time, y and x ... how do I do that with arg append_dim= ?
-                ds_i.to_zarr(ds_i['save_zarr_path'], mode='a-', append_dim='time')
-        #
-
+                ds_i.to_zarr(save_zarr_path, mode='a-', append_dim='time')
 
         # TODO Seems not to be possible to save the whole batch at once ... or maybe?
         #  Error:
@@ -125,14 +132,10 @@ class PredictionsToZarrCallback(pl.Callback):
                 'lead_time': lead_times,
                 'bin': linspace_binning,
                 'time': time_datetime64_array_target,  # Wrap time_value in a list to make it indexable
-                'y': y,
-                'x': x,
+                'y': y_target_i,
+                'x': x_target_i,
             }
         )
-
-
-
-
 
         if batch_idx == 0:
             pass
