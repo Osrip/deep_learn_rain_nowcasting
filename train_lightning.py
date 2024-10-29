@@ -154,9 +154,11 @@ def preprocess_data(
     # --- SPLIT DATA ---
     # We are grouping the data (i.e. daily) and then are splitting these (daily) groups into train, val and test set
 
-    # Resample full data, from which the time_keys are generated that determine the splits
+    # Resample shortened data, from which the time_keys are generated that determine the splits
     # Each time_key represents one 'time group'
-    resampled_data = data.resample(time=s_split_chunk_duration)
+    # The splits are created on the time stamps of the targets, which the patches are linked to.
+
+    resampled_data = data_shortened.resample(time=s_split_chunk_duration)
     # Randomly split the time_keys
     train_time_keys, val_time_keys, test_time_keys = create_split_time_keys(resampled_data, **settings)
 
@@ -569,8 +571,12 @@ def create_s_dirs(sim_name, s_local_machine_mode):
     s_dirs = {}
     if s_local_machine_mode:
         s_dirs['save_dir'] = 'runs/{}'.format(sim_name)
+        s_dirs['prediction_dir'] = f'/home/jan/Programming/weather_data/predictions/{sim_name}'
+
     else:
         s_dirs['save_dir'] = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/{}'.format(sim_name)
+        s_dirs['prediction_dir'] = f'/mnt/qb/work2/butz1/bst981/weather_data/predictions/{sim_name}'
+
 
     # s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
     s_dirs['plot_dir'] = '{}/plots'.format(s_dirs['save_dir'])
@@ -582,6 +588,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
     s_dirs['logs'] = '{}/logs'.format(s_dirs['save_dir'])
     s_dirs['data_dir'] = '{}/data'.format(s_dirs['save_dir'])
 
+
     return s_dirs
 
 
@@ -591,7 +598,7 @@ if __name__ == '__main__':
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'debug_zarr_saving_batch_size_4_5_epochs'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'debug_zarr_saving_batch_size_4_5_epochs_1_hour_5_min_splits'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -722,7 +729,7 @@ if __name__ == '__main__':
     if settings['s_local_machine_mode']:
 
         settings['s_plotting_only'] = True
-        settings['s_plot_sim_name'] = 'Run_20241028-114136debug_zarr_saving_batch_size_4_5_epochs' #'Run_20241024-132451x'
+        settings['s_plot_sim_name'] = 'Run_20241029-160833debug_zarr_saving_batch_size_4_5_epochs_1_hour_5_min_splits' #'Run_20241024-132451x'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
@@ -734,8 +741,8 @@ if __name__ == '__main__':
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
         settings['s_max_epochs'] = 5  # 2
         settings['s_num_gpus'] = 1
-        settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T10:00']
-        settings['s_split_chunk_duration'] = '15min' #'1h'
+        settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T09:00'] #['2019-01-01T08:00', '2019-01-01T10:00']
+        settings['s_split_chunk_duration'] = '5min' #'15min' #'1h'
         settings['s_ratio_train_val_test'] = (0.4, 0.3, 0.3)
 
         settings['s_multiple_sigmas'] = [2, 16]
