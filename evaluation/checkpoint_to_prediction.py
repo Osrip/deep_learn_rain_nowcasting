@@ -141,7 +141,8 @@ class PredictionsToZarrCallback(pl.Callback):
 
             ds_i = xr.Dataset(
                 data_vars={
-                    'ml_predictions': (('lead_time', 'time', 'bin', 'y', 'x'), pred_i)
+                    'ml_predictions': (('lead_time', 'time', 'bin', 'y', 'x'), pred_i),
+                    # 'coords': (('time', 'y', 'x'), (time_datetime64_array_target_i, y_target_i, x_target_i)),
                 },
                 coords={
                     'lead_time': lead_times,
@@ -167,6 +168,8 @@ class PredictionsToZarrCallback(pl.Callback):
                 # Append to the zarr file
                 #TODO: We are really appending in time, y and x ... how do I do that with arg append_dim= ?
                 ds_i.to_zarr(save_zarr_path, mode='a-', append_dim='time')
+                # ds_i.to_zarr(save_zarr_path, mode='r+', append_dim='time', region=)
+
 
 
     # def on_predict_batch_end_batch_wise(
