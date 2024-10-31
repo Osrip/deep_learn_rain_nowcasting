@@ -479,7 +479,7 @@ def create_patches(
             The unpatched data that has global pixel coordinates
         data_shortened: xr.Dataset
             same as data, but beginning is missing (lead_time + num input frames) such that we can go
-            'back in time' to go fram target time to input time.
+            'back in time' to go from target time to input time.
     """
 
     # Loading data into xarray

@@ -794,7 +794,6 @@ if __name__ == '__main__':
         )
 
     else:
-
         # --- Plotting only ---
         load_dirs = create_s_dirs(settings['s_plot_sim_name'], settings['s_local_machine_mode'])
         training_steps_per_epoch = load_zipped_pickle('{}/training_steps_per_epoch'.format(load_dirs['data_dir']))

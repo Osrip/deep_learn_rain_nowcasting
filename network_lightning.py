@@ -359,7 +359,6 @@ class NetworkL(pl.LightningModule):
         This is called by trainer.predict
         https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict
         '''
-
         dynamic_samples_dict, static_samples_dict, sample_metadata_dict = batched_samples
         out_dict = self.train_val_and_predict_step(dynamic_samples_dict, static_samples_dict, batch_idx)
         out_dict['sample_metadata_dict'] = sample_metadata_dict
