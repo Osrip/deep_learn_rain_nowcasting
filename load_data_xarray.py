@@ -683,7 +683,7 @@ def patch_indecies_to_sample_coords(
         slice_x_global = slice(x_global_left, x_global_left + x_target)
         target_slices = [time_datetime, slice_y_global, slice_x_global]
 
-        # Calculate indices of the patche's center pixels
+        # Calculate indices of the patch's center pixels
         center_y_global = y_global_upper + y_target // 2
         center_x_global = x_global_left + x_target // 2
         global_center_indecies = [time_datetime, center_y_global, center_x_global]

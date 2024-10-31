@@ -157,8 +157,6 @@ class PredictionsToZarrCallback(pl.Callback):
 
             ds_i['time'].encoding['dtype'] = 'float64'
 
-            # TODO potentially concat all samples of a batch before writing to disk with
-            #  combined_ds = xr.concat(datasets_list, dim='time', combine_attrs='override')
 
             # Save sample to disk:
             if i == 0 and batch_idx == 0:
@@ -166,10 +164,9 @@ class PredictionsToZarrCallback(pl.Callback):
                 ds_i.to_zarr(save_zarr_path, mode='w')
             else:
                 # Append to the zarr file
-                #TODO: We are really appending in time, y and x ... how do I do that with arg append_dim= ?
-                ds_i.to_zarr(save_zarr_path, mode='a-', append_dim='time')
-                # ds_i.to_zarr(save_zarr_path, mode='r+', append_dim='time', region=)
-
+                # TODO: Initialize zarr from training 'data' ds. Pass x, y index slices with region.
+                #  Docu: https://docs.xarray.dev/en/latest/generated/xarray.Dataset.to_zarr.html
+                ds_i.to_zarr(save_zarr_path, mode='r+', append_dim='time', region=None)
 
 
     # def on_predict_batch_end_batch_wise(
