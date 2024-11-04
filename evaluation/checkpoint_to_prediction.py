@@ -103,12 +103,15 @@ class PredictionsToZarrCallback(pl.Callback):
 
         # Unpacking outputs -> except for loss they are all batched tensors
         # loss = outputs['loss']
-        pred = outputs['pred']
+        pred_no_softmax = outputs['pred']
         # target = outputs['target']
         # target_binned = outputs['target_binned']
         sample_metadata_dict = outputs['sample_metadata_dict']
 
-        batch_size = pred.shape[0]
+        # Softmax predictions
+        pred_softmaxed = torch.nn.Softmax(dim=1)(pred_no_softmax)
+
+        batch_size = pred_softmaxed.shape[0]
 
         # --- Unpack metadata ---
         # The datalaoder added a batch dimension to all entries of the metadata
@@ -136,12 +139,12 @@ class PredictionsToZarrCallback(pl.Callback):
         # Create a dataset from the batch:
 
         # Add a lead time dimension for current fixed lead time implementation
-        pred = einops.rearrange(pred, 'batch bin y x -> 1 batch bin y x')
-        pred = pred.detach().cpu().numpy()
+        pred_softmaxed = einops.rearrange(pred_softmaxed, 'batch bin y x -> 1 batch bin y x')
+        pred_softmaxed = pred_softmaxed.detach().cpu().numpy()
 
         # Process each sample individually
         for i in range(batch_size):
-            pred_i = pred[:, i, :, :, :]  # Choose pred from sample i along batch dim
+            pred_i = pred_softmaxed[:, i, :, :, :]  # Choose pred from sample i along batch dim
             # Add empty time dimension that we just removed
             pred_i = einops.rearrange(pred_i, 'lead_time bin y x -> lead_time 1 bin y x')
             time_datetime64_array_target_i = time_datetime64_array_target[i]
@@ -155,8 +158,8 @@ class PredictionsToZarrCallback(pl.Callback):
                 },
                 coords={
                     'lead_time': self.lead_times,
-                    'bin': linspace_binning,
                     'time': [time_datetime64_array_target_i],  # Wrap time_value in a list to make it indexable
+                    'bin': linspace_binning,
                     'y': y_target_i,
                     'x': x_target_i,
                 }
@@ -478,8 +481,8 @@ def initialize_empty_prediction_dataset(
         dims=('lead_time', 'time', 'bin', 'y', 'x'),
         coords={
             'lead_time': lead_times,
-            'bin': linspace_binning,
             'time': split_data.time,  # TODO
+            'bin': linspace_binning,
             'y': orig_data.y.values,
             'x': orig_data.x.values,
         },
