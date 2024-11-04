@@ -12,15 +12,20 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import xarray as xr
 import einops
-from load_data_xarray import convert_float_tensor_to_datetime64_array
+from load_data_xarray import convert_float_tensor_to_datetime64_array, split_data_from_time_keys
 import numpy as np
 
 class PredictionsToZarrCallback(pl.Callback):
 
-    def __init__(self, orig_training_data, t0_first_input_frame, settings):
+    def __init__(self,
+                 orig_training_data,
+                 t0_first_input_frame,
+                 linspace_binning_params,
+                 lead_times,
+                 settings):
         '''
         This callback handles saving of the predictions to zarr.
-        All predictions are assigned to the input time step!
+        All predictions are assigned to the TARGET time step!
         Input
             data: xr.Dataset:
                 Original training data including full time period (wioth input frames)
@@ -33,7 +38,8 @@ class PredictionsToZarrCallback(pl.Callback):
         self.settings = settings
         self.mode = 'sample'
 
-
+        self.linspace_binning_params = linspace_binning_params
+        self.lead_times = lead_times
         self.t0_first_input_frame = t0_first_input_frame
         self.orig_training_data = orig_training_data
 
@@ -86,6 +92,8 @@ class PredictionsToZarrCallback(pl.Callback):
         s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
         prediction_dir = self.settings['s_dirs']['prediction_dir']
 
+        linspace_binning_min, linspace_binning_max, linspace_binning = self.linspace_binning_params
+
         # Get strings to name zarr
         checkpoint_name = trainer.checkpoint_name
         data_loader_name = trainer.data_loader_names[dataloader_idx]
@@ -108,8 +116,8 @@ class PredictionsToZarrCallback(pl.Callback):
         # Convert time from float tensor back to np.datetime64
         time_float_tensor_spacetime_chunk = sample_metadata_dict['time_points_of_spacetime'].detach().cpu()
         # Choose the time point of the FIRST INPUT FRAME out of the spacetime chunk (last entry)
-        # -> EACH PREDICTION IS ASSIGNED TO THE DATETIME OF FIRST INPUT FRAME
-        time_float_tensor_target = time_float_tensor_spacetime_chunk[:, 0]
+        # -> EACH PREDICTION IS ASSIGNED TO THE DATETIME OF TARGET
+        time_float_tensor_target = time_float_tensor_spacetime_chunk[:, -1]
         time_datetime64_array_target = convert_float_tensor_to_datetime64_array(time_float_tensor_target)
 
         y_space_chunk = sample_metadata_dict['y']
@@ -121,12 +129,6 @@ class PredictionsToZarrCallback(pl.Callback):
 
         y_target = y_target.cpu().numpy()
         x_target = x_target.cpu().numpy()
-
-        # --- Unchanging metadata ---
-        linspace_binning_params = trainer.linspace_binning_params
-        linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
-
-        lead_times = trainer.lead_times
 
         # batch becomes time, channel becomes bin for our xr dataset
         # pred shape: b c h w = batch bin y x
@@ -152,7 +154,7 @@ class PredictionsToZarrCallback(pl.Callback):
                     # 'coords': (('time', 'y', 'x'), (time_datetime64_array_target_i, y_target_i, x_target_i)),
                 },
                 coords={
-                    'lead_time': lead_times,
+                    'lead_time': self.lead_times,
                     'bin': linspace_binning,
                     'time': [time_datetime64_array_target_i],  # Wrap time_value in a list to make it indexable
                     'y': y_target_i,
@@ -164,29 +166,9 @@ class PredictionsToZarrCallback(pl.Callback):
 
             ds_i['time'].encoding['dtype'] = 'float64'
 
-            # Save sample to disk:
-            if i == 0 and batch_idx == 0:
-                # --- Initialize the zarr file that we will fill up ---
-
-                # As we are assigning each prediction to the first input frame, we cut off the end of the training data
-                # We use this to initialize the prediction zarr file
-                    slice_cut_off_end = slice(0, - (s_num_input_time_steps + s_num_lead_time_steps))
-                    training_data_cut_end = self.orig_training_data.isel(time=slice_cut_off_end)
-                    # Initialize the zarr file
-                    nan_ds = xr.full_like(training_data_cut_end, fill_value=np.nan)
-                    # Drop the step diemnsion which is a legacy that used to include predicrtions
-                    nan_ds = nan_ds.squeeze()
-                    nan_ds = nan_ds.drop_vars('step')
-                    # Add lead_time dim. If len(lead_times) > 1 data will be broadcasted / copied to fill new entries,
-                    # which are nans anyways
-                    nan_ds = nan_ds.expand_dims({'lead_time': lead_times})
-                    # Add bin dim:
-                    nan_ds = nan_ds.expand_dims({'bin': linspace_binning})
-                    #Rename:
-                    nan_ds = nan_ds.rename({'RV_recalc': 'ml_predictions'})
-                    # Transpose all data variables in the dataset to the specified order
-                    nan_ds = nan_ds.transpose('lead_time', 'time', 'bin', 'y', 'x')
-                    nan_ds.to_zarr(save_zarr_path, mode='w')
+            # # Save sample to disk:
+            # if i == 0 and batch_idx == 0:
+            #     # --- Initialize the zarr file that we will fill up ---
 
 
             # Append to the zarr file
@@ -467,37 +449,114 @@ class PredictionsToZarrCallback(pl.Callback):
         return cropped_orig_shape
 
 
+def initialize_empty_prediction_dataset(
+        orig_data,
+        time_keys,
+        linspace_binning_params,
+        lead_times,
+        pred_save_zarr_path,
+        settings,
+        s_split_chunk_duration,
+        **__,
+):
+    '''
+    Input:
+        orig_data: xr.Dataset
+            the original data that has been used to create train/ val / test
+            Already has to be cropped in case s_crop_data_time_span has been used
+    '''
+    linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
+
+    # From the original data we are creating the original split (train, val or test) in order to
+    # receive the original time dimension along which we will fill up the data
+    orig_data_resampled = orig_data.resample(time=s_split_chunk_duration)
+    split_data = split_data_from_time_keys(orig_data_resampled, time_keys)
+
+    # Initialize empty dataarray (initialized with None, not NaN)
+    da_empty = xr.DataArray(
+        data=None,
+        dims=('lead_time', 'time', 'bin', 'y', 'x'),
+        coords={
+            'lead_time': lead_times,
+            'bin': linspace_binning,
+            'time': split_data.time,  # TODO
+            'y': orig_data.y.values,
+            'x': orig_data.x.values,
+        },
+        name="ml_predictions"
+    )
+
+    # Convert to dataset
+    ds_empty = da_empty.to_dataset()
+    # Save
+    ds_empty.to_zarr(pred_save_zarr_path, mode='w')
+
+
 def predict_and_save_to_zarr(
         model,
+        train_time_keys, val_time_keys, test_time_keys,
+        data_to_predict_on,
         data_loader_dict,
         checkpoint_name,
         linspace_binning_params,
         lead_times,
-        t0_first_input_frame,
+        t0_first_input_frame_old, # TODO get rid of this as this ios calculated directly in function
 
         ckp_settings,
         s_folder_path,
         s_data_file_name,
+        s_crop_data_time_span,
+        s_dirs,
         **__,
 ):
-    load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
-    orig_training_data = xr.open_dataset(load_path, engine='zarr')
+    prediction_dir = s_dirs['prediction_dir']
 
-    data_loader_list = [data_loader_dict[key] for key in data_loader_dict.keys()]
+    load_path_orig_data = '{}/{}'.format(s_folder_path, s_data_file_name)
 
+    # Load original training data and crop it if that setting was active during training
+    orig_data = xr.open_dataset(load_path_orig_data, engine='zarr')
+    if s_crop_data_time_span is not None:
+        start_time, stop_time = np.datetime64(s_crop_data_time_span[0]), np.datetime64(s_crop_data_time_span[1])
+        crop_slice = slice(start_time, stop_time)
+        orig_data = orig_data.sel(time=crop_slice)
+
+    # Get t of first input frame of original data (train, val, test) after potentially cutting time span
+    t0_first_input_frame = orig_data.time[0].values
+
+    data_loader_list = [data_loader_dict[key] for key in data_to_predict_on]
 
     trainer = pl.Trainer(
         callbacks=PredictionsToZarrCallback(
-            orig_training_data,
+            orig_data,
             t0_first_input_frame,
+            linspace_binning_params,
+            lead_times,
             ckp_settings)
     )
 
-    trainer.data_loader_names = list(data_loader_dict.keys())
+    trainer.data_loader_names = data_to_predict_on
     trainer.checkpoint_name = checkpoint_name
 
-    trainer.linspace_binning_params =linspace_binning_params
-    trainer.lead_times = lead_times
+    time_keys_dict = {'train': train_time_keys,
+                      'val': val_time_keys,
+                      'test': test_time_keys}
+
+    # Initialize empty prediction datasets
+    for data_loader_name in data_to_predict_on:
+        pred_zarr_file_name = f'model_predictions_{data_loader_name}_{checkpoint_name}.zarr'
+        pred_save_zarr_path = f'{prediction_dir}/{pred_zarr_file_name}'
+
+        time_keys = time_keys_dict[data_loader_name]
+
+        initialize_empty_prediction_dataset(
+            orig_data,
+            time_keys,
+            linspace_binning_params,
+            lead_times,
+            pred_save_zarr_path,
+            ckp_settings,
+            **ckp_settings
+        )
 
     # trainer.predict already does torch.no_grad() and calls model.eval(), (according to o1), so no need for extras here
     # https://lightning.ai/docs/pytorch/stable/deploy/production_basic.html
@@ -506,7 +565,6 @@ def predict_and_save_to_zarr(
         model=model,
         dataloaders=data_loader_list,
     )
-
 
 
 def sample_coords_for_all_patches(
@@ -630,6 +688,7 @@ def sample_coords_for_all_patches(
         y_input_padding, x_input_padding,
     )
 
+    # TODO: get rid of this, this will be calculated directly from data in future
     t0_first_input_frame = data.time[0].values
 
     return train_sample_coords, val_sample_coords, test_sample_coords, t0_first_input_frame
@@ -703,6 +762,7 @@ def ckpt_to_pred(
         train_time_keys, val_time_keys, test_time_keys,
         radolan_statistics_dict,
         linspace_binning_params,
+        data_to_predict_on,
 
         ckp_settings,  # Make sure to pass the settings of the checkpoint
         s_dirs,
@@ -715,6 +775,9 @@ def ckpt_to_pred(
         train_time_keys, val_time_keys, test_time_keys: list(np.datetime64)
             These are the time keys that determine the train, val and test sets
             They refer to the group names of patches.resample(time=s_split_chunk_duration)
+        data_to_predict_on: List of str
+            List of strings containing at least one of
+            ['train', 'val', 'test']
 
         radolan_statistics_dict: dict
             Radolan satatistics for normalization, that has been calculated on the filtered target patches
@@ -730,6 +793,10 @@ def ckpt_to_pred(
             s_num_gpus
     """
 
+    if not any(item in ['train', 'val', 'test'] for item in data_to_predict_on):
+        raise ValueError("data_to_predict_on must be a list of strings containing at least one of"
+                         " ['train', 'val', 'test']")
+
     # For now, with fixed lead time simply create lead times like this:
     lead_times = [ckp_settings['s_num_lead_time_steps']]
     save_dir = s_dirs['save_dir']
@@ -738,6 +805,8 @@ def ckpt_to_pred(
     #  to save resources with predictions? Maybe just a date range?
 
     checkpoint_names = get_checkpoint_names(save_dir)
+
+    # Only do prediction for last checkpoint
     checkpoint_name_to_predict = [name for name in checkpoint_names if 'last' in name][0]
 
     # Get the sample coords for all -unfiltered- patches
@@ -763,12 +832,14 @@ def ckpt_to_pred(
         **ckp_settings,
     )
 
-    # data_loader_dict = {'train': train_data_loader_predict, 'val': val_data_loader_predict}
-    data_loader_dict = {'val': val_data_loader_predict}
-
+    data_loader_dict = {'train': train_data_loader_predict,
+                        'val': val_data_loader_predict,
+                        'test': test_data_loader_predict}
 
     predict_and_save_to_zarr(
         model,
+        train_time_keys, val_time_keys, test_time_keys,
+        data_to_predict_on,
         data_loader_dict,
         checkpoint_name_to_predict,
         linspace_binning_params,

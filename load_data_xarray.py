@@ -458,6 +458,7 @@ def create_patches(
 ):
     """
     Patch data into patches of the target size
+    s_crop_data_time_span determines whether the original data is cropped that the patching is created from
     Input:
         y_target, x_target: int, int
             The size of the target patch in pixels (y_target, x_target = s_target_height_width, s_target_height_width)

@@ -817,7 +817,9 @@ if __name__ == '__main__':
             train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
             linspace_binning_params,
-            settings_loaded,
+
+            data_to_predict_on=['val'],
+            ckp_settings = settings_loaded,
             **settings_loaded,
         )
 
