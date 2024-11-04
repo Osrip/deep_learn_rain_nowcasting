@@ -137,8 +137,6 @@ class PredictionsToZarrCallback(pl.Callback):
         pred = einops.rearrange(pred, 'batch bin y x -> 1 batch bin y x')
         pred = pred.detach().cpu().numpy()
 
-
-
         # Process each sample individually
         for i in range(batch_size):
             pred_i = pred[:, i, :, :, :]  # Choose pred from sample i along batch dim
@@ -166,30 +164,29 @@ class PredictionsToZarrCallback(pl.Callback):
 
             ds_i['time'].encoding['dtype'] = 'float64'
 
-
             # Save sample to disk:
             if i == 0 and batch_idx == 0:
                 # --- Initialize the zarr file that we will fill up ---
 
                 # As we are assigning each prediction to the first input frame, we cut off the end of the training data
                 # We use this to initialize the prediction zarr file
-                slice_cut_off_end = slice(0, - (s_num_input_time_steps + s_num_lead_time_steps))
-                training_data_cut_end = self.orig_training_data.isel(time=slice_cut_off_end)
-                # Initialize the zarr file
-                nan_ds = xr.full_like(training_data_cut_end, fill_value=np.nan)
-                # Drop the step diemnsion which is a legacy that used to include predicrtions
-                nan_ds = nan_ds.squeeze()
-                nan_ds = nan_ds.drop_vars('step')
-                # Add lead_time dim. If len(lead_times) > 1 data will be broadcasted / copied to fill new entries,
-                # which are nans anyways
-                nan_ds = nan_ds.expand_dims({'lead_time': lead_times})
-                # Add bin dim:
-                nan_ds = nan_ds.expand_dims({'bin': linspace_binning})
-                #Rename:
-                nan_ds = nan_ds.rename({'RV_recalc': 'ml_predictions'})
-                # Transpose all data variables in the dataset to the specified order
-                nan_ds = nan_ds.transpose('lead_time', 'time', 'bin', 'y', 'x')
-                nan_ds.to_zarr(save_zarr_path, mode='w')
+                    slice_cut_off_end = slice(0, - (s_num_input_time_steps + s_num_lead_time_steps))
+                    training_data_cut_end = self.orig_training_data.isel(time=slice_cut_off_end)
+                    # Initialize the zarr file
+                    nan_ds = xr.full_like(training_data_cut_end, fill_value=np.nan)
+                    # Drop the step diemnsion which is a legacy that used to include predicrtions
+                    nan_ds = nan_ds.squeeze()
+                    nan_ds = nan_ds.drop_vars('step')
+                    # Add lead_time dim. If len(lead_times) > 1 data will be broadcasted / copied to fill new entries,
+                    # which are nans anyways
+                    nan_ds = nan_ds.expand_dims({'lead_time': lead_times})
+                    # Add bin dim:
+                    nan_ds = nan_ds.expand_dims({'bin': linspace_binning})
+                    #Rename:
+                    nan_ds = nan_ds.rename({'RV_recalc': 'ml_predictions'})
+                    # Transpose all data variables in the dataset to the specified order
+                    nan_ds = nan_ds.transpose('lead_time', 'time', 'bin', 'y', 'x')
+                    nan_ds.to_zarr(save_zarr_path, mode='w')
 
 
             # Append to the zarr file
@@ -197,6 +194,150 @@ class PredictionsToZarrCallback(pl.Callback):
             #  Docu: https://docs.xarray.dev/en/latest/generated/xarray.Dataset.to_zarr.html
             ds_i.to_zarr(save_zarr_path, mode='r+', region='auto')
             print(f'Save sample num {i} of batch {batch_idx}')
+
+
+    # def on_predict_batch_end_sample_wise(
+    #         self,
+    #         trainer: "pl.Trainer",
+    #         pl_module: "pl.LightningModule",
+    #         outputs,
+    #         batch,
+    #         batch_idx: int,
+    #         dataloader_idx: int = 0, # Set this to 0 by default if no data_loader_list is passed to trainer
+    # ):
+    #     """
+    #     The predictions of the batch are sample-wise saved as a .zarr
+    #     This is called after predict_step()
+    #     It can handle several dataloaders
+    #
+    #     Input:
+    #         Outputs: dict
+    #             All tensors have received an added batch dimension (batch_dim = 0) by data loader (Also the entries of sub-dictionaries)!
+    #             {'pred': torch.Tensor,
+    #             'target: sample_metadata_dict}
+    #
+    #             sample_metadata_dict: dict
+    #                 All tensors of this sub-dictionary also received an added batch dim by data loader
+    #                 {'time_points_of_spacetime': torch.Tensor         Has to be converted back to datetime
+    #                 'y': torch.Tensor
+    #                 'x': torch.Tensor}
+    #
+    #     """
+    #     # Get settings from NetworkL instance
+    #
+    #     s_target_height_width = self.settings['s_target_height_width']
+    #     s_num_input_time_steps = self.settings['s_num_input_time_steps']
+    #     s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
+    #     prediction_dir = self.settings['s_dirs']['prediction_dir']
+    #
+    #     # Get strings to name zarr
+    #     checkpoint_name = trainer.checkpoint_name
+    #     data_loader_name = trainer.data_loader_names[dataloader_idx]
+    #
+    #     zarr_file_name = f'model_predictions_{data_loader_name}_{checkpoint_name}.zarr'
+    #     save_zarr_path = f'{prediction_dir}/{zarr_file_name}'
+    #
+    #     # Unpacking outputs -> except for loss they are all batched tensors
+    #     # loss = outputs['loss']
+    #     pred = outputs['pred']
+    #     # target = outputs['target']
+    #     # target_binned = outputs['target_binned']
+    #     sample_metadata_dict = outputs['sample_metadata_dict']
+    #
+    #     batch_size = pred.shape[0]
+    #
+    #     # --- Unpack metadata ---
+    #     # The datalaoder added a batch dimension to all entries of the metadata
+    #
+    #     # Convert time from float tensor back to np.datetime64
+    #     time_float_tensor_spacetime_chunk = sample_metadata_dict['time_points_of_spacetime'].detach().cpu()
+    #     # Choose the time point of the FIRST INPUT FRAME out of the spacetime chunk (last entry)
+    #     # -> EACH PREDICTION IS ASSIGNED TO THE DATETIME OF FIRST INPUT FRAME
+    #     time_float_tensor_target = time_float_tensor_spacetime_chunk[:, 0]
+    #     time_datetime64_array_target = convert_float_tensor_to_datetime64_array(time_float_tensor_target)
+    #
+    #     y_space_chunk = sample_metadata_dict['y']
+    #     x_space_chunk = sample_metadata_dict['x']
+    #
+    #     # Centercrop spatial metadata to target size = prediction size
+    #     y_target = self._centercrop_on_last_dim_(y_space_chunk, size=s_target_height_width)
+    #     x_target = self._centercrop_on_last_dim_(x_space_chunk, size=s_target_height_width)
+    #
+    #     y_target = y_target.cpu().numpy()
+    #     x_target = x_target.cpu().numpy()
+    #
+    #     # --- Unchanging metadata ---
+    #     linspace_binning_params = trainer.linspace_binning_params
+    #     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
+    #
+    #     lead_times = trainer.lead_times
+    #
+    #     # batch becomes time, channel becomes bin for our xr dataset
+    #     # pred shape: b c h w = batch bin y x
+    #
+    #     # Create a dataset from the batch:
+    #
+    #     # Add a lead time dimension for current fixed lead time implementation
+    #     pred = einops.rearrange(pred, 'batch bin y x -> 1 batch bin y x')
+    #     pred = pred.detach().cpu().numpy()
+    #
+    #     # Process each sample individually
+    #     for i in range(batch_size):
+    #         pred_i = pred[:, i, :, :, :]  # Choose pred from sample i along batch dim
+    #         # Add empty time dimension that we just removed
+    #         pred_i = einops.rearrange(pred_i, 'lead_time bin y x -> lead_time 1 bin y x')
+    #         time_datetime64_array_target_i = time_datetime64_array_target[i]
+    #         y_target_i = y_target[i, :]
+    #         x_target_i = x_target[i, :]
+    #
+    #         ds_i = xr.Dataset(
+    #             data_vars={
+    #                 'ml_predictions': (('lead_time', 'time', 'bin', 'y', 'x'), pred_i),
+    #                 # 'coords': (('time', 'y', 'x'), (time_datetime64_array_target_i, y_target_i, x_target_i)),
+    #             },
+    #             coords={
+    #                 'lead_time': lead_times,
+    #                 'bin': linspace_binning,
+    #                 'time': [time_datetime64_array_target_i],  # Wrap time_value in a list to make it indexable
+    #                 'y': y_target_i,
+    #                 'x': x_target_i,
+    #             }
+    #         )
+    #
+    #         ds_i['time'].encoding['units'] = f'minutes since {self.t0_first_input_frame}'
+    #
+    #         ds_i['time'].encoding['dtype'] = 'float64'
+    #
+    #         # Save sample to disk:
+    #         if i == 0 and batch_idx == 0:
+    #             # --- Initialize the zarr file that we will fill up ---
+    #
+    #             # As we are assigning each prediction to the first input frame, we cut off the end of the training data
+    #             # We use this to initialize the prediction zarr file
+    #                 slice_cut_off_end = slice(0, - (s_num_input_time_steps + s_num_lead_time_steps))
+    #                 training_data_cut_end = self.orig_training_data.isel(time=slice_cut_off_end)
+    #                 # Initialize the zarr file
+    #                 nan_ds = xr.full_like(training_data_cut_end, fill_value=np.nan)
+    #                 # Drop the step diemnsion which is a legacy that used to include predicrtions
+    #                 nan_ds = nan_ds.squeeze()
+    #                 nan_ds = nan_ds.drop_vars('step')
+    #                 # Add lead_time dim. If len(lead_times) > 1 data will be broadcasted / copied to fill new entries,
+    #                 # which are nans anyways
+    #                 nan_ds = nan_ds.expand_dims({'lead_time': lead_times})
+    #                 # Add bin dim:
+    #                 nan_ds = nan_ds.expand_dims({'bin': linspace_binning})
+    #                 #Rename:
+    #                 nan_ds = nan_ds.rename({'RV_recalc': 'ml_predictions'})
+    #                 # Transpose all data variables in the dataset to the specified order
+    #                 nan_ds = nan_ds.transpose('lead_time', 'time', 'bin', 'y', 'x')
+    #                 nan_ds.to_zarr(save_zarr_path, mode='w')
+    #
+    #
+    #         # Append to the zarr file
+    #         # TODO: Initialize zarr from training 'data' ds. Pass x, y index slices with region.
+    #         #  Docu: https://docs.xarray.dev/en/latest/generated/xarray.Dataset.to_zarr.html
+    #         ds_i.to_zarr(save_zarr_path, mode='r+', region='auto')
+    #         print(f'Save sample num {i} of batch {batch_idx}')
 
 
     # def on_predict_batch_end_batch_wise(
