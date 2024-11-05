@@ -1,3 +1,5 @@
+from partd.utils import frame
+
 from load_data_xarray import (
     create_patches,
     all_patches_to_datetime_idx_permuts,
@@ -27,7 +29,7 @@ class PredictionsToZarrCallback(pl.Callback):
         '''
         This callback handles saving of the predictions to zarr.
         --------------------------------------------------------
-        ! All predictions are assigned to the TARGET time step !
+        ! All predictions are assigned to the FIRST INPUT time step !
         --------------------------------------------------------
         This design choice has been made, as the datetimes of the split dataset always refer to the target times
          due to filtering on targets
@@ -77,7 +79,7 @@ class PredictionsToZarrCallback(pl.Callback):
         It can handle several dataloaders
 
         Input:
-            Outputs: dict
+            outputs: dict
                 All tensors have received an added batch dimension (batch_dim = 0) by data loader (Also the entries of sub-dictionaries)!
                 {'pred': torch.Tensor,
                 'target: sample_metadata_dict}
@@ -123,14 +125,14 @@ class PredictionsToZarrCallback(pl.Callback):
         # Convert time from float tensor back to np.datetime64
         time_float_tensor_spacetime_chunk = sample_metadata_dict['time_points_of_spacetime'].detach().cpu()
         # Choose the time point of the FIRST INPUT FRAME out of the spacetime chunk (last entry)
-        # -> EACH PREDICTION IS ASSIGNED TO THE DATETIME OF TARGET
-        time_float_tensor_target = time_float_tensor_spacetime_chunk[:, -1]
+        # -> EACH PREDICTION IS ASSIGNED TO THE DATETIME OF FIRST INPUT FRAME
+        time_float_tensor_target = time_float_tensor_spacetime_chunk[:, 0]
         time_datetime64_array_target = convert_float_tensor_to_datetime64_array(time_float_tensor_target)
 
         y_space_chunk = sample_metadata_dict['y']
         x_space_chunk = sample_metadata_dict['x']
 
-        # Centercrop spatial metadata to target size = prediction size
+        # Center crop spatial metadata to target size = prediction size
         y_target = self._centercrop_on_last_dim_(y_space_chunk, size=s_target_height_width)
         x_target = self._centercrop_on_last_dim_(x_space_chunk, size=s_target_height_width)
 
@@ -219,11 +221,18 @@ def initialize_empty_prediction_dataset(
         linspace_binning_params,
         lead_times,
         pred_save_zarr_path,
+
         settings,
-        s_split_chunk_duration,
+        s_num_lead_time_steps,
+        s_num_input_time_steps,
+
+        minutes_per_frame=5,
+
         **__,
 ):
     '''
+    This initializes an empty zarr file for each data split (train, val or test), which is then written into sample-wise
+    by the prediction callback
     Input:
         orig_data: xr.Dataset
             the original data that has been used to create train/ val / test
@@ -235,6 +244,18 @@ def initialize_empty_prediction_dataset(
     '''
     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
+    # ---- Recalc time stamp on TARGET to time stamp on FIRST INPUT
+
+    time_dim_last_frame = patches.time.values
+    # Compute frame_delta
+    frame_delta = s_num_lead_time_steps + s_num_input_time_steps  # array([5, 6])
+    # Compute total minutes to subtract
+    delta_minutes = frame_delta * minutes_per_frame  # array([75, 90])
+    # Convert to timedelta64 array
+    time_delta = np.timedelta64(delta_minutes, 'm')
+    # Subtract from the datetime DataArray
+    time_dim_first_frame = time_dim_last_frame - time_delta
+
 
     # Initialize empty dataarray (initialized with None, not NaN)
     da_empty = xr.DataArray(
@@ -242,7 +263,7 @@ def initialize_empty_prediction_dataset(
         dims=('lead_time', 'time', 'bin', 'y', 'x'),
         coords={
             'lead_time': lead_times,
-            'time': patches.time,
+            'time': time_dim_first_frame,
             'bin': linspace_binning,
             'y': orig_data.y.values,
             'x': orig_data.x.values,
@@ -603,9 +624,6 @@ def ckpt_to_pred(
     # For now, with fixed lead time simply create lead times like this:
     lead_times = [ckp_settings['s_num_lead_time_steps']]
     save_dir = s_dirs['save_dir']
-
-    # TODO: Implement taking a subset of train_time_keys, val_time_keys, test_time_keys,
-    #  to save resources with predictions? Maybe just a date range?
 
     checkpoint_names = get_checkpoint_names(save_dir)
 
