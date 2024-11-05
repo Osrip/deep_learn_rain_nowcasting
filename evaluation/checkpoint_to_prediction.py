@@ -14,6 +14,7 @@ import xarray as xr
 import einops
 from load_data_xarray import convert_float_tensor_to_datetime64_array, split_data_from_time_keys
 import numpy as np
+import random
 
 class PredictionsToZarrCallback(pl.Callback):
 
@@ -25,7 +26,12 @@ class PredictionsToZarrCallback(pl.Callback):
                  settings):
         '''
         This callback handles saving of the predictions to zarr.
-        All predictions are assigned to the TARGET time step!
+        --------------------------------------------------------
+        ! All predictions are assigned to the TARGET time step !
+        --------------------------------------------------------
+        This design choice has been made, as the datetimes of the split dataset always refer to the target times
+         due to filtering on targets
+
         Input
             data: xr.Dataset:
                 Original training data including full time period (wioth input frames)
@@ -52,11 +58,9 @@ class PredictionsToZarrCallback(pl.Callback):
         batch_idx: int,
         dataloader_idx: int = 0  # Default to 0 if no data_loader_list is passed to trainer
     ):
-        # Dynamically call the appropriate method based on the mode
-        if self.mode == "sample":
-            return self.on_predict_batch_end_sample_wise(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
-        else:
-            return self.on_predict_batch_end_batch_wise(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+
+        return self.on_predict_batch_end_sample_wise(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+
 
     def on_predict_batch_end_sample_wise(
             self,
@@ -179,252 +183,9 @@ class PredictionsToZarrCallback(pl.Callback):
             #  Docu: https://docs.xarray.dev/en/latest/generated/xarray.Dataset.to_zarr.html
             ds_i.to_zarr(save_zarr_path, mode='r+', region='auto')
             print(f'Save sample num {i} of batch {batch_idx}')
+            # Appending manual: https://docs.xarray.dev/en/latest/user-guide/io.html#io-zarr
+            # Also look at ds.tozarr() docu!
 
-
-    # def on_predict_batch_end_sample_wise(
-    #         self,
-    #         trainer: "pl.Trainer",
-    #         pl_module: "pl.LightningModule",
-    #         outputs,
-    #         batch,
-    #         batch_idx: int,
-    #         dataloader_idx: int = 0, # Set this to 0 by default if no data_loader_list is passed to trainer
-    # ):
-    #     """
-    #     The predictions of the batch are sample-wise saved as a .zarr
-    #     This is called after predict_step()
-    #     It can handle several dataloaders
-    #
-    #     Input:
-    #         Outputs: dict
-    #             All tensors have received an added batch dimension (batch_dim = 0) by data loader (Also the entries of sub-dictionaries)!
-    #             {'pred': torch.Tensor,
-    #             'target: sample_metadata_dict}
-    #
-    #             sample_metadata_dict: dict
-    #                 All tensors of this sub-dictionary also received an added batch dim by data loader
-    #                 {'time_points_of_spacetime': torch.Tensor         Has to be converted back to datetime
-    #                 'y': torch.Tensor
-    #                 'x': torch.Tensor}
-    #
-    #     """
-    #     # Get settings from NetworkL instance
-    #
-    #     s_target_height_width = self.settings['s_target_height_width']
-    #     s_num_input_time_steps = self.settings['s_num_input_time_steps']
-    #     s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
-    #     prediction_dir = self.settings['s_dirs']['prediction_dir']
-    #
-    #     # Get strings to name zarr
-    #     checkpoint_name = trainer.checkpoint_name
-    #     data_loader_name = trainer.data_loader_names[dataloader_idx]
-    #
-    #     zarr_file_name = f'model_predictions_{data_loader_name}_{checkpoint_name}.zarr'
-    #     save_zarr_path = f'{prediction_dir}/{zarr_file_name}'
-    #
-    #     # Unpacking outputs -> except for loss they are all batched tensors
-    #     # loss = outputs['loss']
-    #     pred = outputs['pred']
-    #     # target = outputs['target']
-    #     # target_binned = outputs['target_binned']
-    #     sample_metadata_dict = outputs['sample_metadata_dict']
-    #
-    #     batch_size = pred.shape[0]
-    #
-    #     # --- Unpack metadata ---
-    #     # The datalaoder added a batch dimension to all entries of the metadata
-    #
-    #     # Convert time from float tensor back to np.datetime64
-    #     time_float_tensor_spacetime_chunk = sample_metadata_dict['time_points_of_spacetime'].detach().cpu()
-    #     # Choose the time point of the FIRST INPUT FRAME out of the spacetime chunk (last entry)
-    #     # -> EACH PREDICTION IS ASSIGNED TO THE DATETIME OF FIRST INPUT FRAME
-    #     time_float_tensor_target = time_float_tensor_spacetime_chunk[:, 0]
-    #     time_datetime64_array_target = convert_float_tensor_to_datetime64_array(time_float_tensor_target)
-    #
-    #     y_space_chunk = sample_metadata_dict['y']
-    #     x_space_chunk = sample_metadata_dict['x']
-    #
-    #     # Centercrop spatial metadata to target size = prediction size
-    #     y_target = self._centercrop_on_last_dim_(y_space_chunk, size=s_target_height_width)
-    #     x_target = self._centercrop_on_last_dim_(x_space_chunk, size=s_target_height_width)
-    #
-    #     y_target = y_target.cpu().numpy()
-    #     x_target = x_target.cpu().numpy()
-    #
-    #     # --- Unchanging metadata ---
-    #     linspace_binning_params = trainer.linspace_binning_params
-    #     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
-    #
-    #     lead_times = trainer.lead_times
-    #
-    #     # batch becomes time, channel becomes bin for our xr dataset
-    #     # pred shape: b c h w = batch bin y x
-    #
-    #     # Create a dataset from the batch:
-    #
-    #     # Add a lead time dimension for current fixed lead time implementation
-    #     pred = einops.rearrange(pred, 'batch bin y x -> 1 batch bin y x')
-    #     pred = pred.detach().cpu().numpy()
-    #
-    #     # Process each sample individually
-    #     for i in range(batch_size):
-    #         pred_i = pred[:, i, :, :, :]  # Choose pred from sample i along batch dim
-    #         # Add empty time dimension that we just removed
-    #         pred_i = einops.rearrange(pred_i, 'lead_time bin y x -> lead_time 1 bin y x')
-    #         time_datetime64_array_target_i = time_datetime64_array_target[i]
-    #         y_target_i = y_target[i, :]
-    #         x_target_i = x_target[i, :]
-    #
-    #         ds_i = xr.Dataset(
-    #             data_vars={
-    #                 'ml_predictions': (('lead_time', 'time', 'bin', 'y', 'x'), pred_i),
-    #                 # 'coords': (('time', 'y', 'x'), (time_datetime64_array_target_i, y_target_i, x_target_i)),
-    #             },
-    #             coords={
-    #                 'lead_time': lead_times,
-    #                 'bin': linspace_binning,
-    #                 'time': [time_datetime64_array_target_i],  # Wrap time_value in a list to make it indexable
-    #                 'y': y_target_i,
-    #                 'x': x_target_i,
-    #             }
-    #         )
-    #
-    #         ds_i['time'].encoding['units'] = f'minutes since {self.t0_first_input_frame}'
-    #
-    #         ds_i['time'].encoding['dtype'] = 'float64'
-    #
-    #         # Save sample to disk:
-    #         if i == 0 and batch_idx == 0:
-    #             # --- Initialize the zarr file that we will fill up ---
-    #
-    #             # As we are assigning each prediction to the first input frame, we cut off the end of the training data
-    #             # We use this to initialize the prediction zarr file
-    #                 slice_cut_off_end = slice(0, - (s_num_input_time_steps + s_num_lead_time_steps))
-    #                 training_data_cut_end = self.orig_training_data.isel(time=slice_cut_off_end)
-    #                 # Initialize the zarr file
-    #                 nan_ds = xr.full_like(training_data_cut_end, fill_value=np.nan)
-    #                 # Drop the step diemnsion which is a legacy that used to include predicrtions
-    #                 nan_ds = nan_ds.squeeze()
-    #                 nan_ds = nan_ds.drop_vars('step')
-    #                 # Add lead_time dim. If len(lead_times) > 1 data will be broadcasted / copied to fill new entries,
-    #                 # which are nans anyways
-    #                 nan_ds = nan_ds.expand_dims({'lead_time': lead_times})
-    #                 # Add bin dim:
-    #                 nan_ds = nan_ds.expand_dims({'bin': linspace_binning})
-    #                 #Rename:
-    #                 nan_ds = nan_ds.rename({'RV_recalc': 'ml_predictions'})
-    #                 # Transpose all data variables in the dataset to the specified order
-    #                 nan_ds = nan_ds.transpose('lead_time', 'time', 'bin', 'y', 'x')
-    #                 nan_ds.to_zarr(save_zarr_path, mode='w')
-    #
-    #
-    #         # Append to the zarr file
-    #         # TODO: Initialize zarr from training 'data' ds. Pass x, y index slices with region.
-    #         #  Docu: https://docs.xarray.dev/en/latest/generated/xarray.Dataset.to_zarr.html
-    #         ds_i.to_zarr(save_zarr_path, mode='r+', region='auto')
-    #         print(f'Save sample num {i} of batch {batch_idx}')
-
-
-    # def on_predict_batch_end_batch_wise(
-    #         self,
-    #         trainer: "pl.Trainer",
-    #         pl_module: "pl.LightningModule",
-    #         outputs,
-    #         batch,
-    #         batch_idx: int,
-    #         dataloader_idx: int = 0,  # Set this to 0 by default if no data_loader_list is passed to trainer
-    # ):
-    #     """
-    #     This is called after predict_step()
-    #     """
-    #     # Get settings from NetworkL instance
-    #     settings = trainer.lightning_module.settings
-    #     s_target_height_width = settings['s_target_height_width']
-    #
-    #     # Get strings to name zarr
-    #     checkpoint_name = trainer.checkpoint_name
-    #     data_loader_name = trainer.data_loader_names[dataloader_idx]
-    #
-    #     zarr_file_name = f'model_predictions_{data_loader_name}_{checkpoint_name}.zarr'
-    #     # TODO get path to save zarr in (save this globally instead of run folder?
-    #     save_zarr_path = zarr_file_name
-    #     # TODO get t0 of radolan
-    #     t0_of_radolan = None
-    #
-    #     # Unpacking outputs -> except for loss they are all batched tensors
-    #     loss = outputs['loss']
-    #     pred = outputs['pred']
-    #     target = outputs['target']
-    #     target_binned = outputs['target_binned']
-    #     sample_metadata_dict = outputs['sample_metadata_dict']
-    #
-    #     # --- Unpack metadata ---
-    #     # The datalaoder added a batch dimension to all entries of the metadata
-    #
-    #     # Convert time from float tensor back to np.datetime64
-    #     time_float_tensor_spacetime_chunk = sample_metadata_dict['time_points_of_spacetime'].detach().cpu()
-    #     # Choose the time point of the target out of the spacetime chunk (last entry)
-    #     time_float_tensor_target = time_float_tensor_spacetime_chunk[:, -1]
-    #     time_datetime64_array_target = convert_float_tensor_to_datetime64_array(time_float_tensor_target)
-    #
-    #     y_space_chunk = sample_metadata_dict['y']
-    #     x_space_chunk = sample_metadata_dict['x']
-    #
-    #     # Centercrop spatial metadata to target size = prediction size
-    #     y_target = self._centercrop_on_last_dim_(y_space_chunk, size=s_target_height_width)
-    #     x_target = self._centercrop_on_last_dim_(x_space_chunk, size=s_target_height_width)
-    #
-    #     y_target = y_target.cpu().numpy()
-    #     x_target = x_target.cpu().numpy()
-    #
-    #     # --- Unchanging metadata ---
-    #     linspace_binning_params = trainer.linspace_binning_params
-    #     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
-    #
-    #     lead_times = trainer.lead_times
-    #
-    #     # batch becomes time, channel becomes bin for our xr dataset
-    #     # pred shape: b c h w = batch bin y x
-    #
-    #     # Create a dataset from the batch:
-    #
-    #     # Add a lead time dimension for current fixed lead time implementation
-    #     pred = einops.rearrange(pred, 'batch bin y x -> 1 batch bin y x')
-    #     # pred = pred.unsqueeze(0)
-    #     pred = pred.detach().cpu().numpy()
-    #
-    #     batch_size = pred.shape[0]
-    #
-    #     # ds_i['time'].encoding['units'] = f'minutes since {t0_of_radolan}'
-    #     #
-    #     # ds_i['time'].encoding['dtype'] = 'float64'
-    #
-    #     batch_ds = xr.Dataset(
-    #         data_vars={
-    #             'ml_predictions': (('lead_time', 'time', 'bin', 'y', 'x'), pred)
-    #         },
-    #         coords={
-    #             'lead_time': lead_times,
-    #             'bin': linspace_binning,
-    #             'time': time_datetime64_array_target,  # Wrap time_value in a list to make it indexable
-    #             'y': (('time', 'y'), y_target),
-    #             'x': (('time', 'x'), x_target),
-    #         }
-    #     )
-    #     # It looks like this is not possible:
-    #     # xarray.core.merge.MergeError: coordinate y shares a name with a dataset dimension,
-    #     # but is not a 1D variable along that dimension. This is disallowed by the xarray data model.
-    #
-    #     # Save sample to disk:
-    #     if batch_idx == 0:
-    #         # Initialize the zarr file
-    #         batch_ds.to_zarr(save_zarr_path, mode='w')
-    #     else:
-    #         # Append to the zarr file
-    #         # TODO: We are really appending in time, y and x ... how do I do that with arg append_dim= ?
-    #         batch_ds.to_zarr(save_zarr_path, mode='a-', append_dim='time')
-
-        # # Appending manual: https://docs.xarray.dev/en/latest/user-guide/io.html#io-zarr
 
     def _centercrop_on_last_dim_(self, crop_last_dim_tensor: torch.Tensor, size: int) -> torch.Tensor:
         '''
@@ -454,7 +215,7 @@ class PredictionsToZarrCallback(pl.Callback):
 
 def initialize_empty_prediction_dataset(
         orig_data,
-        time_keys,
+        patches,
         linspace_binning_params,
         lead_times,
         pred_save_zarr_path,
@@ -467,13 +228,13 @@ def initialize_empty_prediction_dataset(
         orig_data: xr.Dataset
             the original data that has been used to create train/ val / test
             Already has to be cropped in case s_crop_data_time_span has been used
+        patches: xr.Dataset
+            Those are the split patches (either train, val or test) from which we will extract the time
+            dim to initialize the .zarr with. Patches originates from data_shortened, which includes all TARGET
+            datetimes.
     '''
     linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
 
-    # From the original data we are creating the original split (train, val or test) in order to
-    # receive the original time dimension along which we will fill up the data
-    orig_data_resampled = orig_data.resample(time=s_split_chunk_duration)
-    split_data = split_data_from_time_keys(orig_data_resampled, time_keys)
 
     # Initialize empty dataarray (initialized with None, not NaN)
     da_empty = xr.DataArray(
@@ -481,7 +242,7 @@ def initialize_empty_prediction_dataset(
         dims=('lead_time', 'time', 'bin', 'y', 'x'),
         coords={
             'lead_time': lead_times,
-            'time': split_data.time,  # TODO
+            'time': patches.time,
             'bin': linspace_binning,
             'y': orig_data.y.values,
             'x': orig_data.x.values,
@@ -497,13 +258,13 @@ def initialize_empty_prediction_dataset(
 
 def predict_and_save_to_zarr(
         model,
-        train_time_keys, val_time_keys, test_time_keys,
-        data_to_predict_on,
+        patches_train, patches_val, patches_test,
+        splits_to_predict_on,
         data_loader_dict,
         checkpoint_name,
         linspace_binning_params,
         lead_times,
-        t0_first_input_frame_old, # TODO get rid of this as this ios calculated directly in function
+        t0_first_input_frame_old, # TODO get rid of this as this is calculated directly in function
 
         ckp_settings,
         s_folder_path,
@@ -526,7 +287,7 @@ def predict_and_save_to_zarr(
     # Get t of first input frame of original data (train, val, test) after potentially cutting time span
     t0_first_input_frame = orig_data.time[0].values
 
-    data_loader_list = [data_loader_dict[key] for key in data_to_predict_on]
+    data_loader_list = [data_loader_dict[key] for key in splits_to_predict_on]
 
     trainer = pl.Trainer(
         callbacks=PredictionsToZarrCallback(
@@ -537,23 +298,24 @@ def predict_and_save_to_zarr(
             ckp_settings)
     )
 
-    trainer.data_loader_names = data_to_predict_on
+    trainer.data_loader_names = splits_to_predict_on
     trainer.checkpoint_name = checkpoint_name
 
-    time_keys_dict = {'train': train_time_keys,
-                      'val': val_time_keys,
-                      'test': test_time_keys}
+    # We need to pass the split patches to initialize the time dim of the zarr
+    pacthes_dict = {'train': patches_train,
+                      'val': patches_val,
+                      'test': patches_test}
 
     # Initialize empty prediction datasets
-    for data_loader_name in data_to_predict_on:
+    for data_loader_name in splits_to_predict_on:
         pred_zarr_file_name = f'model_predictions_{data_loader_name}_{checkpoint_name}.zarr'
         pred_save_zarr_path = f'{prediction_dir}/{pred_zarr_file_name}'
 
-        time_keys = time_keys_dict[data_loader_name]
+        patches = pacthes_dict[data_loader_name]
 
         initialize_empty_prediction_dataset(
             orig_data,
-            time_keys,
+            patches,
             linspace_binning_params,
             lead_times,
             pred_save_zarr_path,
@@ -572,6 +334,7 @@ def predict_and_save_to_zarr(
 
 def sample_coords_for_all_patches(
         train_time_keys, val_time_keys, test_time_keys,
+        max_num_frames_per_split,
 
         settings,
         s_target_height_width,
@@ -586,6 +349,9 @@ def sample_coords_for_all_patches(
         train_time_keys, val_time_keys, test_time_keys: list(np.datetime64)
             These are the time keys that determine the train, val and test sets
             They refer to the group names of patches.resample(time=s_split_chunk_duration)
+
+        max_num_frames: int / None
+            maximal number of frames that shall be predicted on each split. If None the whole split is predicted
 
     Output
         sample_coords (train, val, test): tuple(np.array): Coordinate space
@@ -636,6 +402,23 @@ def sample_coords_for_all_patches(
     patches_val = split_data_from_time_keys(patches_resampled, val_time_keys)
     patches_test = split_data_from_time_keys(patches_resampled, test_time_keys)
 
+
+    # --- Subsample patches along time dim if necessary ---
+    if max_num_frames_per_split is not None:
+        patches_dict = {'train': patches_train, 'val': patches_val, 'test': patches_test}
+
+        for split_name, patches in patches_dict.items():
+            if len(patches.time.values) > max_num_frames_per_split:
+                subsampled_patch_time_dim = np.random.choice(
+                    patches.time.values,
+                    size=max_num_frames_per_split,
+                    replace=False
+                )
+                subsampled_patches = patches.sel(time=subsampled_patch_time_dim)
+                patches_dict[split_name] = subsampled_patches
+
+        patches_train, patches_val, patches_test = patches_dict['train'], patches_dict['val'], patches_dict['test']
+
     # --- From patches create sample coords ---
 
     # As we want all patches and do not do any filtering in this case we simply permute the _outer patch indecies
@@ -663,7 +446,7 @@ def sample_coords_for_all_patches(
     if total_samples != unique_samples:
         num_duplicates = total_samples - unique_samples
         raise ValueError(
-            f'There are {num_duplicates} duplicates among train, val, and test sets.'
+            f'There are {num_duplicates} duplicate samples among train, val, and test sets.'
         )
 
     # ... and calculate the sample coords with respect to the CRS and projection of data_shortened of them
@@ -694,7 +477,11 @@ def sample_coords_for_all_patches(
     # TODO: get rid of this, this will be calculated directly from data in future
     t0_first_input_frame = data.time[0].values
 
-    return train_sample_coords, val_sample_coords, test_sample_coords, t0_first_input_frame
+    return (
+        train_sample_coords, val_sample_coords, test_sample_coords,
+        patches_train, patches_val, patches_test,
+        t0_first_input_frame
+    )
 
 
 def create_predict_dataloaders(
@@ -765,20 +552,28 @@ def ckpt_to_pred(
         train_time_keys, val_time_keys, test_time_keys,
         radolan_statistics_dict,
         linspace_binning_params,
-        data_to_predict_on,
+        splits_to_predict_on,
 
         ckp_settings,  # Make sure to pass the settings of the checkpoint
         s_dirs,
+
+        max_num_frames_per_split=None,
+
         **__,
 ):
     """
     This creates a .zarr file for all predictions of the model checkpoint
 
+    !Caution!
+        This assumes that the data that you are predicting with has exactly the same length through s_crop_data_time_span
+        as in the training setting! Do not simply change the time_key lengths if you want to predict less!
+
     Input
         train_time_keys, val_time_keys, test_time_keys: list(np.datetime64)
             These are the time keys that determine the train, val and test sets
             They refer to the group names of patches.resample(time=s_split_chunk_duration)
-        data_to_predict_on: List of str
+
+        splits_to_predict_on: List of str
             List of strings containing at least one of
             ['train', 'val', 'test']
 
@@ -794,11 +589,16 @@ def ckpt_to_pred(
             This is particularly true for the entries:
             s_device
             s_num_gpus
+
+        max_num_frames: int / None
+            maximal number of frames that shall be predicted on each split. If None the whole split is predicted
     """
 
-    if not any(item in ['train', 'val', 'test'] for item in data_to_predict_on):
-        raise ValueError("data_to_predict_on must be a list of strings containing at least one of"
+    if not any(item in ['train', 'val', 'test'] for item in splits_to_predict_on):
+        raise ValueError("splits_to_predict_on must be a list of strings containing at least one of"
                          " ['train', 'val', 'test']")
+
+
 
     # For now, with fixed lead time simply create lead times like this:
     lead_times = [ckp_settings['s_num_lead_time_steps']]
@@ -813,13 +613,18 @@ def ckpt_to_pred(
     checkpoint_name_to_predict = [name for name in checkpoint_names if 'last' in name][0]
 
     # Get the sample coords for all -unfiltered- patches
-    train_sample_coords, val_sample_coords, test_sample_coords, t0_first_input_frame = sample_coords_for_all_patches(
+    (
+        train_sample_coords, val_sample_coords, test_sample_coords,
+        patches_train, patches_val, patches_test,  # We need the patches later on to initialize time dim of pred zarr
+        t0_first_input_frame,
+     ) = sample_coords_for_all_patches(
         train_time_keys, val_time_keys, test_time_keys,
+        max_num_frames_per_split,
         ckp_settings,
         **ckp_settings,
     )
 
-    # Create dataloaders
+    # Create data loaders
     train_data_loader_predict, val_data_loader_predict, test_data_loader_predict = create_predict_dataloaders(
         train_sample_coords, val_sample_coords, test_sample_coords,
         radolan_statistics_dict,
@@ -841,8 +646,8 @@ def ckpt_to_pred(
 
     predict_and_save_to_zarr(
         model,
-        train_time_keys, val_time_keys, test_time_keys,
-        data_to_predict_on,
+        patches_train, patches_val, patches_test,
+        splits_to_predict_on,
         data_loader_dict,
         checkpoint_name_to_predict,
         linspace_binning_params,
@@ -852,23 +657,6 @@ def ckpt_to_pred(
         **ckp_settings,
     )
 
-    # TODO: Predictions, Patch assembly, chunk-wise saving to zarr
-
-    #Todo somehow do predictions and chunk them in time
-    # such that we can iteratively write zarr to disk and dont overload RAM
-
-    # TODO: initialize NetworkL and lightning trainer
-    # Or maybe it is better not to use lightning in this case?
-
-
-    # define a def predict function in NetworkL
-
-    # load data with __getitem_evaluation__
-
-    # # Perform predictions
-    # predictions_train = trainer.predict(model, dataloaders=train_data_loader_eval)
-    # predictions_val = trainer.predict(model, dataloaders=val_data_loader_eval)
-    # predictions_test = trainer.predict(model, dataloaders=test_data_loader_eval)
 
 
 

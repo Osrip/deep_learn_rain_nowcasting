@@ -314,8 +314,11 @@ class NetworkL(pl.LightningModule):
         # Normalize
         dem_statistics = self.static_statistics_dict_train_data['dem']
         dem_mean, dem_std = dem_statistics['mean'], dem_statistics['std']
+        # Not substracting by mean to keep 0 at 0 and avoid negative values.
+        # DEM looks long tail distributed over germany --> potentially normlaize this the same way as rain
+        # Normed DEM has max val at 8
 
-        dem_spatial_batch = (dem_spatial_batch - dem_mean) / dem_std
+        dem_spatial_batch = dem_spatial_batch / dem_std
         # Add channel dim of size 1
         dem_spatial_batch_unsqueezed = dem_spatial_batch.unsqueeze(dim=1)
 
