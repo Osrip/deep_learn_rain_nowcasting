@@ -8,6 +8,7 @@ from load_data_xarray import (
     FilteredDatasetXr
 )
 from helper.checkpoint_handling import load_from_checkpoint, get_checkpoint_names
+from helper.memory_logging import print_ram_usage
 import torch
 import torchvision.transforms as T
 from torch.utils.data import DataLoader
@@ -28,9 +29,9 @@ class PredictionsToZarrCallback(pl.Callback):
                  settings):
         '''
         This callback handles saving of the predictions to zarr.
-        --------------------------------------------------------
+        -------------------------------------------------------------
         ! All predictions are assigned to the FIRST INPUT time step !
-        --------------------------------------------------------
+        -------------------------------------------------------------
         This design choice has been made, as the datetimes of the split dataset always refer to the target times
          due to filtering on targets
 
@@ -93,6 +94,8 @@ class PredictionsToZarrCallback(pl.Callback):
         """
         # Get settings from NetworkL instance
 
+        print_ram_usage()
+
         s_target_height_width = self.settings['s_target_height_width']
         s_num_input_time_steps = self.settings['s_num_input_time_steps']
         s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
@@ -125,7 +128,7 @@ class PredictionsToZarrCallback(pl.Callback):
         # Convert time from float tensor back to np.datetime64
         time_float_tensor_spacetime_chunk = sample_metadata_dict['time_points_of_spacetime'].detach().cpu()
         # Choose the time point of the FIRST INPUT FRAME out of the spacetime chunk (last entry)
-        # -> EACH PREDICTION IS ASSIGNED TO THE DATETIME OF FIRST INPUT FRAME
+        # -> ! EACH PREDICTION IS ASSIGNED TO THE DATETIME OF FIRST INPUT FRAME !
         time_float_tensor_target = time_float_tensor_spacetime_chunk[:, 0]
         time_datetime64_array_target = convert_float_tensor_to_datetime64_array(time_float_tensor_target)
 
@@ -184,7 +187,6 @@ class PredictionsToZarrCallback(pl.Callback):
             # TODO: Initialize zarr from training 'data' ds. Pass x, y index slices with region.
             #  Docu: https://docs.xarray.dev/en/latest/generated/xarray.Dataset.to_zarr.html
             ds_i.to_zarr(save_zarr_path, mode='r+', region='auto')
-            print(f'Save sample num {i} of batch {batch_idx}')
             # Appending manual: https://docs.xarray.dev/en/latest/user-guide/io.html#io-zarr
             # Also look at ds.tozarr() docu!
 
@@ -248,9 +250,9 @@ def initialize_empty_prediction_dataset(
 
     time_dim_last_frame = patches.time.values
     # Compute frame_delta
-    frame_delta = s_num_lead_time_steps + s_num_input_time_steps  # array([5, 6])
+    frame_delta = s_num_lead_time_steps + s_num_input_time_steps
     # Compute total minutes to subtract
-    delta_minutes = frame_delta * minutes_per_frame  # array([75, 90])
+    delta_minutes = frame_delta * minutes_per_frame
     # Convert to timedelta64 array
     time_delta = np.timedelta64(delta_minutes, 'm')
     # Subtract from the datetime DataArray
@@ -310,13 +312,16 @@ def predict_and_save_to_zarr(
 
     data_loader_list = [data_loader_dict[key] for key in splits_to_predict_on]
 
-    trainer = pl.Trainer(
-        callbacks=PredictionsToZarrCallback(
+    predictions_to_zarr_callback = PredictionsToZarrCallback(
             orig_data,
             t0_first_input_frame,
             linspace_binning_params,
             lead_times,
-            ckp_settings)
+            ckp_settings
+    )
+
+    trainer = pl.Trainer(
+        callbacks=predictions_to_zarr_callback,
     )
 
     trainer.data_loader_names = splits_to_predict_on
@@ -350,6 +355,7 @@ def predict_and_save_to_zarr(
     trainer.predict(
         model=model,
         dataloaders=data_loader_list,
+        return_predictions=False  # By default, lightning aggregates the output of all batches, disable this to prevent memory overflow
     )
 
 
@@ -614,6 +620,8 @@ def ckpt_to_pred(
         max_num_frames: int / None
             maximal number of frames that shall be predicted on each split. If None the whole split is predicted
     """
+
+    print('Predicting on unfiltered patches')
 
     if not any(item in ['train', 'val', 'test'] for item in splits_to_predict_on):
         raise ValueError("splits_to_predict_on must be a list of strings containing at least one of"

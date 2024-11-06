@@ -155,7 +155,7 @@ class FilteredDatasetXr(Dataset):
         elif self.mode == 'predict':
             return self._getitem_predict_(idx)
         else:
-            raise ValueError(f"Invalid mode: {self.mode} has to be either 'train' or 'predict'")
+            raise ValueError(f"Invalid mode: self.mode = {self.mode} has to be either 'train' or 'predict'")
 
     def _getitem_train_(self, idx):
         '''
@@ -412,14 +412,15 @@ class FilteredDatasetXr(Dataset):
         if y_length != expected_length:
             raise ValueError(
                 f"In mode '{self.mode}': slice of y coordinates length ({y_length}) does not match expected length "
-                f"({expected_length}). Expected: s_input_height_width + s_input_padding in 'train' mode, or s_input_height_width in  'predict' mode."
+                f"({expected_length}). Expected: s_input_height_width + s_input_padding in 'train' mode,"
+                f" or s_input_height_width in  'predict' mode."
         )
 
     def random_crop(self, dynamic_samples_dict, static_samples_dict):
-        '''
+        """
         Doing a random crop
         The same random crop is done on all samples of dynamic_samples_dict and static_samples_dict
-        '''
+        """
         s_input_height_width = self.settings['s_input_height_width']
 
         crop_indices = transforms.RandomCrop.get_params(
@@ -973,7 +974,7 @@ def convert_datetime64_array_to_float_tensor(datetime_array):
         datetime_array: np.ndarray
             An array of numpy datetime64[ns] objects.
 
-    Output:
+    Output
         float_tensor: torch.Tensor
             A 1D PyTorch tensor where each datetime64 is converted to a float timestamp.
     """
@@ -988,10 +989,10 @@ def convert_float_tensor_to_datetime64_array(float_tensor):
     """
     Converts a PyTorch float tensor back into a numpy datetime64 array.
 
-    Args:
+    Input
         float_tensor (torch.Tensor): A 1D PyTorch tensor where each value represents a timestamp as float.
 
-    Returns:
+    Output
         np.ndarray: A numpy array of datetime64[ns] objects reconstructed from the float tensor.
     """
     # Convert tensor back to numpy array of floats

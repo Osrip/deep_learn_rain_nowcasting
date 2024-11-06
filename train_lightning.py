@@ -596,9 +596,9 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
+    s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'debug_zarr_saving_batch_size_4_5_epochs_1_hour_5_min_splits'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'training_and_zarr_saving_50_epochs'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -625,7 +625,7 @@ if __name__ == '__main__':
             's_convnext': True,  # Use ConvNeXt instead of ours
 
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
-            's_plot_sim_name': 'Run_20240620-174257_ID_430383default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            's_plot_sim_name': 'Run_20241001-222120_ID_703295new_dataloader_1_month_training', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
             # Save data loader variables
             's_save_prefix_data_loader_vars': 'switching_regions_filter_min_amount_rain_0_2_fixed_binning_bug_2',
@@ -634,7 +634,7 @@ if __name__ == '__main__':
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 50, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
             's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
@@ -735,11 +735,11 @@ if __name__ == '__main__':
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
         settings['s_dem_path'] = '/home/jan/Programming/weather_data/dem/dem_benchmark_dataset_1200_1100.zarr'
         settings['s_upscale_c_to'] = 32  # 8
-        settings['s_batch_size'] = 4  # 8
+        settings['s_batch_size'] = 8  # 8
         settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
-        settings['s_max_epochs'] = 5  # 2
+        settings['s_max_epochs'] = 1  # 2
         settings['s_num_gpus'] = 1
         settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T09:00'] #['2019-01-01T08:00', '2019-01-01T10:00']
         settings['s_split_chunk_duration'] = '5min' #'15min' #'1h'
@@ -789,6 +789,7 @@ if __name__ == '__main__':
             train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
             linspace_binning_params,
+            max_num_frames_per_split=1,
 
             splits_to_predict_on=['val'],
             ckp_settings = settings,
@@ -821,7 +822,7 @@ if __name__ == '__main__':
             linspace_binning_params,
             max_num_frames_per_split=1,
 
-            splits_to_predict_on=['train'],
+            splits_to_predict_on=['val'],
             ckp_settings = settings_loaded,
             **settings_loaded,
         )
