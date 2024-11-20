@@ -85,11 +85,11 @@ class PredictionsToZarrCallback(pl.Callback):
                 {'pred': torch.Tensor,
                 'target: sample_metadata_dict}
 
-                sample_metadata_dict: dict
-                    All tensors of this sub-dictionary also received an added batch dim by data loader
-                    {'time_points_of_spacetime': torch.Tensor         Has to be converted back to datetime
-                    'y': torch.Tensor
-                    'x': torch.Tensor}
+            sample_metadata_dict: dict
+                All tensors of this sub-dictionary also received an added batch dim by data loader
+                {'time_points_of_spacetime': torch.Tensor         Has to be converted back to datetime
+                'y': torch.Tensor
+                'x': torch.Tensor}
 
         """
         # Get settings from NetworkL instance
@@ -103,7 +103,7 @@ class PredictionsToZarrCallback(pl.Callback):
 
         linspace_binning_min, linspace_binning_max, linspace_binning = self.linspace_binning_params
 
-        # Get strings to name zarr
+        # Get strings for zarr naming
         checkpoint_name = trainer.checkpoint_name
         data_loader_name = trainer.data_loader_names[dataloader_idx]
 
@@ -111,10 +111,7 @@ class PredictionsToZarrCallback(pl.Callback):
         save_zarr_path = f'{prediction_dir}/{zarr_file_name}'
 
         # Unpacking outputs -> except for loss they are all batched tensors
-        # loss = outputs['loss']
         pred_no_softmax = outputs['pred']
-        # target = outputs['target']
-        # target_binned = outputs['target_binned']
         sample_metadata_dict = outputs['sample_metadata_dict']
 
         # Softmax predictions
@@ -145,13 +142,11 @@ class PredictionsToZarrCallback(pl.Callback):
         # batch becomes time, channel becomes bin for our xr dataset
         # pred shape: b c h w = batch bin y x
 
-        # Create a dataset from the batch:
-
         # Add a lead time dimension for current fixed lead time implementation
         pred_softmaxed = einops.rearrange(pred_softmaxed, 'batch bin y x -> 1 batch bin y x')
         pred_softmaxed = pred_softmaxed.detach().cpu().numpy()
 
-        # Process each sample individually
+        # Process each sample of the batch individually
         for i in range(batch_size):
             pred_i = pred_softmaxed[:, i, :, :, :]  # Choose pred from sample i along batch dim
             # Add empty time dimension that we just removed
@@ -685,20 +680,3 @@ def ckpt_to_pred(
         ckp_settings,
         **ckp_settings,
     )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
