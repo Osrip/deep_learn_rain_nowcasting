@@ -10,7 +10,7 @@ import datetime
 from load_data_xarray import (
     create_patches,
     filter_patches,
-    calc_statistics_on_valid_batches,
+    calc_statistics_on_valid_patches,
     patch_indecies_to_sample_coords,
     calc_linspace_binning,
     FilteredDatasetXr,
@@ -170,7 +170,7 @@ def preprocess_data(
     val_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, val_time_keys)
 
     # --- CALC NORMALIZATION STATISTICS on valid training patches---
-    _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_batches(
+    _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_patches(
         patches,
         train_valid_patches_boo,
         **settings
@@ -594,11 +594,11 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'training_and_zarr_saving_50_epochs'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'whole_dataset_epochs_until_time_out_best_checkpoint_is_saved_galvani_fat'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -625,7 +625,7 @@ if __name__ == '__main__':
             's_convnext': True,  # Use ConvNeXt instead of ours
 
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
-            's_plot_sim_name': 'Run_20241001-222120_ID_703295new_dataloader_1_month_training', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            's_plot_sim_name': 'Run_20241105-182147_ID_774405training_and_zarr_saving_50_epochs', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
             # Save data loader variables
             's_save_prefix_data_loader_vars': 'switching_regions_filter_min_amount_rain_0_2_fixed_binning_bug_2',
@@ -637,7 +637,7 @@ if __name__ == '__main__':
             's_max_epochs': 50, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_crop_data_time_span': None, #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
 
             # Load Radolan
             's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
@@ -651,13 +651,13 @@ if __name__ == '__main__':
             # Splitting training / validation
             's_split_chunk_duration': '1D', # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
             's_ratio_train_val_test': (0.7, 0.15, 0.15), #  These are the splitting ratios between (train, val, test), adding up to 1
-            's_split_seed': 42,  # This is the seede that the train / validation split is generated from (only applies to training of exactly the same time of the data)
+            's_split_seed': 42,  # This is the seed that the train / validation split is generated from (only applies to training of exactly the same time period of the data)
 
-            's_num_workers_data_loader': 16,  # Should correspond to number of cpus, also increases cpu ram
+            's_num_workers_data_loader': 16,  # Should correspond to number of cpus, also increases cpu ram --> FOR DEBUGGING SET TO 0
             's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
-            's_num_gpus': 4,
+            's_num_gpus': 9,
             's_batch_size': 128, #our net on a100: 64  #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
             # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
             # Make this divisible by 8 or best 8 * 2^n
@@ -685,15 +685,13 @@ if __name__ == '__main__':
             's_filter_threshold_mm_rain_each_pixel': 0.1,  # threshold for each pixel filter condition
             's_filter_threshold_percentage_pixels': 0.5,
 
-            's_optical_flow_input': False,  # Not yet working!
-            # batch size 22: Total: 32G, Free: 6G, Used:25G | Batch size 26: Total: 32G, Free: 1G, Used:30G --> vielfache von 8 am besten
             's_save_trained_model': True,  # saves model every epoch
             's_load_model': False,
             's_load_model_name': 'Run_·20230220-191041',
             's_dirs': s_dirs,
             'device': device,
             's_learning_rate': 0.001,  # 0.0001
-            # For some reason the lr scheduler starts one order of magitude below the given learning rate (10^-4, when 10^-3 is given)
+            # For some reason the lr scheduler starts one order of magnitude below the given learning rate (10^-4, when 10^-3 is given)
             's_lr_schedule': True,  # enables lr scheduler, takes s_learning_rate as initial rate
 
             # Loss
@@ -728,7 +726,7 @@ if __name__ == '__main__':
 
     if settings['s_local_machine_mode']:
 
-        settings['s_plotting_only'] = True
+        settings['s_plotting_only'] = False
         settings['s_plot_sim_name'] = 'Run_20241029-160833debug_zarr_saving_batch_size_4_5_epochs_1_hour_5_min_splits' #'Run_20241024-132451x'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
@@ -789,10 +787,9 @@ if __name__ == '__main__':
             train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
             linspace_binning_params,
-            max_num_frames_per_split=1,
-
-            splits_to_predict_on=['val'],
-            ckp_settings = settings,
+            max_num_frames_per_split=15,
+            splits_to_predict_on=['train', 'val'],
+            ckp_settings=settings,
             **settings,
         )
 
@@ -820,9 +817,9 @@ if __name__ == '__main__':
             train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
             linspace_binning_params,
-            max_num_frames_per_split=1,
+            max_num_frames_per_split=15,
 
-            splits_to_predict_on=['val'],
+            splits_to_predict_on=['train', 'val'],
             ckp_settings = settings_loaded,
             **settings_loaded,
         )

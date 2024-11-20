@@ -193,6 +193,7 @@ class PredictionsToZarrCallback(pl.Callback):
 
     def _centercrop_on_last_dim_(self, crop_last_dim_tensor: torch.Tensor, size: int) -> torch.Tensor:
         '''
+        1D Centercrop
         Per default torchvisions centercrop crops along h and w. This function adds a placeholder dimension
         to do centercropping only along the last dim (dim=-1)
         '''
@@ -348,6 +349,8 @@ def predict_and_save_to_zarr(
             ckp_settings,
             **ckp_settings
         )
+
+    # Do the predictions, the predictions will be saved into the empty dataset by the callback
 
     # trainer.predict already does torch.no_grad() and calls model.eval(), (according to o1), so no need for extras here
     # https://lightning.ai/docs/pytorch/stable/deploy/production_basic.html

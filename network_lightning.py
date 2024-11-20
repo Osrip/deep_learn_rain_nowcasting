@@ -85,7 +85,7 @@ class NetworkL(pl.LightningModule):
         self.val_step_num = 0
 
         # This saves the hyperparameters such that they are loaded by Network_l.load_from_checkpoint() directly
-        # without having to reinitialze, see https://github.com/Lightning-AI/pytorch-lightning/issues/4390
+        # without having to reinitialize, see https://github.com/Lightning-AI/pytorch-lightning/issues/4390
         self.save_hyperparameters()
 
 
@@ -219,7 +219,7 @@ class NetworkL(pl.LightningModule):
         Data processing:
             dynamic_samples_dict:
                 - Data normalization (on training data statistics)
-                - Extracting input and target from time space chunk
+                - Extracting input and target from time space sample
                 - pre-process target: --> one hot binning where nans get 0 prob on all bins
                 - pre-processing input --> replaces NaNs with Zeros
                 - center crop target
@@ -249,7 +249,7 @@ class NetworkL(pl.LightningModule):
                 Dictionary, that includes all 'static' variables
                 -- thus space tensor shape: (batch, y | height, x | width)
 
-            General info ..._samples_dict:
+            General info about all ..._samples_dict:
                 - The data is not normalized. All normalization statistics will be calculated
                 - The data has already been augmented, thus len(y, x) = s_input_height_width : no padding!
 
@@ -367,7 +367,5 @@ class NetworkL(pl.LightningModule):
         out_dict['sample_metadata_dict'] = sample_metadata_dict
         return out_dict
 
-        # Hier einen Callback schreiben, der sich alle predictions in eine Liste schreibt und nach bestimmter chunk größe
-        # dann alles auf die Disk schreibt.
 
 

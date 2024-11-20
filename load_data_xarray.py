@@ -1,6 +1,8 @@
 import numpy as np
 import xarray as xr
 import itertools
+
+from dask.graph_manipulation import chunks
 from xarray.core.groupby import DatasetGroupBy
 import random
 from torch.utils.data import Dataset
@@ -85,8 +87,8 @@ class FilteredDatasetXr(Dataset):
         # --- load data ---
         # Radolan
         load_path_radolan = '{}/{}'.format(s_folder_path, s_data_file_name)
+        
         radolan_data = xr.open_dataset(load_path_radolan, engine='zarr', chunks=None)
-        # chunks = None disables dask overhead
 
         # In case only certain time span is used, do some cropping to save RAM
         if s_crop_data_time_span is not None:
@@ -97,7 +99,7 @@ class FilteredDatasetXr(Dataset):
         if data_into_ram:
             radolan_data = radolan_data.load()  # loading into RAM
 
-        # DEM
+        # DEM (always loaded into RAM)
         dem_data = xr.open_dataset(s_dem_path, engine='zarr', chunks=None)
 
         if data_into_ram:
@@ -204,8 +206,8 @@ class FilteredDatasetXr(Dataset):
     ):
         '''
         This function takes in the coordinates 'input_coord'
-        Each input_coord represents one patch that passed the filter.
-        The spatial slices in input_coord have the spatial size of the input + the augmentation padding
+        Each input_coord represents one patch.
+        The spatial slices in input_coord have the spatial size of the input (optionally + the augmentation padding)
         The temporal datetime point gives the time of the target frame (as the filter was applied to the target)
         Therefore to get the inputs we have to go back in time relative to the given time in input_coord
         (depending on lead time and num_input_frames)
@@ -262,7 +264,7 @@ class FilteredDatasetXr(Dataset):
         num_input_frames = int(num_input_frames)
         lead_time = int(lead_time)
 
-        # extract coordinates / coordinat slices
+        # extract coordinates / coordinate slices
         time_target, y_slice, x_slice = sample_coord
 
         # TODO: IS LEAD TIME CORRECT? I had to take input 5min * input frame -1 to not choose 4, how about the lead time?
@@ -485,8 +487,12 @@ def create_patches(
     """
 
     # Loading data into xarray
+    
+    
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
-    data = xr.open_dataset(load_path, engine='zarr')
+
+    data = xr.open_dataset(load_path, engine='zarr', chunks=None)
+    
     if s_crop_data_time_span is not None:
         start_time, stop_time = np.datetime64(s_crop_data_time_span[0]), np.datetime64(s_crop_data_time_span[1])
         crop_slice = slice(start_time, stop_time)
@@ -512,7 +518,7 @@ def create_patches(
     coarse = data_shortened.coarsen(
         y=y_target,
         x=x_target,
-        # time = 1, # No chunking along time dimension
+        # time = 1, # No patching along time dimension
         side="left",  # "left" means that the blocks are aligned to the left of the input
         boundary="trim"  # boundary="trim" removes the last block if it is too small
     )
@@ -864,7 +870,7 @@ def split_data_from_time_keys(
     return xr.concat(group_list, dim='time')
 
 
-def calc_statistics_on_valid_batches(
+def calc_statistics_on_valid_patches(
         patches: xr.Dataset,
         valid_patches_boo: xr.Dataset,
 
