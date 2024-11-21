@@ -177,7 +177,6 @@ class PredictionsToZarrCallback(pl.Callback):
             # if i == 0 and batch_idx == 0:
             #     # --- Initialize the zarr file that we will fill up ---
 
-
             # Append to the zarr file
             # TODO: Initialize zarr from training 'data' ds. Pass x, y index slices with region.
             #  Docu: https://docs.xarray.dev/en/latest/generated/xarray.Dataset.to_zarr.html
