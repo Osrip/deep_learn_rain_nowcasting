@@ -16,7 +16,8 @@ from load_data_xarray import (
     FilteredDatasetXr,
     create_split_time_keys,
     split_data_from_time_keys,
-    patches_boo_to_datetime_idx_permuts
+    patches_boo_to_datetime_idx_permuts,
+    calc_bin_frequencies
 )
 from helper.pre_process_target_input import normalize_data, invnorm_linspace_binning, inverse_normalize_data
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -191,33 +192,14 @@ def preprocess_data(
     )
     linspace_binning_params = linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning_normed
 
-    # Inverse normalize linspace binning as we are operating on unnormalized data in preprocessing
-    linspace_binning_min_unnormed = inverse_normalize_data(
-        linspace_binning_min_normed,
-        mean_filtered_log_data,
-        std_filtered_log_data
+
+    bin_frequencies = calc_bin_frequencies(
+        data,
+        linspace_binning_params,
+        mean_filtered_log_data, std_filtered_log_data,
+        **settings,
     )
 
-    linspace_binning_max_unnormed = inverse_normalize_data(
-        linspace_binning_max_normed,
-        mean_filtered_log_data,
-        std_filtered_log_data
-    )
-
-    linspace_binning_unnormed = inverse_normalize_data(
-        linspace_binning_normed,
-        mean_filtered_log_data,
-        std_filtered_log_data
-    )
-
-    # --- Determine Bin Frequencies ---
-    # groupby_bins requires max to be included in the binnning
-    linspace_binning_with_max_unnormed = np.append(linspace_binning_unnormed, linspace_binning_max_unnormed)
-
-    binned_data = data.groupby_bins(s_data_variable_name, linspace_binning_with_max_unnormed)
-    # Count the number of values in each bin, .count() ignores NaNs.
-    bin_counts = binned_data.count()[s_data_variable_name]
-    # bins with 0 hits are returned as NaN.
 
     # --- INDEX CONVERSION from patch to sample ---
 

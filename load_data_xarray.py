@@ -6,7 +6,7 @@ from dask.graph_manipulation import chunks
 from xarray.core.groupby import DatasetGroupBy
 import random
 from torch.utils.data import Dataset
-from helper.pre_process_target_input import normalize_data
+from helper.pre_process_target_input import normalize_data, inverse_normalize_data
 import torch
 from torchvision import transforms
 import torchvision.transforms.functional as TF
@@ -970,6 +970,67 @@ def calc_linspace_binning(
     #                                endpoint=False)
 
     return linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning
+
+
+def calc_bin_frequencies(
+        data,
+        linspace_binning_params,
+        mean_filtered_log_data, std_filtered_log_data,
+
+        s_data_variable_name,
+        **__,
+):
+    """
+    This function calculates the frequencies of each bin in the data
+    Input:
+        data: xr.DataSet
+            The data over which the binning frequency shall be calculated
+
+    Output:
+        bin_frequencies: np.array
+            Gives the frequency of each bin in the same order as linspace_binning
+            Sums up to 1
+
+    To plot the bin frequencies use scripts_in_debug_mode/plot_bin_frequencies.py and call it and the end of this function
+    """
+
+    linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning_normed = linspace_binning_params
+
+    # Inverse normalize linspace binning as we are operating on unnormalized data in preprocessing
+    linspace_binning_min_unnormed = inverse_normalize_data(
+        linspace_binning_min_normed,
+        mean_filtered_log_data,
+        std_filtered_log_data
+    )
+
+    linspace_binning_max_unnormed = inverse_normalize_data(
+        linspace_binning_max_normed,
+        mean_filtered_log_data,
+        std_filtered_log_data
+    )
+
+    linspace_binning_unnormed = inverse_normalize_data(
+        linspace_binning_normed,
+        mean_filtered_log_data,
+        std_filtered_log_data
+    )
+
+    # --- Determine Bin Frequencies ---
+    # groupby_bins requires max to be included in the binnning
+    linspace_binning_with_max_unnormed = np.append(linspace_binning_unnormed, linspace_binning_max_unnormed)
+
+    binned_data = data.groupby_bins(s_data_variable_name, linspace_binning_with_max_unnormed)
+    # Count the number of values in each bin, .count() ignores NaNs.
+    bin_counts = binned_data.count()[s_data_variable_name]
+    # bins with 0 hits are returned as NaN.
+    bin_frequencies = bin_counts / np.nansum(bin_counts)
+    # convert to np.array
+    bin_frequencies = bin_frequencies.values
+
+    if not np.nansum(bin_frequencies) == 1.0:
+        raise ValueError('bin_frequencies do not add up to one')
+
+    return bin_frequencies
 
 
 def convert_datetime64_array_to_float_tensor(datetime_array):
