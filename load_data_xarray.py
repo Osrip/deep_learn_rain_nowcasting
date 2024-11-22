@@ -913,7 +913,7 @@ def calc_linspace_binning(
         **__,
 ):
     '''
-    Creates a linspace binning in normalized space of the data. The bin  values are also normalized.
+    Creates a linspace binning in normalized space of the data. The bin values are also normalized.
     Creates the vector that gives linspace binning
     Only includes the left edges of the bins.
     The

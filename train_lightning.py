@@ -181,7 +181,46 @@ def preprocess_data(
         'std_filtered_log_data': std_filtered_log_data
     }
 
+    # --- CREATE LINSPACE BINNING ---
+
+    linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning_normed = calc_linspace_binning(
+        data,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        **settings,
+    )
+    linspace_binning_params = linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning_normed
+
+    # Inverse normalize linspace binning as we are operating on unnormalized data in preprocessing
+    linspace_binning_min_unnormed = inverse_normalize_data(
+        linspace_binning_min_normed,
+        mean_filtered_log_data,
+        std_filtered_log_data
+    )
+
+    linspace_binning_max_unnormed = inverse_normalize_data(
+        linspace_binning_max_normed,
+        mean_filtered_log_data,
+        std_filtered_log_data
+    )
+
+    linspace_binning_unnormed = inverse_normalize_data(
+        linspace_binning_normed,
+        mean_filtered_log_data,
+        std_filtered_log_data
+    )
+
+    # --- Determine Bin Frequencies ---
+    # groupby_bins requires max to be included in the binnning
+    linspace_binning_with_max_unnormed = np.append(linspace_binning_unnormed, linspace_binning_max_unnormed)
+
+    binned_data = data.groupby_bins(s_data_variable_name, linspace_binning_with_max_unnormed)
+    # Count the number of values in each bin, .count() ignores NaNs.
+    bin_counts = binned_data.count()[s_data_variable_name]
+    # bins with 0 hits are returned as NaN.
+
     # --- INDEX CONVERSION from patch to sample ---
+
     #  outer coordinates (define patches in 'patches')
     # 1. -> outer indecies (define patches in 'patches')
     # 2. -> global sample coordinates (reshaped to input size + augmentation padding)
@@ -193,7 +232,7 @@ def preprocess_data(
 
     # We use time_datetime instead of time_idx, as the data has already been split, and we thus cannot calculate
     # in time idx space
-    # valid_samples: [[time: np.datetime64, y_idx: int, x_idx: int], ...]
+    # valid_datetime_idx_permuts: [[time: np.datetime64, y_idx (outer patch dim): int, x_idx (outer patch dim): int], ...]
 
     train_valid_datetime_idx_permuts = patches_boo_to_datetime_idx_permuts(train_valid_patches_boo, **settings)
     val_valid_datetime_idx_permuts = patches_boo_to_datetime_idx_permuts(val_valid_patches_boo, **settings)
@@ -234,15 +273,7 @@ def preprocess_data(
         y_input_padding, x_input_padding,
     )
 
-    # --- CREATE LINSPACE BINNING ---
 
-    linspace_binning_min, linspace_binning_max, linspace_binning = calc_linspace_binning(
-        data,
-        mean_filtered_log_data,
-        std_filtered_log_data,
-        **settings,
-    )
-    linspace_binning_params = linspace_binning_min, linspace_binning_max, linspace_binning
 
     #TODO # --- Sample weighting / Class count for random sampler ---
 
@@ -594,7 +625,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
@@ -637,7 +668,7 @@ if __name__ == '__main__':
             's_max_epochs': 50, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2018-03-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_crop_data_time_span': ['2019-01-01T00:00', '2019-03-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
 
             # Load Radolan
             's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
