@@ -3,7 +3,7 @@ from partd.utils import frame
 from load_data_xarray import (
     create_patches,
     all_patches_to_datetime_idx_permuts,
-    patch_indecies_to_sample_coords,
+    patch_indices_to_sample_coords,
     split_data_from_time_keys,
     FilteredDatasetXr
 )
@@ -474,7 +474,7 @@ def sample_coords_for_all_patches(
         )
 
     # ... and calculate the sample coords with respect to the CRS and projection of data_shortened of them
-    train_sample_coords = patch_indecies_to_sample_coords(
+    train_sample_coords = patch_indices_to_sample_coords(
         data_shortened,
         train_datetime_idx_permuts,
         y_target, x_target,
@@ -482,7 +482,7 @@ def sample_coords_for_all_patches(
         y_input_padding, x_input_padding,
     )
 
-    val_sample_coords = patch_indecies_to_sample_coords(
+    val_sample_coords = patch_indices_to_sample_coords(
         data_shortened,
         val_datetime_idx_permuts,
         y_target, x_target,
@@ -490,7 +490,7 @@ def sample_coords_for_all_patches(
         y_input_padding, x_input_padding,
     )
 
-    test_sample_coords = patch_indecies_to_sample_coords(
+    test_sample_coords = patch_indices_to_sample_coords(
         data_shortened,
         test_datetime_idx_permuts,
         y_target, x_target,

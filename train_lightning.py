@@ -11,13 +11,14 @@ from load_data_xarray import (
     create_patches,
     filter_patches,
     calc_statistics_on_valid_patches,
-    patch_indecies_to_sample_coords,
+    patch_indices_to_sample_coords,
     calc_linspace_binning,
     FilteredDatasetXr,
     create_split_time_keys,
     split_data_from_time_keys,
     patches_boo_to_datetime_idx_permuts,
-    calc_bin_frequencies
+    calc_bin_frequencies,
+    create_oversampling_weights,
 )
 from helper.pre_process_target_input import normalize_data, invnorm_linspace_binning, inverse_normalize_data
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -151,7 +152,6 @@ def preprocess_data(
     valid_patches_boo = filter_patches(patches, **settings)
     # valid_patches_boo: Boolean xr.Dataset with y_outer and x_outer defines the valid patches
 
-
     # --- SPLIT DATA ---
     # We are grouping the data (i.e. daily) and then are splitting these (daily) groups into train, val and test set
 
@@ -192,14 +192,12 @@ def preprocess_data(
     )
     linspace_binning_params = linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning_normed
 
-
     bin_frequencies = calc_bin_frequencies(
         data,
         linspace_binning_params,
         mean_filtered_log_data, std_filtered_log_data,
         **settings,
     )
-
 
     # --- INDEX CONVERSION from patch to sample ---
 
@@ -232,14 +230,13 @@ def preprocess_data(
         raise ValueError(
             f'There are {len(duplicates)} duplicates in the split indices that train and val data is created from')
 
-
     # 2. We scale up the patches from target size to input + augmentation size (which is why we need the pixel indecies
     # created in 1.) and return the sample coordiantes together with the time coordinate of the target frame for the sample
     # -> patch_indecies_to_sample_coords takes all these indecies and converts them to the slices that are needed to
     # cut out the patches from data_shortened.
     # sample coords: [[np.datetime64 of target frame, y slice (coordinates), x slice (coordinates)],...]
 
-    train_sample_coords = patch_indecies_to_sample_coords(
+    train_sample_coords = patch_indices_to_sample_coords(
         data_shortened,
         train_valid_datetime_idx_permuts,
         y_target, x_target,
@@ -247,7 +244,7 @@ def preprocess_data(
         y_input_padding, x_input_padding,
     )
 
-    val_sample_coords = patch_indecies_to_sample_coords(
+    val_sample_coords = patch_indices_to_sample_coords(
         data_shortened,
         val_valid_datetime_idx_permuts,
         y_target, x_target,
@@ -255,6 +252,11 @@ def preprocess_data(
         y_input_padding, x_input_padding,
     )
 
+    # TODO: Continue to writer oversampling
+    # create_oversampling_weights(
+    #     train_valid_datetime_idx_permuts,
+    #     patches,
+    # )
 
 
     #TODO # --- Sample weighting / Class count for random sampler ---

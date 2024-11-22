@@ -573,10 +573,6 @@ def filter_patches(
     # --> valid_patches includes only the y_outer and x_outer, where each pair of indecies represents one patch. Its values are boolean, indicating whether or not the outer indecies correspond to a valid or invalid patch.
     valid_patches_boo = patches_percentage_pixels_passed > s_filter_threshold_percentage_pixels
 
-    # get the outer coordinates for all valid blocks (valid_time, valid_x, valid_y)
-    # (valid_patches_boo is boolean, np.nonzero returns the indecies of the pixels that are non-zero, thus True)
-    # valid_target_indecies_outer = np.array(np.nonzero(valid_patches_boo.RV_recalc.values)).T
-
     return valid_patches_boo
 
 
@@ -615,7 +611,7 @@ def patches_boo_to_datetime_idx_permuts(
     return valid_datetime_idx_permuts
 
 
-def patch_indecies_to_sample_coords(
+def patch_indices_to_sample_coords(
         data_shortened,
         valid_samples,
         y_target, x_target,
@@ -623,8 +619,8 @@ def patch_indecies_to_sample_coords(
         y_input_padding, x_input_padding
 ) -> np.array(tuple):
     '''
-    This functions converts the 'valid_target_indecies_outer' which give the outer indecies with respect to 'patches',
-    directly recalculates those to indecies with respect to data_shortened and returns global coordinates that refer
+    This functions converts the 'valid_samples' which give the outer indecies with respect to 'patches',
+    directly recalculates those to indices with respect to data_shortened and returns global coordinates that refer
     to any data that has the same CRS and projection as data_shortened
 
     All patches, where the input frame exceeds the size of data_shortened is dropped at the moment! Keep in mind
@@ -635,7 +631,7 @@ def patch_indecies_to_sample_coords(
             The raw precipitation data, where the first entries have been cut along time dim (according to the length of lead time)
             As we are always using the target frame as a time reference. Thus data shortened starts at the time
             of the first target frame.
-        valid_target_indecies_outer: np.array, outer index space (patch indecies), time in datetime
+        valid_samples: np.array, outer index space (patch indecies), time in datetime
             np.array that includes all index permutation of the valid patches (those patches that passed the filter)
 
             shape: [num_valid_patches, num_dims=3]
@@ -666,7 +662,7 @@ def patch_indecies_to_sample_coords(
             slice of x coordinates],
             ...]
 
-            x and y coordinates refer to the coordinate system with respect to corred CRS and projection in data_shortened,
+            x and y coordinates refer to the coordinate system with respect to correct CRS and projection in data_shortened,
             not to lat/lon and also not to the patch coordinates _inner and _outer
     '''
 
@@ -686,7 +682,6 @@ def patch_indecies_to_sample_coords(
         x_global_left = x_outer_idx * x_target
 
         # Calculate the global indecies / slices for the targets
-        # TODO I think this can be removed in future
         slice_y_global = slice(y_global_upper, y_global_upper + y_target)
         slice_x_global = slice(x_global_left, x_global_left + x_target)
         target_slices = [time_datetime, slice_y_global, slice_x_global]
@@ -702,6 +697,7 @@ def patch_indecies_to_sample_coords(
         input_slices = [time_datetime, y_slice_input, x_slice_input]
 
         # Check if the larger input exceeds size, if not append the patch indecies / slices to the list
+        # TODO: Add padding such that no patches have to be discarded
         if (
                 y_slice_input.start < 0
                 or y_slice_input.stop >= data_shortened.sizes['y']
@@ -994,14 +990,9 @@ def calc_bin_frequencies(
     To plot the bin frequencies use scripts_in_debug_mode/plot_bin_frequencies.py and call it and the end of this function
     """
 
-    linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning_normed = linspace_binning_params
+    # --- Inverse normalize linspace binning as we are operating on unnormalized data in preprocessing ---
 
-    # Inverse normalize linspace binning as we are operating on unnormalized data in preprocessing
-    linspace_binning_min_unnormed = inverse_normalize_data(
-        linspace_binning_min_normed,
-        mean_filtered_log_data,
-        std_filtered_log_data
-    )
+    linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning_normed = linspace_binning_params
 
     linspace_binning_max_unnormed = inverse_normalize_data(
         linspace_binning_max_normed,
@@ -1031,6 +1022,64 @@ def calc_bin_frequencies(
         raise ValueError('bin_frequencies do not add up to one')
 
     return bin_frequencies
+
+
+def create_oversampling_weights(
+    valid_datetime_idx_permuts,
+    patches,
+    bin_frequencies,
+    linspace_binning_params,
+    mean_filtered_log_data,
+    std_filtered_log_data,
+
+    s_data_variable_name,
+    **__
+):
+    # --- Inverse normalize linspace binning as we are operating on unnormalized data in preprocessing ---
+
+    linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning_normed = linspace_binning_params
+
+    linspace_binning_max_unnormed = inverse_normalize_data(
+        linspace_binning_max_normed,
+        mean_filtered_log_data,
+        std_filtered_log_data
+    )
+
+    linspace_binning_unnormed = inverse_normalize_data(
+        linspace_binning_normed,
+        mean_filtered_log_data,
+        std_filtered_log_data
+    )
+
+    # --- Determine Bin Frequencies ---
+    # groupby_bins requires max to be included in the binnning
+    linspace_binning_with_max_unnormed = np.append(linspace_binning_unnormed, linspace_binning_max_unnormed)
+
+
+
+    # groupby_bins requires max to be included in the binnning
+    linspace_binning_with_max_unnormed = np.append(linspace_binning_unnormed, linspace_binning_max_unnormed)
+
+    binned_patches = patches.groupby_bins(s_data_variable_name, s_data_variable_name)
+
+    bin_weights = 1.0 / bin_frequencies
+
+    # TODO: How do I assign the weights to each corresponding pixel in patches?
+
+    # Unfortunately we have to loop here, due to valid_datetime_idx_permuts, which had to be chosen as
+    # .coarsen deletes all metadata of inner dimensions
+    for (time_datetime, y_outer_idx, x_outer_idx) in valid_datetime_idx_permuts:
+        # Doing this weird mix of sel and isel to handle the mix of datetime and indices
+        curr_patch = patches.sel(
+            time = time_datetime,
+            y_outer = patches.y_outer[y_outer_idx],
+            x_outer = patches.x_outer[x_outer_idx],
+        )
+
+    pass
+
+
+
 
 
 def convert_datetime64_array_to_float_tensor(datetime_array):
