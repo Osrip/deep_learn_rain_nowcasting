@@ -1055,12 +1055,22 @@ def create_oversampling_weights(
     # groupby_bins requires max to be included in the binnning
     linspace_binning_with_max_unnormed = np.append(linspace_binning_unnormed, linspace_binning_max_unnormed)
 
+    # binned_patches = patches.groupby_bins(s_data_variable_name, linspace_binning_with_max_unnormed)
+    # binned_patches.groups is a dict of index lists, that refer to the data point in that group.
+    # The indices are 1D and refer to the flattened 'patches' DataSet (which is weird because the online example gives
+    # unflattened indices: https://docs.xarray.dev/en/latest/user-guide/groupby.html
+    # restore_coord_dims=True does not do what it is supposed to for some reason
+    #
+    # for key, group_da in binned_patches:
+    #     group_da.stacked_time_y_outer_y_inner_x_outer_x_inner.values
+    np.digitize()
 
 
-    # groupby_bins requires max to be included in the binnning
-    linspace_binning_with_max_unnormed = np.append(linspace_binning_unnormed, linspace_binning_max_unnormed)
+    # for key in binned_patches.groups.keys():
+    #     indices_1D_group = binned_patches.groups[key]
+    #     [np.unravel_index(en, patches.RV_recalc.shape) for en in indices_1D_group]
+    #     unraveled_indices = np.array(np.unravel_index(indices_1D_group, patches.RV_recalc.shape)).T.tolist()
 
-    binned_patches = patches.groupby_bins(s_data_variable_name, s_data_variable_name)
 
     bin_weights = 1.0 / bin_frequencies
 
@@ -1077,9 +1087,6 @@ def create_oversampling_weights(
         )
 
     pass
-
-
-
 
 
 def convert_datetime64_array_to_float_tensor(datetime_array):

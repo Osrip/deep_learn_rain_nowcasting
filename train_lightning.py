@@ -192,6 +192,8 @@ def preprocess_data(
     )
     linspace_binning_params = linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning_normed
 
+    # --- CALC BIN FREQUENCIES FOR OVERSAMPLING ---
+
     bin_frequencies = calc_bin_frequencies(
         data,
         linspace_binning_params,
@@ -252,12 +254,17 @@ def preprocess_data(
         y_input_padding, x_input_padding,
     )
 
-    # TODO: Continue to writer oversampling
-    # create_oversampling_weights(
-    #     train_valid_datetime_idx_permuts,
-    #     patches,
-    # )
-
+    # --- CREATE OVERSAMPLING ---
+    # TODO: Continue to write oversampling
+    create_oversampling_weights(
+        train_valid_datetime_idx_permuts,
+        patches,
+        bin_frequencies,
+        linspace_binning_params,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        **settings
+    )
 
     #TODO # --- Sample weighting / Class count for random sampler ---
 

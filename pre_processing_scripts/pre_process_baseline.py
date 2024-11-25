@@ -169,6 +169,7 @@ def main(
             )
 
 
+
             # TODO: ! SET ATTRIBUTES (CRS, Projection etc.) !
 
             # Set encoding for the time coordinate
