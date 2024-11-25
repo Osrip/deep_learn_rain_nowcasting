@@ -1050,10 +1050,18 @@ def create_oversampling_weights(
         mean_filtered_log_data,
         std_filtered_log_data
     )
-
     # --- Determine Bin Frequencies ---
     # groupby_bins requires max to be included in the binnning
-    linspace_binning_with_max_unnormed = np.append(linspace_binning_unnormed, linspace_binning_max_unnormed)
+    patches_np = patches[s_data_variable_name].values
+    patches_digitized = np.digitize(patches_np, bins=linspace_binning_unnormed, right=False)
+    bin_weights = 1 / bin_frequencies
+    # right bin edge is not included
+    # TODO: This does not handle NaNs correctly! NaNs simply get the highest bin number
+    # ! THIS MEANS EVERYTHING IS LOADED INTO MEMORY !
+    patches_weighted = bin_weights[patches_digitized-1]
+    patches_weighted[np.isnan(patches_np)] = np.nan
+
+
 
     # binned_patches = patches.groupby_bins(s_data_variable_name, linspace_binning_with_max_unnormed)
     # binned_patches.groups is a dict of index lists, that refer to the data point in that group.
@@ -1063,7 +1071,6 @@ def create_oversampling_weights(
     #
     # for key, group_da in binned_patches:
     #     group_da.stacked_time_y_outer_y_inner_x_outer_x_inner.values
-    np.digitize()
 
 
     # for key in binned_patches.groups.keys():
