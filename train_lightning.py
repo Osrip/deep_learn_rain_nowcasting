@@ -69,6 +69,7 @@ def data_loading(
         (
             train_sample_coords, val_sample_coords,
             train_time_keys, val_time_keys, test_time_keys,
+            train_oversampling_weights,
             radolan_statistics_dict,
             linspace_binning_params
         ) = data_loader_vars
@@ -78,12 +79,14 @@ def data_loading(
 
         (train_sample_coords, val_sample_coords,
         train_time_keys, val_time_keys, test_time_keys,
+        train_oversampling_weights,
         radolan_statistics_dict,
         linspace_binning_params) = preprocess_data(settings, **settings)
 
         data_loader_vars = (
             train_sample_coords, val_sample_coords,
             train_time_keys, val_time_keys, test_time_keys,
+            train_oversampling_weights,
             radolan_statistics_dict,
             linspace_binning_params
         )
@@ -95,8 +98,8 @@ def data_loading(
         training_steps_per_epoch,
         validation_steps_per_epoch
     ) = create_data_loaders(
-        train_sample_coords,
-        val_sample_coords,
+        train_sample_coords, val_sample_coords,
+        train_oversampling_weights,
         radolan_statistics_dict,
         settings,
         **settings
@@ -255,9 +258,19 @@ def preprocess_data(
     )
 
     # --- CREATE OVERSAMPLING ---
-    # TODO: Continue to write oversampling
-    create_oversampling_weights(
+    # THIS USES NUMPY! NOT OPTIMIZED FOR CHUNKING!
+    train_oversampling_weights = create_oversampling_weights(
         train_valid_datetime_idx_permuts,
+        patches,
+        bin_frequencies,
+        linspace_binning_params,
+        mean_filtered_log_data,
+        std_filtered_log_data,
+        **settings
+    )
+
+    val_oversampling_weights = create_oversampling_weights(
+        val_valid_datetime_idx_permuts,
         patches,
         bin_frequencies,
         linspace_binning_params,
@@ -271,14 +284,15 @@ def preprocess_data(
     return (
         train_sample_coords, val_sample_coords,
         train_time_keys, val_time_keys, test_time_keys,
+        train_oversampling_weights, val_oversampling_weights,
         radolan_statistics_dict,
-        linspace_binning_params
+        linspace_binning_params,
     )
 
 
 def create_data_loaders(
-        train_sample_coords,
-        val_sample_coords,
+        train_sample_coords, val_sample_coords,
+        train_oversampling_weights,
         radolan_statistics_dict,
 
         settings,
@@ -308,13 +322,13 @@ def create_data_loaders(
     validation_steps_per_epoch = len(val_data_set)
 
     # TODO: Rewrite oversampling in Xarray!
-    # train_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights_train,
-    #                                                       num_samples=training_steps_per_epoch,
-    #                                                       replacement=True)
+    train_weighted_random_sampler = WeightedRandomSampler(weights=train_oversampling_weights,
+                                                          num_samples=training_steps_per_epoch,
+                                                          replacement=True)
     #
-    # val_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights_val,
-    #                                                     num_samples=validation_steps_per_epoch,
-    #                                                     replacement=True)
+    val_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights_val,
+                                                        num_samples=validation_steps_per_epoch,
+                                                        replacement=True)
 
     # Does this assume same order in weights as in data_set? --> Seems so!
     # replacement=True allows for oversampling and in exchange not showing all samples each epoch
@@ -761,7 +775,7 @@ if __name__ == '__main__':
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
         settings['s_max_epochs'] = 1  # 2
         settings['s_num_gpus'] = 1
-        settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T09:00'] #['2019-01-01T08:00', '2019-01-01T10:00']
+        settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T09:00'] # ['2019-01-01T08:00', '2019-01-01T12:00']
         settings['s_split_chunk_duration'] = '5min' #'15min' #'1h'
         settings['s_ratio_train_val_test'] = (0.4, 0.3, 0.3)
 

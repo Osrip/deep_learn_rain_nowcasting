@@ -71,3 +71,29 @@ plt.yscale('log')
 plt.xlabel('pixel-wise oversampling weight')
 plt.ylabel('# of ocurrences')
 plt.show()
+
+
+
+# -------
+
+"""
+Distribution of the weights of (filtered) patches
+"""
+
+# Flatten the data
+data = np.array(oversampling_weights).flatten()
+# Remove zero or negative values since log scale cannot handle them
+data = data[data > 0]
+# Define 32 logarithmically spaced bins between the smallest and largest data points
+min_data = data.min()
+max_data = data.max()
+bins = np.logspace(np.log10(min_data), np.log10(max_data), 33)  # 32 bins require 33 bin edges
+# Plot the histogram
+plt.hist(data, bins=bins)
+# Set both axes to logarithmic scale
+plt.xscale('log')
+# plt.yscale('log')
+plt.title("Distribution of the weights of (filtered) patches for 4 hours:\n '2019-01-01T08:00', '2019-01-01T12:00'")
+plt.xlabel('patch-wise oversampling weight')
+plt.ylabel('# of ocurrences')
+plt.show()
