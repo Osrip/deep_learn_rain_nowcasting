@@ -5,6 +5,8 @@ import matplotlib.patches as mpatches
 """
 Call this at the end of 
 calc_bin_frequencies()
+Plot in apple note 
+Bin Frequencies for Oversampling in xarray
 """
 
 # Generate bin numbers
@@ -37,4 +39,35 @@ plt.tight_layout()
 plt.savefig('plots/bin_frequencies.png', dpi=200, bbox_inches='tight')
 
 # Display the plot
+plt.show()
+
+
+
+# ---------
+
+'''
+Plot The distribution of the oversampling weights in the data (pixel-wise)
+call in create_oversampling_weights()
+'''
+
+# Assuming patches_weighted is your data array
+# Flatten the data
+data = patches_weighted.flatten()
+
+# Remove zero or negative values since log scale cannot handle them
+data = data[data > 0]
+
+# Define 32 logarithmically spaced bins between the smallest and largest data points
+min_data = data.min()
+max_data = data.max()
+bins = np.logspace(np.log10(min_data), np.log10(max_data), 33)  # 32 bins require 33 bin edges
+
+# Plot the histogram
+plt.hist(data, bins=bins)
+
+# Set both axes to logarithmic scale
+plt.xscale('log')
+plt.yscale('log')
+plt.xlabel('pixel-wise oversampling weight')
+plt.ylabel('# of ocurrences')
 plt.show()

@@ -1051,15 +1051,29 @@ def create_oversampling_weights(
         std_filtered_log_data
     )
     # --- Determine Bin Frequencies ---
-    # groupby_bins requires max to be included in the binnning
-    patches_np = patches[s_data_variable_name].values
-    patches_digitized = np.digitize(patches_np, bins=linspace_binning_unnormed, right=False)
-    bin_weights = 1 / bin_frequencies
-    # right bin edge is not included
-    # TODO: This does not handle NaNs correctly! NaNs simply get the highest bin number
+
     # ! THIS MEANS EVERYTHING IS LOADED INTO MEMORY !
+    patches_np = patches[s_data_variable_name].values
+
+    # Digitize: every pixel gets its corresponding bin index, NaNs are assigned to highest bin
+    patches_digitized = np.digitize(patches_np, bins=linspace_binning_unnormed, right=False)
+
+    # Bin weights are inverse bin frequency
+    bin_weights = 1 / bin_frequencies
+
+    # Access the bin weights from the bin indecies
     patches_weighted = bin_weights[patches_digitized-1]
+
+    # Recreate NaNs
     patches_weighted[np.isnan(patches_np)] = np.nan
+
+    # Assign weights to the patches ds
+    patches['weights'] = xr.DataArray(
+        data=patches_weighted,
+        coords=patches['RV_recalc'].coords,
+        dims=patches['RV_recalc'].dims,
+        attrs={'description': 'Pixel-wise weights, that are used to calculate the oversampling weights'}  # Optional: add any attributes
+    )
 
 
 
@@ -1079,12 +1093,11 @@ def create_oversampling_weights(
     #     unraveled_indices = np.array(np.unravel_index(indices_1D_group, patches.RV_recalc.shape)).T.tolist()
 
 
-    bin_weights = 1.0 / bin_frequencies
-
     # TODO: How do I assign the weights to each corresponding pixel in patches?
 
     # Unfortunately we have to loop here, due to valid_datetime_idx_permuts, which had to be chosen as
     # .coarsen deletes all metadata of inner dimensions
+    oversampling_weights = []
     for (time_datetime, y_outer_idx, x_outer_idx) in valid_datetime_idx_permuts:
         # Doing this weird mix of sel and isel to handle the mix of datetime and indices
         curr_patch = patches.sel(
@@ -1092,8 +1105,10 @@ def create_oversampling_weights(
             y_outer = patches.y_outer[y_outer_idx],
             x_outer = patches.x_outer[x_outer_idx],
         )
+        mean_patch_weight = np.nanmean(curr_patch['weights'])
+        oversampling_weights.append(mean_patch_weight)
 
-    pass
+    return oversampling_weights
 
 
 def convert_datetime64_array_to_float_tensor(datetime_array):
