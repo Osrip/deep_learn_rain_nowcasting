@@ -79,14 +79,14 @@ def data_loading(
 
         (train_sample_coords, val_sample_coords,
         train_time_keys, val_time_keys, test_time_keys,
-        train_oversampling_weights,
+        train_oversampling_weights, val_oversampling_weights,
         radolan_statistics_dict,
         linspace_binning_params) = preprocess_data(settings, **settings)
 
         data_loader_vars = (
             train_sample_coords, val_sample_coords,
             train_time_keys, val_time_keys, test_time_keys,
-            train_oversampling_weights,
+            train_oversampling_weights, val_oversampling_weights,
             radolan_statistics_dict,
             linspace_binning_params
         )
@@ -99,13 +99,13 @@ def data_loading(
         validation_steps_per_epoch
     ) = create_data_loaders(
         train_sample_coords, val_sample_coords,
-        train_oversampling_weights,
+        train_oversampling_weights, val_oversampling_weights,
         radolan_statistics_dict,
         settings,
         **settings
     )
 
-    # This has the same order as input in train_wrapper
+    # ! This has the same order as input in train_wrapper !
     return (
         train_data_loader, validation_data_loader,
         training_steps_per_epoch, validation_steps_per_epoch,
@@ -259,18 +259,8 @@ def preprocess_data(
 
     # --- CREATE OVERSAMPLING ---
     # THIS USES NUMPY! NOT OPTIMIZED FOR CHUNKING!
-    train_oversampling_weights = create_oversampling_weights(
-        train_valid_datetime_idx_permuts,
-        patches,
-        bin_frequencies,
-        linspace_binning_params,
-        mean_filtered_log_data,
-        std_filtered_log_data,
-        **settings
-    )
-
-    val_oversampling_weights = create_oversampling_weights(
-        val_valid_datetime_idx_permuts,
+    train_oversampling_weights, val_oversampling_weights = create_oversampling_weights(
+        (train_valid_datetime_idx_permuts, val_valid_datetime_idx_permuts),
         patches,
         bin_frequencies,
         linspace_binning_params,
@@ -292,12 +282,13 @@ def preprocess_data(
 
 def create_data_loaders(
         train_sample_coords, val_sample_coords,
-        train_oversampling_weights,
+        train_oversampling_weights, val_oversampling_weights,
         radolan_statistics_dict,
 
         settings,
         s_batch_size,
         s_num_workers_data_loader,
+        s_oversample_validation,
         **__
 ):
     '''
@@ -325,12 +316,12 @@ def create_data_loaders(
     train_weighted_random_sampler = WeightedRandomSampler(weights=train_oversampling_weights,
                                                           num_samples=training_steps_per_epoch,
                                                           replacement=True)
-    #
-    val_weighted_random_sampler = WeightedRandomSampler(weights=target_mean_weights_val,
+
+    val_weighted_random_sampler = WeightedRandomSampler(weights=val_oversampling_weights,
                                                         num_samples=validation_steps_per_epoch,
                                                         replacement=True)
 
-    # Does this assume same order in weights as in data_set? --> Seems so!
+    # This assumes same order in weights as in data set
     # replacement=True allows for oversampling and in exchange not showing all samples each epoch
     # num_samples gives number of samples per epoch.
     # Setting to len data_set forces sampler to not show all samples each epoch
@@ -338,8 +329,8 @@ def create_data_loaders(
     # Training data loader
     train_data_loader = DataLoader(
         train_data_set,
-        # sampler=train_weighted_random_sampler,
-        shuffle=True,  # remove this when using the random sampler
+        sampler=train_weighted_random_sampler,
+        # shuffle=True,  # remove this when using the random sampler
         batch_size=s_batch_size,
         drop_last=True,
         num_workers=s_num_workers_data_loader,
@@ -347,25 +338,24 @@ def create_data_loaders(
     )
 
     # Validation data loader
-    # if s_oversample_validation:
-    #     # ... with oversampling:
-    #     validation_data_loader = DataLoader(
-    #         train_data_set,
-    #         sampler=val_weighted_random_sampler,
-    #         batch_size=s_batch_size,
-    #         drop_last=True,
-    #         num_workers=s_num_workers_data_loader,
-    #         pin_memory=True)
-    # else:
+    if s_oversample_validation:
+        # ... with oversampling:
+        validation_data_loader = DataLoader(
+            train_data_set,
+            sampler=val_weighted_random_sampler,
+            batch_size=s_batch_size,
+            drop_last=True,
+            num_workers=s_num_workers_data_loader,
+            pin_memory=True)
+    else:
         # ... without oversampling:
-
-    validation_data_loader = DataLoader(
-        val_data_set,
-        batch_size=s_batch_size,
-        shuffle=True,
-        drop_last=True,
-        num_workers=s_num_workers_data_loader,
-        pin_memory=True)
+        validation_data_loader = DataLoader(
+            val_data_set,
+            batch_size=s_batch_size,
+            shuffle=True,
+            drop_last=True,
+            num_workers=s_num_workers_data_loader,
+            pin_memory=True)
 
     print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
                                                                                        len(validation_data_loader),
@@ -387,7 +377,6 @@ def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_ty
                 std_filtered_log_data_list):
         # Create callback list in the form of [BaselineTrainingLogsCallback(base_train_logger)]
         callback_list_base = [logs_callback(logger)]
-
 
         lk_baseline = LKBaseline(logging_type, mean_filtered_log_data, std_filtered_log_data, **settings)
 
@@ -478,6 +467,8 @@ def train_wrapper(
 
     # Increase time out for weights and biases to prevent time out on galavani
     os.environ["WANDB__SERVICE_WAIT"] = "600"
+
+    # Different project names depending on mode:
     if s_local_machine_mode:
         wandb_project_name = 'local_testing'
     else:

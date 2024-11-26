@@ -1031,7 +1031,7 @@ def calc_bin_frequencies(
 
 
 def create_oversampling_weights(
-    valid_datetime_idx_permuts,
+    list_of_valid_datetime_idx_permuts,
     patches,
     bin_frequencies,
     linspace_binning_params,
@@ -1045,10 +1045,11 @@ def create_oversampling_weights(
     Creates the oversampling weights for the patches. The weights are calculated based on the bin frequencies
     and the binning of the data.
 
-    ! THIS FUNCTION USES NUMPY ARRAYS, NO EASY CHUNKING POSSIBLE !
+    ! THIS FUNCTION USES NUMPY ARRAYS, RAM INTENSIVE, NO EASY CHUNKING POSSIBLE !
 
     Input:
-        valid_datetime_idx_permuts: List of tuples
+        list_of_valid_datetime_idx_permuts: List of valid_datetime_idx_permuts (e.g. train and val)
+            valid_datetime_idx_permuts:
             A list of tuples (time, y_outer, x_outer) for each valid patch:
                 - `np.datetime64 time`: Time coordinate of the valid patch.
                 - `int y_outer`: Spatial index in the y-direction.
@@ -1065,9 +1066,10 @@ def create_oversampling_weights(
             The standard deviation of the filtered log data.
 
     Output:
-        oversampling_weights: List of floats
-            A list of weights for each valid patch.
-            Same order as valid_datetime_idx_permuts.
+        list_of_oversampling_weights: List of oversampling_weights (e.g. train and val)
+            oversampling_weights: List of floats
+                A list of weights for each valid patch.
+                Same order as valid_datetime_idx_permuts.
 
     To plot stuff in debug mode use scripts in: scripts_in_debug_mode/plot_bin_frequencies.py
     """
@@ -1087,6 +1089,7 @@ def create_oversampling_weights(
         std_filtered_log_data
     )
     # --- Determine Bin Frequencies ---
+    # TODO: Do we need TWICE THE RAM of the radolan DATASET here, as we have both the weights and the actual data?
 
     # ! THIS MEANS EVERYTHING IS LOADED INTO MEMORY !
     patches_np = patches[s_data_variable_name].values
@@ -1111,35 +1114,27 @@ def create_oversampling_weights(
         attrs={'description': 'Pixel-wise weights, that are used to calculate the oversampling weights'}  # Optional: add any attributes
     )
 
-    # binned_patches = patches.groupby_bins(s_data_variable_name, linspace_binning_with_max_unnormed)
-    # binned_patches.groups is a dict of index lists, that refer to the data point in that group.
-    # The indices are 1D and refer to the flattened 'patches' DataSet (which is weird because the online example gives
-    # unflattened indices: https://docs.xarray.dev/en/latest/user-guide/groupby.html
-    # restore_coord_dims=True does not do what it is supposed to for some reason
-    #
-    # for key, group_da in binned_patches:
-    #     group_da.stacked_time_y_outer_y_inner_x_outer_x_inner.values
+    list_of_oversampling_weights = []
 
+    # Iterate over train and val data
+    for valid_datetime_idx_permuts in list_of_valid_datetime_idx_permuts:
+        oversampling_weights = []
 
-    # for key in binned_patches.groups.keys():
-    #     indices_1D_group = binned_patches.groups[key]
-    #     [np.unravel_index(en, patches.RV_recalc.shape) for en in indices_1D_group]
-    #     unraveled_indices = np.array(np.unravel_index(indices_1D_group, patches.RV_recalc.shape)).T.tolist()
+        # Iterate over each sample / patch
+        # Unfortunately we have to loop here, due to valid_datetime_idx_permuts, which had to be chosen as
+        # .coarsen deletes all metadata of inner dimensions
+        for (time_datetime, y_outer_idx, x_outer_idx) in valid_datetime_idx_permuts:
+            # Doing a mix of sel and isel to handle the mix of datetime and indices
+            curr_patch = patches.sel(
+                time = time_datetime,
+                y_outer = patches.y_outer[y_outer_idx],
+                x_outer = patches.x_outer[x_outer_idx],
+            )
+            mean_patch_weight = np.nanmean(curr_patch['weights'])
+            oversampling_weights.append(mean_patch_weight)
+        list_of_oversampling_weights.append(np.array(oversampling_weights))
 
-    # Unfortunately we have to loop here, due to valid_datetime_idx_permuts, which had to be chosen as
-    # .coarsen deletes all metadata of inner dimensions
-    oversampling_weights = []
-    for (time_datetime, y_outer_idx, x_outer_idx) in valid_datetime_idx_permuts:
-        # Doing this weird mix of sel and isel to handle the mix of datetime and indices
-        curr_patch = patches.sel(
-            time = time_datetime,
-            y_outer = patches.y_outer[y_outer_idx],
-            x_outer = patches.x_outer[x_outer_idx],
-        )
-        mean_patch_weight = np.nanmean(curr_patch['weights'])
-        oversampling_weights.append(mean_patch_weight)
-
-    return oversampling_weights
+    return list_of_oversampling_weights
 
 
 def convert_datetime64_array_to_float_tensor(datetime_array):
