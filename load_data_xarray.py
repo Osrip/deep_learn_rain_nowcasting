@@ -187,7 +187,6 @@ class FilteredDatasetXr(Dataset):
                     x_slice slice of x coordinates
                     )
         '''
-        # TODO: NOT FINISHED
         sample_coord = self.sample_coords[idx]
         dynamic_samples_dict, static_samples_dict, sample_metadata_dict = self.get_sample_from_coords(
             sample_coord,
@@ -201,7 +200,9 @@ class FilteredDatasetXr(Dataset):
     def get_sample_from_coords(
             self,
             sample_coord: tuple,
+            load_metadata: bool,
             time_step_precipitation_data_minutes=5,
+
     ):
         '''
         This function takes in the coordinates 'input_coord'
