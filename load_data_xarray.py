@@ -200,14 +200,14 @@ class FilteredDatasetXr(Dataset):
     def get_sample_from_coords(
             self,
             sample_coord: tuple,
-            load_metadata: bool,
             time_step_precipitation_data_minutes=5,
 
     ):
         '''
-        This function takes in the coordinates 'input_coord'
-        Each input_coord represents one patch.
-        The spatial slices in input_coord have the spatial size of the input (optionally + the augmentation padding)
+        This function takes in the coordinates 'sample_coord'
+        Each sample_coord represents one patch / sample.
+        The spatial slices in input_coord have the spatial size of the input (optionally + the augmentation padding),
+        which is given by the spacial slices in sample_corrd
         The temporal datetime point gives the time of the target frame (as the filter was applied to the target)
         Therefore to get the inputs we have to go back in time relative to the given time in input_coord
         (depending on lead time and num_input_frames)
@@ -378,6 +378,7 @@ class FilteredDatasetXr(Dataset):
 
         return dynamic_samples_dict, static_samples_dict, sample_metadata_dict
 
+
     def _verify_sample_coord_lengths(self):
         """
         Verify that the length of y and x slices in sample_coord[1] and sample_coord[2]
@@ -415,7 +416,7 @@ class FilteredDatasetXr(Dataset):
             raise ValueError(f"Invalid mode: {self.mode}. Must be 'train' or 'predict'.")
 
         # Perform the checks and raise errors if lengths do not match
-        if y_length != expected_length:
+        if y_length != expected_length or x_length != expected_length:
             raise ValueError(
                 f"In mode '{self.mode}': slice of y coordinates length ({y_length}) does not match expected length "
                 f"({expected_length}). Expected: s_input_height_width + s_input_padding in 'train' mode,"
