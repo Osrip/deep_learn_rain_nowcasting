@@ -115,7 +115,7 @@ class FilteredDatasetXr(Dataset):
 
         # DEM
         # z normalization, without log norm for DEM!
-        # We can do this here on all data as there is no train / val /test split for static data
+        # We can do this here on all data as there is no train / val / test split for static data
         dem_mean = float(np.mean(dem_data)[s_dem_variable_name].values)
         dem_std = float(np.std(dem_data)[s_dem_variable_name].values)
 
@@ -229,7 +229,7 @@ class FilteredDatasetXr(Dataset):
                 dynamic_samples_dict['radolan'] receives special treatment, as this is the data that has been filtered
 
             static_samples_dict:
-                {'variable_name': spacial chunk, np.array}
+                {'variable_name': spatial chunk, np.array}
                 Dictionary, that includes all 'static' variables
                 -- thus space np. arrays  shape: (y | height, x | width)
 
@@ -239,7 +239,6 @@ class FilteredDatasetXr(Dataset):
                 - The data is not normalized. All normalization statistics will be calculated
 
             sample_metadata_dict:
-                TODO: Do we really need lat lon here? Wouldn't x/y be better. Or both?
                 {
                 'x':                        x of (time) space chunk, np.array,
                                             (same as .x attribute of xr.Dataset)
@@ -530,7 +529,8 @@ def create_patches(
 
     # construct a new data set, where the patches are folded into a new dimension
     patches = coarse.construct(
-        y=("y_outer", "y_inner"),  # Those are the patche indecies / the patch dimesnion, each index pair corresponds to one patch
+        y=("y_outer", "y_inner"),  # Those are the patche indecies / the patch dimesnion,
+                                   # each index pair corresponds to one patch
         x=("x_outer", "x_inner"),  # Those are the pixel dimensions of the patches
         # keep_attrs=True          # This would keep attrs (not coordinates!) not needed here.
     )

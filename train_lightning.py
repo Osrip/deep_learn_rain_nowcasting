@@ -174,6 +174,7 @@ def preprocess_data(
     val_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, val_time_keys)
 
     # --- CALC NORMALIZATION STATISTICS on valid training patches---
+    # Only calculating on training data to prevent data leakage
     _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_patches(
         patches,
         train_valid_patches_boo,
