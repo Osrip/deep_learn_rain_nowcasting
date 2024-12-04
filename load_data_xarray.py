@@ -1,3 +1,5 @@
+from multiprocessing.managers import Value
+
 import numpy as np
 import xarray as xr
 import itertools
@@ -19,6 +21,7 @@ class FilteredDatasetXr(Dataset):
             radolan_statistics_dict,
             mode,
             settings,
+            test_variable_alignment_on_first_batch = True,
             data_into_ram=True):
         """
         Input:
@@ -147,8 +150,15 @@ class FilteredDatasetXr(Dataset):
             'dem': {'mean': dem_mean, 'std': dem_std}
         }
 
+        # Check whether the variables (radolan, DEM, ...) are correcly aligned according to their metadata.
+        # E.g. different coordinate systems etc. can lead to misalignment in latitide and longitude
+        self._check_variable_alignment_(num_samples_to_check=8)
+
         # Verify whether sample_coords have been passed according to the mode
-        self._verify_sample_coord_lengths()
+        self._verify_sample_coord_lengths_()
+
+    def __len__(self):
+        return len(self.sample_coords)
 
     def __getitem__(self, idx):
         if self.mode == 'train':
@@ -165,9 +175,10 @@ class FilteredDatasetXr(Dataset):
         More detailed output information see get_sample_from_coords()
         '''
         sample_coord = self.sample_coords[idx]
-        # TODO: !!! REWRITE get_sample_from_coords FOR TRAINING SUCH THAT METADATA IS NOT LOADED
-        dynamic_samples_dict, static_samples_dict, sample_metadata_dict = self.get_sample_from_coords(
+        dynamic_samples_dict, static_samples_dict = self.get_sample_from_coords(
             sample_coord,
+            load_metadata = False,
+            test_metadata_alignment = False
         )
         # We are augmenting here, before batching, so that each individual sample gets its
         # own random augmentation
@@ -190,21 +201,42 @@ class FilteredDatasetXr(Dataset):
         sample_coord = self.sample_coords[idx]
         dynamic_samples_dict, static_samples_dict, sample_metadata_dict = self.get_sample_from_coords(
             sample_coord,
+            load_metadata=True,
+            test_metadata_alignment=False,
         )
 
         return dynamic_samples_dict, static_samples_dict, sample_metadata_dict
 
-    def __len__(self):
-        return len(self.sample_coords)
+    def _check_variable_alignment_(self, num_samples_to_check):
+        """
+        This checks whether all variables are aligned according to their metadata
+        Includes both, dynamic and static variables.
+
+        Input:
+            num_samples_to_check: int
+                The number of random samples that are checked for alignment
+        """
+        for i in range(num_samples_to_check)    :
+            idx = np.random.randint(self.__len__())
+
+            sample_coord = self.sample_coords[idx]
+            # This throws errors itself if there is misalignment:
+            _, _, _ = self.get_sample_from_coords(
+                sample_coord,
+                load_metadata=True,
+                test_metadata_alignment=True,
+            )
 
     def get_sample_from_coords(
             self,
             sample_coord: tuple,
             time_step_precipitation_data_minutes=5,
+            load_metadata = True,
+            test_metadata_alignment = True,
 
     ):
         '''
-        This function takes in the coordinates 'sample_coord'
+        This function takes in the sample coordinates 'sample_coord'
         Each sample_coord represents one patch / sample.
         The spatial slices in input_coord have the spatial size of the input (optionally + the augmentation padding),
         which is given by the spacial slices in sample_corrd
@@ -219,16 +251,22 @@ class FilteredDatasetXr(Dataset):
                 )
             time_step_precipitation_data_minutes: int, default = 5
                 The time step of the precipitation data in minutes
+            load_metadata: Boolean
+                If this is True, metadata is loaded efficiently from the first variable
+                (should be the same for all variables)
+            test_metadata_alignment: Boolean
+                This tests whether all variables have the same metadata (allowing a certain tolerance)
+                This slows down the code as the metadata for all variables has to be loaded.
 
         Output:
-            dynamic_samples_dict:
+            dynamic_variables_dict:
                 {'variable_name': timespace chunk that includes input frames and target frame, np.array}
                 Dictionary, that includes all 'dynamic' variables
                 -- thus time-space np.arrays shape: (time, y | height, x | width)
 
-                dynamic_samples_dict['radolan'] receives special treatment, as this is the data that has been filtered
+                dynamic_variables_dict['radolan'] receives special treatment, as this is the data that has been filtered
 
-            static_samples_dict:
+            static_variables_dict:
                 {'variable_name': spatial chunk, np.array}
                 Dictionary, that includes all 'static' variables
                 -- thus space np. arrays  shape: (y | height, x | width)
@@ -238,7 +276,7 @@ class FilteredDatasetXr(Dataset):
                  to torch.Tensor
                 - The data is not normalized. All normalization statistics will be calculated
 
-            sample_metadata_dict:
+            sample_metadata_dict: (just returned in case load_metadata == True)
                 {
                 'x':                        x of (time) space chunk, np.array,
                                             (same as .x attribute of xr.Dataset)
@@ -254,6 +292,10 @@ class FilteredDatasetXr(Dataset):
                                             convert_float_tensor_to_datetime64_array()
                 }
         '''
+
+        if test_metadata_alignment and not load_metadata:
+            raise ValueError('Can only test for metadata alignment, when metadata is loaded. Set "load_metadata"'
+                             'to True')
 
         num_input_frames = self.settings['s_num_input_time_steps']
         s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
@@ -280,105 +322,196 @@ class FilteredDatasetXr(Dataset):
 
         time_slice = slice(time_start, time_end)
 
-        # -- We load the samples. At the same time we check whether the samples are coherent and extract metadata --
-        # TODO: Extracting and comparing all metadata may be too slow, particularly as we are doing it not in xr but torch
-        #  does the job for now but MAKE THIS NICER! -> externalize methods
-        #  ! ONLY EXTRACT METADATA FOR PREDICTION TO SAVE LOADING TIME IN TRAINING! -> two methods for train and predict?
+        # -- The different variables of the samples are loaded --
 
-        # Load dynamic samples (samples with time dimension)
-        dynamic_samples_dict = {}
-        for i, (key, dynamic_data) in enumerate(self.dynamic_data_dict.items()):
-            spacetime_sample = dynamic_data.sel(
+        # Iterate through all dynamic variables of the sample (samples with time dimension)
+        dynamic_variables_dict = {}
+        for i, (key, dynamic_data_one_variable) in enumerate(self.dynamic_data_dict.items()):
+            spacetime_variable = dynamic_data_one_variable.sel(
                 time=time_slice,
                 y=y_slice,
                 x=x_slice,
             )
             variable_name = self.dynamic_variable_name_dict[key]
 
-            dynamic_sample_values = spacetime_sample[variable_name].values
-            dynamic_sample_values = torch.from_numpy(dynamic_sample_values)
-            dynamic_samples_dict[key] = dynamic_sample_values
+            dynamic_variable_values = spacetime_variable[variable_name].values
+            dynamic_variable_values = torch.from_numpy(dynamic_variable_values)
+            dynamic_variables_dict[key] = dynamic_variable_values
 
-            if not np.shape(dynamic_sample_values)[0] == num_input_frames + lead_time + 1:
+            # Check whether len of time dim is correct.
+            if not np.shape(dynamic_variable_values)[0] == num_input_frames + lead_time + 1:
                 raise ValueError('The time dim of the sample values is not as expected, check the slicing')
 
-            # Extract lat / lon / time for metadata and check whether samples are cut out coherently
-            lat = spacetime_sample.latitude.values
-            lat = torch.from_numpy(lat)
-            lon = spacetime_sample.longitude.values
-            lon = torch.from_numpy(lon)
-            x = spacetime_sample.x.values
-            x = torch.from_numpy(x)
-            y = spacetime_sample.y.values
-            y = torch.from_numpy(y)
-            # Convert time to float tensor, such that it can be passed through dataloader
-            time_points_of_spacetime = spacetime_sample.time.values
-            time_points_of_spacetime = convert_datetime64_array_to_float_tensor(time_points_of_spacetime)
+            # Load metadata, but not test for alignment of the different variables:
+            if load_metadata and not test_metadata_alignment:
+                # If we are not testing the alignment of the metadata and thus assume they are perfectly aligned,
+                # we can simply return the metadata values for the first variable.
+                if i == 0:
+                    first_variable_metadata_dict = self._load_metadata_from_variable_(spacetime_variable)
+                    sample_metadata_dict = first_variable_metadata_dict
 
-            if i != 0:
-                tolerance = 1e-2  # This should correspond to roughly 1 km error
-                if not torch.allclose(lat, lat_old, atol=tolerance) or not torch.allclose(lon, lon_old, atol=tolerance):
-                    raise ValueError('Lat / Lon do not match between different variables')
+            # Load metadata and test for alignment
+            if load_metadata and test_metadata_alignment:
+                dynamic_variable_metadata_dict = self._load_metadata_from_variable_(spacetime_variable,
+                                                                                    mode='dynamic')
+                if i == 0:
+                    # The first metadata_dict will be the one to be returned by the function (arbitrary)
+                    sample_metadata_dict = dynamic_variable_metadata_dict
 
-                if not torch.allclose(x, x_old, atol=tolerance) or not torch.allclose(y, y_old, atol=tolerance):
-                    raise ValueError('x / y do not match between different variables')
+                # Start comparing meta data:
+                if i != 0:
+                    is_aligned = self._is_metadata_aligned_(dynamic_variable_metadata_dict,
+                                                            previous_variable_metadata_dict,
+                                                            compare_time=True)
+                    if not is_aligned:
+                        raise ValueError('The variables of one sample are not aligned')
+                previous_variable_metadata_dict = dynamic_variable_metadata_dict
 
-            lat_old = lat
-            lon_old = lon
-
-            x_old = x
-            y_old = y
-
-        # We transfer lat / lon of dynamic samples to check coherence with static samples
+        # We transfer previous_variable_metadata_dict of dynamic samples to check coherence with static samples
 
         # Load static samples:
-        static_samples_dict = {}
-        for key, static_data in self.static_data_dict.items():
-            static_sample = static_data.sel(
+        static_variables_dict = {}
+        for key, static_variable in self.static_data_dict.items():
+            static_variable = static_variable.sel(
                 y=y_slice,
                 x=x_slice,
             )
+
             variable_name = self.static_variable_name_dict[key]
-            static_sample_values = static_sample[variable_name].values
-            static_sample_values = torch.from_numpy(static_sample_values)
-            static_samples_dict[key] = static_sample_values
+            static_variable_values = static_variable[variable_name].values
+            static_variable_values = torch.from_numpy(static_variable_values)
+            static_variables_dict[key] = static_variable_values
 
-            # Extract lat / lon for metadata and to check whether samples are cut out coherently
-            lat = static_sample.latitude.values
-            lat = torch.from_numpy(lat)
-            lon = static_sample.longitude.values
-            lon = torch.from_numpy(lon)
+            if load_metadata and test_metadata_alignment:
+                static_variable_metadata_dict = self._load_metadata_from_variable_(static_variable,
+                                                                                   mode='static')
+                is_aligned = self._is_metadata_aligned_(
+                    static_variable_metadata_dict,
+                    previous_variable_metadata_dict,
+                    compare_time=False
+                )
 
-            x = spacetime_sample.x.values
-            x = torch.from_numpy(x)
-            y = spacetime_sample.y.values
-            y = torch.from_numpy(y)
+                if not is_aligned:
+                    raise ValueError('The variables of one sample are not aligned')
 
-            tolerance = 1e-2  # This should correspond to roughly 1 km error (one lat/lon degree ~ 111km)
-            if not torch.allclose(lat, lat_old, atol=tolerance) or not torch.allclose(lon, lon_old, atol=tolerance):
-                raise ValueError('Lat / Lon do not match between different variables')
+                previous_variable_metadata_dict = static_variable_metadata_dict
 
-            if not torch.allclose(x, x_old, atol=tolerance) or not torch.allclose(y, y_old, atol=tolerance):
-                raise ValueError('x / y do not match between different variables')
+        if load_metadata:
+            return dynamic_variables_dict, static_variables_dict, sample_metadata_dict
+        else:
+            return dynamic_variables_dict, static_variables_dict,
 
-            lat_old = lat
-            lon_old = lon
+    @staticmethod
+    def _load_metadata_from_variable_(spacetime_variable, mode='dynamic'):
+        """
+        Used in get_sample_from_coords() when load_metadata = True
+        This loads metadata from a spacetime_variable
 
-            x_old = x
-            y_old = y
+        Input:
+            spacetime_variable: np.Array shape: xr.DataSet
+                This is the spacetime sample for one variable (like radolan, satellite wavelength, ...)
+            mode: str
+                can be either 'dynamic' or 'static'
+                In case of 'static', time is not loaded
+        """
+        # Initialize metadata dictionary
+        metadata = {}
 
-        sample_metadata_dict = {
-            'y': y,
-            'x': x,
-            'latitude': lat,
-            'longitude': lon,
-            'time_points_of_spacetime': time_points_of_spacetime
-        }
+        # Extract y and add to metadata
+        y = spacetime_variable.y.values
+        y = torch.from_numpy(y)
+        metadata['y'] = y
 
-        return dynamic_samples_dict, static_samples_dict, sample_metadata_dict
+        # Extract x and add to metadata
+        x = spacetime_variable.x.values
+        x = torch.from_numpy(x)
+        metadata['x'] = x
 
+        # Extract latitude and add to metadata
+        lat = spacetime_variable.latitude.values
+        lat = torch.from_numpy(lat)
+        metadata['latitude'] = lat
 
-    def _verify_sample_coord_lengths(self):
+        # Extract longitude and add to metadata
+        lon = spacetime_variable.longitude.values
+        lon = torch.from_numpy(lon)
+        metadata['longitude'] = lon
+
+        # If mode is 'dynamic', extract time and add to metadata
+        if mode == 'dynamic':
+            # Convert time to float tensor, such that it can be passed through dataloader
+            time_points_of_spacetime = spacetime_variable.time.values
+            time_points_of_spacetime = convert_datetime64_array_to_float_tensor(time_points_of_spacetime)
+            metadata['time_points_of_spacetime'] = time_points_of_spacetime
+
+        return metadata
+
+    @staticmethod
+    def _is_metadata_aligned_(
+            sample_metadata_dict_1,
+            sample_metadata_dict_2,
+            compare_time=True,
+            spatial_tolerance=1e-2,  # Approximately corresponds to 1 km error
+            temporal_tolerance_in_seconds=40,
+    ):
+        """
+        This takes in two sample_metadata_dicts and checks whether the metadata is the same (with small
+        tolerance). Used in get_sample_from_coords()
+
+        Input:
+            sample_metadata_dict_1 / sample_metadata_dict_2: Dictionary
+                {
+                    'y': y_values,
+                    'x': x_values,
+                    'latitude': lat_values,
+                    'longitude': lon_values,
+                    'time_points_of_spacetime': time_values,  # Only required if compare_time=True
+                                                                # This is float64 (converted from np.datetime64)
+                }
+
+            compare_time: bool
+                If True, 'time_points_of_spacetime' is also checked.
+        """
+
+        # Compare 'latitude'
+        lat1 = sample_metadata_dict_1['latitude']
+        lat2 = sample_metadata_dict_2['latitude']
+        if not torch.allclose(lat1, lat2, atol=spatial_tolerance):
+            raise ValueError('Latitude values do not match between the two samples.')
+
+        # Compare 'longitude'
+        lon1 = sample_metadata_dict_1['longitude']
+        lon2 = sample_metadata_dict_2['longitude']
+        if not torch.allclose(lon1, lon2, atol=spatial_tolerance):
+            raise ValueError('Longitude values do not match between the two samples.')
+
+        # Compare 'x' coordinates
+        x1 = sample_metadata_dict_1['x']
+        x2 = sample_metadata_dict_2['x']
+        if not torch.allclose(x1, x2, atol=spatial_tolerance):
+            raise ValueError('x coordinates do not match between the two samples.')
+
+        # Compare 'y' coordinates
+        y1 = sample_metadata_dict_1['y']
+        y2 = sample_metadata_dict_2['y']
+        if not torch.allclose(y1, y2, atol=spatial_tolerance):
+            raise ValueError('y coordinates do not match between the two samples.')
+
+        # Optionally compare 'time_points_of_spacetime'
+        if compare_time:
+            time1 = sample_metadata_dict_1['time_points_of_spacetime']
+            time2 = sample_metadata_dict_2['time_points_of_spacetime']
+
+            # Convert 40 seconds to nanoseconds since time is in datetime64[ns] converted to float64
+            temporal_tolerance = temporal_tolerance_in_seconds * 1e9  # 40 seconds in nanoseconds
+
+            if not torch.allclose(time1, time2, atol=temporal_tolerance):
+                raise ValueError('Time points do not match between the two samples within 40 seconds tolerance.')
+
+        # If all comparisons pass, return True
+        return True
+
+    def _verify_sample_coord_lengths_(self):
         """
         Verify that the length of y and x slices in sample_coord[1] and sample_coord[2]
         match the expected lengths based on the mode and settings.
