@@ -323,7 +323,7 @@ def predict_and_save_to_zarr(
     trainer.checkpoint_name = checkpoint_name
 
     # We need to pass the split patches to initialize the time dim of the zarr
-    pacthes_dict = {'train': patches_train,
+    patches_dict = {'train': patches_train,
                       'val': patches_val,
                       'test': patches_test}
 
@@ -332,7 +332,7 @@ def predict_and_save_to_zarr(
         pred_zarr_file_name = f'model_predictions_{data_loader_name}_{checkpoint_name}.zarr'
         pred_save_zarr_path = f'{prediction_dir}/{pred_zarr_file_name}'
 
-        patches = pacthes_dict[data_loader_name]
+        patches = patches_dict[data_loader_name]
 
         initialize_empty_prediction_dataset(
             orig_data,
@@ -633,6 +633,7 @@ def ckpt_to_pred(
     checkpoint_names = get_checkpoint_names(save_dir)
 
     # Only do prediction for last checkpoint
+    # TODO Make this best checkpoint on validation loss
     checkpoint_name_to_predict = [name for name in checkpoint_names if 'last' in name][0]
 
     # Get the sample coords for all -unfiltered- patches
