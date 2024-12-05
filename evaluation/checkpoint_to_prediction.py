@@ -7,7 +7,6 @@ from load_data_xarray import (
     split_data_from_time_keys,
     FilteredDatasetXr
 )
-from helper.checkpoint_handling import load_from_checkpoint, get_checkpoint_names
 from helper.memory_logging import print_ram_usage
 import torch
 import torchvision.transforms as T
@@ -573,13 +572,14 @@ def create_predict_dataloaders(
 
 
 def ckpt_to_pred(
+        model_ckpt,
+        checkpoint_name,
         train_time_keys, val_time_keys, test_time_keys,
         radolan_statistics_dict,
         linspace_binning_params,
         splits_to_predict_on,
 
         ckp_settings,  # Make sure to pass the settings of the checkpoint
-        s_dirs,
 
         max_num_frames_per_split=None,
 
@@ -628,13 +628,6 @@ def ckpt_to_pred(
 
     # For now, with fixed lead time simply create lead times like this:
     lead_times = [ckp_settings['s_num_lead_time_steps']]
-    save_dir = s_dirs['save_dir']
-
-    checkpoint_names = get_checkpoint_names(save_dir)
-
-    # Only do prediction for last checkpoint
-    # TODO Make this best checkpoint on validation loss
-    checkpoint_name_to_predict = [name for name in checkpoint_names if 'last' in name][0]
 
     # Get the sample coords for all -unfiltered- patches
     (
@@ -656,24 +649,18 @@ def ckpt_to_pred(
         **ckp_settings,
     )
 
-    model = load_from_checkpoint(
-        save_dir,
-        checkpoint_name_to_predict,
 
-        ckp_settings,
-        **ckp_settings,
-    )
 
     data_loader_dict = {'train': train_data_loader_predict,
                         'val': val_data_loader_predict,
                         'test': test_data_loader_predict}
 
     predict_and_save_to_zarr(
-        model,
+        model_ckpt,
         patches_train, patches_val, patches_test,
         splits_to_predict_on,
         data_loader_dict,
-        checkpoint_name_to_predict,
+        checkpoint_name,
         linspace_binning_params,
         lead_times,
         t0_first_input_frame,

@@ -1,9 +1,5 @@
 import os
-# os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 import torch
-import torch.nn as nn
-import torchvision.transforms as T
-# from modules_blocks import Network
 from network_lightning import NetworkL
 import datetime
 
@@ -36,10 +32,10 @@ from logger import (ValidationLogsCallback,
                     create_loggers)
 from baselines import LKBaseline
 from plotting.plotting_pipeline import plot_logs_pipeline
-from plotting.calc_and_plot_from_checkpoint import plot_from_checkpoint_wrapper
 from helper.sigma_scheduler_helper import create_scheduler_mapping
 from helper.helper_functions import no_special_characters, create_save_name_for_data_loader_vars
-import copy
+from helper.checkpoint_handling import load_from_checkpoint, get_checkpoint_names
+
 import warnings
 from tests.test_basic_functions import test_all
 from pytorch_lightning.loggers import WandbLogger
@@ -776,7 +772,7 @@ if __name__ == '__main__':
     if settings['s_local_machine_mode']:
 
         settings['s_plotting_only'] = False
-        settings['s_plot_sim_name'] = 'Run_20241029-160833debug_zarr_saving_batch_size_4_5_epochs_1_hour_5_min_splits' #'Run_20241024-132451x'
+        settings['s_plot_sim_name'] = 'Run_20241205-145838oversampling_2_months_run' #'Run_20241024-132451x'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
@@ -835,15 +831,37 @@ if __name__ == '__main__':
             settings, **settings
         )
 
+        save_dir = settings['s_dirs']['save_dir']
+
+        checkpoint_names = get_checkpoint_names(save_dir)
+
+        # Only do prediction for last checkpoint
+        # TODO Make this best checkpoint on validation loss
+        checkpoint_name = [name for name in checkpoint_names if 'last' in name][0]
+
+        model_ckpt = load_from_checkpoint(
+            save_dir,
+            checkpoint_name,
+
+            settings,
+            **settings,
+        )
+
+        # --- Generate predictions that are saved to a zarr ---
+
         ckpt_to_pred(
+            model_ckpt,
+            checkpoint_name,
             train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
             linspace_binning_params,
             max_num_frames_per_split=15,
-            splits_to_predict_on=['train', 'val'],
-            ckp_settings=settings,
+
+            splits_to_predict_on=['val'],
+            ckp_settings = settings,
             **settings,
         )
+
 
     else:
         # --- Plotting only ---
@@ -858,6 +876,7 @@ if __name__ == '__main__':
         # Pass settings of the loaded run to get the according data_set_vars
         data_set_vars = data_loading(settings_loaded, **settings_loaded)
 
+
         (train_data_loader, validation_data_loader,
         training_steps_per_epoch, validation_steps_per_epoch,
         train_time_keys, val_time_keys, test_time_keys,
@@ -865,13 +884,35 @@ if __name__ == '__main__':
         radolan_statistics_dict,
         linspace_binning_params,) = data_set_vars
 
+        # --- Get model checkpoint ---
+
+        save_dir = settings_loaded['s_dirs']['save_dir']
+
+        checkpoint_names = get_checkpoint_names(save_dir)
+
+        # Only do prediction for last checkpoint
+        # TODO Make this best checkpoint on validation loss
+        checkpoint_name = [name for name in checkpoint_names if 'last' in name][0]
+
+        model_ckpt = load_from_checkpoint(
+            save_dir,
+            checkpoint_name,
+
+            settings_loaded,
+            **settings_loaded,
+        )
+
+        # --- Generate predictions that are saved to a zarr ---
+
         ckpt_to_pred(
+            model_ckpt,
+            checkpoint_name,
             train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
             linspace_binning_params,
             max_num_frames_per_split=15,
 
-            splits_to_predict_on=['train', 'val'],
+            splits_to_predict_on=['val'],
             ckp_settings = settings_loaded,
             **settings_loaded,
         )
