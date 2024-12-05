@@ -150,7 +150,9 @@ class FilteredDatasetXr(Dataset):
             'dem': {'mean': dem_mean, 'std': dem_std}
         }
 
-        # Check whether the variables (radolan, DEM, ...) are correcly aligned according to their metadata.
+        # Check whether the variables (radolan, DEM, ...) are correcly aligned according to their metadata
+        # (y, x, lat, lon, time).
+        # We do that once during initialization
         # E.g. different coordinate systems etc. can lead to misalignment in latitide and longitude
         self._check_variable_alignment_(num_samples_to_check=8)
 
@@ -187,7 +189,7 @@ class FilteredDatasetXr(Dataset):
 
     def _getitem_predict_(self, idx):
         '''
-        This is the getitem method for evaluation, where the coordinate is also returned
+        This is the getitem method for evaluation, where the metadata is also returned
         Output: (also see get_sample_from_coords())
             dynamic_samples_dict: {'variable_name': timespace chunk that includes input frames and target frame, np.array}
             static_samples_dict: {'variable_name': spacial chunk, np.array}
@@ -220,7 +222,7 @@ class FilteredDatasetXr(Dataset):
             idx = np.random.randint(self.__len__())
 
             sample_coord = self.sample_coords[idx]
-            # This throws errors itself if there is misalignment:
+            # This throws errors itself if there is misalignment when test_metadata_alignment=True
             _, _, _ = self.get_sample_from_coords(
                 sample_coord,
                 load_metadata=True,
