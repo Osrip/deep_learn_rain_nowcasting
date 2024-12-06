@@ -20,7 +20,6 @@ class PredictionsToZarrCallback(pl.Callback):
 
     def __init__(
         self,
-        orig_training_data,
         t0_first_input_frame,
         linspace_binning_params,
         lead_times,
@@ -49,7 +48,6 @@ class PredictionsToZarrCallback(pl.Callback):
         self.linspace_binning_params = linspace_binning_params
         self.lead_times = lead_times
         self.t0_first_input_frame = t0_first_input_frame
-        self.orig_training_data = orig_training_data  # TODO remove this, this is not used!
 
     def on_predict_batch_end(
         self,
@@ -268,6 +266,7 @@ def predict_and_save_to_zarr(
     load_path_orig_data = '{}/{}'.format(s_folder_path, s_data_file_name)
 
     # Load original data and crop it if that setting was active during training
+    # This is needed to initialize the prediction zarr. The actual data is loaded directly via the data set.
     orig_data = xr.open_dataset(load_path_orig_data, engine='zarr')
     if s_crop_data_time_span is not None:
         start_time, stop_time = np.datetime64(s_crop_data_time_span[0]), np.datetime64(s_crop_data_time_span[1])
@@ -280,7 +279,6 @@ def predict_and_save_to_zarr(
     data_loader_list = [data_loader_dict[key] for key in splits_to_predict_on]
 
     predictions_to_zarr_callback = PredictionsToZarrCallback(
-            orig_data,
             t0_first_input_frame,
             linspace_binning_params,
             lead_times,
