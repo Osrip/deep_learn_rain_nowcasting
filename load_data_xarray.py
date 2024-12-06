@@ -100,7 +100,7 @@ class FilteredDatasetXr(Dataset):
         # --- load data ---
         # Radolan
         load_path_radolan = '{}/{}'.format(s_folder_path, s_data_file_name)
-        
+
         radolan_data = xr.open_dataset(load_path_radolan, engine='zarr', chunks=None)
 
         # In case only certain time span is used, do some cropping to save RAM
@@ -290,61 +290,68 @@ class FilteredDatasetXr(Dataset):
 
     ):
         '''
-        This function takes in the sample coordinates 'sample_coord'
+        This function takes in the sample coordinates 'sample_coord'.
         Each sample_coord represents one patch / sample.
-        The spatial slices in input_coord have the spatial size of the input (optionally + the augmentation padding),
-        which is given by the spacial slices in sample_corrd
-        The temporal datetime point gives the time of the target frame (as the filter was applied to the target)
-        Therefore to get the inputs we have to go back in time relative to the given time in input_coord
-        (depending on lead time and num_input_frames)
+
+        The spatial slices in sample_coord have the spatial size of the input
+        (optionally + the augmentation padding), which is given by the spatial slices in sample_coord.
+
+        The temporal datetime point gives the time of the target frame (as the filter was applied to the target).
+        Therefore, to get the inputs, we have to go back in time relative to the given time in sample_coord
+        (depending on lead time and num_input_frames).
+
         Input:
             sample_coord: tuple(
                 time: np.datetime64,
-                y_slice: slice of y coordinates, (s_input_height_width + s_padding or s_input_height_width)
-                x_slice slice of x coordinates (s_input_height_width + s_padding or s_input_height_width)
-                )
+                y_slice: slice of y coordinates, (s_input_height_width + s_padding or s_input_height_width),
+                x_slice: slice of x coordinates (s_input_height_width + s_padding or s_input_height_width)
+            )
             time_step_precipitation_data_minutes: int, default = 5
-                The time step of the precipitation data in minutes
+                The time step of the precipitation data in minutes.
             load_metadata: Boolean
-                If this is True, metadata is loaded efficiently from the first variable
-                (should be the same for all variables)
+                If True, metadata is efficiently loaded from the first variable.
             test_metadata_alignment: Boolean
-                This tests whether all variables have the same metadata (allowing a certain tolerance)
-                This slows down the code as the metadata for all variables has to be loaded.
+                If True, tests whether all variables have the same metadata (allowing a certain tolerance).
+                Slows down the code as metadata for all variables is loaded and compared.
 
         Output:
             dynamic_variables_dict:
-                {'variable_name': timespace chunk that includes input frames and target frame, np.array}
-                Dictionary, that includes all 'dynamic' variables
-                -- thus time-space np.arrays shape: (time, y | height, x | width)
-
-                dynamic_variables_dict['radolan'] receives special treatment, as this is the data that has been filtered
+                {'variable_name': timespace chunk that includes input frames and target frame, torch.Tensor}
+                Dictionary that includes all 'dynamic' variables (with time dimension).
+                Shape: (time, y, x)
+                dynamic_variables_dict['radolan'] receives special treatment.
 
             static_variables_dict:
-                {'variable_name': spatial chunk, np.array}
-                Dictionary, that includes all 'static' variables
-                -- thus space np. arrays  shape: (y | height, x | width)
+                {'variable_name': spatial chunk, torch.Tensor}
+                Dictionary that includes all 'static' variables (without time dimension).
+                Shape: (y, x)
 
-            General info ..._samples_dict:
+            baseline_variables_dict:
+                Only returned if baseline data is loaded and mode == 'baseline'.
+                {'baseline': timespace chunk, torch.Tensor}
+                Shape: (lead_time, y, x)
+                # TODO: IS THIS ASSOCIATED TO RIGHT TIME? CHECK THIS!
+
+            sample_metadata_dict: (only returned if mode == 'predict' or if load_metadata == True)
+                {
+                    'x':                        np.array, x coordinates,
+                    'y':                        np.array, y coordinates,
+                    'latitude':                 np.array, latitudes,
+                    'longitude':                np.array, longitudes,
+                    'time_points_of_spacetime': torch.Tensor converted times
+                }
+
+            General info ..._variables_dict:
                 - The dataset's __get_item__() method will batch all entries of the dicts and convert them from np.array
                  to torch.Tensor
                 - The data is not normalized. All normalization statistics will be calculated
 
-            sample_metadata_dict: (just returned in case load_metadata == True)
-                {
-                'x':                        x of (time) space chunk, np.array,
-                                            (same as .x attribute of xr.Dataset)
-                'y':                       y of (time) space chunk, np.array,
-                                            (same as .y attribute of xr.Dataset)
-                'latitude':                latitude of (time) space chunk, np.array,
-                                            (same as .latitude attribute of xr.Dataset)
-                'longitude':               longitude of (time) space chunk, np.array,
-                                            (same as .longitude attribute of xr.Dataset)
-                'time_points_of_spacetime':  time points of each frame converted to float
-                                            (created from .time attribute of xr.Dataset)
-                                            Can be converted back to datetime64 using
-                                            convert_float_tensor_to_datetime64_array()
-                }
+        Depending on the mode:
+            - mode == 'train': returns (dynamic_variables_dict, static_variables_dict)
+            - mode == 'baseline': returns (dynamic_variables_dict, static_variables_dict, baseline_variables_dict)
+            - mode == 'predict': returns (dynamic_variables_dict, static_variables_dict, sample_metadata_dict)
+
+        All normalization/statistics are calculated elsewhere. The data returned here is not normalized.
         '''
 
         if test_metadata_alignment and not load_metadata:
@@ -434,6 +441,8 @@ class FilteredDatasetXr(Dataset):
         baseline_variables_dict = {}
         if len(self.baseline_data_dict) > 0:
             # Time start of the baseline depends on its lead time steps
+            # TODO DOUBLE CHECK THIS! I THINK THIS IS INCORRECT!
+            # The baseline time is associated to its first input frame
             time_start_baseline = (
                     time_target -
                     np.timedelta64(time_step_precipitation_data_minutes * (self.num_input_frames_baseline), 'm')
@@ -455,17 +464,24 @@ class FilteredDatasetXr(Dataset):
 
             # No baseline metadata / alignment checking as lat/lon not in there and data was sliced from y / x anyways
 
-        if load_metadata:
-            if len(self.baseline_data_dict) > 0:
-                # return baseline dict as well
-                return dynamic_variables_dict, static_variables_dict, sample_metadata_dict, baseline_variables_dict
-            else:
-                return dynamic_variables_dict, static_variables_dict, sample_metadata_dict
-        else:
-            if len(self.baseline_data_dict) > 0:
-                return dynamic_variables_dict, static_variables_dict, baseline_variables_dict
-            else:
-                return dynamic_variables_dict, static_variables_dict
+        if self.mode == 'train':
+            return dynamic_variables_dict, static_variables_dict
+        elif self.mode == 'baseline':
+            return dynamic_variables_dict, static_variables_dict, baseline_variables_dict
+        elif self.mode == 'predict':
+            return dynamic_variables_dict, static_variables_dict, sample_metadata_dict
+
+        # if load_metadata:
+        #     if len(self.baseline_data_dict) > 0:
+        #         # return baseline dict as well
+        #         return dynamic_variables_dict, static_variables_dict, sample_metadata_dict, baseline_variables_dict
+        #     else:
+        #         return dynamic_variables_dict, static_variables_dict, sample_metadata_dict
+        # else:
+        #     if len(self.baseline_data_dict) > 0:
+        #         return dynamic_variables_dict, static_variables_dict, baseline_variables_dict
+        #     else:
+        #         return dynamic_variables_dict, static_variables_dict
 
     @staticmethod
     def _load_metadata_from_variable_(spacetime_variable, mode='dynamic'):
@@ -773,12 +789,12 @@ def create_patches(
     """
 
     # Loading data into xarray
-    
-    
+
+
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
 
     data = xr.open_dataset(load_path, engine='zarr', chunks=None)
-    
+
     if s_crop_data_time_span is not None:
         start_time, stop_time = np.datetime64(s_crop_data_time_span[0]), np.datetime64(s_crop_data_time_span[1])
         crop_slice = slice(start_time, stop_time)
