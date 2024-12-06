@@ -774,7 +774,7 @@ if __name__ == '__main__':
 
     if settings['s_local_machine_mode']:
 
-        settings['s_plotting_only'] = True
+        settings['s_plotting_only'] = False
         settings['s_plot_sim_name'] = 'Run_20241205-145838oversampling_2_months_run' #'Run_20241024-132451x'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'

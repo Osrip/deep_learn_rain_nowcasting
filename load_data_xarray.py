@@ -196,7 +196,7 @@ class FilteredDatasetXr(Dataset):
 
         elif self.mode == 'predict':
             return self._getitem_predict_(idx)
-        
+
         else:
             raise ValueError(f"Invalid mode: self.mode = {self.mode} has to be either 'train' or 'predict'")
 
