@@ -23,9 +23,9 @@ class FilteredDatasetXr(Dataset):
             settings,
             test_variable_alignment_on_first_batch = True,
             data_into_ram=True,
-            load_baseline=False,
             baseline_path = None,
             baseline_variable_name = None,
+            num_input_frames_baseline = None,
     ):
         """
         Input:
@@ -42,6 +42,8 @@ class FilteredDatasetXr(Dataset):
 
                 if mode == 'train':
                     slice of y coordinates should be s_height_width + input_padding
+                if mode == 'baseline':
+                    slice of y coordinates should be s_height_width + input_padding
                 mode == 'predict'
                     slice of y coordinates should be s_height_width
 
@@ -54,6 +56,7 @@ class FilteredDatasetXr(Dataset):
 
             mode: str
                 'train':    training mode. __getitem_train__    is called which handles padding and augmentation
+                'baseline': baseline mode: __getitem_baseline__ returns the baseline as well, performs center cropping on padded input
                 'predict':  evaluation mode: __getitem_eval__   is called which handles non-padded data to do
                                                                 operate on unfiltered patches that will be reassembled
 
@@ -78,6 +81,7 @@ class FilteredDatasetXr(Dataset):
         """
         # super().__init__()
         self.sample_coords = sample_coords
+        self.num_input_frames_baseline = num_input_frames_baseline
         self.mode = mode
         self.settings = settings
 
@@ -157,15 +161,17 @@ class FilteredDatasetXr(Dataset):
             'dem': {'mean': dem_mean, 'std': dem_std}
         }
 
-        if load_baseline:
+        if mode == 'baseline':
             # For dynamic_data_dict['baseline'] special time handling is adjusted to the fact that
             # ! All predictions were assigned to the FIRST INPUT time step !
             baseline_data = xr.open_zarr(baseline_path)
-            self.dynamic_data_dict['baseline'] = baseline_data
-
-            self.dynamic_variable_name_dict['baseline'] = baseline_variable_name
-
-            self.dynamic_statistics_dict['baseline'] = None
+            baseline_data = baseline_data.load() if data_into_ram else baseline_data
+            self.baseline_data_dict = {'baseline': baseline_data}
+            self.baseline_variable_name_dict = {'baseline': baseline_variable_name}
+        else:
+            # baseline not loaded
+            self.baseline_data_dict = {}
+            self.baseline_variable_name_dict = {}
 
         # Check whether the variables (radolan, DEM, ...) are correcly aligned according to their metadata
         # (y, x, lat, lon, time).
@@ -184,8 +190,13 @@ class FilteredDatasetXr(Dataset):
     def __getitem__(self, idx):
         if self.mode == 'train':
             return self._getitem_train_(idx)
+
+        elif self.mode == 'baseline':
+            return self._getitem_baseline_(idx)
+
         elif self.mode == 'predict':
             return self._getitem_predict_(idx)
+        
         else:
             raise ValueError(f"Invalid mode: self.mode = {self.mode} has to be either 'train' or 'predict'")
 
@@ -205,6 +216,28 @@ class FilteredDatasetXr(Dataset):
         # own random augmentation
         dynamic_samples_dict, static_samples_dict = self.augment(dynamic_samples_dict, static_samples_dict)
         return dynamic_samples_dict, static_samples_dict
+
+    def _getitem_baseline_(self, idx):
+        '''
+        This is the getitem method that also returns the baseline.
+        It is assumed that for the baseline
+        ! All predictions are assigned to the FIRST INPUT time step !
+        The samples are not augmented but center cropped
+        More detailed output information see get_sample_from_coords()
+        '''
+        sample_coord = self.sample_coords[idx]
+        dynamic_samples_dict, static_samples_dict, baseline_samples_dict = self.get_sample_from_coords(
+            sample_coord,
+            load_metadata = False,
+            test_metadata_alignment = False
+        )
+        dynamic_samples_dict, static_samples_dict, baseline_samples_dict = self.center_crop(dynamic_samples_dict,
+                                                                                            static_samples_dict,
+                                                                                            baseline_samples_dict)
+        # dynamic_samples_dict, static_samples_dict, baseline_samples_dict = self.augment(dynamic_samples_dict,
+        #                                                                                 static_samples_dict,
+        #                                                                                 baseline_samples_dict)
+        return dynamic_samples_dict, static_samples_dict, baseline_samples_dict
 
     def _getitem_predict_(self, idx):
         '''
@@ -242,7 +275,7 @@ class FilteredDatasetXr(Dataset):
 
             sample_coord = self.sample_coords[idx]
             # This throws errors itself if there is misalignment when test_metadata_alignment=True
-            _, _, _ = self.get_sample_from_coords(
+            _ = self.get_sample_from_coords(
                 sample_coord,
                 load_metadata=True,
                 test_metadata_alignment=True,
@@ -315,38 +348,29 @@ class FilteredDatasetXr(Dataset):
         '''
 
         if test_metadata_alignment and not load_metadata:
-            raise ValueError('Can only test for metadata alignment, when metadata is loaded. Set "load_metadata"'
-                             'to True')
+            raise ValueError(
+                'Can only test for metadata alignment, when metadata is loaded. Set "load_metadata" to True')
 
         num_input_frames = self.settings['s_num_input_time_steps']
         s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
 
         lead_time = s_num_lead_time_steps
-
-        # Data loader gets the loading paths for static / timeseries input data as a dict and then this function gets the xr.Datasets
-        # as a dict and the returns a static and a time series dict with the values which is then also returned by the data laoder.
-
-        # Make sure this is an int:
         num_input_frames = int(num_input_frames)
         lead_time = int(lead_time)
 
         # extract coordinates / coordinate slices
         time_target, y_slice, x_slice = sample_coord
 
-        # TODO: IS LEAD TIME CORRECT? I had to take input 5min * input frame -1 to not choose 4, how about the lead time?
-        # Go back in time to get the time slice of the input
-        # in oppose to np or list indexing where the last index is not included, the last index is included when taking the datetime slices,
-        # therefore num_input_frames - 1!
         time_start = (time_target -
                       np.timedelta64(time_step_precipitation_data_minutes * (num_input_frames + lead_time), 'm'))
         time_end = time_target
 
         time_slice = slice(time_start, time_end)
 
-        # -- The different variables of the samples are loaded --
-
-        # Iterate through all dynamic variables of the sample (samples with time dimension)
         dynamic_variables_dict = {}
+        sample_metadata_dict = None
+
+        # --- Load dynamic variables ---
         for i, (key, dynamic_data_one_variable) in enumerate(self.dynamic_data_dict.items()):
             spacetime_variable = dynamic_data_one_variable.sel(
                 time=time_slice,
@@ -359,40 +383,30 @@ class FilteredDatasetXr(Dataset):
             dynamic_variable_values = torch.from_numpy(dynamic_variable_values)
             dynamic_variables_dict[key] = dynamic_variable_values
 
-            # For other data time is dim = 0
             len_time_slice = np.shape(dynamic_variable_values)[0]
-            # Check whether len of time dim is correct.
             if not len_time_slice == num_input_frames + lead_time + 1:
                 raise ValueError('The time dim of the sample values is not as expected, check the slicing')
 
-            # Load metadata, but not test for alignment of the different variables:
             if load_metadata and not test_metadata_alignment:
-                # If we are not testing the alignment of the metadata and thus assume they are perfectly aligned,
-                # we can simply return the metadata values for the first variable.
                 if i == 0:
+                    # load metadata from first dynamic variable
                     first_variable_metadata_dict = self._load_metadata_from_variable_(spacetime_variable)
                     sample_metadata_dict = first_variable_metadata_dict
 
-            # Load metadata and test for alignment
             if load_metadata and test_metadata_alignment:
-                dynamic_variable_metadata_dict = self._load_metadata_from_variable_(spacetime_variable,
-                                                                                    mode='dynamic')
+                dynamic_variable_metadata_dict = self._load_metadata_from_variable_(spacetime_variable, mode='dynamic')
                 if i == 0:
-                    # The first metadata_dict will be the one to be returned by the function (arbitrary)
                     sample_metadata_dict = dynamic_variable_metadata_dict
-
-                # Start comparing meta data:
-                if i != 0:
+                else:
+                    # comparing metadata of dynamic variables including time
                     is_aligned = self._is_metadata_aligned_(dynamic_variable_metadata_dict,
                                                             previous_variable_metadata_dict,
                                                             compare_time=True)
                     if not is_aligned:
-                        raise ValueError('The variables of one sample are not aligned')
+                        raise ValueError('The dynamic variables of one sample are not aligned')
                 previous_variable_metadata_dict = dynamic_variable_metadata_dict
 
-        # We transfer previous_variable_metadata_dict of dynamic samples to check coherence with static samples
-
-        # Load static samples:
+        # --- Load static variables ---
         static_variables_dict = {}
         for key, static_variable in self.static_data_dict.items():
             static_variable = static_variable.sel(
@@ -406,23 +420,52 @@ class FilteredDatasetXr(Dataset):
             static_variables_dict[key] = static_variable_values
 
             if load_metadata and test_metadata_alignment:
-                static_variable_metadata_dict = self._load_metadata_from_variable_(static_variable,
-                                                                                   mode='static')
-                is_aligned = self._is_metadata_aligned_(
-                    static_variable_metadata_dict,
-                    previous_variable_metadata_dict,
-                    compare_time=False
-                )
-
+                static_variable_metadata_dict = self._load_metadata_from_variable_(static_variable, mode='static')
+                # comparing static with dynamic metadata (no time)
+                is_aligned = self._is_metadata_aligned_(static_variable_metadata_dict,
+                                                        previous_variable_metadata_dict,
+                                                        compare_time=False)
                 if not is_aligned:
-                    raise ValueError('The variables of one sample are not aligned')
-
+                    raise ValueError('The static variables of one sample are not aligned')
                 previous_variable_metadata_dict = static_variable_metadata_dict
 
+
+        # --- Handle baseline if loaded ---
+        baseline_variables_dict = {}
+        if len(self.baseline_data_dict) > 0:
+            # Time start of the baseline depends on its lead time steps
+            time_start_baseline = (
+                    time_target -
+                    np.timedelta64(time_step_precipitation_data_minutes * (self.num_input_frames_baseline), 'm')
+            )
+
+            baseline_data_one_variable = self.baseline_data_dict['baseline']
+            baseline_variable_name = self.baseline_variable_name_dict['baseline']
+            # select exactly time_start
+            baseline_spacetime_variable = baseline_data_one_variable.sel(
+                time=time_start_baseline,  # we only select the single time = time_start_baseline
+                y=y_slice,
+                x=x_slice
+            )
+            baseline_variable_values = baseline_spacetime_variable[baseline_variable_name].values
+            # baseline is ('lead_time', 'time', 'y', 'x')
+            # after selecting single time index = shape (lead_time, y, x)
+            baseline_variable_values = torch.from_numpy(baseline_variable_values)
+            baseline_variables_dict['baseline'] = baseline_variable_values
+
+            # No baseline metadata / alignment checking as lat/lon not in there and data was sliced from y / x anyways
+
         if load_metadata:
-            return dynamic_variables_dict, static_variables_dict, sample_metadata_dict
+            if len(self.baseline_data_dict) > 0:
+                # return baseline dict as well
+                return dynamic_variables_dict, static_variables_dict, sample_metadata_dict, baseline_variables_dict
+            else:
+                return dynamic_variables_dict, static_variables_dict, sample_metadata_dict
         else:
-            return dynamic_variables_dict, static_variables_dict,
+            if len(self.baseline_data_dict) > 0:
+                return dynamic_variables_dict, static_variables_dict, baseline_variables_dict
+            else:
+                return dynamic_variables_dict, static_variables_dict
 
     @staticmethod
     def _load_metadata_from_variable_(spacetime_variable, mode='dynamic'):
@@ -536,18 +579,25 @@ class FilteredDatasetXr(Dataset):
 
     def _verify_sample_coord_lengths_(self):
         """
-        Verify that in 'train' mode only padded data is accepted.
-        In 'predict' mode, accept both padded and non-padded data.
-        Set the attribute self.samples_have_padding accordingly.
-        """
+        Verify sample coordinate lengths based on the current mode.
 
+        - In 'train' mode: Only accept padded data.
+        - In 'baseline' mode: Only accept padded data.
+        - In 'predict' mode: Only accept non-padded data.
+
+        Sets the attribute `self.samples_have_padding` accordingly.
+
+        Raises:
+            ValueError: If `sample_coords` is empty or if the slice lengths do not match
+                        the expectations based on the mode.
+        """
         if len(self.sample_coords) == 0:
             raise ValueError("sample_coords is empty. Cannot perform verification of sample coordinate lengths.")
 
         # Get a sample coordinate to test
         _, y_slice, x_slice = self.sample_coords[0]
 
-        # Now compute the length of the slices in terms of number of elements
+        # Compute the length of the slices in terms of number of elements
         y_coords = self.dynamic_data_dict['radolan'].y.sel(y=y_slice)
         x_coords = self.dynamic_data_dict['radolan'].x.sel(x=x_slice)
 
@@ -557,61 +607,131 @@ class FilteredDatasetXr(Dataset):
         s_input_height_width = self.settings['s_input_height_width']
         s_input_padding = self.settings['s_input_padding']
 
-        if self.mode == 'train':
-            # Accept only padded data in train mode
+        if self.mode in ['train', 'baseline']:
+            # Require padded data in 'train' and 'baseline' modes
             expected_length = s_input_height_width + s_input_padding
             if y_length != expected_length or x_length != expected_length:
                 raise ValueError(
-                    f"In 'train' mode: slice lengths must be s_input_height_width + s_input_padding = {expected_length}. "
+                    f"In '{self.mode}' mode: slice lengths must be "
+                    f"s_input_height_width + s_input_padding = {expected_length}. "
                     f"Got y_length={y_length}, x_length={x_length}."
                 )
             self.samples_have_padding = True
 
         elif self.mode == 'predict':
-            # Accept both padded and non-padded data in predict mode
-            no_pad_length = s_input_height_width
-            pad_length = s_input_height_width + s_input_padding
-
-            if y_length == no_pad_length and x_length == no_pad_length:
-                self.samples_have_padding = False
-            elif y_length == pad_length and x_length == pad_length:
-                self.samples_have_padding = True
-            else:
+            # Require no padding in 'predict' mode
+            expected_length = s_input_height_width
+            if y_length != expected_length or x_length != expected_length:
                 raise ValueError(
-                    f"In 'predict' mode: slice lengths must be either {no_pad_length} (no padding) or {pad_length} (with padding). "
+                    f"In 'predict' mode: slice lengths must be exactly "
+                    f"s_input_height_width = {expected_length}. "
                     f"Got y_length={y_length}, x_length={x_length}."
                 )
-        else:
-            raise ValueError(f"Invalid mode: {self.mode}. Must be 'train' or 'predict'.")
+            self.samples_have_padding = False
 
-    def random_crop(self, dynamic_samples_dict, static_samples_dict):
+        else:
+            raise ValueError(f"Invalid mode: {self.mode}. Must be 'train', 'baseline', or 'predict'.")
+
+    def center_crop(self, *sample_dicts):
         """
-        Doing a random crop
-        The same random crop is done on all samples of dynamic_samples_dict and static_samples_dict
+        Apply the same center crop to multiple sample dictionaries.
+
+        Input:
+            *sample_dicts (dict): Variable number of dictionaries containing image tensors.
+
+        Outpput:
+            tuple: Cropped dictionaries in the order they were provided.
+
+        Example:
+            cropped_dynamic, cropped_static = self.center_crop(dynamic_samples_dict, static_samples_dict)
         """
         s_input_height_width = self.settings['s_input_height_width']
 
-        crop_indices = transforms.RandomCrop.get_params(
-            dynamic_samples_dict['radolan'],
+        # Apply center crop to each dict passed
+        cropped_dicts = []
+        for sample_dict in sample_dicts:
+            cropped_dict = {
+                key: TF.center_crop(sample, (s_input_height_width, s_input_height_width))
+                for key, sample in sample_dict.items()
+            }
+            cropped_dicts.append(cropped_dict)
+
+        # Return a tuple of cropped dicts
+        return tuple(cropped_dicts)
+
+    # def random_crop_old(self, dynamic_samples_dict, static_samples_dict):
+    #     """
+    #     Doing a random crop
+    #     The same random crop is done on all samples of dynamic_samples_dict and static_samples_dict
+    #     """
+    #     s_input_height_width = self.settings['s_input_height_width']
+    #
+    #     crop_indices = transforms.RandomCrop.get_params(
+    #         dynamic_samples_dict['radolan'],
+    #         output_size=(s_input_height_width, s_input_height_width)
+    #     )
+    #
+    #     i, j, h, w = crop_indices  # i,j give random position of the crop, h,w give height, width (=s_input_height_width)
+    #
+    #     dynamic_samples_dict_cropped = {
+    #         key: TF.crop(spacetime_sample, i, j, h, w) for key, spacetime_sample in dynamic_samples_dict.items()
+    #     }
+    #
+    #     static_samples_dict_cropped = {
+    #         key: TF.crop(spacial_sample, i, j, h, w) for key, spacial_sample in static_samples_dict.items()
+    #     }
+    #
+    #     return dynamic_samples_dict_cropped, static_samples_dict_cropped
+
+    def random_crop(self, *sample_dicts):
+        """
+        Apply the same random crop to multiple sample dictionaries.
+
+        Input:
+            *sample_dicts (dict): Variable number of dictionaries containing image tensors.
+
+        Output:
+            tuple: Cropped dictionaries in the order they were provided.
+
+        Example:
+            cropped_dynamic, cropped_static = self.random_crop(dynamic_samples_dict, static_samples_dict)
+        """
+        s_input_height_width = self.settings['s_input_height_width']
+
+        if not sample_dicts:
+            raise ValueError("At least one sample dictionary must be provided.")
+
+        # Use the first image from the first dictionary as reference
+        ref_image = next(iter(sample_dicts[0].values()))
+        i, j, h, w = transforms.RandomCrop.get_params(
+            ref_image,
             output_size=(s_input_height_width, s_input_height_width)
         )
 
-        i, j, h, w = crop_indices  # i,j give random position of the crop, h,w give height, width (=s_input_height_width)
+        cropped_dicts = tuple(
+            {key: TF.crop(sample, i, j, h, w) for key, sample in sample_dict.items()}
+            for sample_dict in sample_dicts
+        )
 
-        dynamic_samples_dict_cropped = {
-            key: TF.crop(spacetime_sample, i, j, h, w) for key, spacetime_sample in dynamic_samples_dict.items()
-        }
+        return cropped_dicts
 
-        static_samples_dict_cropped = {
-            key: TF.crop(spacial_sample, i, j, h, w) for key, spacial_sample in static_samples_dict.items()
-        }
+    def augment(self, *sample_dicts):
+        """
+        Apply augmentations to multiple sample dictionaries.
 
-        return dynamic_samples_dict_cropped, static_samples_dict_cropped
+        Currently performs a random crop on all provided dictionaries.
 
-    def augment(self, dynamic_samples_dict, static_samples_dict):
+        Args:
+            *sample_dicts (dict): Variable number of dictionaries containing image tensors.
 
-        dynamic_samples_dict, static_samples_dict = self.random_crop(dynamic_samples_dict, static_samples_dict)
-        return dynamic_samples_dict, static_samples_dict
+        Returns:
+            tuple: Augmented (cropped) dictionaries in the order they were provided.
+
+        Example:
+            augmented_dynamic, augmented_static = self.augment(dynamic_samples_dict, static_samples_dict)
+        """
+        cropped_dicts = self.random_crop(*sample_dicts)
+        return cropped_dicts
 
 
 def create_patches(

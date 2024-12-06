@@ -699,6 +699,7 @@ if __name__ == '__main__':
             # Load baseline for evaluation:
             's_baseline_path': None,
             's_baseline_variable_name': 'extrapolation',
+            's_num_input_frames_baseline': 4,
 
             's_num_workers_data_loader': 16,  # Should correspond to number of cpus, also increases cpu ram --> FOR DEBUGGING SET TO 0
             's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
@@ -782,6 +783,7 @@ if __name__ == '__main__':
         settings['s_baseline_path'] =   ('/home/jan/Programming/weather_data/baselines_two_days/'
                                         'testdata_two_days_2019_01_01-02_extrapolation.zarr')
         settings['s_baseline_variable_name'] = 'extrapolation'
+        settings['s_num_input_frames_baseline'] = 4
         settings['s_upscale_c_to'] = 32  # 8
         settings['s_batch_size'] = 4  # 8
         settings['s_data_loader_chunk_size'] = 1
@@ -880,6 +882,7 @@ if __name__ == '__main__':
         ckpt_settings['s_num_gpus']                 = settings['s_num_gpus']
         ckpt_settings['s_baseline_path']            = settings['s_baseline_path']
         ckpt_settings['s_baseline_variable_name']   = settings['s_baseline_variable_name']
+        ckpt_settings['s_num_input_frames_baseline']= settings['s_num_input_frames_baseline']
 
         # Pass settings of the loaded run to get the according data_set_vars
         data_set_vars = data_loading(ckpt_settings, **ckpt_settings)

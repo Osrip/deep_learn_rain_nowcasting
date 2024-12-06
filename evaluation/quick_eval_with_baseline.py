@@ -69,6 +69,8 @@ class EvaluateBaselineCallback(pl.Callback):
         # Softmax predictions
         pred_softmaxed = torch.nn.Softmax(dim=1)(pred_no_softmax)
 
+        #TODO: !!Ready to write evaluation here!!
+
 
 def evaluate(prediction):
     pass
@@ -104,18 +106,17 @@ def ckpt_quick_eval_with_baseline(
             slice of x coordinates],
             ...]
     """
-    # Load baseline
 
     #  Data Set
     data_set_eval_filtered = FilteredDatasetXr(
         sample_coords,
         radolan_statistics_dict,
-        mode='train',
+        mode='baseline',
         settings=ckpt_settings,
-        data_into_ram=True,
-        load_baseline=True,
+        data_into_ram=False,
         baseline_path=ckpt_settings['s_baseline_path'],
         baseline_variable_name=ckpt_settings['s_baseline_variable_name'],
+        num_input_frames_baseline=ckpt_settings['s_num_input_frames_baseline'],
     )
 
     # Boolean stating whether samples have input padding:
@@ -129,7 +130,7 @@ def ckpt_quick_eval_with_baseline(
         batch_size=s_batch_size,
         drop_last=True,
         num_workers=s_num_workers_data_loader,
-        pin_memory=True
+        pin_memory=True,
     )
 
     # Callbacks
