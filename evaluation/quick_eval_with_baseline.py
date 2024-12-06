@@ -10,12 +10,12 @@ from helper.helper_functions import center_crop_1d
 class EvaluateBaselineCallback(pl.Callback):
 
     def __init__(
-        self,
-        baseline,
-        linspace_binning_params,
-        checkpoint_name,
-        samples_have_padding,
-        settings
+            self,
+            baseline,
+            linspace_binning_params,
+            checkpoint_name,
+            samples_have_padding,
+            settings,
     ):
         '''
         This callback handles saving of the predictions to zarr.
@@ -31,6 +31,8 @@ class EvaluateBaselineCallback(pl.Callback):
             t0_first_input_frame: np.datetime64
                 The Datetime of the very beginning of the dataset (before splitting)
                 So the very first input time step defines t0
+            samples_have_padding: bool
+                If True this indicates an input padding, therefore we will centercrop to s_width_height
 
         '''
         super().__init__()
@@ -67,6 +69,9 @@ class EvaluateBaselineCallback(pl.Callback):
 
         # Softmax predictions
         pred_softmaxed = torch.nn.Softmax(dim=1)(pred_no_softmax)
+
+
+def evaluate(prediction)
 
 
 def ckpt_quick_eval_with_baseline(

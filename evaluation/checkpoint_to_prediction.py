@@ -43,7 +43,6 @@ class PredictionsToZarrCallback(pl.Callback):
         '''
         super().__init__()
         self.settings = settings
-        self.mode = 'sample'
 
         self.linspace_binning_params = linspace_binning_params
         self.lead_times = lead_times
