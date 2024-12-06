@@ -22,7 +22,11 @@ class FilteredDatasetXr(Dataset):
             mode,
             settings,
             test_variable_alignment_on_first_batch = True,
-            data_into_ram=True):
+            data_into_ram=True,
+            load_baseline=False,
+            baseline_path = None,
+            baseline_variable_name = None,
+    ):
         """
         Input:
             sample_coords: np.array: Coordinate space
@@ -36,7 +40,7 @@ class FilteredDatasetXr(Dataset):
                 slice of x coordinates],
                 ...]
 
-                in mode == 'train':
+                if mode == 'train':
                     slice of y coordinates should be s_height_width + input_padding
                 mode == 'predict'
                     slice of y coordinates should be s_height_width
@@ -131,17 +135,9 @@ class FilteredDatasetXr(Dataset):
             'radolan': radolan_data
         }
 
-        self.static_data_dict = {
-            'dem': dem_data
-        }
-
         # Variable names in xr.Dataset
         self.dynamic_variable_name_dict = {
             'radolan': s_data_variable_name
-        }
-
-        self.static_variable_name_dict = {
-            'dem': s_dem_variable_name
         }
 
         # Normalization statistics dicts
@@ -149,9 +145,27 @@ class FilteredDatasetXr(Dataset):
             'radolan': radolan_statistics_dict
         }
 
+        self.static_data_dict = {
+            'dem': dem_data
+        }
+
+        self.static_variable_name_dict = {
+            'dem': s_dem_variable_name
+        }
+
         self.static_statistics_dict = {
             'dem': {'mean': dem_mean, 'std': dem_std}
         }
+
+        if load_baseline:
+            # For dynamic_data_dict['baseline'] special time handling is adjusted to the fact that
+            # ! All predictions were assigned to the FIRST INPUT time step !
+            baseline_data = xr.open_zarr(baseline_path)
+            self.dynamic_data_dict['baseline'] = baseline_data
+
+            self.dynamic_variable_name_dict['baseline'] = baseline_variable_name
+
+            self.dynamic_statistics_dict['baseline'] = None
 
         # Check whether the variables (radolan, DEM, ...) are correcly aligned according to their metadata
         # (y, x, lat, lon, time).
@@ -345,8 +359,10 @@ class FilteredDatasetXr(Dataset):
             dynamic_variable_values = torch.from_numpy(dynamic_variable_values)
             dynamic_variables_dict[key] = dynamic_variable_values
 
+            # For other data time is dim = 0
+            len_time_slice = np.shape(dynamic_variable_values)[0]
             # Check whether len of time dim is correct.
-            if not np.shape(dynamic_variable_values)[0] == num_input_frames + lead_time + 1:
+            if not len_time_slice == num_input_frames + lead_time + 1:
                 raise ValueError('The time dim of the sample values is not as expected, check the slicing')
 
             # Load metadata, but not test for alignment of the different variables:

@@ -696,8 +696,9 @@ if __name__ == '__main__':
             's_dem_path': '/mnt/qb/work2/butz1/bst981/weather_data/dem/dem_benchmark_dataset_1200_1100.zarr',
             's_dem_variable_name': 'dem',
 
-
-
+            # Load baseline for evaluation:
+            's_baseline_path': None,
+            's_baseline_variable_name': 'extrapolation',
 
             's_num_workers_data_loader': 16,  # Should correspond to number of cpus, also increases cpu ram --> FOR DEBUGGING SET TO 0
             's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
@@ -755,7 +756,7 @@ if __name__ == '__main__':
             # Logging
             's_oversample_validation': True,  # Oversample validation just like training, such that training and validations are directly copmparable
             's_calc_baseline': False,  # Baselines are calculated and plotted --> Optical flow baseline
-            's_epoch_repetitions_baseline': 1000,  # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
+            's_epoch_repetitions_baseline': 1000, #TODO NO LONGER IN USE # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
             's_testing': True,  # Runs tests before starting training
             's_profiling': False,  # Runs profiler
@@ -778,6 +779,9 @@ if __name__ == '__main__':
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
         settings['s_dem_path'] = '/home/jan/Programming/weather_data/dem/dem_benchmark_dataset_1200_1100.zarr'
+        settings['s_baseline_path'] =   ('/home/jan/Programming/weather_data/baselines_two_days/'
+                                        'testdata_two_days_2019_01_01-02_extrapolation.zarr')
+        settings['s_baseline_variable_name'] = 'extrapolation'
         settings['s_upscale_c_to'] = 32  # 8
         settings['s_batch_size'] = 4  # 8
         settings['s_data_loader_chunk_size'] = 1
@@ -794,6 +798,7 @@ if __name__ == '__main__':
 
         settings['s_multiple_sigmas'] = [2, 16]
         settings['s_data_loader_vars_path'] = '/home/jan/Programming/weather_data/data_loader_vars' #'/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars' #
+
         settings['s_max_num_filter_hits'] = None  # 4 # None or int
 
     if not settings['s_plotting_only']:
@@ -872,7 +877,9 @@ if __name__ == '__main__':
         ckpt_settings = load_zipped_pickle('{}/settings'.format(load_dirs['data_dir']))
 
         # Convert some of the loaded settings to the current settings
-        ckpt_settings['s_num_gpus'] = settings['s_num_gpus']
+        ckpt_settings['s_num_gpus']                 = settings['s_num_gpus']
+        ckpt_settings['s_baseline_path']            = settings['s_baseline_path']
+        ckpt_settings['s_baseline_variable_name']   = settings['s_baseline_variable_name']
 
         # Pass settings of the loaded run to get the according data_set_vars
         data_set_vars = data_loading(ckpt_settings, **ckpt_settings)
@@ -904,9 +911,6 @@ if __name__ == '__main__':
         )
 
         # --- Quick evaluation and comparison to baseline over data set ---
-        # TODO Put this into settings!
-        save_path_baseline = ('/home/jan/Programming/weather_data/baselines_two_days/'
-                              'testdata_two_days_2019_01_01-02_extrapolation.zarr')
 
         ckpt_quick_eval_with_baseline(
             model,
@@ -914,7 +918,6 @@ if __name__ == '__main__':
             val_sample_coords,
             radolan_statistics_dict,
             linspace_binning_params,
-            save_path_baseline,
 
             ckpt_settings,
             **ckpt_settings

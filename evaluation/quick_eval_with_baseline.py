@@ -11,7 +11,6 @@ class EvaluateBaselineCallback(pl.Callback):
 
     def __init__(
             self,
-            baseline,
             linspace_binning_params,
             checkpoint_name,
             samples_have_padding,
@@ -71,7 +70,8 @@ class EvaluateBaselineCallback(pl.Callback):
         pred_softmaxed = torch.nn.Softmax(dim=1)(pred_no_softmax)
 
 
-def evaluate(prediction)
+def evaluate(prediction):
+    pass
 
 
 def ckpt_quick_eval_with_baseline(
@@ -80,7 +80,6 @@ def ckpt_quick_eval_with_baseline(
         sample_coords,
         radolan_statistics_dict,
         linspace_binning_params,
-        save_path_baseline,
 
         ckpt_settings,  # Make sure to pass the settings of the checkpoint
         s_batch_size,
@@ -107,14 +106,16 @@ def ckpt_quick_eval_with_baseline(
     """
     # Load baseline
 
-    baseline = xr.open_zarr(save_path_baseline)  # Keep this layy on disk
-
     #  Data Set
     data_set_eval_filtered = FilteredDatasetXr(
         sample_coords,
         radolan_statistics_dict,
-        mode='predict',
+        mode='train',
         settings=ckpt_settings,
+        data_into_ram=True,
+        load_baseline=True,
+        baseline_path=ckpt_settings['s_baseline_path'],
+        baseline_variable_name=ckpt_settings['s_baseline_variable_name'],
     )
 
     # Boolean stating whether samples have input padding:
@@ -133,7 +134,6 @@ def ckpt_quick_eval_with_baseline(
 
     # Callbacks
     evaluate_baseline_callback = EvaluateBaselineCallback(
-            baseline,
             linspace_binning_params,
             checkpoint_name,
             samples_have_padding,
