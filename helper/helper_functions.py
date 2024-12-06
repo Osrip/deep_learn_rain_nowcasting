@@ -7,6 +7,7 @@ from shutil import copyfile
 
 import torch
 import einops
+from torchvision import transforms as T
 
 from helper.pre_process_target_input import img_one_hot, one_hot_to_lognormed_mm
 
@@ -170,3 +171,30 @@ def df_cols_to_list_of_lists(keys, df):
 def convert_list_of_lists_to_lists_of_lists_with_means(list_of_lists):
     mean_f = lambda x: np.mean(x)
     return [[mean_f(l)] for l in list_of_lists]
+
+
+def center_crop_1d(crop_last_dim_tensor: torch.Tensor, size: int) -> torch.Tensor:
+    '''
+    1D Centercrop ! ON DIM = -1 !
+    Per default torchvisions centercrop crops along h and w. This function adds a placeholder dimension
+    to do centercropping only along the last dim (dim=-1)
+    '''
+    # Unsqueeze to add placeholder dimension
+    len_d = crop_last_dim_tensor.shape[-1]
+    crop_last_dim_tensor_expanded = einops.repeat(crop_last_dim_tensor, '... d -> ... d_new d', d_new=len_d)
+    cropped_expanded = T.CenterCrop(size=size)(crop_last_dim_tensor_expanded)
+
+    # **Equality Check**
+    # Compare all values along d_new with the first slice
+    is_equal = torch.all(
+        cropped_expanded == cropped_expanded[..., 0:1, :],
+        dim=-2
+    )
+
+    # If not all values are equal, raise an error
+    if not torch.all(is_equal):
+        raise ValueError("Values across 'd_new' are not equal after the operation.")
+
+    # Reduce the tensor back to the original shape
+    cropped_orig_shape = einops.reduce(cropped_expanded, '... d_new d -> ... d', 'mean')
+    return cropped_orig_shape

@@ -40,6 +40,7 @@ import warnings
 from tests.test_basic_functions import test_all
 from pytorch_lightning.loggers import WandbLogger
 from evaluation.checkpoint_to_prediction import ckpt_to_pred
+from evaluation.quick_eval_with_baseline import ckpt_quick_eval_with_baseline
 
 
 def data_loading(
@@ -771,7 +772,7 @@ if __name__ == '__main__':
 
     if settings['s_local_machine_mode']:
 
-        settings['s_plotting_only'] = False
+        settings['s_plotting_only'] = True
         settings['s_plot_sim_name'] = 'Run_20241205-145838oversampling_2_months_run' #'Run_20241024-132451x'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
@@ -839,7 +840,7 @@ if __name__ == '__main__':
         # TODO Make this best checkpoint on validation loss
         checkpoint_name = [name for name in checkpoint_names if 'last' in name][0]
 
-        model_ckpt = load_from_checkpoint(
+        model = load_from_checkpoint(
             save_dir,
             checkpoint_name,
 
@@ -850,7 +851,7 @@ if __name__ == '__main__':
         # --- Generate predictions that are saved to a zarr ---
 
         ckpt_to_pred(
-            model_ckpt,
+            model,
             checkpoint_name,
             train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
@@ -868,13 +869,13 @@ if __name__ == '__main__':
         load_dirs = create_s_dirs(settings['s_plot_sim_name'], settings['s_local_machine_mode'])
         training_steps_per_epoch = load_zipped_pickle('{}/training_steps_per_epoch'.format(load_dirs['data_dir']))
         sigma_schedule_mapping = load_zipped_pickle('{}/sigma_schedule_mapping'.format(load_dirs['data_dir']))
-        settings_loaded = load_zipped_pickle('{}/settings'.format(load_dirs['data_dir']))
+        ckpt_settings = load_zipped_pickle('{}/settings'.format(load_dirs['data_dir']))
 
         # Convert some of the loaded settings to the current settings
-        settings_loaded['s_num_gpus'] = settings['s_num_gpus']
+        ckpt_settings['s_num_gpus'] = settings['s_num_gpus']
 
         # Pass settings of the loaded run to get the according data_set_vars
-        data_set_vars = data_loading(settings_loaded, **settings_loaded)
+        data_set_vars = data_loading(ckpt_settings, **ckpt_settings)
 
 
         (train_data_loader, validation_data_loader,
@@ -886,7 +887,7 @@ if __name__ == '__main__':
 
         # --- Get model checkpoint ---
 
-        save_dir = settings_loaded['s_dirs']['save_dir']
+        save_dir = ckpt_settings['s_dirs']['save_dir']
 
         checkpoint_names = get_checkpoint_names(save_dir)
 
@@ -894,18 +895,33 @@ if __name__ == '__main__':
         # TODO Make this best checkpoint on validation loss
         checkpoint_name = [name for name in checkpoint_names if 'last' in name][0]
 
-        model_ckpt = load_from_checkpoint(
+        model = load_from_checkpoint(
             save_dir,
             checkpoint_name,
 
-            settings_loaded,
-            **settings_loaded,
+            ckpt_settings,
+            **ckpt_settings,
+        )
+
+        # --- Quick evaluation and comparison to baseline over data set ---
+        # TODO Put this into settings!
+        save_path_baseline = '/home/jan/Programming/weather_data/baselines_two_days'
+        ckpt_quick_eval_with_baseline(
+            model,
+            checkpoint_name,
+            val_sample_coords,
+            radolan_statistics_dict,
+            linspace_binning_params,
+            save_path_baseline,
+
+            ckpt_settings,
+            **ckpt_settings
         )
 
         # --- Generate predictions that are saved to a zarr ---
 
         ckpt_to_pred(
-            model_ckpt,
+            model,
             checkpoint_name,
             train_time_keys, val_time_keys, test_time_keys,
             radolan_statistics_dict,
@@ -913,8 +929,8 @@ if __name__ == '__main__':
             max_num_frames_per_split=15,
 
             splits_to_predict_on=['val'],
-            ckp_settings = settings_loaded,
-            **settings_loaded,
+            ckp_settings = ckpt_settings,
+            **ckpt_settings,
         )
 
 

@@ -1,31 +1,31 @@
-from partd.utils import frame
-
 from load_data_xarray import (
     create_patches,
     all_patches_to_datetime_idx_permuts,
     patch_indices_to_sample_coords,
-    split_data_from_time_keys,
     FilteredDatasetXr
 )
 from helper.memory_logging import print_ram_usage
+from helper.helper_functions import center_crop_1d
+
 import torch
-import torchvision.transforms as T
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import xarray as xr
 import einops
 from load_data_xarray import convert_float_tensor_to_datetime64_array, split_data_from_time_keys
 import numpy as np
-import random
+
 
 class PredictionsToZarrCallback(pl.Callback):
 
-    def __init__(self,
-                 orig_training_data,
-                 t0_first_input_frame,
-                 linspace_binning_params,
-                 lead_times,
-                 settings):
+    def __init__(
+        self,
+        orig_training_data,
+        t0_first_input_frame,
+        linspace_binning_params,
+        lead_times,
+        settings
+    ):
         '''
         This callback handles saving of the predictions to zarr.
         -------------------------------------------------------------
@@ -36,7 +36,7 @@ class PredictionsToZarrCallback(pl.Callback):
 
         Input
             data: xr.Dataset:
-                Original training data including full time period (wioth input frames)
+                Original training data including full time period (with input frames)
             t0_first_input_frame: np.datetime64
                 The Datetime of the very beginning of the dataset (before splitting)
                 So the very first input time step defines t0
@@ -49,7 +49,7 @@ class PredictionsToZarrCallback(pl.Callback):
         self.linspace_binning_params = linspace_binning_params
         self.lead_times = lead_times
         self.t0_first_input_frame = t0_first_input_frame
-        self.orig_training_data = orig_training_data
+        self.orig_training_data = orig_training_data  # TODO remove this, this is not used!
 
     def on_predict_batch_end(
         self,
@@ -84,11 +84,11 @@ class PredictionsToZarrCallback(pl.Callback):
                 {'pred': torch.Tensor,
                 'target: sample_metadata_dict}
 
-            sample_metadata_dict: dict
-                All tensors of this sub-dictionary also received an added batch dim by data loader
-                {'time_points_of_spacetime': torch.Tensor         Has to be converted back to datetime
-                'y': torch.Tensor
-                'x': torch.Tensor}
+                sample_metadata_dict: dict
+                    All tensors of this sub-dictionary also received an added batch dim by data loader
+                    {'time_points_of_spacetime': torch.Tensor         Has to be converted back to datetime
+                    'y': torch.Tensor
+                    'x': torch.Tensor}
 
         """
         # Get settings from NetworkL instance
@@ -132,8 +132,8 @@ class PredictionsToZarrCallback(pl.Callback):
         x_space_chunk = sample_metadata_dict['x']
 
         # Center crop spatial metadata to target size = prediction size
-        y_target = self._centercrop_on_last_dim_(y_space_chunk, size=s_target_height_width)
-        x_target = self._centercrop_on_last_dim_(x_space_chunk, size=s_target_height_width)
+        y_target = center_crop_1d(y_space_chunk, size=s_target_height_width)
+        x_target = center_crop_1d(x_space_chunk, size=s_target_height_width)
 
         y_target = y_target.cpu().numpy()
         x_target = x_target.cpu().numpy()
@@ -182,33 +182,6 @@ class PredictionsToZarrCallback(pl.Callback):
             ds_i.to_zarr(save_zarr_path, mode='r+', region='auto')
             # Appending manual: https://docs.xarray.dev/en/latest/user-guide/io.html#io-zarr
             # Also look at ds.tozarr() docu!
-
-
-    def _centercrop_on_last_dim_(self, crop_last_dim_tensor: torch.Tensor, size: int) -> torch.Tensor:
-        '''
-        1D Centercrop
-        Per default torchvisions centercrop crops along h and w. This function adds a placeholder dimension
-        to do centercropping only along the last dim (dim=-1)
-        '''
-        # Unsqueeze to add placeholder dimension
-        len_d = crop_last_dim_tensor.shape[-1]
-        crop_last_dim_tensor_expanded = einops.repeat(crop_last_dim_tensor, '... d -> ... d_new d', d_new=len_d)
-        cropped_expanded = T.CenterCrop(size=size)(crop_last_dim_tensor_expanded)
-
-        # **Equality Check**
-        # Compare all values along d_new with the first slice
-        is_equal = torch.all(
-            cropped_expanded == cropped_expanded[..., 0:1, :],
-            dim=-2
-        )
-
-        # If not all values are equal, raise an error
-        if not torch.all(is_equal):
-            raise ValueError("Values across 'd_new' are not equal after the operation.")
-
-        # Reduce the tensor back to the original shape
-        cropped_orig_shape = einops.reduce(cropped_expanded, '... d_new d -> ... d', 'mean')
-        return cropped_orig_shape
 
 
 def initialize_empty_prediction_dataset(
@@ -294,7 +267,7 @@ def predict_and_save_to_zarr(
 
     load_path_orig_data = '{}/{}'.format(s_folder_path, s_data_file_name)
 
-    # Load original training data and crop it if that setting was active during training
+    # Load original data and crop it if that setting was active during training
     orig_data = xr.open_dataset(load_path_orig_data, engine='zarr')
     if s_crop_data_time_span is not None:
         start_time, stop_time = np.datetime64(s_crop_data_time_span[0]), np.datetime64(s_crop_data_time_span[1])
@@ -511,7 +484,7 @@ def create_predict_dataloaders(
         train_sample_coords, val_sample_coords, test_sample_coords,
         radolan_statistics_dict,
 
-        settings,
+        ckpt_settings,
         s_batch_size,
         s_num_workers_data_loader,
         **__,
@@ -522,21 +495,21 @@ def create_predict_dataloaders(
         train_sample_coords,
         radolan_statistics_dict,
         mode='predict',
-        settings=settings,
+        settings=ckpt_settings,
     )
 
     val_data_set_eval = FilteredDatasetXr(
         val_sample_coords,
         radolan_statistics_dict,
         mode='predict',
-        settings=settings,
+        settings=ckpt_settings,
     )
 
     test_data_set_eval = FilteredDatasetXr(
         test_sample_coords,
         radolan_statistics_dict,
         mode='predict',
-        settings=settings,
+        settings=ckpt_settings,
     )
 
     # --- Create Dataloaders ---
@@ -572,7 +545,7 @@ def create_predict_dataloaders(
 
 
 def ckpt_to_pred(
-        model_ckpt,
+        model,
         checkpoint_name,
         train_time_keys, val_time_keys, test_time_keys,
         radolan_statistics_dict,
@@ -625,7 +598,6 @@ def ckpt_to_pred(
                          " ['train', 'val', 'test']")
 
 
-
     # For now, with fixed lead time simply create lead times like this:
     lead_times = [ckp_settings['s_num_lead_time_steps']]
 
@@ -650,13 +622,12 @@ def ckpt_to_pred(
     )
 
 
-
     data_loader_dict = {'train': train_data_loader_predict,
                         'val': val_data_loader_predict,
                         'test': test_data_loader_predict}
 
     predict_and_save_to_zarr(
-        model_ckpt,
+        model,
         patches_train, patches_val, patches_test,
         splits_to_predict_on,
         data_loader_dict,

@@ -77,6 +77,9 @@ class FilteredDatasetXr(Dataset):
         self.mode = mode
         self.settings = settings
 
+        # Does data have input_padding? This is set by _verify_sample_coord_lengths_()
+        self.samples_have_padding = None #  Bool
+
         s_folder_path = settings['s_folder_path']
         s_dem_path = settings['s_dem_path']
         s_data_file_name = settings['s_data_file_name']
@@ -156,7 +159,9 @@ class FilteredDatasetXr(Dataset):
         # E.g. different coordinate systems etc. can lead to misalignment in latitide and longitude
         self._check_variable_alignment_(num_samples_to_check=8)
 
-        # Verify whether sample_coords have been passed according to the mode
+        # Verify whether sample_coords have been passed according to the mode and sets samples_have_padding accordingly
+        # Accepts with padding only for training
+        # Accepts with and without padding for prediction
         self._verify_sample_coord_lengths_()
 
     def __len__(self):
@@ -515,14 +520,11 @@ class FilteredDatasetXr(Dataset):
 
     def _verify_sample_coord_lengths_(self):
         """
-        Verify that the length of y and x slices in sample_coord[1] and sample_coord[2]
-        match the expected lengths based on the mode and settings.
-
-        In mode == 'train':
-            The length of y and x slices should be s_input_height_width + s_input_padding.
-        In mode == 'predict':
-            The length of y and x slices should be s_input_height_width.
+        Verify that in 'train' mode only padded data is accepted.
+        In 'predict' mode, accept both padded and non-padded data.
+        Set the attribute self.samples_have_padding accordingly.
         """
+
         if len(self.sample_coords) == 0:
             raise ValueError("sample_coords is empty. Cannot perform verification of sample coordinate lengths.")
 
@@ -530,32 +532,41 @@ class FilteredDatasetXr(Dataset):
         _, y_slice, x_slice = self.sample_coords[0]
 
         # Now compute the length of the slices in terms of number of elements
-        # Use one of the datasets to get the coordinate arrays
-        # Assuming that self.dynamic_data_dict['radolan'] has coordinate arrays 'y' and 'x'
-
-        # Get the coordinate arrays for the slices
         y_coords = self.dynamic_data_dict['radolan'].y.sel(y=y_slice)
         x_coords = self.dynamic_data_dict['radolan'].x.sel(x=x_slice)
 
         y_length = y_coords.size
         x_length = x_coords.size
 
-        # Compute the expected lengths based on the mode
         s_input_height_width = self.settings['s_input_height_width']
+        s_input_padding = self.settings['s_input_padding']
+
         if self.mode == 'train':
-            expected_length = s_input_height_width + self.settings['s_input_padding']
+            # Accept only padded data in train mode
+            expected_length = s_input_height_width + s_input_padding
+            if y_length != expected_length or x_length != expected_length:
+                raise ValueError(
+                    f"In 'train' mode: slice lengths must be s_input_height_width + s_input_padding = {expected_length}. "
+                    f"Got y_length={y_length}, x_length={x_length}."
+                )
+            self.samples_have_padding = True
+
         elif self.mode == 'predict':
-            expected_length = s_input_height_width
+            # Accept both padded and non-padded data in predict mode
+            no_pad_length = s_input_height_width
+            pad_length = s_input_height_width + s_input_padding
+
+            if y_length == no_pad_length and x_length == no_pad_length:
+                self.samples_have_padding = False
+            elif y_length == pad_length and x_length == pad_length:
+                self.samples_have_padding = True
+            else:
+                raise ValueError(
+                    f"In 'predict' mode: slice lengths must be either {no_pad_length} (no padding) or {pad_length} (with padding). "
+                    f"Got y_length={y_length}, x_length={x_length}."
+                )
         else:
             raise ValueError(f"Invalid mode: {self.mode}. Must be 'train' or 'predict'.")
-
-        # Perform the checks and raise errors if lengths do not match
-        if y_length != expected_length or x_length != expected_length:
-            raise ValueError(
-                f"In mode '{self.mode}': slice of y coordinates length ({y_length}) does not match expected length "
-                f"({expected_length}). Expected: s_input_height_width + s_input_padding in 'train' mode,"
-                f" or s_input_height_width in  'predict' mode."
-        )
 
     def random_crop(self, dynamic_samples_dict, static_samples_dict):
         """
