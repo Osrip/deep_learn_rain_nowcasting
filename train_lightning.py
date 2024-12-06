@@ -905,7 +905,9 @@ if __name__ == '__main__':
 
         # --- Quick evaluation and comparison to baseline over data set ---
         # TODO Put this into settings!
-        save_path_baseline = '/home/jan/Programming/weather_data/baselines_two_days'
+        save_path_baseline = ('/home/jan/Programming/weather_data/baselines_two_days/'
+                              'testdata_two_days_2019_01_01-02_extrapolation.zarr')
+
         ckpt_quick_eval_with_baseline(
             model,
             checkpoint_name,
