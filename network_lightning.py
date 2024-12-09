@@ -33,9 +33,15 @@ class NetworkL(pl.LightningModule):
             s_convnext,
             s_crps_loss,
             training_steps_per_epoch=None,
+            mode = 'predict',  # Can either be 'predict' or 'baseline' - similar to modes in dataset, only effects predict_step
             **__):
 
         super().__init__()
+
+        if not mode in ('predict', 'baseline'):
+            raise ValueError('Wrong mode passed to Network_l. Has to be either "predict" or "baseline"')
+
+        self.mode = mode
 
         self.val_step_num = 0
         self.train_step_num = 0
@@ -358,6 +364,12 @@ class NetworkL(pl.LightningModule):
         return out_dict
 
     def predict_step(self, batched_samples, batch_idx: int, dataloader_idx: int = 0):
+        if self.mode == 'predict':
+            return self._predict_step_mode_predict_(batched_samples, batch_idx, dataloader_idx)
+        elif self.mode == 'baseline':
+            return self._predict_step_mode_baseline_(batched_samples, batch_idx, dataloader_idx)
+
+    def _predict_step_mode_predict_(self, batched_samples, batch_idx: int, dataloader_idx: int = 0):
         '''
         This is called by trainer.predict
         https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict
@@ -367,5 +379,13 @@ class NetworkL(pl.LightningModule):
         out_dict['sample_metadata_dict'] = sample_metadata_dict
         return out_dict
 
-
+    def _predict_step_mode_baseline_(self, batched_samples, batch_idx: int, dataloader_idx: int = 0):
+        '''
+        This is called by trainer.predict
+        https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict
+        '''
+        dynamic_samples_dict, static_samples_dict, baseline = batched_samples
+        out_dict = self.train_val_and_predict_step(dynamic_samples_dict, static_samples_dict, batch_idx)
+        out_dict['baseline'] = baseline
+        return out_dict
 

@@ -31,9 +31,9 @@ class EvaluateBaselineCallback(pl.Callback):
                 The Datetime of the very beginning of the dataset (before splitting)
                 So the very first input time step defines t0
             samples_have_padding: bool
-                If True this indicates an input padding, therefore we will centercrop to s_width_height
-
+                If True this indicates an input padding, therefore we will center crop to s_width_height
         '''
+
         super().__init__()
         self.settings = settings
         self.linspace_binning_params = linspace_binning_params
@@ -64,7 +64,7 @@ class EvaluateBaselineCallback(pl.Callback):
         """
         # Unpacking outputs -> except for loss they are all batched tensors
         pred_no_softmax = outputs['pred']
-        sample_metadata_dict = outputs['sample_metadata_dict']
+        baseline = outputs['baseline']
 
         # Softmax predictions
         pred_softmaxed = torch.nn.Softmax(dim=1)(pred_no_softmax)
@@ -106,6 +106,8 @@ def ckpt_quick_eval_with_baseline(
             slice of x coordinates],
             ...]
     """
+    # Setting model to baseline mode, which chooses thr right predict_step() method
+    model.mode = 'baseline'
 
     #  Data Set
     data_set_eval_filtered = FilteredDatasetXr(
@@ -140,13 +142,6 @@ def ckpt_quick_eval_with_baseline(
             samples_have_padding,
             ckpt_settings,
     )
-
-    # evaluate_model_callback = EvaluateBaselineCallback(
-    #     linspace_binning_params,
-    #     checkpoint_name,
-    #     ckpt_settings,
-    #
-    # )
 
     trainer = pl.Trainer(
         callbacks=evaluate_baseline_callback,

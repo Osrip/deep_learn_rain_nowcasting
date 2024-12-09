@@ -587,6 +587,8 @@ def ckpt_to_pred(
         max_num_frames: int / None
             maximal number of frames that shall be predicted on each split. If None the whole split is predicted
     """
+    # Set model to predict mode, which chooses the right predict_step() method
+    model.mode = 'predict'
 
     print('Predicting on unfiltered patches')
 

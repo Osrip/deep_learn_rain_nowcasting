@@ -440,12 +440,22 @@ class FilteredDatasetXr(Dataset):
         # --- Handle baseline if loaded ---
         baseline_variables_dict = {}
         if len(self.baseline_data_dict) > 0:
-            # Time start of the baseline depends on its lead time steps
-            # TODO DOUBLE CHECK THIS! I THINK THIS IS INCORRECT!
+            # --- LOADING CORRECT TIME OF BASELINE ---
+            # --> See Freeform 'load baseline in dataloader' <--
+            # The BASELINE is assiciated to its FIRST INPUT FRAME (on time dim),
+            # whereas the SPACETIME SAMPLE is associated to the TARGET FRAME
+            # We load the baseline from
+            # target time
+            # - s_num_lead_time_steps   <-- the frame distance between last input frame of model and the target (last entry in spacetime sample)
+            #                           <-- Now we are at the position of the last input frame
+            # - num_input_frames_baseline <-- Now we are at the first input frame of the baseline
+
             # The baseline time is associated to its first input frame
             time_start_baseline = (
                     time_target -
-                    np.timedelta64(time_step_precipitation_data_minutes * (self.num_input_frames_baseline), 'm')
+                    np.timedelta64(time_step_precipitation_data_minutes * (
+                        s_num_lead_time_steps + self.num_input_frames_baseline)
+                                   , 'm')
             )
 
             baseline_data_one_variable = self.baseline_data_dict['baseline']
