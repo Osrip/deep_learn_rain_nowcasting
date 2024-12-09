@@ -6,6 +6,8 @@ import pytorch_lightning as pl
 from helper.helper_functions import center_crop_1d
 import torch
 import torchvision.transforms as T
+from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data
+
 
 
 
@@ -69,30 +71,57 @@ class EvaluateBaselineCallback(pl.Callback):
         s_target_height_width = self.settings['s_target_height_width']
 
         # Unpacking outputs -> except for loss they are all batched tensors
-        target = outputs['target']
-        pred_model_no_softmax = outputs['pred']
+        target_normed = outputs['target']
+        pred_model_one_hot = outputs['pred']
         baseline = outputs['baseline']
 
-        # Softmax predictions
-        pred_model_softmaxed = torch.nn.Softmax(dim=1)(pred_model_no_softmax)
-        pred_model_argmaxed = torch.argmax(pred_model_softmaxed, dim=1)
+        # Model Prediction
 
-        pred_baseline = baseline[:, s_num_lead_time_steps, :, :]
-        pred_baseline = T.CenterCrop(size=s_target_height_width)(pred_baseline)
+        # pred_model_softmaxed = torch.nn.Softmax(dim=1)(pred_model_one_hot)
+        # pred_model_argmaxed = torch.argmax(pred_model_softmaxed, dim=1)
+
+        # TODO: AM I DOING THIS FOR THE PREDICTION PIPELINE TOO?
+        # Converting prediction from one-hot to (lognormed) mm
+        _, _, linspace_binning = pl_module._linspace_binning_params
+        pred_model_normed = one_hot_to_lognormed_mm(pred_model_one_hot, linspace_binning, channel_dim=1)
+
+        # Inverse normalize target and prediction
+
+        pred_model_mm = inverse_normalize_data(pred_model_normed,
+                                         pl_module.mean_filtered_log_data,
+                                         pl_module.std_filtered_log_data)
+
+        target_mm = inverse_normalize_data(target_normed,
+                                        pl_module.mean_filtered_log_data,
+                                        pl_module.std_filtered_log_data)
+
+        pred_baseline_mm = baseline[:, s_num_lead_time_steps, :, :]
+        pred_baseline_mm = T.CenterCrop(size=s_target_height_width)(pred_baseline_mm)
 
         # Double-checked alignment visually (See apple notes Science/testing code/Testing on predict_batch_end())
 
-        self.evaluate(pred_model_argmaxed, target, mode='model')
-        self.evaluate(pred_baseline, target, mode='baseline')
+        self.evaluate(pred_baseline_mm, pred_model_mm, target_mm, pl_module)
 
 
     def evaluate(
             self,
-            pred,
+            pred_model_mm,
+            pred_baseline_mm,
             target,
-            mode='model',
+            pl_module,
     ):
-        pass
+        """
+        Input:
+            pred: torch.Tensor
+                shape: [batch, height, width]
+            target: torch.Tensor
+                shape: [batch, height, width]
+            pl_module: pl.LightningModule
+        """
+
+
+
+
 
 
 
@@ -127,7 +156,7 @@ def ckpt_quick_eval_with_baseline(
             ...]
     """
     # Setting model to baseline mode, which chooses thr right predict_step() method
-    model.mode = 'baseline'
+    model.set_mode(mode='baseline')
 
     #  Data Set
     data_set_eval_filtered = FilteredDatasetXr(

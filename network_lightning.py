@@ -33,15 +33,13 @@ class NetworkL(pl.LightningModule):
             s_convnext,
             s_crps_loss,
             training_steps_per_epoch=None,
-            mode = 'predict',  # Can either be 'predict' or 'baseline' - similar to modes in dataset, only effects predict_step
             **__):
 
         super().__init__()
 
-        if not mode in ('predict', 'baseline'):
-            raise ValueError('Wrong mode passed to Network_l. Has to be either "predict" or "baseline"')
 
-        self.mode = mode
+
+        self.mode = 'train' # Please set predict or baseline mode using set_mode() method
 
         self.val_step_num = 0
         self.train_step_num = 0
@@ -138,6 +136,22 @@ class NetworkL(pl.LightningModule):
             self.model = Network(c_in=s_num_input_time_steps, **settings)
 
         self.model.to(device)
+
+    def set_mode(self, mode: str):
+        if not mode in ('predict', 'baseline', 'train'):
+            raise ValueError('Wrong mode passed to Network_l. Has to be either "predict" or "baseline" or "train"')
+        self.mode = mode
+        if mode == 'baseline':
+            # Initialize lists for logging
+            self.losses_model = []
+            self.losses_baseline = []
+
+            self.rmses_model = []
+            self.rmses_baseline = []
+
+            self.means_target = []
+            self.means_pred_model = []
+            self.means_pred_baseline = []
 
     def forward(self, x):
         output = self.model(x)
@@ -364,28 +378,28 @@ class NetworkL(pl.LightningModule):
         return out_dict
 
     def predict_step(self, batched_samples, batch_idx: int, dataloader_idx: int = 0):
-        if self.mode == 'predict':
-            return self._predict_step_mode_predict_(batched_samples, batch_idx, dataloader_idx)
-        elif self.mode == 'baseline':
-            return self._predict_step_mode_baseline_(batched_samples, batch_idx, dataloader_idx)
-
-    def _predict_step_mode_predict_(self, batched_samples, batch_idx: int, dataloader_idx: int = 0):
         '''
         This is called by trainer.predict
         https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict
         '''
+        if self.mode == 'predict':
+            return self._predict_step_mode_predict_(batched_samples, batch_idx, dataloader_idx)
+        elif self.mode == 'baseline':
+            return self._predict_step_mode_baseline_(batched_samples, batch_idx, dataloader_idx)
+        else:
+            raise ValueError('Mode has to be either "predict" or "baseline", when predict_step() is called')
+
+    def _predict_step_mode_predict_(self, batched_samples, batch_idx: int, dataloader_idx: int = 0):
         dynamic_samples_dict, static_samples_dict, sample_metadata_dict = batched_samples
         out_dict = self.train_val_and_predict_step(dynamic_samples_dict, static_samples_dict, batch_idx)
         out_dict['sample_metadata_dict'] = sample_metadata_dict
         return out_dict
 
     def _predict_step_mode_baseline_(self, batched_samples, batch_idx: int, dataloader_idx: int = 0):
-        '''
-        This is called by trainer.predict
-        https://lightning.ai/docs/pytorch/stable/common/trainer.html#predict
-        '''
         dynamic_samples_dict, static_samples_dict, baseline = batched_samples
         out_dict = self.train_val_and_predict_step(dynamic_samples_dict, static_samples_dict, batch_idx)
         out_dict['baseline'] = baseline['baseline']
         return out_dict
+
+
 

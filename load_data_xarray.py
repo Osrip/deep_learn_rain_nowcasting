@@ -95,6 +95,7 @@ class FilteredDatasetXr(Dataset):
         s_data_variable_name = settings['s_data_variable_name']
         s_dem_variable_name = settings['s_dem_variable_name']
         s_crop_data_time_span = settings['s_crop_data_time_span']
+        s_batch_size = settings['s_batch_size']
 
 
         # --- load data ---
@@ -177,7 +178,7 @@ class FilteredDatasetXr(Dataset):
         # (y, x, lat, lon, time).
         # We do that once during initialization
         # E.g. different coordinate systems etc. can lead to misalignment in latitide and longitude
-        self._check_variable_alignment_(num_samples_to_check=8)
+        self._check_variable_alignment_(num_samples_to_check=s_batch_size)
 
         # Verify whether sample_coords have been passed according to the mode and sets samples_have_padding accordingly
         # Accepts with padding only for training
@@ -265,6 +266,7 @@ class FilteredDatasetXr(Dataset):
         """
         This checks whether all variables are aligned according to their metadata
         Includes both, dynamic and static variables.
+        ! DOES NOT CHECK BASELINE ALIGNMENT !
 
         Input:
             num_samples_to_check: int
