@@ -386,6 +386,6 @@ class NetworkL(pl.LightningModule):
         '''
         dynamic_samples_dict, static_samples_dict, baseline = batched_samples
         out_dict = self.train_val_and_predict_step(dynamic_samples_dict, static_samples_dict, batch_idx)
-        out_dict['baseline'] = baseline
+        out_dict['baseline'] = baseline['baseline']
         return out_dict
 

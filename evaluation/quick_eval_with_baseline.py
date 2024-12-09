@@ -4,6 +4,9 @@ import xarray as xr
 from load_data_xarray import FilteredDatasetXr
 import pytorch_lightning as pl
 from helper.helper_functions import center_crop_1d
+import torch
+import torchvision.transforms as T
+
 
 
 
@@ -56,24 +59,42 @@ class EvaluateBaselineCallback(pl.Callback):
                 {'pred': torch.Tensor,
                 'target: sample_metadata_dict}
 
-                sample_metadata_dict: dict
+                baseline: dict
                     All tensors of this sub-dictionary also received an added batch dim by data loader
-                    {'time_points_of_spacetime': torch.Tensor         Has to be converted back to datetime
+                    {'baseline': torch.Tensor         Has to be converted back to datetime
                     'y': torch.Tensor
                     'x': torch.Tensor}
         """
+        s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
+        s_target_height_width = self.settings['s_target_height_width']
+
         # Unpacking outputs -> except for loss they are all batched tensors
-        pred_no_softmax = outputs['pred']
+        target = outputs['target']
+        pred_model_no_softmax = outputs['pred']
         baseline = outputs['baseline']
 
         # Softmax predictions
-        pred_softmaxed = torch.nn.Softmax(dim=1)(pred_no_softmax)
+        pred_model_softmaxed = torch.nn.Softmax(dim=1)(pred_model_no_softmax)
+        pred_model_argmaxed = torch.argmax(pred_model_softmaxed, dim=1)
+
+        pred_baseline = baseline[:, s_num_lead_time_steps, :, :]
+        pred_baseline = T.CenterCrop(size=s_target_height_width)(pred_baseline)
+
+        self.evaluate(pred_model_argmaxed, target, mode='model')
+        self.evaluate(pred_baseline, target, mode='baseline')
+
 
         #TODO: !!Ready to write evaluation here!!
 
 
-def evaluate(prediction):
-    pass
+    def evaluate(
+            self,
+            pred,
+            target,
+            mode='model',
+    ):
+        pass
+
 
 
 def ckpt_quick_eval_with_baseline(
