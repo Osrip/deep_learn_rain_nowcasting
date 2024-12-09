@@ -80,11 +80,10 @@ class EvaluateBaselineCallback(pl.Callback):
         pred_baseline = baseline[:, s_num_lead_time_steps, :, :]
         pred_baseline = T.CenterCrop(size=s_target_height_width)(pred_baseline)
 
+        # Double-checked alignment visually (See apple notes Science/testing code/Testing on predict_batch_end())
+
         self.evaluate(pred_model_argmaxed, target, mode='model')
         self.evaluate(pred_baseline, target, mode='baseline')
-
-
-        #TODO: !!Ready to write evaluation here!!
 
 
     def evaluate(
