@@ -7,9 +7,7 @@ from helper.helper_functions import center_crop_1d
 import torch
 import torchvision.transforms as T
 from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data
-
-
-
+import pandas as pd
 
 
 class EvaluateBaselineCallback(pl.Callback):
@@ -45,6 +43,19 @@ class EvaluateBaselineCallback(pl.Callback):
         self.checkpoint_name = checkpoint_name
         self.samples_have_padding = samples_have_padding
 
+        self.losses_model = []
+        self.losses_baseline = []
+
+        self.rmses_model = []
+        self.rmses_baseline = []
+
+        self.means_target = []
+        self.means_pred_model = []
+        self.means_pred_baseline = []
+
+        self.certainties_model = []
+        self.stds_model = []
+
     def on_predict_batch_end(
         self,
         trainer: "pl.Trainer",
@@ -71,19 +82,21 @@ class EvaluateBaselineCallback(pl.Callback):
         s_target_height_width = self.settings['s_target_height_width']
 
         # Unpacking outputs -> except for loss they are all batched tensors
+        loss = outputs['loss']
+        pred_model_binned = outputs['pred']
         target_normed = outputs['target']
-        pred_model_one_hot = outputs['pred']
+        target_one_hot = outputs['target_binned']
         baseline = outputs['baseline']
 
         # Model Prediction
 
-        # pred_model_softmaxed = torch.nn.Softmax(dim=1)(pred_model_one_hot)
+        # pred_model_softmaxed = torch.nn.Softmax(dim=1)(pred_model_binned)
         # pred_model_argmaxed = torch.argmax(pred_model_softmaxed, dim=1)
 
         # TODO: AM I DOING THIS FOR THE PREDICTION PIPELINE TOO?
         # Converting prediction from one-hot to (lognormed) mm
         _, _, linspace_binning = pl_module._linspace_binning_params
-        pred_model_normed = one_hot_to_lognormed_mm(pred_model_one_hot, linspace_binning, channel_dim=1)
+        pred_model_normed = one_hot_to_lognormed_mm(pred_model_binned, linspace_binning, channel_dim=1)
 
         # Inverse normalize target and prediction
 
@@ -100,29 +113,129 @@ class EvaluateBaselineCallback(pl.Callback):
 
         # Double-checked alignment visually (See apple notes Science/testing code/Testing on predict_batch_end())
 
-        self.evaluate(pred_baseline_mm, pred_model_mm, target_mm, pl_module)
+        self.evaluate(
+            pred_model_mm,
+            pred_model_binned,
+            pred_baseline_mm,
+            target_mm,
+            target_one_hot,
+            loss,
+            pl_module,
+        )
 
 
     def evaluate(
             self,
             pred_model_mm,
+            pred_model_binned,
             pred_baseline_mm,
-            target,
+            target_mm,
+            target_one_hot,
+            loss,
             pl_module,
     ):
         """
         Input:
-            pred: torch.Tensor
+            pred_model_mm: torch.Tensor
                 shape: [batch, height, width]
-            target: torch.Tensor
+            pred_model_binned: torch.Tensor
+                shape: [batch, channels, height, width]
+            pred_baseline_mm: torch.Tensor
                 shape: [batch, height, width]
-            pl_module: pl.LightningModule
+            target_mm: torch.Tensor
+                shape: [batch, height, width]
+            target_one_hot: torch.Tensor
+                shape: [batch, channels, height, width]
+            loss: torch.Tensor (single scalar) representing batch loss from the model
         """
 
+        # Check if pred_model_binned is already soft maxed
+        sum_along_channels = pred_model_binned.sum(dim=1, keepdim=False)
+        if torch.allclose(sum_along_channels, torch.ones_like(sum_along_channels), atol=1e-3):
+            pred_probs = pred_model_binned
+        else:
+            pred_probs = torch.softmax(pred_model_binned, dim=1)
+
+        # Find the ground truth bin index
+        bin_idx = target_one_hot.argmax(dim=1, keepdim=True)  # shape: [batch, 1, height, width]
+        # Gather probabilities of the correct bin
+        pred_probs_correct = pred_probs.gather(dim=1, index=bin_idx)  # shape: [batch, 1, height, width]
+
+        # If the given loss is a single scalar for the batch,
+        # we distribute it evenly or recompute per-sample model loss.
+        # Let's just recompute sample-wise model loss as MSE:
+        # TODO: Make this XEntropy loss, ideally drawing loss function directly from pl_modul
+        #  We have to do this again, as the loss is only calculated for the whole batch.
+        model_losses = torch.mean((pred_model_mm - target_mm) ** 2, dim=(1,2))  # [batch]
+        baseline_losses = torch.mean((pred_baseline_mm - target_mm) ** 2, dim=(1,2))  # [batch]
+
+        rmse_model_per_sample = torch.sqrt(torch.mean((pred_model_mm - target_mm) ** 2, dim=(1,2)))  # [batch]
+        rmse_baseline_per_sample = torch.sqrt(torch.mean((pred_baseline_mm - target_mm) ** 2, dim=(1,2)))  # [batch]
+
+        mean_target_per_sample = target_mm.mean(dim=(1,2))  # [batch]
+        mean_pred_model_per_sample = pred_model_mm.mean(dim=(1,2))  # [batch]
+        mean_pred_baseline_per_sample = pred_baseline_mm.mean(dim=(1,2))  # [batch]
+
+        # Certainty per sample
+        certainty_per_sample = pred_probs_correct.mean(dim=(1,2,3))  # [batch]
+
+        # Std per sample (std across channels, then average spatial dims)
+        # First: std across channels -> shape: [batch, height, width]
+        std_model_per_sample = pred_model_binned.std(dim=1)
+        # Average spatially to get a single scalar per sample
+        std_model_per_sample = std_model_per_sample.mean(dim=(1,2))  # [batch]
+
+        # Append per-sample metrics to the logging lists
+        self.losses_model.extend(model_losses.tolist())
+        self.losses_baseline.extend(baseline_losses.tolist())
+
+        self.rmses_model.extend(rmse_model_per_sample.tolist())
+        self.rmses_baseline.extend(rmse_baseline_per_sample.tolist())
+
+        self.means_target.extend(mean_target_per_sample.tolist())
+        self.means_pred_model.extend(mean_pred_model_per_sample.tolist())
+        self.means_pred_baseline.extend(mean_pred_baseline_per_sample.tolist())
+
+        self.certainties_model.extend(certainty_per_sample.tolist())
+        self.stds_model.extend(std_model_per_sample.tolist())
+
+    def on_predict_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"):
+        self.save_evaluations_logs()
 
 
+    def save_evaluations_logs(self):
+        import os
+        import pandas as pd
 
+        s_dirs = self.settings['s_dirs']
+        log_dir = s_dirs['logs']
+        evaluation_dir = os.path.join(log_dir, "evaluation")
 
+        # Check if the evaluation directory exists, create it if not
+        os.makedirs(evaluation_dir, exist_ok=True)
+
+        # Remove ".ckpt" from checkpoint_name if present
+        checkpoint_name_cleaned = self.checkpoint_name.replace(".ckpt", "")
+
+        # Convert metrics to a DataFrame
+        df = pd.DataFrame({
+            "losses_model":     self.losses_model,
+            "losses_baseline":  self.losses_baseline,
+            "rmses_model":      self.rmses_model,
+            "rmses_baseline":   self.rmses_baseline,
+            "means_target":     self.means_target,
+            "means_pred_model": self.means_pred_model,
+            "means_pred_baseline": self.means_pred_baseline,
+            "certainties_model": self.certainties_model,
+            "stds_model":       self.stds_model,
+        })
+
+        # Define CSV file path based on checkpoint_name
+        csv_file = os.path.join(evaluation_dir, f"{checkpoint_name_cleaned}_metrics.csv")
+
+        # Save DataFrame to CSV
+        df.to_csv(csv_file, index=False)
+        print(f"Saved evaluation logs to {csv_file}")
 
 
 def ckpt_quick_eval_with_baseline(

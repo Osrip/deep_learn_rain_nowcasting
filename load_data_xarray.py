@@ -55,7 +55,7 @@ class FilteredDatasetXr(Dataset):
                 Make sure this has been only calculated on training data!
 
             mode: str
-                'train':    training mode. __getitem_train__    is called which handles padding and augmentation
+                'train':    training mode: __getitem_train__    is called which handles padding and augmentation
                 'baseline': baseline mode: __getitem_baseline__ returns the baseline as well, performs center cropping on padded input
                 'predict':  evaluation mode: __getitem_eval__   is called which handles non-padded data to do
                                                                 operate on unfiltered patches that will be reassembled

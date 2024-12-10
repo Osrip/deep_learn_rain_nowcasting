@@ -141,17 +141,20 @@ class NetworkL(pl.LightningModule):
         if not mode in ('predict', 'baseline', 'train'):
             raise ValueError('Wrong mode passed to Network_l. Has to be either "predict" or "baseline" or "train"')
         self.mode = mode
-        if mode == 'baseline':
-            # Initialize lists for logging
-            self.losses_model = []
-            self.losses_baseline = []
-
-            self.rmses_model = []
-            self.rmses_baseline = []
-
-            self.means_target = []
-            self.means_pred_model = []
-            self.means_pred_baseline = []
+        # if mode == 'baseline':
+        #     # Initialize lists for mode 'baseline' logging with EvaluateBaselineCallback()
+        #     self.losses_model = []
+        #     self.losses_baseline = []
+        #
+        #     self.rmses_model = []
+        #     self.rmses_baseline = []
+        #
+        #     self.means_target = []
+        #     self.means_pred_model = []
+        #     self.means_pred_baseline = []
+        #
+        #     self.certainties_model = []
+        #     self.stds_model = []
 
     def forward(self, x):
         output = self.model(x)
@@ -282,7 +285,7 @@ class NetworkL(pl.LightningModule):
                                                     In target binned for all values that have been NaNs in target simply
                                                     all bins have been set to zero
 
-            The dictionary can be accessed under the 'ouputs' arg in the callbacks
+            The dictionary can be accessed under the 'outputs' arg in the callbacks
             'loss' is accessed by the trainer to do the backward pass
         """
         s_gaussian_smoothing_target = self.settings['s_gaussian_smoothing_target']
