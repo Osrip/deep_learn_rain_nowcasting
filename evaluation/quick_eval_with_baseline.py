@@ -44,8 +44,9 @@ class EvaluateBaselineCallback(pl.Callback):
         self.checkpoint_name = checkpoint_name
         self.samples_have_padding = samples_have_padding
 
+        # Initialising logging lists
         self.losses_model = []
-        self.losses_baseline = []
+        # self.losses_baseline = []
 
         self.rmses_model = []
         self.rmses_baseline = []
@@ -84,20 +85,20 @@ class EvaluateBaselineCallback(pl.Callback):
 
         # Unpacking outputs -> except for loss they are all batched tensors
         loss = outputs['loss']
-        pred_model_binned = outputs['pred']
+        pred_model_binned_no_smax = outputs['pred']
         target_normed = outputs['target']
         target_one_hot = outputs['target_binned']
         baseline = outputs['baseline']
 
         # Model Prediction
 
-        # pred_model_softmaxed = torch.nn.Softmax(dim=1)(pred_model_binned)
+        # pred_model_softmaxed = torch.nn.Softmax(dim=1)(pred_model_binned_no_smax)
         # pred_model_argmaxed = torch.argmax(pred_model_softmaxed, dim=1)
 
         # TODO: AM I DOING THIS FOR THE PREDICTION PIPELINE TOO?
         # Converting prediction from one-hot to (lognormed) mm
         _, _, linspace_binning = pl_module._linspace_binning_params
-        pred_model_normed = one_hot_to_lognormed_mm(pred_model_binned, linspace_binning, channel_dim=1)
+        pred_model_normed = one_hot_to_lognormed_mm(pred_model_binned_no_smax, linspace_binning, channel_dim=1)
 
         # Inverse normalize target and prediction
 
@@ -116,7 +117,7 @@ class EvaluateBaselineCallback(pl.Callback):
 
         self.evaluate(
             pred_model_mm,
-            pred_model_binned,
+            pred_model_binned_no_smax,
             pred_baseline_mm,
             target_mm,
             target_one_hot,
@@ -128,7 +129,7 @@ class EvaluateBaselineCallback(pl.Callback):
     def evaluate(
             self,
             pred_model_mm,
-            pred_model_binned,
+            pred_model_binned_no_smax,
             pred_baseline_mm,
             target_mm,
             target_one_hot,
@@ -151,24 +152,26 @@ class EvaluateBaselineCallback(pl.Callback):
         """
 
         # Check if pred_model_binned is already soft maxed
-        sum_along_channels = pred_model_binned.sum(dim=1, keepdim=False)
+        sum_along_channels = pred_model_binned_no_smax.sum(dim=1, keepdim=False)
         if torch.allclose(sum_along_channels, torch.ones_like(sum_along_channels), atol=1e-3):
-            pred_probs = pred_model_binned
+            raise ValueError('Looks like the prediction has been softmaxed already, expected non-softmaxed predictions')
         else:
-            pred_probs = torch.softmax(pred_model_binned, dim=1)
+            pred_model_binned_smax = torch.softmax(pred_model_binned_no_smax, dim=1)
 
         # Find the ground truth bin index
         bin_idx = target_one_hot.argmax(dim=1, keepdim=True)  # shape: [batch, 1, height, width]
         # Gather probabilities of the correct bin
-        pred_probs_correct = pred_probs.gather(dim=1, index=bin_idx)  # shape: [batch, 1, height, width]
+        pred_probs_correct = pred_model_binned_smax.gather(dim=1, index=bin_idx)  # shape: [batch, 1, height, width]
 
-        # If the given loss is a single scalar for the batch,
-        # we distribute it evenly or recompute per-sample model loss.
-        # Let's just recompute sample-wise model loss as MSE:
+
         # TODO: Make this XEntropy loss, ideally drawing loss function directly from pl_modul
         #  We have to do this again, as the loss is only calculated for the whole batch.
-        model_losses = torch.mean((pred_model_mm - target_mm) ** 2, dim=(1,2))  # [batch]
-        baseline_losses = torch.mean((pred_baseline_mm - target_mm) ** 2, dim=(1,2))  # [batch]
+        if not isinstance(pl_module.loss_func, torch.nn.CrossEntropyLoss):
+            raise ValueError('Loss was expected to be xrossentropy in Validation')
+
+        model_losses = torch.nn.CrossEntropyLoss(reduction='none')(pred_model_binned_no_smax, torch.argmax(target_one_hot, dim=1))  # [batch]
+        model_losses = model_losses.mean(dim=(1,2))
+        # no XEntropy loss on deterministic baseline
 
         rmse_model_per_sample = torch.sqrt(torch.mean((pred_model_mm - target_mm) ** 2, dim=(1,2)))  # [batch]
         rmse_baseline_per_sample = torch.sqrt(torch.mean((pred_baseline_mm - target_mm) ** 2, dim=(1,2)))  # [batch]
@@ -182,13 +185,13 @@ class EvaluateBaselineCallback(pl.Callback):
 
         # Std per sample (std across channels, then average spatial dims)
         # First: std across channels -> shape: [batch, height, width]
-        std_model_per_sample = pred_model_binned.std(dim=1)
+        std_model_per_sample = pred_model_binned_no_smax.std(dim=1)
         # Average spatially to get a single scalar per sample
         std_model_per_sample = std_model_per_sample.mean(dim=(1,2))  # [batch]
 
         # Append per-sample metrics to the logging lists
         self.losses_model.extend(model_losses.tolist())
-        self.losses_baseline.extend(baseline_losses.tolist())
+        # self.losses_baseline.extend(baseline_losses.tolist())
 
         self.rmses_model.extend(rmse_model_per_sample.tolist())
         self.rmses_baseline.extend(rmse_baseline_per_sample.tolist())
@@ -219,7 +222,7 @@ class EvaluateBaselineCallback(pl.Callback):
         # Convert metrics to a DataFrame
         df = pd.DataFrame({
             "losses_model":         self.losses_model,
-            "losses_baseline":      self.losses_baseline,
+            # "losses_baseline":      self.losses_baseline,
             "rmses_model":          self.rmses_model,
             "rmses_baseline":       self.rmses_baseline,
             "means_target":         self.means_target,

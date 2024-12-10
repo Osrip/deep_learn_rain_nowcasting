@@ -27,7 +27,7 @@ def evaluation_pipeline(data_set_vars, ckpt_settings, plotting=False):
 
     # Only do prediction for last checkpoint
     # TODO Make this best checkpoint on validation loss
-    checkpoint_name = [name for name in checkpoint_names if 'last' in name][0]
+    checkpoint_name = [name for name in checkpoint_names if 'best' in name][0]
 
     model = load_from_checkpoint(
         save_dir,

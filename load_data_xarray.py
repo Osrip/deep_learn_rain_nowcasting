@@ -483,18 +483,6 @@ class FilteredDatasetXr(Dataset):
         elif self.mode == 'predict':
             return dynamic_variables_dict, static_variables_dict, sample_metadata_dict
 
-        # if load_metadata:
-        #     if len(self.baseline_data_dict) > 0:
-        #         # return baseline dict as well
-        #         return dynamic_variables_dict, static_variables_dict, sample_metadata_dict, baseline_variables_dict
-        #     else:
-        #         return dynamic_variables_dict, static_variables_dict, sample_metadata_dict
-        # else:
-        #     if len(self.baseline_data_dict) > 0:
-        #         return dynamic_variables_dict, static_variables_dict, baseline_variables_dict
-        #     else:
-        #         return dynamic_variables_dict, static_variables_dict
-
     @staticmethod
     def _load_metadata_from_variable_(spacetime_variable, mode='dynamic'):
         """

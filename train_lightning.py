@@ -458,7 +458,7 @@ def train_wrapper(
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=s_dirs['model_dir'],
         monitor='val_mean_loss',
-        filename='model_{epoch:04d}_{val_mean_loss:.2f}',
+        filename='model_{epoch:04d}_{val_mean_loss:.2f}_best',
         save_top_k=1,
         save_last=True
     )
@@ -771,7 +771,7 @@ if __name__ == '__main__':
     if settings['s_local_machine_mode']:
 
         settings['s_plotting_only'] = True
-        settings['s_plot_sim_name'] = 'Run_20241209-122758debug_10_epochs'
+        settings['s_plot_sim_name'] = 'Run_20241210-154712debug_10_epochs'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'

@@ -119,6 +119,7 @@ class NetworkL(pl.LightningModule):
 
         else:
             self.loss_func = nn.CrossEntropyLoss()
+            # TODO potentially include label smoothing (just an arg: label_smoothing = 0.3)
             # Yields the same result, when inputs are indecies instead of one-hot probabilities for x entropy
             # loss = self.loss_func(pred, torch.argmax(target_binned, dim=1))
 
