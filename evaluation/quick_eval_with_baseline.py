@@ -218,15 +218,15 @@ class EvaluateBaselineCallback(pl.Callback):
 
         # Convert metrics to a DataFrame
         df = pd.DataFrame({
-            "losses_model":     self.losses_model,
-            "losses_baseline":  self.losses_baseline,
-            "rmses_model":      self.rmses_model,
-            "rmses_baseline":   self.rmses_baseline,
-            "means_target":     self.means_target,
-            "means_pred_model": self.means_pred_model,
-            "means_pred_baseline": self.means_pred_baseline,
-            "certainties_model": self.certainties_model,
-            "stds_model":       self.stds_model,
+            "losses_model":         self.losses_model,
+            "losses_baseline":      self.losses_baseline,
+            "rmses_model":          self.rmses_model,
+            "rmses_baseline":       self.rmses_baseline,
+            "means_target":         self.means_target,
+            "means_pred_model":     self.means_pred_model,
+            "means_pred_baseline":  self.means_pred_baseline,
+            "certainties_model":    self.certainties_model,
+            "stds_model":           self.stds_model,
         })
 
         # Define CSV file path based on checkpoint_name

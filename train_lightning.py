@@ -31,7 +31,7 @@ from logger import (ValidationLogsCallback,
                     BaselineValidationLogsCallback,
                     create_loggers)
 from baselines import LKBaseline
-from plotting.legacy.plotting_pipeline import plot_logs_pipeline
+from plotting.plotting_pipeline import plot_logs_pipeline
 from helper.sigma_scheduler_helper import create_scheduler_mapping
 from helper.helper_functions import no_special_characters, create_save_name_for_data_loader_vars
 
@@ -836,37 +836,6 @@ if __name__ == '__main__':
         )
 
         evaluation_pipeline(data_set_vars, settings)
-
-        # save_dir = settings['s_dirs']['save_dir']
-        #
-        # checkpoint_names = get_checkpoint_names(save_dir)
-        #
-        # # Only do prediction for last checkpoint
-        # # TODO Make this best checkpoint on validation loss
-        # checkpoint_name = [name for name in checkpoint_names if 'last' in name][0]
-        #
-        # model = load_from_checkpoint(
-        #     save_dir,
-        #     checkpoint_name,
-        #
-        #     settings,
-        #     **settings,
-        # )
-        #
-        # # --- Generate predictions that are saved to a zarr ---
-        #
-        # ckpt_to_pred(
-        #     model,
-        #     checkpoint_name,
-        #     train_time_keys, val_time_keys, test_time_keys,
-        #     radolan_statistics_dict,
-        #     linspace_binning_params,
-        #     max_num_frames_per_split=15,
-        #
-        #     splits_to_predict_on=['val'],
-        #     ckp_settings = settings,
-        #     **settings,
-        # )
 
 
     else:
