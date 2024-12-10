@@ -141,20 +141,6 @@ class NetworkL(pl.LightningModule):
         if not mode in ('predict', 'baseline', 'train'):
             raise ValueError('Wrong mode passed to Network_l. Has to be either "predict" or "baseline" or "train"')
         self.mode = mode
-        # if mode == 'baseline':
-        #     # Initialize lists for mode 'baseline' logging with EvaluateBaselineCallback()
-        #     self.losses_model = []
-        #     self.losses_baseline = []
-        #
-        #     self.rmses_model = []
-        #     self.rmses_baseline = []
-        #
-        #     self.means_target = []
-        #     self.means_pred_model = []
-        #     self.means_pred_baseline = []
-        #
-        #     self.certainties_model = []
-        #     self.stds_model = []
 
     def forward(self, x):
         output = self.model(x)

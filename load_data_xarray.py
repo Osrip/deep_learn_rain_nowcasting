@@ -1429,6 +1429,7 @@ def create_oversampling_weights(
     list_of_oversampling_weights = []
 
     # Iterate over train and val data
+    # TODO: Do the above inside the loop, less efficiency but drastically reduces memory footprint
     for valid_datetime_idx_permuts in list_of_valid_datetime_idx_permuts:
         oversampling_weights = []
 

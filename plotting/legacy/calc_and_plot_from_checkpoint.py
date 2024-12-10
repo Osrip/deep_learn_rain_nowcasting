@@ -1,16 +1,14 @@
 
 import numpy as np
 import torch
-import os
 
 from helper.checkpoint_handling import load_from_checkpoint, create_data_loaders_ckpt_plotting, load_data_from_run, \
     get_checkpoint_names
-from plotting.plot_snapshots import plot_snapshots
-from plotting.calc_plot_CRPS import calc_CRPS, plot_crps
-from plotting.calc_plot_FSS import calc_FSS, plot_fss_by_scales, plot_fss_by_threshold,\
-    plot_fss_by_threshold_one_plot, plot_fss_by_scales_one_plot
-from plotting.plot_spread_skill_ratio import plot_spread_skill
-from plotting.calc_plot_FSS_ver2 import calc_FSS_ver2
+from plotting.legacy.plot_snapshots import plot_snapshots
+from plotting.legacy.calc_plot_CRPS import calc_CRPS, plot_crps
+from plotting.legacy.calc_plot_FSS import calc_FSS, plot_fss_by_scales_one_plot
+from plotting.legacy.plot_spread_skill_ratio import plot_spread_skill
+from plotting.legacy.calc_plot_FSS_ver2 import calc_FSS_ver2
 from helper.pre_process_target_input import inverse_normalize_data
 
 

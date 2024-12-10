@@ -16,7 +16,7 @@ from load_data_xarray import (
     calc_bin_frequencies,
     create_oversampling_weights,
 )
-from helper.pre_process_target_input import normalize_data, invnorm_linspace_binning, inverse_normalize_data
+from helper.pre_process_target_input import invnorm_linspace_binning, inverse_normalize_data
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
 import numpy as np
@@ -31,7 +31,7 @@ from logger import (ValidationLogsCallback,
                     BaselineValidationLogsCallback,
                     create_loggers)
 from baselines import LKBaseline
-from plotting.plotting_pipeline import plot_logs_pipeline
+from plotting.legacy.plotting_pipeline import plot_logs_pipeline
 from helper.sigma_scheduler_helper import create_scheduler_mapping
 from helper.helper_functions import no_special_characters, create_save_name_for_data_loader_vars
 from helper.checkpoint_handling import load_from_checkpoint, get_checkpoint_names
@@ -318,7 +318,6 @@ def create_data_loaders(
         val_steps_per_epoch = len(val_data_set)
 
     # TODO: Use Log weights instead (--> apple note 'Bin Frequencies for Oversampling in xarray')
-    # TODO: Create setting train_steps_per_epoch and split that according to the train val split ratio
 
     train_weighted_random_sampler = WeightedRandomSampler(weights=train_oversampling_weights, # TODO: LOG WEIGHTS BETTER?
                                                           num_samples=train_steps_per_epoch,
@@ -838,36 +837,36 @@ if __name__ == '__main__':
             settings, **settings
         )
 
-        save_dir = settings['s_dirs']['save_dir']
-
-        checkpoint_names = get_checkpoint_names(save_dir)
-
-        # Only do prediction for last checkpoint
-        # TODO Make this best checkpoint on validation loss
-        checkpoint_name = [name for name in checkpoint_names if 'last' in name][0]
-
-        model = load_from_checkpoint(
-            save_dir,
-            checkpoint_name,
-
-            settings,
-            **settings,
-        )
-
-        # --- Generate predictions that are saved to a zarr ---
-
-        ckpt_to_pred(
-            model,
-            checkpoint_name,
-            train_time_keys, val_time_keys, test_time_keys,
-            radolan_statistics_dict,
-            linspace_binning_params,
-            max_num_frames_per_split=15,
-
-            splits_to_predict_on=['val'],
-            ckp_settings = settings,
-            **settings,
-        )
+        # save_dir = settings['s_dirs']['save_dir']
+        #
+        # checkpoint_names = get_checkpoint_names(save_dir)
+        #
+        # # Only do prediction for last checkpoint
+        # # TODO Make this best checkpoint on validation loss
+        # checkpoint_name = [name for name in checkpoint_names if 'last' in name][0]
+        #
+        # model = load_from_checkpoint(
+        #     save_dir,
+        #     checkpoint_name,
+        #
+        #     settings,
+        #     **settings,
+        # )
+        #
+        # # --- Generate predictions that are saved to a zarr ---
+        #
+        # ckpt_to_pred(
+        #     model,
+        #     checkpoint_name,
+        #     train_time_keys, val_time_keys, test_time_keys,
+        #     radolan_statistics_dict,
+        #     linspace_binning_params,
+        #     max_num_frames_per_split=15,
+        #
+        #     splits_to_predict_on=['val'],
+        #     ckp_settings = settings,
+        #     **settings,
+        # )
 
 
     else:

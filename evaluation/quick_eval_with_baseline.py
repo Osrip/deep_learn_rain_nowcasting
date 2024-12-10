@@ -8,6 +8,7 @@ import torch
 import torchvision.transforms as T
 from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data
 import pandas as pd
+import os
 
 
 class EvaluateBaselineCallback(pl.Callback):
@@ -204,8 +205,6 @@ class EvaluateBaselineCallback(pl.Callback):
 
 
     def save_evaluations_logs(self):
-        import os
-        import pandas as pd
 
         s_dirs = self.settings['s_dirs']
         log_dir = s_dirs['logs']
