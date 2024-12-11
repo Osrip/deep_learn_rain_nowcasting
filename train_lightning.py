@@ -610,14 +610,14 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 
     # s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
-    s_dirs['plot_dir'] = '{}/plots'.format(s_dirs['save_dir'])
-    s_dirs['plot_dir_images'] = '{}/images'.format(s_dirs['plot_dir'])
-    s_dirs['plot_dir_fss'] = '{}/fss'.format(s_dirs['plot_dir'])
-    s_dirs['model_dir'] = '{}/model'.format(s_dirs['save_dir'])
-    s_dirs['code_dir'] = '{}/code'.format(s_dirs['save_dir'])
-    s_dirs['profile_dir'] = '{}/profile'.format(s_dirs['save_dir'])
-    s_dirs['logs'] = '{}/logs'.format(s_dirs['save_dir'])
-    s_dirs['data_dir'] = '{}/data'.format(s_dirs['save_dir'])
+    s_dirs['plot_dir']          = '{}/plots'.format(s_dirs['save_dir'])
+    s_dirs['plot_dir_images']   = '{}/images'.format(s_dirs['plot_dir'])
+    s_dirs['plot_dir_fss']      = '{}/fss'.format(s_dirs['plot_dir'])
+    s_dirs['model_dir']         = '{}/model'.format(s_dirs['save_dir'])
+    s_dirs['code_dir']          = '{}/code'.format(s_dirs['save_dir'])
+    s_dirs['profile_dir']       = '{}/profile'.format(s_dirs['save_dir'])
+    s_dirs['logs']              = '{}/logs'.format(s_dirs['save_dir'])
+    s_dirs['data_dir']          = '{}/data'.format(s_dirs['save_dir'])
 
     return s_dirs
 
@@ -628,7 +628,7 @@ if __name__ == '__main__':
 
     s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'debug_10_epochs'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = '1_month_20_eopchs_all_data_every_epoch'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -664,10 +664,10 @@ if __name__ == '__main__':
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 50, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 20, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-03-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
 
             # Splitting training / validation
             's_split_chunk_duration': '1D',
@@ -680,8 +680,8 @@ if __name__ == '__main__':
             # Number of steps per epoch in random sampler, can be None:
             # This basically makes the epoch notation more or less unnecessary (scheduler is also coup[led to training steps)
             # So this mainly influences how often things are logged
-            's_train_steps_per_epoch': 500 * 0.7,  # Can be None
-            's_val_steps_per_epoch': 500 * 0.15,  # Can be None
+            's_train_steps_per_epoch': None, #500 * 0.7,  # Can be None
+            's_val_steps_per_epoch': None, #500 * 0.15,  # Can be None
 
             # Load Radolan
             's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
@@ -701,7 +701,7 @@ if __name__ == '__main__':
             's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
-            's_num_gpus': 8,
+            's_num_gpus': 4,
             's_batch_size': 128, #our net on a100: 64  #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
             # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
             # Make this divisible by 8 or best 8 * 2^n
@@ -770,7 +770,7 @@ if __name__ == '__main__':
 
     if settings['s_local_machine_mode']:
 
-        settings['s_plotting_only'] = True
+        settings['s_plotting_only'] = False
         settings['s_plot_sim_name'] = 'Run_20241210-154712debug_10_epochs'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
@@ -785,7 +785,7 @@ if __name__ == '__main__':
         settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
-        settings['s_max_epochs'] = 10  # 2
+        settings['s_max_epochs'] = 1
         settings['s_num_gpus'] = 1
         settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T09:00'] # ['2019-01-01T08:00', '2019-01-01T12:00']
         settings['s_split_chunk_duration'] = '5min' #'15min' #'1h'
