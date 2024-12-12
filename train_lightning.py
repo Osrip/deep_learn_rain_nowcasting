@@ -124,6 +124,7 @@ def preprocess_data(
     Patches refer to targets
     Samples refer to the data delivered by data loader
     '''
+    
     # Define constants for pre-processing
     y_target, x_target = s_target_height_width, s_target_height_width  # 73, 137 # how many pixels in y and x direction
     y_input, x_input = s_input_height_width, s_input_height_width
@@ -147,6 +148,7 @@ def preprocess_data(
     )
 
     # Filter patches
+    print('Filter patches ...')
     valid_patches_boo = filter_patches(patches, **settings)
     # valid_patches_boo: Boolean xr.Dataset with y_outer and x_outer defines the valid patches
 
@@ -156,7 +158,7 @@ def preprocess_data(
     # Resample shortened data, from which the time_keys are generated that determine the splits
     # Each time_key represents one 'time group'
     # The splits are created on the time stamps of the targets, which the patches are linked to.
-
+    print('Split data ...')
     resampled_data = data_shortened.resample(time=s_split_chunk_duration)
     # Randomly split the time_keys
     train_time_keys, val_time_keys, test_time_keys = create_split_time_keys(resampled_data, **settings)
@@ -170,6 +172,7 @@ def preprocess_data(
 
     # --- CALC NORMALIZATION STATISTICS on valid training patches---
     # Only calculating on training data to prevent data leakage
+    print('Calculate normalization statistics...')
     _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_patches(
         patches,
         train_valid_patches_boo,
@@ -626,9 +629,9 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
+    s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = '1_month_20_eopchs_all_data_every_epoch'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'overfitting_one_hour_5_min_splits'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -658,19 +661,19 @@ if __name__ == '__main__':
             's_plot_sim_name': 'Run_20241105-182147_ID_774405training_and_zarr_saving_50_epochs', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
             # Save data loader variables
-            's_save_prefix_data_loader_vars': 'data_loader_vars_dec_24',
+            's_save_prefix_data_loader_vars': 'overfitting', #TODO change this back!
             's_data_loader_vars_path': '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
 
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 20, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 100, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_crop_data_time_span': ['2019-01-01T08:00', '2019-01-01T09:00'],  # ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
 
             # Splitting training / validation
-            's_split_chunk_duration': '1D',
+            's_split_chunk_duration': '5min', #'1D', #TODO change this back!
             # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
             's_ratio_train_val_test': (0.7, 0.15, 0.15),
             # These are the splitting ratios between (train, val, test), adding up to 1

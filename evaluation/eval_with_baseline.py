@@ -206,7 +206,6 @@ class EvaluateBaselineCallback(pl.Callback):
     def on_predict_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"):
         self.save_evaluations_logs()
 
-
     def save_evaluations_logs(self):
 
         s_dirs = self.settings['s_dirs']

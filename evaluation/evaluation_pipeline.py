@@ -1,5 +1,5 @@
 from evaluation.checkpoint_to_prediction import ckpt_to_pred
-from evaluation.quick_eval_with_baseline import ckpt_quick_eval_with_baseline
+from evaluation.eval_with_baseline import ckpt_quick_eval_with_baseline
 from helper.checkpoint_handling import get_checkpoint_names, load_from_checkpoint
 from plotting.plotting_pipeline import plot_logs_pipeline
 
