@@ -1,6 +1,7 @@
 from multiprocessing.managers import Value
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 import itertools
 
@@ -12,6 +13,7 @@ from helper.pre_process_target_input import normalize_data, inverse_normalize_da
 import torch
 from torchvision import transforms
 import torchvision.transforms.functional as TF
+
 
 
 class FilteredDatasetXr(Dataset):
@@ -675,29 +677,6 @@ class FilteredDatasetXr(Dataset):
         # Return a tuple of cropped dicts
         return tuple(cropped_dicts)
 
-    # def random_crop_old(self, dynamic_samples_dict, static_samples_dict):
-    #     """
-    #     Doing a random crop
-    #     The same random crop is done on all samples of dynamic_samples_dict and static_samples_dict
-    #     """
-    #     s_input_height_width = self.settings['s_input_height_width']
-    #
-    #     crop_indices = transforms.RandomCrop.get_params(
-    #         dynamic_samples_dict['radolan'],
-    #         output_size=(s_input_height_width, s_input_height_width)
-    #     )
-    #
-    #     i, j, h, w = crop_indices  # i,j give random position of the crop, h,w give height, width (=s_input_height_width)
-    #
-    #     dynamic_samples_dict_cropped = {
-    #         key: TF.crop(spacetime_sample, i, j, h, w) for key, spacetime_sample in dynamic_samples_dict.items()
-    #     }
-    #
-    #     static_samples_dict_cropped = {
-    #         key: TF.crop(spacial_sample, i, j, h, w) for key, spacial_sample in static_samples_dict.items()
-    #     }
-    #
-    #     return dynamic_samples_dict_cropped, static_samples_dict_cropped
 
     def random_crop(self, *sample_dicts):
         """
@@ -1277,13 +1256,22 @@ def calc_bin_frequencies(
         mean_filtered_log_data, std_filtered_log_data,
 
         s_data_variable_name,
+        # sample_period = '1D',
         **__,
 ):
     """
     This function calculates the frequencies of each bin in the data
+    Extremely CPU expensive operation - therefore we are subsampling
+    One hour of filtered data takes about 1 minute to calculate!
+
     Input:
         data: xr.DataSet
             The data over which the binning frequency shall be calculated
+        # sample_period : str
+        #     The period for which the bin frequencies will be calculated
+        #     A pandas-compatible offset string (e.g. '1Y', '30D') specifying how long a
+        #     time slice to select. If None, use entire dataset. If data is shorter than
+        #     the given period, the full data is used.
 
     Output:
         bin_frequencies: np.array
@@ -1312,6 +1300,23 @@ def calc_bin_frequencies(
     # --- Determine Bin Frequencies ---
     # groupby_bins requires max to be included in the binnning
     linspace_binning_with_max_unnormed = np.append(linspace_binning_unnormed, linspace_binning_max_unnormed)
+
+    # Subsample data
+    # We are subsampling as groupby_bins is extremely CPU expensive
+    # Speedup using numpy see: https://github.com/pydata/xarray/issues/6758
+
+
+
+    # time_dim = data['time']
+    # total_duration = time_dim[-1].values - time_dim[0].values
+    # desired_duration = pd.to_timedelta(sample_period)
+    #
+    # # Only slice if desired_duration is shorter than the full dataset duration
+    # if desired_duration < total_duration:
+    #     data_subsampled = data.sel(time=slice(time_dim[0].values, time_dim[0].values + desired_duration))
+    # else:
+    #     data_subsampled = data
+    # else keep data as is, since desired_duration is longer than available data
 
     # This eats up the vast majority of computing time (47.5s out of 47.9s for teh whole preprocessing)
     binned_data = data.groupby_bins(s_data_variable_name, linspace_binning_with_max_unnormed)

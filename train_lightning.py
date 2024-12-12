@@ -3,6 +3,7 @@ import torch
 from network_lightning import NetworkL
 import datetime
 import time
+import xarray as xr
 
 from load_data_xarray import (
     create_patches,
@@ -129,6 +130,8 @@ def preprocess_data(
         s_input_padding,
         s_data_variable_name,
         s_split_chunk_duration,
+        s_folder_path,
+        s_data_file_name,
         **__,
 ):
     '''
@@ -216,8 +219,20 @@ def preprocess_data(
 
     # --- CALC BIN FREQUENCIES FOR OVERSAMPLING ---
     print(f"Calculate bin frequencies for oversampling ... {format_ram_usage()}"); step_start_time = time.time()
+
+    # Load specific time span to calculate bin frequencies on - quick & dirty
+    # as this calculation is extremely expensive
+    time_span_bin_frequencies = ['2019-01-01T08:00', '2019-01-01T09:00']
+
+    load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
+    data_set = xr.open_dataset(load_path, engine='zarr', chunks=None)
+    crop_start, crop_end = np.datetime64(time_span_bin_frequencies[0]), np.datetime64(time_span_bin_frequencies[1])
+    crop_slice = slice(crop_start, crop_end)
+
+    data_subsampled = data_set.sel(time=crop_slice)
+
     bin_frequencies = calc_bin_frequencies(
-        data,
+        data_subsampled,
         linspace_binning_params,
         mean_filtered_log_data, std_filtered_log_data,
         **settings,
@@ -652,7 +667,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
