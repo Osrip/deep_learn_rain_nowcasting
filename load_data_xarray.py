@@ -1313,6 +1313,7 @@ def calc_bin_frequencies(
     # groupby_bins requires max to be included in the binnning
     linspace_binning_with_max_unnormed = np.append(linspace_binning_unnormed, linspace_binning_max_unnormed)
 
+    # This eats up the vast majority of computing time (47.5s out of 47.9s for teh whole preprocessing)
     binned_data = data.groupby_bins(s_data_variable_name, linspace_binning_with_max_unnormed)
     # Count the number of values in each bin, .count() ignores NaNs.
     bin_counts = binned_data.count()[s_data_variable_name]

@@ -2,6 +2,7 @@ import os
 import torch
 from network_lightning import NetworkL
 import datetime
+import time
 
 from load_data_xarray import (
     create_patches,
@@ -17,11 +18,21 @@ from load_data_xarray import (
     create_oversampling_weights,
 )
 from helper.pre_process_target_input import invnorm_linspace_binning, inverse_normalize_data
+from helper.memory_logging import format_duration, format_ram_usage
+from helper.helper_functions import (
+    save_zipped_pickle,
+    save_dict_pickle_csv,
+    save_tuple_pickle_csv,
+    save_project_code,
+    load_zipped_pickle,
+    save_data_loader_vars,
+    load_data_loader_vars
+)
+
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
 import numpy as np
-from helper.helper_functions import save_zipped_pickle, save_dict_pickle_csv,\
-    save_tuple_pickle_csv, save_project_code, load_zipped_pickle, save_data_loader_vars, load_data_loader_vars
+
 
 import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
@@ -124,13 +135,17 @@ def preprocess_data(
     Patches refer to targets
     Samples refer to the data delivered by data loader
     '''
-    
+    print('Preprocess Radolan data:')
+    start_time = time.time()
+
     # Define constants for pre-processing
     y_target, x_target = s_target_height_width, s_target_height_width  # 73, 137 # how many pixels in y and x direction
     y_input, x_input = s_input_height_width, s_input_height_width
     y_input_padding, x_input_padding = s_input_padding, s_input_padding  # Additional padding that the frames that will be returned to data loader get for Augmentation
 
     # --- PATCH AND FILTER ---
+    print(f"Create patches ... {format_ram_usage()}")
+    step_start_time = time.time()
     # Patch data into patches of the target size and filter these patches. Patches that passed filter are called 'valid'
 
     (
@@ -146,11 +161,13 @@ def preprocess_data(
         y_target, x_target,
         **settings
     )
+    print(f"Done. Took {format_duration(time.time() - step_start_time)}")
 
     # Filter patches
-    print('Filter patches ...')
+    print(f"Filter patches ... {format_ram_usage()}"); step_start_time = time.time()
     valid_patches_boo = filter_patches(patches, **settings)
     # valid_patches_boo: Boolean xr.Dataset with y_outer and x_outer defines the valid patches
+    print(f"Done. Took {format_duration(time.time() - step_start_time)}")
 
     # --- SPLIT DATA ---
     # We are grouping the data (i.e. daily) and then are splitting these (daily) groups into train, val and test set
@@ -158,7 +175,7 @@ def preprocess_data(
     # Resample shortened data, from which the time_keys are generated that determine the splits
     # Each time_key represents one 'time group'
     # The splits are created on the time stamps of the targets, which the patches are linked to.
-    print('Split data ...')
+    print(f"Split data ... {format_ram_usage()}"); step_start_time = time.time()
     resampled_data = data_shortened.resample(time=s_split_chunk_duration)
     # Randomly split the time_keys
     train_time_keys, val_time_keys, test_time_keys = create_split_time_keys(resampled_data, **settings)
@@ -169,10 +186,11 @@ def preprocess_data(
     # Split valid_patches_boo into train and val
     train_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, train_time_keys)
     val_valid_patches_boo = split_data_from_time_keys(resampled_valid_patches_boo, val_time_keys)
+    print(f"Done. Took {format_duration(time.time() - step_start_time)}")
 
     # --- CALC NORMALIZATION STATISTICS on valid training patches---
     # Only calculating on training data to prevent data leakage
-    print('Calculate normalization statistics...')
+    print(f"Calculate normalization statistics on training data ... {format_ram_usage()}"); step_start_time = time.time()
     _, _, mean_filtered_log_data, std_filtered_log_data = calc_statistics_on_valid_patches(
         patches,
         train_valid_patches_boo,
@@ -183,9 +201,10 @@ def preprocess_data(
         'mean_filtered_log_data': mean_filtered_log_data,
         'std_filtered_log_data': std_filtered_log_data
     }
+    print(f"Done. Took {format_duration(time.time() - step_start_time)}")
 
     # --- CREATE LINSPACE BINNING ---
-
+    print(f"Create linspace binning ... {format_ram_usage()}"); step_start_time = time.time()
     linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning_normed = calc_linspace_binning(
         data,
         mean_filtered_log_data,
@@ -193,18 +212,20 @@ def preprocess_data(
         **settings,
     )
     linspace_binning_params = linspace_binning_min_normed, linspace_binning_max_normed, linspace_binning_normed
+    print(f"Done. Took {format_duration(time.time() - step_start_time)}")
 
     # --- CALC BIN FREQUENCIES FOR OVERSAMPLING ---
-
+    print(f"Calculate bin frequencies for oversampling ... {format_ram_usage()}"); step_start_time = time.time()
     bin_frequencies = calc_bin_frequencies(
         data,
         linspace_binning_params,
         mean_filtered_log_data, std_filtered_log_data,
         **settings,
     )
+    print(f"Done. Took {format_duration(time.time() - step_start_time)}")
 
     # --- INDEX CONVERSION from patch to sample ---
-
+    print(f"Convert patch indices to sample coordinates ... {format_ram_usage()}"); step_start_time = time.time()
     #  outer coordinates (define patches in 'patches')
     # 1. -> outer indecies (define patches in 'patches')
     # 2. -> global sample coordinates (reshaped to input size + augmentation padding)
@@ -255,8 +276,10 @@ def preprocess_data(
         y_input, x_input,
         y_input_padding, x_input_padding,
     )
+    print(f"Done. Took {format_duration(time.time() - step_start_time)}")
 
     # --- CREATE OVERSAMPLING ---
+    print(f"Create oversampling weights ... {format_ram_usage()}"); step_start_time = time.time()
     # THIS USES NUMPY! NOT OPTIMIZED FOR CHUNKING!
     train_oversampling_weights, val_oversampling_weights = create_oversampling_weights(
         (train_valid_datetime_idx_permuts, val_valid_datetime_idx_permuts),
@@ -267,6 +290,8 @@ def preprocess_data(
         std_filtered_log_data,
         **settings
     )
+    print(f"Done. Took {format_duration(time.time() - step_start_time)}")
+    print(f"Preprocessing complete. Total time: {format_duration(time.time() - start_time)}")
 
     return (
         train_sample_coords, val_sample_coords,
@@ -627,7 +652,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
@@ -670,10 +695,10 @@ if __name__ == '__main__':
             's_max_epochs': 100, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T08:00', '2019-01-01T09:00'],  # ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
 
             # Splitting training / validation
-            's_split_chunk_duration': '5min', #'1D', #TODO change this back!
+            's_split_chunk_duration': '1D', #TODO change this back!
             # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
             's_ratio_train_val_test': (0.7, 0.15, 0.15),
             # These are the splitting ratios between (train, val, test), adding up to 1
