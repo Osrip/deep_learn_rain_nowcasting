@@ -132,6 +132,7 @@ def preprocess_data(
         s_split_chunk_duration,
         s_folder_path,
         s_data_file_name,
+        s_time_span_for_bin_frequencies,
         **__,
 ):
     '''
@@ -222,11 +223,10 @@ def preprocess_data(
 
     # Load specific time span to calculate bin frequencies on - quick & dirty
     # as this calculation is extremely expensive
-    time_span_bin_frequencies = ['2019-01-01T08:00', '2019-01-01T09:00']
 
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
     data_set = xr.open_dataset(load_path, engine='zarr', chunks=None)
-    crop_start, crop_end = np.datetime64(time_span_bin_frequencies[0]), np.datetime64(time_span_bin_frequencies[1])
+    crop_start, crop_end = np.datetime64(s_time_span_for_bin_frequencies[0]), np.datetime64(s_time_span_for_bin_frequencies[1])
     crop_slice = slice(crop_start, crop_end)
 
     data_subsampled = data_set.sel(time=crop_slice)
@@ -711,6 +711,7 @@ if __name__ == '__main__':
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
             's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_time_span_for_bin_frequencies': ['2019-01-01T08:00', '2019-01-01T09:00'], # Time span that bin frequencies are calculated for (EXTREMELY CPU expensive 1 hr --> 40 seconds
 
             # Splitting training / validation
             's_split_chunk_duration': '1D', #TODO change this back!
@@ -822,6 +823,7 @@ if __name__ == '__main__':
         settings['s_baseline_path'] =   ('/home/jan/Programming/weather_data/baselines_two_days/'
                                         'testdata_two_days_2019_01_01-02_extrapolation.zarr')
         settings['s_baseline_variable_name'] = 'extrapolation'
+        settings['s_time_span_for_bin_frequencies'] = ['2019-01-01T08:00', '2019-01-01T08:05']
         settings['s_num_input_frames_baseline'] = 4
         settings['s_upscale_c_to'] = 32  # 8
         settings['s_batch_size'] = 4  # 8

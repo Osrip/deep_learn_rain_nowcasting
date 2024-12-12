@@ -198,3 +198,4 @@ def center_crop_1d(crop_last_dim_tensor: torch.Tensor, size: int) -> torch.Tenso
     # Reduce the tensor back to the original shape
     cropped_orig_shape = einops.reduce(cropped_expanded, '... d_new d -> ... d', 'mean')
     return cropped_orig_shape
+
