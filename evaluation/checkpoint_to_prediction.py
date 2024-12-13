@@ -515,7 +515,7 @@ def create_predict_dataloaders(
         train_data_set_eval,
         shuffle=False,
         batch_size=s_batch_size,
-        drop_last=True,
+        drop_last=False,  # TODO drop_last discards unfilled batches. Set to True for large performances optimized rund
         num_workers=s_num_workers_data_loader,
         pin_memory=True
     )
@@ -524,7 +524,7 @@ def create_predict_dataloaders(
         val_data_set_eval,
         shuffle=False,
         batch_size=s_batch_size,
-        drop_last=True,
+        drop_last=False,
         num_workers=s_num_workers_data_loader,
         pin_memory=True
     )
@@ -533,7 +533,7 @@ def create_predict_dataloaders(
         test_data_set_eval,
         shuffle=False,
         batch_size=s_batch_size,
-        drop_last=True,
+        drop_last=False,
         num_workers=s_num_workers_data_loader,
         pin_memory=True
     )

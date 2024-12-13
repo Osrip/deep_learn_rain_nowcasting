@@ -326,8 +326,8 @@ def create_data_loaders(
         s_batch_size,
         s_num_workers_data_loader,
         s_oversample_validation,
-        s_train_steps_per_epoch,
-        s_val_steps_per_epoch,
+        s_train_samples_per_epoch,
+        s_val_samples_per_epoch,
         **__
 ):
     '''
@@ -348,24 +348,24 @@ def create_data_loaders(
         settings=settings,
     )
 
-    if s_train_steps_per_epoch is not None:
-        train_steps_per_epoch = s_train_steps_per_epoch
+    if s_train_samples_per_epoch is not None:
+        train_samples_per_epoch = s_train_samples_per_epoch
     else:
-        train_steps_per_epoch = len(train_data_set)
+        train_samples_per_epoch = len(train_data_set)
 
-    if s_val_steps_per_epoch is not None:
-        val_steps_per_epoch = s_val_steps_per_epoch
+    if s_val_samples_per_epoch is not None:
+        val_samples_per_epoch = s_val_samples_per_epoch
     else:
-        val_steps_per_epoch = len(val_data_set)
+        val_samples_per_epoch = len(val_data_set)
 
     # TODO: Try Log weights instead (--> apple note 'Bin Frequencies for Oversampling in xarray')
 
     train_weighted_random_sampler = WeightedRandomSampler(weights=train_oversampling_weights, # TODO: LOG WEIGHTS BETTER?
-                                                          num_samples=train_steps_per_epoch,
+                                                          num_samples=train_samples_per_epoch,
                                                           replacement=True)
 
     val_weighted_random_sampler = WeightedRandomSampler(weights=val_oversampling_weights,
-                                                        num_samples=val_steps_per_epoch,
+                                                        num_samples=val_samples_per_epoch,
                                                         replacement=True)
 
     # This assumes same order in weights as in data set
@@ -379,7 +379,7 @@ def create_data_loaders(
         sampler=train_weighted_random_sampler,
         # shuffle=True,  # remove this when using the random sampler
         batch_size=s_batch_size,
-        drop_last=True,
+        drop_last=False, #  TODO: This discards unfilled batches Set to True when having a large optimized run
         num_workers=s_num_workers_data_loader,
         pin_memory=True
     )
@@ -391,7 +391,7 @@ def create_data_loaders(
             val_data_set,
             sampler=val_weighted_random_sampler,
             batch_size=s_batch_size,
-            drop_last=True,
+            drop_last=False,
             num_workers=s_num_workers_data_loader,
             pin_memory=True)
     else:
@@ -400,7 +400,7 @@ def create_data_loaders(
             val_data_set,
             batch_size=s_batch_size,
             shuffle=True,
-            drop_last=True,
+            drop_last=False,
             num_workers=s_num_workers_data_loader,
             pin_memory=True)
 
@@ -408,7 +408,7 @@ def create_data_loaders(
                                                                                        len(validation_data_loader),
                                                                                        s_batch_size))
 
-    return train_data_loader, validation_data_loader, train_steps_per_epoch, val_steps_per_epoch
+    return train_data_loader, validation_data_loader, train_samples_per_epoch, val_samples_per_epoch
 
 
 def calc_baselines(data_loader_list, logs_callback_list, logger_list, logging_type_list, mean_filtered_log_data_list,
@@ -716,7 +716,7 @@ if __name__ == '__main__':
             # Splitting training / validation
             's_split_chunk_duration': '1D', #TODO change this back!
             # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
-            's_ratio_train_val_test': (0.6, 0.2, 0.2), #(0.7, 0.15, 0.15),
+            's_ratio_train_val_test': (0.7, 0.15, 0.15), #(0.6, 0.2, 0.2), #,
             # These are the splitting ratios between (train, val, test), adding up to 1
             's_split_seed': 42,
             # This is the seed that the train / validation split is generated from (only applies to training of exactly the same time period of the data)
@@ -724,8 +724,8 @@ if __name__ == '__main__':
             # Number of steps per epoch in random sampler, can be None:
             # This basically makes the epoch notation more or less unnecessary (scheduler is also coup[led to training steps)
             # So this mainly influences how often things are logged
-            's_train_steps_per_epoch': None, #500 * 0.7,  # Can be None
-            's_val_steps_per_epoch': None, #500 * 0.15,  # Can be None
+            's_train_samples_per_epoch': None, #500 * 0.7,  # Can be None
+            's_val_samples_per_epoch': None, #500 * 0.15,  # Can be None
 
             # Load Radolan
             's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
@@ -737,7 +737,7 @@ if __name__ == '__main__':
             's_dem_variable_name': 'dem',
 
             # Load baseline for evaluation:
-            's_baseline_path': None,
+            's_baseline_path': None, #TODO Copy Baseline to Cluster!
             's_baseline_variable_name': 'extrapolation',
             's_num_input_frames_baseline': 4,
 
@@ -826,7 +826,7 @@ if __name__ == '__main__':
         settings['s_time_span_for_bin_frequencies'] = ['2019-01-01T08:00', '2019-01-01T08:05']
         settings['s_num_input_frames_baseline'] = 4
         settings['s_upscale_c_to'] = 32  # 8
-        settings['s_batch_size'] = 4  # 8
+        settings['s_batch_size'] = 4 #4  # 8
         settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
@@ -836,8 +836,8 @@ if __name__ == '__main__':
         settings['s_split_chunk_duration'] = '5min' #'15min' #'1h'
         settings['s_ratio_train_val_test'] = (0.4, 0.3, 0.3)
 
-        settings['s_train_steps_per_epoch'] = 4
-        settings['s_val_steps_per_epoch'] = 4
+        settings['s_train_samples_per_epoch'] = None #4
+        settings['s_val_samples_per_epoch'] = None #4
 
         settings['s_multiple_sigmas'] = [2, 16]
         settings['s_data_loader_vars_path'] = '/home/jan/Programming/weather_data/data_loader_vars' #'/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars' #
