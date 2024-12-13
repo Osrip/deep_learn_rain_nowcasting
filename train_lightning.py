@@ -696,11 +696,11 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'training_on_1_week_debugged'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'training_on_1_week_debugged_once_more'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -730,7 +730,7 @@ if __name__ == '__main__':
             's_plot_sim_name': 'Run_20241105-182147_ID_774405training_and_zarr_saving_50_epochs', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
             # Save data loader variables
-            's_save_prefix_data_loader_vars': 'debugged_12_24', #
+            's_save_prefix_data_loader_vars': 'debugged_twice_12_24', #
             's_data_loader_vars_path': '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
 
             # Max number of frames in proccessed data set for debugging (validation + training)
@@ -745,7 +745,7 @@ if __name__ == '__main__':
             # Splitting training / validation
             's_split_chunk_duration': '1D',
             # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
-            's_ratio_train_val_test': (0.7, 0.15, 0.15), #(0.6, 0.2, 0.2), #,
+            's_ratio_train_val_test': (0.6, 0.2, 0.2), #(0.7, 0.15, 0.15), #(0.6, 0.2, 0.2), #,
             # These are the splitting ratios between (train, val, test), adding up to 1
             's_split_seed': 42,
             # This is the seed that the train / validation split is generated from (only applies to training of exactly the same time period of the data)
@@ -861,14 +861,15 @@ if __name__ == '__main__':
         settings['s_max_epochs'] = 1
         settings['s_num_gpus'] = 1
 
-        settings['s_crop_data_time_span'] = None #['2019-01-01T08:00', '2019-01-01T09:00'] # ['2019-01-01T08:00', '2019-01-01T12:00']
+        # ! TEST ON ALL DEBUG DATA from time to time to check what happens to discarded samples !
+        settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T09:00'] # ['2019-01-01T08:00', '2019-01-01T12:00']
         settings['s_time_span_for_bin_frequencies'] = ['2019-01-01T08:00', '2019-01-01T08:05']
 
         settings['s_split_chunk_duration'] = '5min' #'15min' #'1h'
         settings['s_ratio_train_val_test'] = (0.4, 0.3, 0.3)
 
-        settings['s_train_samples_per_epoch'] = None #4
-        settings['s_val_samples_per_epoch'] = None #4
+        settings['s_train_samples_per_epoch'] = 4
+        settings['s_val_samples_per_epoch'] = 4
 
         settings['s_multiple_sigmas'] = [2, 16]
         settings['s_data_loader_vars_path'] = '/home/jan/Programming/weather_data/data_loader_vars' #'/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars' #
