@@ -1118,6 +1118,14 @@ def create_split_time_keys(
     val_time_keys = time_keys[indices[1]:indices[2]]
     test_time_keys = time_keys[indices[2]:]
 
+    # Check that each split has entries
+    if not train_time_keys:
+        raise ValueError("SPLIT RATIOS TOO SMALL: Train time keys are empty. Check your data or split ratios.")
+    if not val_time_keys:
+        raise ValueError("SPLIT RATIOS TOO SMALL: Validation time keys are empty. Check your data or split ratios.")
+    if not test_time_keys:
+        raise ValueError("SPLIT RATIOS TOO SMALL: Test time keys are empty. Check your data or split ratios.")
+
     return train_time_keys, val_time_keys, test_time_keys
 
 
