@@ -368,6 +368,32 @@ def create_data_loaders(
                                                         num_samples=val_samples_per_epoch,
                                                         replacement=True)
 
+    if not len(train_oversampling_weights) == len(train_data_set) == len(train_sample_coords):
+        raise ValueError('Length of oversampling weights does not match length of data set or sample coords')
+
+    if not len(val_oversampling_weights) == len(val_data_set) == len(val_sample_coords):
+        raise ValueError('Length of oversampling weights does not match length of data set or sample coords')
+
+    # TODO This seems to cause the mismatch:
+    # Some valid patches are discarded in patch_indices_to_sample_coords() when inputs exceed spatial data bounds,
+    # but create_oversampling_weights() still returns weights for all originally valid patches.
+    # This causes the length mismatch between weights and sample coordinates.
+
+    # len(train_data_set)
+    # Out[2]: 8663
+    # len(train_oversampling_weights)
+    # Out[3]: 8832
+
+    # len(val_sample_coords)
+    # Out[6]: 6440
+    # len(val_oversampling_weights)
+    # Out[7]: 6566
+
+    # 169 patches dropped as padded input exceeded spatial data bounds
+    # 126 patches dropped as padded input exceeded spatial data bounds
+
+    # TODO This is true!
+
     # This assumes same order in weights as in data set
     # replacement=True allows for oversampling and in exchange not showing all samples each epoch
     # num_samples gives number of samples per epoch.
@@ -667,7 +693,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
@@ -714,7 +740,7 @@ if __name__ == '__main__':
             's_time_span_for_bin_frequencies': ['2019-01-01T08:00', '2019-01-01T09:00'], # Time span that bin frequencies are calculated for (EXTREMELY CPU expensive 1 hr --> 40 seconds
 
             # Splitting training / validation
-            's_split_chunk_duration': '1D', #TODO change this back!
+            's_split_chunk_duration': '1D',
             # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
             's_ratio_train_val_test': (0.7, 0.15, 0.15), #(0.6, 0.2, 0.2), #,
             # These are the splitting ratios between (train, val, test), adding up to 1
@@ -823,7 +849,6 @@ if __name__ == '__main__':
         settings['s_baseline_path'] =   ('/home/jan/Programming/weather_data/baselines_two_days/'
                                         'testdata_two_days_2019_01_01-02_extrapolation.zarr')
         settings['s_baseline_variable_name'] = 'extrapolation'
-        settings['s_time_span_for_bin_frequencies'] = ['2019-01-01T08:00', '2019-01-01T08:05']
         settings['s_num_input_frames_baseline'] = 4
         settings['s_upscale_c_to'] = 32  # 8
         settings['s_batch_size'] = 4 #4  # 8
@@ -832,7 +857,10 @@ if __name__ == '__main__':
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
         settings['s_max_epochs'] = 1
         settings['s_num_gpus'] = 1
-        settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T09:00'] # ['2019-01-01T08:00', '2019-01-01T12:00']
+
+        settings['s_crop_data_time_span'] = None #['2019-01-01T08:00', '2019-01-01T09:00'] # ['2019-01-01T08:00', '2019-01-01T12:00']
+        settings['s_time_span_for_bin_frequencies'] = ['2019-01-01T08:00', '2019-01-01T08:05']
+
         settings['s_split_chunk_duration'] = '5min' #'15min' #'1h'
         settings['s_ratio_train_val_test'] = (0.4, 0.3, 0.3)
 
