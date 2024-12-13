@@ -913,8 +913,8 @@ def patch_indices_to_sample_coords(
             The raw precipitation data, where the first entries have been cut along time dim (according to the length of lead time)
             As we are always using the target frame as a time reference. Thus data shortened starts at the time
             of the first target frame.
-        valid_samples: np.array, outer index space (patch indecies), time in datetime
-            np.array that includes all index permutation of the valid patches (those patches that passed the filter)
+        valid_samples: list, outer index space (patch indecies), time in datetime
+            list that includes all index permutation of the valid patches (those patches that passed the filter)
 
             shape: [num_valid_patches, num_dims=3]
             [
@@ -946,6 +946,10 @@ def patch_indices_to_sample_coords(
 
             x and y coordinates refer to the coordinate system with respect to correct CRS and projection in data_shortened,
             not to lat/lon and also not to the patch coordinates _inner and _outer
+
+        valid_samples_updated:
+            samples that exceeded the spatial bounds of data_shortened were dropped
+            Otherwise data structure is just as in input
     '''
 
     y_input_padded = y_input + y_input_padding
@@ -956,9 +960,11 @@ def patch_indices_to_sample_coords(
     valid_input_indecies_global = []
     sample_coords = []  # These are defined
 
+    valid_samples_updated = []
+
     num_inputs_exceeding_bounds = 0
 
-    for (time_datetime, y_outer_idx, x_outer_idx) in valid_samples:
+    for i, (time_datetime, y_outer_idx, x_outer_idx) in enumerate(valid_samples):
 
         y_global_upper = y_outer_idx * y_target
         x_global_left = x_outer_idx * x_target
@@ -979,7 +985,6 @@ def patch_indices_to_sample_coords(
         input_slices = [time_datetime, y_slice_input, x_slice_input]
 
         # Check if the larger input exceeds size, if not append the patch indecies / slices to the list
-        # TODO: Add padding such that no patches have to be discarded
         if (
                 y_slice_input.start < 0
                 or y_slice_input.stop >= data_shortened.sizes['y']
@@ -1004,10 +1009,14 @@ def patch_indices_to_sample_coords(
         valid_center_indecies_global.append(global_center_indecies)
         valid_input_indecies_global.append(input_slices)
         sample_coords.append(coords_one_sample)
+        valid_samples_updated.append((time_datetime, y_outer_idx, x_outer_idx))
 
     print(f'{num_inputs_exceeding_bounds} patches dropped as padded input exceeded spatial data bounds')
 
-    return np.array(sample_coords)
+    if not len(sample_coords) == len(valid_samples_updated):
+        raise ValueError('valid_samples_updated has a different length than sample_coords')
+
+    return np.array(sample_coords), valid_samples_updated
 
 
 def all_patches_to_datetime_idx_permuts(

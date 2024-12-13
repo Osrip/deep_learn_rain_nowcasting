@@ -276,7 +276,8 @@ def preprocess_data(
     # cut out the patches from data_shortened.
     # sample coords: [[np.datetime64 of target frame, y slice (coordinates), x slice (coordinates)],...]
 
-    train_sample_coords = patch_indices_to_sample_coords(
+    # !This drops samples, that exceed bounds ! Therefore updating valid_datetime_idx_permuts as well
+    train_sample_coords, train_valid_datetime_idx_permuts = patch_indices_to_sample_coords(
         data_shortened,
         train_valid_datetime_idx_permuts,
         y_target, x_target,
@@ -284,7 +285,7 @@ def preprocess_data(
         y_input_padding, x_input_padding,
     )
 
-    val_sample_coords = patch_indices_to_sample_coords(
+    val_sample_coords, val_valid_datetime_idx_permuts = patch_indices_to_sample_coords(
         data_shortened,
         val_valid_datetime_idx_permuts,
         y_target, x_target,
@@ -297,6 +298,8 @@ def preprocess_data(
     print(f"Create oversampling weights ... {format_ram_usage()}"); step_start_time = time.time()
     # THIS USES NUMPY! NOT OPTIMIZED FOR CHUNKING!
     train_oversampling_weights, val_oversampling_weights = create_oversampling_weights(
+        # Using the updated version of valid_datetime_idx_permuts, where the samples that have been dropped in previous
+        # step have been removed
         (train_valid_datetime_idx_permuts, val_valid_datetime_idx_permuts),
         patches,
         bin_frequencies,
