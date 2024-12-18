@@ -697,7 +697,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
@@ -727,7 +727,7 @@ if __name__ == '__main__':
 
             's_convnext': True,  # Use ConvNeXt instead of ours
 
-            's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
+            's_plotting_only': True,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20241213-170049_ID_926355overfitting_run_debugging_data_1_hour_5_min_splits', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
             # Save data loader variables
@@ -767,9 +767,9 @@ if __name__ == '__main__':
             's_dem_variable_name': 'dem',
 
             # Load baseline for evaluation:
-            's_baseline_path': None, #TODO Copy Baseline to Cluster!
+            's_baseline_path': '/mnt/qb/work2/butz1/bst981/weather_data/baselines_full_size/extrapolation_2019_2020.zarr', #TODO Copy Baseline to Cluster!
             's_baseline_variable_name': 'extrapolation',
-            's_num_input_frames_baseline': 4,
+            's_num_input_frames_baseline': 4, # The number of input frames that was used to calculate the baseline
 
             's_num_workers_data_loader': 16,  # Should correspond to number of cpus, also increases cpu ram --> FOR DEBUGGING SET TO 0
             's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
