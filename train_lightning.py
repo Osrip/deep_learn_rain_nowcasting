@@ -696,7 +696,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
@@ -748,7 +748,7 @@ if __name__ == '__main__':
             's_ratio_train_val_test': (0.6, 0.2, 0.2), #(0.7, 0.15, 0.15), #(0.6, 0.2, 0.2), #,
             # These are the splitting ratios between (train, val, test), adding up to 1
             's_split_seed': 42,
-            # This is the seed that the train / validation split is generated from (only applies to training of exactly the same time period of the data)
+            # This is the seed that the train / prevalidation split is generated from (only applies to training of exactly the same time period of the data)
 
             # Number of steps per epoch in random sampler, can be None:
             # This basically makes the epoch notation more or less unnecessary (scheduler is also coup[led to training steps)
@@ -843,7 +843,7 @@ if __name__ == '__main__':
 
     if settings['s_local_machine_mode']:
 
-        settings['s_plotting_only'] = False
+        settings['s_plotting_only'] = True
         settings['s_plot_sim_name'] = 'Run_20241210-154712debug_10_epochs'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
