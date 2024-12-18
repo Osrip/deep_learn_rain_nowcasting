@@ -115,7 +115,7 @@ class EvaluateBaselineCallback(pl.Callback):
 
         # Double-checked alignment visually (See apple notes Science/testing code/Testing on predict_batch_end())
 
-        self.evaluate(
+        self.evaluate_batch(
             pred_model_mm,
             pred_model_binned_no_smax,
             pred_baseline_mm,
@@ -126,7 +126,7 @@ class EvaluateBaselineCallback(pl.Callback):
         )
 
 
-    def evaluate(
+    def evaluate_batch(
             self,
             pred_model_mm,
             pred_model_binned_no_smax,
@@ -239,7 +239,8 @@ class EvaluateBaselineCallback(pl.Callback):
         print(f"Saved evaluation logs to {csv_file}")
 
 
-
+def plot_batch():
+    pass
 
 
 def ckpt_quick_eval_with_baseline(

@@ -89,7 +89,7 @@ When ssh connection is already set up in pycharm (according to webpage), just cr
 choose the correct ssh connection. Add interpreter "from existing" and choose path to python3 on remote (ehich python3 when conda env active)
 
 run on slurm:
-srun --partition=gpu-v100 --time=0-12:00 --gres=gpu:1 --pty bash
+srun --partition=2080-galvani --time=0-12:00 --gres=gpu:1 --pty bash
 officially:
 srun --gres=gpu:1 --pty bash
 
