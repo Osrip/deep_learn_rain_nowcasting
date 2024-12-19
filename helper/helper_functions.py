@@ -199,3 +199,22 @@ def center_crop_1d(crop_last_dim_tensor: torch.Tensor, size: int) -> torch.Tenso
     cropped_orig_shape = einops.reduce(cropped_expanded, '... d_new d -> ... d', 'mean')
     return cropped_orig_shape
 
+
+def move_to_device(data, device):
+    """
+    Recursively moves all tensors in a nested structure (dicts, lists, etc.) to the specified device.
+
+    Input:
+        data: Nested structure containing tensors, dicts, or lists.
+        device: Target device (e.g., 'cpu', 'cuda:0').
+
+    Output:
+        Same structure with all tensors moved to the specified device.
+    """
+    if isinstance(data, dict):
+        return {key: move_to_device(value, device) for key, value in data.items()}
+    elif isinstance(data, torch.Tensor):
+        return data.to(device)
+    else:
+        return data
+

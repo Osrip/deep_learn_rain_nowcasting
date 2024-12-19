@@ -5,7 +5,7 @@ from helper.helper_functions import convert_tensor_to_np
 import torch
 import gc
 import torchvision.transforms as T
-from helper.missing_nan_operations_torch import nanmax
+from helper.torch_nan_operations import nanmax
 
 # import matplotlib
 # matplotlib.use('agg')

@@ -1,7 +1,9 @@
 from evaluation.checkpoint_to_prediction import ckpt_to_pred
 from evaluation.eval_with_baseline import ckpt_quick_eval_with_baseline
 from helper.checkpoint_handling import get_checkpoint_names, load_from_checkpoint
+from helper.memory_logging import format_duration
 from plotting.plotting_pipeline import plot_logs_pipeline
+import time
 
 
 def evaluation_pipeline(data_set_vars, ckpt_settings, plotting=False):
@@ -46,6 +48,8 @@ def evaluation_pipeline(data_set_vars, ckpt_settings, plotting=False):
         )
 
     # --- Quick evaluation and comparison to baseline over data set ---
+    print(f"\n STARTING EVALUATION ON BASELINE \n ...")
+    step_start_time = time.time()
 
     ckpt_quick_eval_with_baseline(
         model,
@@ -57,9 +61,11 @@ def evaluation_pipeline(data_set_vars, ckpt_settings, plotting=False):
         ckpt_settings,
         **ckpt_settings
     )
+    print(f'\n DONE. Took {format_duration(time.time() - step_start_time)} \n')
 
     # --- Generate predictions that are saved to a zarr ---
-
+    print(f"\n STARTING PREDICTIONS AND SAVING TO ZARR \n ...")
+    step_start_time = time.time()
     ckpt_to_pred(
         model,
         checkpoint_name,
@@ -72,3 +78,5 @@ def evaluation_pipeline(data_set_vars, ckpt_settings, plotting=False):
         ckp_settings=ckpt_settings,
         **ckpt_settings,
     )
+    print(f'\n DONE. Took {format_duration(time.time() - step_start_time)} \n')
+

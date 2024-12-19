@@ -7,6 +7,8 @@ from helper.helper_functions import center_crop_1d
 import torch
 import torchvision.transforms as T
 from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data
+from helper.helper_functions import move_to_device
+from helper.torch_nan_operations import nanmax
 import pandas as pd
 import os
 
@@ -29,11 +31,7 @@ class EvaluateBaselineCallback(pl.Callback):
          due to filtering on targets
 
         Input
-            baseline: xr.Dataset:
-                Original training data including full time period (wioth input frames)
-            t0_first_input_frame: np.datetime64
-                The Datetime of the very beginning of the dataset (before splitting)
-                So the very first input time step defines t0
+            ...
             samples_have_padding: bool
                 If True this indicates an input padding, therefore we will center crop to s_width_height
         '''
@@ -55,7 +53,8 @@ class EvaluateBaselineCallback(pl.Callback):
         self.means_pred_model = []
         self.means_pred_baseline = []
 
-        self.certainties_model = []
+        self.certainties_target_bin_model = []
+        self.certainties_max_pred = []
         self.stds_model = []
 
     def on_predict_batch_end(
@@ -72,14 +71,16 @@ class EvaluateBaselineCallback(pl.Callback):
             outputs: dict
                 All tensors have received an added batch dimension (batch_dim = 0) by data loader (Also the entries of sub-dictionaries)!
                 {'pred': torch.Tensor,
-                'target: sample_metadata_dict}
+                'target:
+                'target_binned'
+                'baseline'}
 
-                baseline: dict
-                    All tensors of this sub-dictionary also received an added batch dim by data loader
-                    {'baseline': torch.Tensor         Has to be converted back to datetime
-                    'y': torch.Tensor
-                    'x': torch.Tensor}
         """
+
+        # Save certain batches for plotting:
+        if batch_idx <= 4:
+            self.save_batch_output(batch, outputs, batch_idx)
+
         s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
         s_target_height_width = self.settings['s_target_height_width']
 
@@ -158,9 +159,10 @@ class EvaluateBaselineCallback(pl.Callback):
         else:
             pred_model_binned_smax = torch.softmax(pred_model_binned_no_smax, dim=1)
 
+        # Calculations for certainty of the target bin (Probability at the bin that would have bin correct)
         # Find the ground truth bin index
         bin_idx = target_one_hot.argmax(dim=1, keepdim=True)  # shape: [batch, 1, height, width]
-        # Gather probabilities of the correct bin
+        # Gather probabilities of the correct bin in the target
         pred_probs_correct = pred_model_binned_smax.gather(dim=1, index=bin_idx)  # shape: [batch, 1, height, width]
 
 
@@ -181,7 +183,10 @@ class EvaluateBaselineCallback(pl.Callback):
         mean_pred_baseline_per_sample = pred_baseline_mm.mean(dim=(1,2))  # [batch]
 
         # Certainty per sample
-        certainty_per_sample = pred_probs_correct.mean(dim=(1,2,3))  # [batch]
+        # Probability for correct bin in target (not good measure)
+        certainty_target_bin_per_sample = pred_probs_correct.mean(dim=(1,2,3))  # [batch]
+        # Probability
+        certainty_max_pred = pred_model_binned_smax.max(dim=1).values.mean(dim=(1,2))
 
         # Std per sample (std across channels, then average spatial dims)
         # First: std across channels -> shape: [batch, height, width]
@@ -200,7 +205,8 @@ class EvaluateBaselineCallback(pl.Callback):
         self.means_pred_model.extend(mean_pred_model_per_sample.tolist())
         self.means_pred_baseline.extend(mean_pred_baseline_per_sample.tolist())
 
-        self.certainties_model.extend(certainty_per_sample.tolist())
+        self.certainties_max_pred.extend(certainty_max_pred.tolist())
+        self.certainties_target_bin_model.extend(certainty_target_bin_per_sample.tolist())
         self.stds_model.extend(std_model_per_sample.tolist())
 
     def on_predict_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"):
@@ -227,7 +233,7 @@ class EvaluateBaselineCallback(pl.Callback):
             "means_target":         self.means_target,
             "means_pred_model":     self.means_pred_model,
             "means_pred_baseline":  self.means_pred_baseline,
-            "certainties_model":    self.certainties_model,
+            "certainties_target_bin_model":    self.certainties_target_bin_model,
             "stds_model":           self.stds_model,
         })
 
@@ -239,8 +245,36 @@ class EvaluateBaselineCallback(pl.Callback):
         print(f"Saved evaluation logs to {csv_file}")
 
 
-def plot_batch():
-    pass
+    def save_batch_output(self, batch, outputs, batch_idx):
+        '''
+        Input
+            batch: list of dicts of tensors
+                The list contains the variable_dicts:
+                    [dynamic_variable_dict, static_variable_dict, baseline_dict]
+            outputs: dict of tensors
+                The dict contains the tensors:
+                    {'loss': torch.Tensor,
+                    'pred': torch.Tensor,
+                    'target: torch.Tensor,
+                    'target_binned' torch.Tensor,
+                    'baseline': torch.Tensor}
+        '''
+        s_dirs = self.settings['s_dirs']
+        batches_outputs_dir = s_dirs['batches_outputs']
+        save_name_batches = f'batch_{batch_idx:04d}.pt'
+        save_name_outputs = f'outputs_{batch_idx:04d}.pt'
+        save_path_batches = os.path.join(batches_outputs_dir, save_name_batches)
+        save_path_outputs = os.path.join(batches_outputs_dir, save_name_outputs)
+
+        # Save batch
+        keys = ['dynamic', 'static', 'baseline']
+        batch_dict = {key: en for key, en in zip(keys, batch)}
+        batch_dict = move_to_device(batch_dict, device='cpu')
+        torch.save(batch_dict, save_path_batches)
+
+        # Save outputs
+        outputs = move_to_device(outputs, device='cpu')
+        torch.save(outputs, save_path_outputs)
 
 
 def ckpt_quick_eval_with_baseline(
@@ -253,7 +287,7 @@ def ckpt_quick_eval_with_baseline(
         ckpt_settings,  # Make sure to pass the settings of the checkpoint
         s_batch_size,
         s_num_workers_data_loader,
-        **__,
+        **__
 ):
     """
     Input:

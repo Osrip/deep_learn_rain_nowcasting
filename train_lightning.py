@@ -363,7 +363,7 @@ def create_data_loaders(
 
     # TODO: Try Log weights instead (--> apple note 'Bin Frequencies for Oversampling in xarray')
 
-    train_weighted_random_sampler = WeightedRandomSampler(weights=train_oversampling_weights, # TODO: LOG WEIGHTS BETTER?
+    train_weighted_random_sampler = WeightedRandomSampler(weights=log(train_oversampling_weights), # TODO: LOG WEIGHTS BETTER?
                                                           num_samples=train_samples_per_epoch,
                                                           replacement=True)
 
@@ -376,31 +376,6 @@ def create_data_loaders(
 
     if not len(val_oversampling_weights) == len(val_data_set) == len(val_sample_coords):
         raise ValueError('Length of oversampling weights does not match length of data set or sample coords')
-
-    # TODO This seems to cause the mismatch:
-    # Some valid patches are discarded in patch_indices_to_sample_coords() when inputs exceed spatial data bounds,
-    # but create_oversampling_weights() still returns weights for all originally valid patches.
-    # This causes the length mismatch between weights and sample coordinates.
-
-    # len(train_data_set)
-    # Out[2]: 8663
-    # len(train_oversampling_weights)
-    # Out[3]: 8832
-
-    # len(val_sample_coords)
-    # Out[6]: 6440
-    # len(val_oversampling_weights)
-    # Out[7]: 6566
-
-    # 169 patches dropped as padded input exceeded spatial data bounds
-    # 126 patches dropped as padded input exceeded spatial data bounds
-
-    # TODO This is true!
-
-    # This assumes same order in weights as in data set
-    # replacement=True allows for oversampling and in exchange not showing all samples each epoch
-    # num_samples gives number of samples per epoch.
-    # Setting to len data_set forces sampler to not show all samples each epoch
 
     # Training data loader
     train_data_loader = DataLoader(
@@ -691,6 +666,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
     s_dirs['profile_dir']       = '{}/profile'.format(s_dirs['save_dir'])
     s_dirs['logs']              = '{}/logs'.format(s_dirs['save_dir'])
     s_dirs['data_dir']          = '{}/data'.format(s_dirs['save_dir'])
+    s_dirs['batches_outputs']   = '{}/batches_outputs'.format(s_dirs['save_dir'])
 
     return s_dirs
 
@@ -701,7 +677,7 @@ if __name__ == '__main__':
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'calc_plotting_statistics_for_run_ID_926355'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'one_month_LOG_oversampling_but_no_val_oversampling_code_changes'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -727,7 +703,7 @@ if __name__ == '__main__':
 
             's_convnext': True,  # Use ConvNeXt instead of ours
 
-            's_plotting_only': True,  # If active loads sim s_plot_sim_name and runs plotting pipeline
+            's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20241213-170049_ID_926355overfitting_run_debugging_data_1_hour_5_min_splits', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
             # Save data loader variables
@@ -737,16 +713,16 @@ if __name__ == '__main__':
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled wxhen set to None]
 
-            's_max_epochs': 100, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 30, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-01-08T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
             's_time_span_for_bin_frequencies': ['2019-01-01T08:00', '2019-01-01T09:00'], # Time span that bin frequencies are calculated for (EXTREMELY CPU expensive 1 hr --> 40 seconds
 
             # Splitting training / validation
             's_split_chunk_duration': '1D',
             # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
-            's_ratio_train_val_test': (0.6, 0.2, 0.2), #(0.7, 0.15, 0.15), #(0.6, 0.2, 0.2), #,
+            's_ratio_train_val_test': (0.7, 0.15, 0.15), #(0.7, 0.15, 0.15), #(0.6, 0.2, 0.2), #,
             # These are the splitting ratios between (train, val, test), adding up to 1
             's_split_seed': 42,
             # This is the seed that the train / prevalidation split is generated from (only applies to training of exactly the same time period of the data)
@@ -825,7 +801,7 @@ if __name__ == '__main__':
             's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
 
             # Logging
-            's_oversample_validation': True,  # Oversample validation just like training, such that training and validations are directly copmparable
+            's_oversample_validation': False,  # Oversample validation just like training, such that training and validations are directly copmparable
             's_calc_baseline': False,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000, #TODO NO LONGER IN USE # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
@@ -844,8 +820,8 @@ if __name__ == '__main__':
 
     if settings['s_local_machine_mode']:
 
-        settings['s_plotting_only'] = False
-        settings['s_plot_sim_name'] = 'Run_20241210-154712debug_10_epochs'
+        settings['s_plotting_only'] = True
+        settings['s_plot_sim_name'] = 'Run_20241219-172522one_month_oversampling_but_no_val_oversampling'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'
         settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'

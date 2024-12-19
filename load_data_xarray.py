@@ -13,6 +13,7 @@ from helper.pre_process_target_input import normalize_data, inverse_normalize_da
 import torch
 from torchvision import transforms
 import torchvision.transforms.functional as TF
+import time
 
 
 
@@ -82,6 +83,8 @@ class FilteredDatasetXr(Dataset):
                 i.e. dict_of_normlaization_statistics = {'mean': float, 'std': float}
         """
         # super().__init__()
+        # TODO remove this debugging attr
+        self.printed=False
         self.sample_coords = sample_coords
         self.num_input_frames_baseline = num_input_frames_baseline
         self.mode = mode
@@ -167,8 +170,9 @@ class FilteredDatasetXr(Dataset):
         if mode == 'baseline':
             # For dynamic_data_dict['baseline'] special time handling is adjusted to the fact that
             # ! All predictions were assigned to the FIRST INPUT time step !
+
+            # Load baseline data from disk (too large)
             baseline_data = xr.open_zarr(baseline_path)
-            baseline_data = baseline_data.load() if data_into_ram else baseline_data
             self.baseline_data_dict = {'baseline': baseline_data}
             self.baseline_variable_name_dict = {'baseline': baseline_variable_name}
         else:
@@ -465,11 +469,18 @@ class FilteredDatasetXr(Dataset):
             baseline_data_one_variable = self.baseline_data_dict['baseline']
             baseline_variable_name = self.baseline_variable_name_dict['baseline']
             # select exactly time_start
+            # TODO remove the timinng debugging thing here
+            t0 = time.time()
+            if not self.printed:
+                print('Baseline sel operation')
             baseline_spacetime_variable = baseline_data_one_variable.sel(
                 time=time_start_baseline,  # we only select the single time = time_start_baseline
                 y=y_slice,
                 x=x_slice
             )
+            if not self.printed:
+                print(f"TIME FOR `.sel()` on baseline: {time.time() - t0} seconds")
+                self.printed = True
             baseline_variable_values = baseline_spacetime_variable[baseline_variable_name].values
             # baseline is ('lead_time', 'time', 'y', 'x')
             # after selecting single time index = shape (lead_time, y, x)
