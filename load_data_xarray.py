@@ -469,7 +469,7 @@ class FilteredDatasetXr(Dataset):
             baseline_data_one_variable = self.baseline_data_dict['baseline']
             baseline_variable_name = self.baseline_variable_name_dict['baseline']
             # select exactly time_start
-            # TODO remove the timinng debugging thing here
+            # TODO remove the timing debugging thing here
             t0 = time.time()
             if not self.printed:
                 print('Baseline sel operation')

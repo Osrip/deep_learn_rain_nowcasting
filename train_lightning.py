@@ -160,7 +160,7 @@ def preprocess_data(
         # data: The unpatched data that has global pixel coordinates,
         data_shortened,
         # data_shortened: same as data, but beginning is missing (lead_time + num input frames) such that we can go
-        # 'back in time' to go fram target time to input time.
+        # 'back in time' to go frame target time to input time.
      ) = create_patches(
         y_target, x_target,
         **settings
@@ -363,7 +363,7 @@ def create_data_loaders(
 
     # TODO: Try Log weights instead (--> apple note 'Bin Frequencies for Oversampling in xarray')
 
-    train_weighted_random_sampler = WeightedRandomSampler(weights=log(train_oversampling_weights), # TODO: LOG WEIGHTS BETTER?
+    train_weighted_random_sampler = WeightedRandomSampler(weights=np.log(train_oversampling_weights), # TODO: LOG WEIGHTS BETTER?
                                                           num_samples=train_samples_per_epoch,
                                                           replacement=True)
 
@@ -673,11 +673,11 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'one_month_LOG_oversampling_but_no_val_oversampling_code_changes'  # 'bernstein_scheduler_0_1_0_5_1_2' #'no_gaussian_blurring__run_3_with_lt_schedule_100_epoch_eval_inv_normalized_eval' # 'No_Gaussian_blurring_with_lr_schedule_64_bins' #'sigma_init_5_exp_sigma_schedule_WITH_lr_schedule_xentropy_loss_20_min_lead_time'#'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem' #'sigma_50_no_sigma_schedule_no_lr_schedule' #'scheduled_sigma_exp_init_50_no_lr_schedule_100G_mem'# 'sigma_50_no_sigma_schedule_lr_init_0_001' # 'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'' #'scheduled_sigma_exp_init_50_lr_init_0_001' #'no_gaussian_smoothing_lr_init_0_001' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001' #'smoothing_constant_sigma_1_and_lr_schedule' #'scheduled_sigma_cos_init_20_to_0_1_lr_init_0_001'
+    s_sim_name_suffix = 'evaluate_run_926355_again'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -703,7 +703,7 @@ if __name__ == '__main__':
 
             's_convnext': True,  # Use ConvNeXt instead of ours
 
-            's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
+            's_plotting_only': True,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20241213-170049_ID_926355overfitting_run_debugging_data_1_hour_5_min_splits', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
 
             # Save data loader variables
