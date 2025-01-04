@@ -673,11 +673,11 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'evaluate_run_926355_again'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = 'run_1_month_data_and_evaluate_FULL_DATA_for_eval_3_epochs_1_GPU'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -703,17 +703,18 @@ if __name__ == '__main__':
 
             's_convnext': True,  # Use ConvNeXt instead of ours
 
-            's_plotting_only': True,  # If active loads sim s_plot_sim_name and runs plotting pipeline
+            's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20241213-170049_ID_926355overfitting_run_debugging_data_1_hour_5_min_splits', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            # Debugging run on cluster: 'Run_20241213-170049_ID_926355overfitting_run_debugging_data_1_hour_5_min_splits'
 
             # Save data loader variables
             's_save_prefix_data_loader_vars': 'debugged_twice_12_24', #
             's_data_loader_vars_path': '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
 
             # Max number of frames in proccessed data set for debugging (validation + training)
-            's_max_num_filter_hits': None,  # [Disabled wxhen set to None]
+            's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 30, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 3, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
             's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
@@ -751,7 +752,7 @@ if __name__ == '__main__':
             's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
-            's_num_gpus': 4,
+            's_num_gpus': 1,
             's_batch_size': 128, #our net on a100: 64  #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
             # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
             # Make this divisible by 8 or best 8 * 2^n
@@ -806,7 +807,7 @@ if __name__ == '__main__':
             's_epoch_repetitions_baseline': 1000, #TODO NO LONGER IN USE # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
             's_testing': True,  # Runs tests before starting training
-            's_profiling': False,  # Runs profiler
+            's_profiling': True,  # Runs profiler # TODO FIXING FREEZING, originally False
 
             # Plotting stuff
             's_no_plotting': False,  # This sets all plotting boos below to False
@@ -820,7 +821,7 @@ if __name__ == '__main__':
 
     if settings['s_local_machine_mode']:
 
-        settings['s_plotting_only'] = True
+        settings['s_plotting_only'] = False
         settings['s_plot_sim_name'] = 'Run_20241219-172522one_month_oversampling_but_no_val_oversampling'
         settings['s_data_variable_name'] = 'RV_recalc'
         settings['s_folder_path'] = 'dwd_nc/own_test_data'

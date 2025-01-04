@@ -63,7 +63,7 @@ activate conda env
 
 start server with, within mlruns folder
 mlflow ui --backend-store-uri ./mlruns
-
+n
 go to localhost:5000/
 
 
@@ -92,6 +92,9 @@ run on slurm:
 srun --partition=2080-galvani --time=0-12:00 --gres=gpu:1 --pty bash
 officially:
 srun --gres=gpu:1 --pty bash
+
+To attach a second tmux tab to the interactive session run
+srun --jobid=<JobID> --pty bash
 
 then run on slurm:
 hostname

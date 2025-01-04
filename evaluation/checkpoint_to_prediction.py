@@ -4,7 +4,7 @@ from load_data_xarray import (
     patch_indices_to_sample_coords,
     FilteredDatasetXr
 )
-from helper.memory_logging import print_ram_usage
+from helper.memory_logging import print_ram_usage, print_gpu_memory
 from helper.helper_functions import center_crop_1d
 
 import torch
@@ -91,6 +91,8 @@ class PredictionsToZarrCallback(pl.Callback):
         # Get settings from NetworkL instance
 
         print_ram_usage()
+        print_gpu_memory()
+
 
         s_target_height_width = self.settings['s_target_height_width']
         s_num_input_time_steps = self.settings['s_num_input_time_steps']

@@ -6,8 +6,10 @@ import pytorch_lightning as pl
 from helper.helper_functions import center_crop_1d
 import torch
 import torchvision.transforms as T
+from torch.utils.data import Subset
 from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data
 from helper.helper_functions import move_to_device
+from helper.memory_logging import print_gpu_memory, print_ram_usage
 from helper.torch_nan_operations import nanmax
 import pandas as pd
 import os
@@ -77,8 +79,13 @@ class EvaluateBaselineCallback(pl.Callback):
 
         """
 
+        print_gpu_memory()
+        print_ram_usage()
+
         # Save certain batches for plotting:
-        if batch_idx <= 4:
+        # TODO: FIXING FREEZING
+        # if batch_idx <= 4:
+        if False:
             self.save_batch_output(batch, outputs, batch_idx)
 
         s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
@@ -287,7 +294,10 @@ def ckpt_quick_eval_with_baseline(
         ckpt_settings,  # Make sure to pass the settings of the checkpoint
         s_batch_size,
         s_num_workers_data_loader,
-        **__
+
+        crop_dataset_to_len=1280, #=50,
+
+        **__,
 ):
     """
     Input:
@@ -307,8 +317,10 @@ def ckpt_quick_eval_with_baseline(
             slice of x coordinates],
             ...]
     """
-    # Setting model to baseline mode, which chooses thr right predict_step() method
+    # Setting model to baseline mode, which chooses the right predict_step() method
     model.set_mode(mode='baseline')
+
+
 
     #  Data Set
     data_set_eval_filtered = FilteredDatasetXr(
@@ -322,19 +334,36 @@ def ckpt_quick_eval_with_baseline(
         num_input_frames_baseline=ckpt_settings['s_num_input_frames_baseline'],
     )
 
+    if crop_dataset_to_len is not None:
+        if crop_dataset_to_len < len(data_set_eval_filtered):  # TODO FIXING FREEZING, keep this?
+            subset_indices = list(range(crop_dataset_to_len))  # Choose the first `desired_sample_size` samples
+            data_set_eval_filtered = Subset(data_set_eval_filtered, subset_indices)
+
     # Boolean stating whether samples have input padding:
     # If they do have padding, this is going to be removed by center cropping
     samples_have_padding = data_set_eval_filtered.samples_have_padding
 
     # Data Loader
+    # TODO FIXING FREEZING, see what stuff to keep
     data_loader_eval_filtered = DataLoader(
         data_set_eval_filtered,
-        shuffle=False,
+        shuffle=True,
         batch_size=s_batch_size,
         drop_last=True,
-        num_workers=s_num_workers_data_loader,
-        pin_memory=True,
+        num_workers=0,  # TODO FIXING FREEZING, originally num_workers=s_num_workers_data_loader
+        pin_memory=False,  # TODO FIXING FREEZING, originally pin_memory=True
+        # timeout=0,  # TODO: Potentially try this to see whether the freezing happens during batch loading
     )
+
+    # Original Data Loader
+    # data_loader_eval_filtered = DataLoader(
+    #     data_set_eval_filtered,
+    #     shuffle=False,
+    #     batch_size=s_batch_size,
+    #     drop_last=True,
+    #     num_workers=s_num_workers_data_loader,
+    #     pin_memory=True,
+    # )
 
     # Callbacks
     evaluate_baseline_callback = EvaluateBaselineCallback(

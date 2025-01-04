@@ -58,9 +58,9 @@ class FilteredDatasetXr(Dataset):
                 Make sure this has been only calculated on training data!
 
             mode: str
-                'train':    training mode: __getitem_train__    is called which handles padding and augmentation
-                'baseline': baseline mode: __getitem_baseline__ returns the baseline as well, performs center cropping on padded input
-                'predict':  evaluation mode: __getitem_eval__   is called which handles non-padded data to do
+                'train':    training mode: _getitem_train_    is called which handles padding and augmentation
+                'baseline': baseline mode: _getitem_baseline_ returns the baseline as well, performs center cropping on padded input
+                'predict':  evaluation mode: _getitem_eval_   is called which handles non-padded data to do
                                                                 operate on unfiltered patches that will be reassembled
 
         Attributes (most important ones)
@@ -232,6 +232,7 @@ class FilteredDatasetXr(Dataset):
         The samples are not augmented but center cropped
         More detailed output information see get_sample_from_coords()
         '''
+
         sample_coord = self.sample_coords[idx]
         dynamic_samples_dict, static_samples_dict, baseline_samples_dict = self.get_sample_from_coords(
             sample_coord,
