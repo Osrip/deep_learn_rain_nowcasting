@@ -295,7 +295,7 @@ def ckpt_quick_eval_with_baseline(
         s_batch_size,
         s_num_workers_data_loader,
 
-        crop_dataset_to_len=1280, #=50,
+        crop_dataset_to_len=1280, #1280, #=50,
 
         **__,
 ):
@@ -337,7 +337,7 @@ def ckpt_quick_eval_with_baseline(
     if crop_dataset_to_len is not None:
         if crop_dataset_to_len < len(data_set_eval_filtered):  # TODO FIXING FREEZING, keep this?
             subset_indices = list(range(crop_dataset_to_len))  # Choose the first `desired_sample_size` samples
-            data_set_eval_filtered = Subset(data_set_eval_filtered, subset_indices)
+            data_set_eval_filtered = Subset(data_set_eval_filtered, subset_indices).dataset
 
     # Boolean stating whether samples have input padding:
     # If they do have padding, this is going to be removed by center cropping

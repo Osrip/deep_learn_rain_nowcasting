@@ -479,10 +479,11 @@ class FilteredDatasetXr(Dataset):
                 y=y_slice,
                 x=x_slice
             )
-            if not self.printed:
-                print(f"TIME FOR `.sel()` on baseline: {time.time() - t0} seconds")
-                self.printed = True
+
             baseline_variable_values = baseline_spacetime_variable[baseline_variable_name].values
+            if not self.printed:
+                print(f"TIME FOR `.sel() + .values` on baseline: {time.time() - t0} seconds")
+                self.printed = True
             # baseline is ('lead_time', 'time', 'y', 'x')
             # after selecting single time index = shape (lead_time, y, x)
             baseline_variable_values = torch.from_numpy(baseline_variable_values)
