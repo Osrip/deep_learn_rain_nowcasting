@@ -11,6 +11,7 @@ from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_nor
 from helper.helper_functions import move_to_device
 from helper.memory_logging import print_gpu_memory, print_ram_usage
 from helper.torch_nan_operations import nanmax
+import random
 import pandas as pd
 import os
 
@@ -293,9 +294,10 @@ def ckpt_quick_eval_with_baseline(
 
         ckpt_settings,  # Make sure to pass the settings of the checkpoint
         s_batch_size,
+        s_baseline_path,
         s_num_workers_data_loader,
 
-        crop_dataset_to_len=1280, #1280, #=50,
+        subsample_dataset_to_len=None,#1280, #=1280, #1280, #=50,
 
         **__,
 ):
@@ -317,10 +319,12 @@ def ckpt_quick_eval_with_baseline(
             slice of x coordinates],
             ...]
     """
+    print(f'Baseline path is {s_baseline_path}')
+    print('Set model mode')
     # Setting model to baseline mode, which chooses the right predict_step() method
     model.set_mode(mode='baseline')
 
-
+    print('Initialize Dataset')
 
     #  Data Set
     data_set_eval_filtered = FilteredDatasetXr(
@@ -334,14 +338,27 @@ def ckpt_quick_eval_with_baseline(
         num_input_frames_baseline=ckpt_settings['s_num_input_frames_baseline'],
     )
 
-    if crop_dataset_to_len is not None:
-        if crop_dataset_to_len < len(data_set_eval_filtered):  # TODO FIXING FREEZING, keep this?
-            subset_indices = list(range(crop_dataset_to_len))  # Choose the first `desired_sample_size` samples
+    # Subsampling
+    sub_sampled = False
+    if subsample_dataset_to_len is not None:
+        if subsample_dataset_to_len < len(data_set_eval_filtered):  # TODO FIXING FREEZING, keep this?
+            print(f'Randomly subsample Dataset from length {len(data_set_eval_filtered)} to len {subsample_dataset_to_len}')
+            # Randomly subsample dataset
+            subset_indices = random.sample(range(len(data_set_eval_filtered)), subsample_dataset_to_len)
+            # subset_indices = list(range(crop_dataset_to_len))  # Choose the first `desired_sample_size` samples
             data_set_eval_filtered = Subset(data_set_eval_filtered, subset_indices).dataset
+            sub_sampled = True
 
+    if not sub_sampled:
+        print(f'Len of dataset is {subsample_dataset_to_len}')
+
+
+    print('Load "samples_have_padding"')
     # Boolean stating whether samples have input padding:
     # If they do have padding, this is going to be removed by center cropping
     samples_have_padding = data_set_eval_filtered.samples_have_padding
+
+    print('Initializing Dataloader')
 
     # Data Loader
     # TODO FIXING FREEZING, see what stuff to keep
@@ -365,6 +382,8 @@ def ckpt_quick_eval_with_baseline(
     #     pin_memory=True,
     # )
 
+    print('Initialising Callback')
+
     # Callbacks
     evaluate_baseline_callback = EvaluateBaselineCallback(
             linspace_binning_params,
@@ -373,9 +392,13 @@ def ckpt_quick_eval_with_baseline(
             ckpt_settings,
     )
 
+    print('Initializing Trainer')
+
     trainer = pl.Trainer(
         callbacks=evaluate_baseline_callback,
     )
+
+    print('Starting evaluation with trainer.predict')
 
     trainer.predict(
         model=model,

@@ -14,5 +14,6 @@
 
 # insert your commands here
 #source venv/bin/activate
+
 py-spy record -o profile.svg -- python train_lightning.py
 

@@ -14,7 +14,9 @@ def print_gpu_memory():
         # current_memory = torch.cuda.memory_allocated(device)
         max_memory = torch.cuda.max_memory_allocated(device)
 
-        print(f"\nCUDA device {device} Total memory : {size(total_memory)} Max memory used: {size(max_memory)}")
+        print(f"\nUsed Max VRAM: {size(max_memory)} out of {size(total_memory)} CUDA device {device}")
+    else:
+        print('No cuda available to print VRAM')
 
 
 # def print_ram_usage():
@@ -25,11 +27,12 @@ def print_gpu_memory():
 
 def print_ram_usage():
     # Getting percentage usage of virtual memory
-    print('RAM memory % used:', psutil.virtual_memory().percent)
+    # print('RAM memory % used:', psutil.virtual_memory().percent)
     # Getting usage of virtual memory in GB
     used_ram = psutil.virtual_memory().used / (1024 ** 3)
     total_ram = psutil.virtual_memory().total / (1024 ** 3)
-    print(f"RAM Used: {used_ram:.2f} GB out of {total_ram:.2f} GB")
+    ram_percent_used = psutil.virtual_memory().percent
+    print(f"RAM Used: {used_ram:.2f} GB out of {total_ram:.2f} GB ({ram_percent_used}%)")
 
 def format_ram_usage():
     """Formats the current RAM usage in a readable string."""

@@ -69,6 +69,8 @@ def data_loading(
         if s_force_data_preprocessing:
             warnings.warn('Forced preprocessing of data as s_force_data_preprocessing == True')
             raise FileNotFoundError('Forced preprocessing of data as s_force_data_preprocessing == True')
+        print(f"\n LOADING PREPROCESSED DATA \n ...")
+        step_start_time = time.time()
         file_name_data_loader_vars = create_save_name_for_data_loader_vars(**settings)
         print(f'Loading data loader vars from file {file_name_data_loader_vars}')
         data_loader_vars = load_data_loader_vars(settings, **settings)
@@ -80,9 +82,11 @@ def data_loading(
             radolan_statistics_dict,
             linspace_binning_params
         ) = data_loader_vars
+        print(f'\n DONE. Took {format_duration(time.time() - step_start_time)} \n')
 
     except FileNotFoundError:
-        print('Data loader vars not found, preprocessing data!')
+        print(f"\n PREPROCESSING DATA \n ...")
+        step_start_time = time.time()
 
         (train_sample_coords, val_sample_coords,
         train_time_keys, val_time_keys, test_time_keys,
@@ -111,6 +115,7 @@ def data_loading(
         settings,
         **settings
     )
+    print(f'\n DONE. Took {format_duration(time.time() - step_start_time)} \n')
 
     # ! This has the same order as input in train_wrapper !
     return (
@@ -408,9 +413,7 @@ def create_data_loaders(
             num_workers=s_num_workers_data_loader,
             pin_memory=True)
 
-    print('Num training batches: {} \nNum validation Batches: {} \nBatch size: {}'.format(len(train_data_loader),
-                                                                                       len(validation_data_loader),
-                                                                                       s_batch_size))
+
 
     return train_data_loader, validation_data_loader, train_samples_per_epoch, val_samples_per_epoch
 
@@ -492,12 +495,28 @@ def train_wrapper(
         settings,
         s_dirs, s_profiling, s_max_epochs, s_sim_name,
         s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
-        s_calc_baseline, **__
+        s_train_samples_per_epoch, s_val_samples_per_epoch,
+        s_calc_baseline,
+        s_batch_size,
+        **__
 ):
     """
     All the junk surrounding train_l() goes in here
     Please keep intput arguments in the same order as the output of create_data_loaders()
     """
+
+    print(f"\nTRAINING DATA LOADER:\n"
+          f"  Num samples: {len(train_data_loader.dataset)} "
+          f"(Num batches: {len(train_data_loader)})\n"
+          f"  Samples per epoch: {s_train_samples_per_epoch if s_train_samples_per_epoch is not None else '= Num samples'}\n"
+          f"\nVALIDATION DATA LOADER:\n"
+          f"  Num samples: {len(validation_data_loader.dataset)} "
+          f"(Num batches: {len(validation_data_loader)})\n"
+          f"  Samples per epoch: {s_val_samples_per_epoch if s_val_samples_per_epoch is not None else '= Num samples'}\n")
+
+    print(f"Batch size: {train_data_loader.batch_size}" +
+          (f" (different for validation: {validation_data_loader.batch_size})"
+           if train_data_loader.batch_size != validation_data_loader.batch_size else ""))
 
     train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)
 
@@ -556,6 +575,9 @@ def train_wrapper(
 
     save_project_code(s_dirs['code_dir'])
 
+    print(f"\n STARTING TRAINING \n ...")
+    step_start_time = time.time()
+
     model_l = train_l(
         train_data_loader, validation_data_loader,
         profiler,
@@ -567,6 +589,8 @@ def train_wrapper(
         sigma_schedule_mapping,
         settings,
         **settings)
+
+    print(f'\n DONE. Took {format_duration(time.time() - step_start_time)} \n')
 
     if s_calc_baseline:
         calc_baselines(**settings,
@@ -580,7 +604,6 @@ def train_wrapper(
                                                   radolan_statistics_dict['std_filtered_log_data']],
                        settings=settings
                        )
-
 
     # Network_l, training_steps_per_epoch is returned to be able to plot lr_scheduler
     return model_l, training_steps_per_epoch, sigma_schedule_mapping
@@ -677,7 +700,7 @@ if __name__ == '__main__':
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'run_1_month_data_and_evaluate_FULL_DATA_for_eval_3_epochs_1_GPU'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = 'run_3_days_data_1_hour_splits_and_evaluate_FULL_DATA_for_eval_3_epochs_1_GPU_ver3'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -717,11 +740,11 @@ if __name__ == '__main__':
             's_max_epochs': 3, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_crop_data_time_span': ['2019-01-01T00:00', '2019-01-04T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
             's_time_span_for_bin_frequencies': ['2019-01-01T08:00', '2019-01-01T09:00'], # Time span that bin frequencies are calculated for (EXTREMELY CPU expensive 1 hr --> 40 seconds
 
             # Splitting training / validation
-            's_split_chunk_duration': '1D',
+            's_split_chunk_duration': '1h', #'1D',
             # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
             's_ratio_train_val_test': (0.7, 0.15, 0.15), #(0.7, 0.15, 0.15), #(0.6, 0.2, 0.2), #,
             # These are the splitting ratios between (train, val, test), adding up to 1
@@ -744,7 +767,7 @@ if __name__ == '__main__':
             's_dem_variable_name': 'dem',
 
             # Load baseline for evaluation:
-            's_baseline_path': '/mnt/qb/work2/butz1/bst981/weather_data/baselines_full_size/extrapolation_2019_2020.zarr', #TODO Copy Baseline to Cluster!
+            's_baseline_path': '/mnt/qb/work2/butz1/bst981/weather_data/baselines_full_size/extrapolation_2019_2020.zarr',
             's_baseline_variable_name': 'extrapolation',
             's_num_input_frames_baseline': 4, # The number of input frames that was used to calculate the baseline
 
@@ -785,7 +808,7 @@ if __name__ == '__main__':
             's_load_model_name': 'Run_·20230220-191041',
             's_dirs': s_dirs,
             'device': device,
-            's_learning_rate': 0.001,  # 0.0001
+            's_learning_rate': 0.001, #Default AdamW: 0.001  # 0.0001
             # For some reason the lr scheduler starts one order of magnitude below the given learning rate (10^-4, when 10^-3 is given)
             's_lr_schedule': True,  # enables lr scheduler, takes s_learning_rate as initial rate
 
@@ -891,7 +914,6 @@ if __name__ == '__main__':
         )
 
         evaluation_pipeline(data_set_vars, settings)
-
 
     else:
         # --- Plotting only ---

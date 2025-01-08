@@ -11,15 +11,12 @@ def evaluation_pipeline(data_set_vars, ckpt_settings, plotting=False):
     This Pipeline is executed right after training or in 'plotting_only' mode
     '''
 
-
     (train_data_loader, validation_data_loader,
      training_steps_per_epoch, validation_steps_per_epoch,
      train_time_keys, val_time_keys, test_time_keys,
      train_sample_coords, val_sample_coords,
      radolan_statistics_dict,
      linspace_binning_params,) = data_set_vars
-
-
 
     # --- Get model checkpoint ---
 
