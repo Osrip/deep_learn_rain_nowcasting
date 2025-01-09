@@ -696,11 +696,11 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'run_3_days_data_1_hour_splits_and_evaluate_FULL_DATA_for_eval_3_epochs_1_GPU_ver3'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = 'does_eval_still_work_1_month_1GPU_half_a100_node_1280_samples_1_epoch'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -737,14 +737,14 @@ if __name__ == '__main__':
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 3, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 4, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-01-04T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
             's_time_span_for_bin_frequencies': ['2019-01-01T08:00', '2019-01-01T09:00'], # Time span that bin frequencies are calculated for (EXTREMELY CPU expensive 1 hr --> 40 seconds
 
             # Splitting training / validation
-            's_split_chunk_duration': '1h', #'1D',
+            's_split_chunk_duration': '1D',
             # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
             's_ratio_train_val_test': (0.7, 0.15, 0.15), #(0.7, 0.15, 0.15), #(0.6, 0.2, 0.2), #,
             # These are the splitting ratios between (train, val, test), adding up to 1

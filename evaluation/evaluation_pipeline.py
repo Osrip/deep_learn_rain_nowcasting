@@ -69,7 +69,7 @@ def evaluation_pipeline(data_set_vars, ckpt_settings, plotting=False):
         train_time_keys, val_time_keys, test_time_keys,
         radolan_statistics_dict,
         linspace_binning_params,
-        max_num_frames_per_split=15,
+        max_num_frames_per_split=3,
 
         splits_to_predict_on=['val'],
         ckp_settings=ckpt_settings,

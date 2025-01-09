@@ -297,7 +297,7 @@ def ckpt_quick_eval_with_baseline(
         s_baseline_path,
         s_num_workers_data_loader,
 
-        subsample_dataset_to_len=None,#1280, #=1280, #1280, #=50,
+        subsample_dataset_to_len=1280, #=1280, #1280, #=50,
 
         **__,
 ):
@@ -372,7 +372,7 @@ def ckpt_quick_eval_with_baseline(
         # timeout=0,  # TODO: Potentially try this to see whether the freezing happens during batch loading
     )
 
-    # Original Data Loader
+    # Original Data Loader ---> THIS CAUSES GETTING STUCK
     # data_loader_eval_filtered = DataLoader(
     #     data_set_eval_filtered,
     #     shuffle=False,

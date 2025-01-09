@@ -588,7 +588,7 @@ def ckpt_to_pred(
             s_num_gpus
 
         max_num_frames: int / None
-            maximal number of frames that shall be predicted on each split. If None the whole split is predicted
+            maximal number of frames (5 minute frame of whole spacial map) that shall be predicted on each split. If None the whole split is predicted
     """
     # Set model to predict mode, which chooses the right predict_step() method
     model.set_mode(mode='predict')
