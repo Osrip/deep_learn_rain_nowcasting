@@ -398,7 +398,7 @@ def create_data_loaders(
         # ... with oversampling:
         validation_data_loader = DataLoader(
             val_data_set,
-            sampler=val_weighted_random_sampler,
+            sampler=val_weighted_random_sampler, # <-- OVERSAMPLING
             batch_size=s_batch_size,
             drop_last=False,
             num_workers=s_num_workers_data_loader,
@@ -701,7 +701,7 @@ if __name__ == '__main__':
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = '4GPUs_1_month_SQRT_oversampling_SQRT_val_oversampling_15_epochs_FIX_MULTI_GPU'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = '4GPUs_1_month_SQRT_oversampling_NO_val_oversampling_15_epochs_FIX_MULTI_GPU__EVAL_ON_LAST_CKPT'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -826,7 +826,7 @@ if __name__ == '__main__':
             's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
 
             # Logging
-            's_oversample_validation': True,  # Oversample validation just like training, such that training and validations are directly copmparable
+            's_oversample_validation': False,  # Oversample validation just like training, such that training and validations are directly copmparable
             's_calc_baseline': False,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000, #TODO NO LONGER IN USE # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
