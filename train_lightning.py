@@ -865,7 +865,7 @@ if __name__ == '__main__':
 
         # ! TEST ON ALL DEBUG DATA from time to time to check what happens to discarded samples !
         settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T09:00'] # ['2019-01-01T08:00', '2019-01-01T12:00']
-        settings['s_time_span_for_bin_frequencies'] = ['2019-01-01T08:00', '2019-01-01T08:05'] #['2019-01-01T08:00', '2019-01-01T08:05']
+        settings['s_time_span_for_bin_frequencies'] = ['2019-01-01T08:00', '2019-01-01T08:05'] #['2019-01-01T08:00', '2019-01-01T08:05'] ['2019-01-01T08:00', '2019-01-01T08:05'] #['2019-01-01T08:00', '2019-01-01T08:05']
         settings['s_split_chunk_duration'] = '5min' #'15min' #'1h'
         settings['s_ratio_train_val_test'] = (0.4, 0.3, 0.3)
 

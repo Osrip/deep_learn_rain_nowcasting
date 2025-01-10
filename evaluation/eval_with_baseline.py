@@ -117,6 +117,8 @@ class EvaluateBaselineCallback(pl.Callback):
                                         pl_module.std_filtered_log_data)
 
         pred_baseline_mm = baseline
+        # pred_baseline_mm = baseline[:, s_num_lead_time_steps, :, :]
+
         pred_baseline_mm = T.CenterCrop(size=s_target_height_width)(pred_baseline_mm)
 
         # Double-checked alignment visually (See apple notes Science/testing code/Testing on predict_batch_end())

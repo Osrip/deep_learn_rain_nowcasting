@@ -478,7 +478,7 @@ class FilteredDatasetXr(Dataset):
 
             baseline_spacetime_variable = baseline_data_one_variable.sel(
                 time=time_start_baseline,  # we only select the single time = time_start_baseline
-                lead_time=lead_time_delta,
+                lead_time=lead_time_delta, # Load certain lead time here already ... but lead_time dim seems not to be chunked, so no speedup
                 y=y_slice,
                 x=x_slice
             )
@@ -488,7 +488,7 @@ class FilteredDatasetXr(Dataset):
                 print(f"TIME FOR `.sel() + .values` on baseline: {time.time() - t0} seconds")
                 self.printed = True
             # baseline is ('lead_time', 'time', 'y', 'x')
-            # after selecting single time index = shape (lead_time, y, x)
+            # after selecting single time index = shape (y, x)
             baseline_variable_values = torch.from_numpy(baseline_variable_values)
             baseline_variables_dict['baseline'] = baseline_variable_values
 
