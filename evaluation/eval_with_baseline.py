@@ -299,7 +299,7 @@ def ckpt_quick_eval_with_baseline(
         s_baseline_path,
         s_num_workers_data_loader,
 
-        subsample_dataset_to_len=1280, #=1280, #1280, #=50,
+        subsample_dataset_to_len=2 ,#1280, #=1280, #1280, #=50,
 
         **__,
 ):
@@ -340,6 +340,11 @@ def ckpt_quick_eval_with_baseline(
         num_input_frames_baseline=ckpt_settings['s_num_input_frames_baseline'],
     )
 
+    print('Load "samples_have_padding"')
+    # Boolean stating whether samples have input padding:F
+    # If they do have padding, this is going to be removed by center cropping
+    samples_have_padding = data_set_eval_filtered.samples_have_padding
+
     # Subsampling
     sub_sampled = False
     if subsample_dataset_to_len is not None:
@@ -348,17 +353,17 @@ def ckpt_quick_eval_with_baseline(
             # Randomly subsample dataset
             subset_indices = random.sample(range(len(data_set_eval_filtered)), subsample_dataset_to_len)
             # subset_indices = list(range(crop_dataset_to_len))  # Choose the first `desired_sample_size` samples
-            data_set_eval_filtered = Subset(data_set_eval_filtered, subset_indices).dataset
+            data_set_eval_filtered = Subset(data_set_eval_filtered, subset_indices)
+
             sub_sampled = True
 
     if not sub_sampled:
         print(f'Len of dataset is {subsample_dataset_to_len}')
 
+    print(f'Actual length of the dataset for eval is: {len(data_set_eval_filtered)}')
 
-    print('Load "samples_have_padding"')
-    # Boolean stating whether samples have input padding:F
-    # If they do have padding, this is going to be removed by center cropping
-    samples_have_padding = data_set_eval_filtered.samples_have_padding
+
+
 
     print('Initializing Dataloader')
 
