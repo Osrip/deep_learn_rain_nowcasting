@@ -474,8 +474,11 @@ class FilteredDatasetXr(Dataset):
             t0 = time.time()
             if not self.printed:
                 print('Baseline sel operation')
+            lead_time_delta = np.timedelta64(s_num_lead_time_steps * 5, 'm')
+
             baseline_spacetime_variable = baseline_data_one_variable.sel(
                 time=time_start_baseline,  # we only select the single time = time_start_baseline
+                lead_time=lead_time_delta,
                 y=y_slice,
                 x=x_slice
             )

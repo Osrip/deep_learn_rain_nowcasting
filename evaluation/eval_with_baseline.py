@@ -1,16 +1,14 @@
 import torch
 from torch.utils.data import DataLoader
-import xarray as xr
 from load_data_xarray import FilteredDatasetXr
 import pytorch_lightning as pl
-from helper.helper_functions import center_crop_1d
 import torch
 import torchvision.transforms as T
 from torch.utils.data import Subset
 from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data
 from helper.helper_functions import move_to_device
-from helper.memory_logging import print_gpu_memory, print_ram_usage
-from helper.torch_nan_operations import nanmax
+from helper.memory_logging import print_gpu_memory, print_ram_usage, format_duration
+import time
 import random
 import pandas as pd
 import os
@@ -85,8 +83,7 @@ class EvaluateBaselineCallback(pl.Callback):
 
         # Save certain batches for plotting:
         # TODO: FIXING FREEZING
-        # if batch_idx <= 4:
-        if False:
+        if batch_idx <= 4:
             self.save_batch_output(batch, outputs, batch_idx)
 
         s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
@@ -119,7 +116,7 @@ class EvaluateBaselineCallback(pl.Callback):
                                         pl_module.mean_filtered_log_data,
                                         pl_module.std_filtered_log_data)
 
-        pred_baseline_mm = baseline[:, s_num_lead_time_steps, :, :]
+        pred_baseline_mm = baseline
         pred_baseline_mm = T.CenterCrop(size=s_target_height_width)(pred_baseline_mm)
 
         # Double-checked alignment visually (See apple notes Science/testing code/Testing on predict_batch_end())
@@ -267,6 +264,8 @@ class EvaluateBaselineCallback(pl.Callback):
                     'target_binned' torch.Tensor,
                     'baseline': torch.Tensor}
         '''
+        print(f"\n Saving batch number {batch_idx} \n ...")
+        step_start_time = time.time()
         s_dirs = self.settings['s_dirs']
         batches_outputs_dir = s_dirs['batches_outputs']
         save_name_batches = f'batch_{batch_idx:04d}.pt'
@@ -283,6 +282,7 @@ class EvaluateBaselineCallback(pl.Callback):
         # Save outputs
         outputs = move_to_device(outputs, device='cpu')
         torch.save(outputs, save_path_outputs)
+        print(f'\n Done saving the batch. Took {format_duration(time.time() - step_start_time)} \n')
 
 
 def ckpt_quick_eval_with_baseline(
@@ -341,7 +341,7 @@ def ckpt_quick_eval_with_baseline(
     # Subsampling
     sub_sampled = False
     if subsample_dataset_to_len is not None:
-        if subsample_dataset_to_len < len(data_set_eval_filtered):  # TODO FIXING FREEZING, keep this?
+        if subsample_dataset_to_len < len(data_set_eval_filtered):
             print(f'Randomly subsample Dataset from length {len(data_set_eval_filtered)} to len {subsample_dataset_to_len}')
             # Randomly subsample dataset
             subset_indices = random.sample(range(len(data_set_eval_filtered)), subsample_dataset_to_len)
@@ -354,21 +354,21 @@ def ckpt_quick_eval_with_baseline(
 
 
     print('Load "samples_have_padding"')
-    # Boolean stating whether samples have input padding:
+    # Boolean stating whether samples have input padding:F
     # If they do have padding, this is going to be removed by center cropping
     samples_have_padding = data_set_eval_filtered.samples_have_padding
 
     print('Initializing Dataloader')
 
     # Data Loader
-    # TODO FIXING FREEZING, see what stuff to keep
+    # THIS FIXES FREEZING ISSUE!
     data_loader_eval_filtered = DataLoader(
         data_set_eval_filtered,
         shuffle=True,
         batch_size=s_batch_size,
         drop_last=True,
-        num_workers=0,  # TODO FIXING FREEZING, originally num_workers=s_num_workers_data_loader
-        pin_memory=False,  # TODO FIXING FREEZING, originally pin_memory=True
+        num_workers=0, # EITHER THIS
+        pin_memory=False, # OR THIS FIXES FREEZING
         # timeout=0,  # TODO: Potentially try this to see whether the freezing happens during batch loading
     )
 
