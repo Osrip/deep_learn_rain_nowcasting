@@ -697,11 +697,11 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = '4GPUs_1_month_SQRT_oversampling_NO_val_oversampling_15_epochs_FIX_MULTI_GPU__EVAL_ON_LAST_CKPT'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = '4GPUs_1_month_SQRT_oversampling_NO_val_oversampling_30_epochs_NEW_GPU_SETUP_EVAL_ON_1_month_LAST_CKPT'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -738,7 +738,7 @@ if __name__ == '__main__':
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 15, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 30, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
             's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
@@ -772,11 +772,13 @@ if __name__ == '__main__':
             's_baseline_variable_name': 'extrapolation',
             's_num_input_frames_baseline': 4, # The number of input frames that was used to calculate the baseline
 
+            's_subsample_dataset_to_len': None, #Number of samples to subsample to for evaluation. Can be None
+
             's_num_workers_data_loader': 16,  # Should correspond to number of cpus, also increases cpu ram --> FOR DEBUGGING SET TO 0
             's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
-            's_num_gpus': 4,
+            's_num_gpus': 4, # TODO: SET DEVIDES TO !!! AUTO !!! REMOVE THIS!
             's_batch_size': 128, #our net on a100: 64  #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
             # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
             # Make this divisible by 8 or best 8 * 2^n
@@ -876,6 +878,7 @@ if __name__ == '__main__':
         settings['s_data_loader_vars_path'] = '/home/jan/Programming/weather_data/data_loader_vars' #'/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars' #
 
         settings['s_max_num_filter_hits'] = None  # 4 # None or int
+        settings['s_subsample_dataset_to_len'] = 2
 
     if not settings['s_plotting_only']:
         for _, make_dir in s_dirs.items():

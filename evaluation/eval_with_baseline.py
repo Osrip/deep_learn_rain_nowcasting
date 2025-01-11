@@ -298,8 +298,7 @@ def ckpt_quick_eval_with_baseline(
         s_batch_size,
         s_baseline_path,
         s_num_workers_data_loader,
-
-        subsample_dataset_to_len=2 ,#1280, #=1280, #1280, #=50,
+        s_subsample_dataset_to_len,
 
         **__,
 ):
@@ -347,18 +346,18 @@ def ckpt_quick_eval_with_baseline(
 
     # Subsampling
     sub_sampled = False
-    if subsample_dataset_to_len is not None:
-        if subsample_dataset_to_len < len(data_set_eval_filtered):
-            print(f'Randomly subsample Dataset from length {len(data_set_eval_filtered)} to len {subsample_dataset_to_len}')
+    if s_subsample_dataset_to_len is not None:
+        if s_subsample_dataset_to_len < len(data_set_eval_filtered):
+            print(f'Randomly subsample Dataset from length {len(data_set_eval_filtered)} to len {s_subsample_dataset_to_len}')
             # Randomly subsample dataset
-            subset_indices = random.sample(range(len(data_set_eval_filtered)), subsample_dataset_to_len)
+            subset_indices = random.sample(range(len(data_set_eval_filtered)), s_subsample_dataset_to_len)
             # subset_indices = list(range(crop_dataset_to_len))  # Choose the first `desired_sample_size` samples
             data_set_eval_filtered = Subset(data_set_eval_filtered, subset_indices)
 
             sub_sampled = True
 
     if not sub_sampled:
-        print(f'Len of dataset is {subsample_dataset_to_len}')
+        print(f'Len of dataset is {s_subsample_dataset_to_len}')
 
     print(f'Actual length of the dataset for eval is: {len(data_set_eval_filtered)}')
 
