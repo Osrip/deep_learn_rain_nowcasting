@@ -662,6 +662,8 @@ def train_l(
     # 'devices' argument is ignored when device == 'cpu'
     # Speed up advice: https://pytorch-lightning.readthedocs.io/en/1.8.6/guides/speed.html
 
+    # Doing one validation step on the untrained model
+    trainer.validate(model_l, dataloaders=validation_data_loader)
     # trainer.logger = logger
     trainer.fit(model_l, train_data_loader, validation_data_loader)
 
@@ -697,11 +699,11 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'reevaluate_best_ckpt_Run_20250111-135138_ID_10347294GPUs_1_month_SQRT_oversampling_NO_val_oversampling_100_epochs_NEW_GPU_SETUP_EVAL_ON_1_month_LAST_CKPT'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = '1_month_SQRT_oversampling_NO_val_oversampling_30_epochs_eval_on_5000_samples_several_ckpts_datasets_val_on_untrained'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -727,12 +729,12 @@ if __name__ == '__main__':
 
             's_convnext': True,  # Use ConvNeXt instead of ours
 
-            's_plotting_only': True,  # If active loads sim s_plot_sim_name and runs plotting pipeline
+            's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
             's_plot_sim_name': 'Run_20250111-135138_ID_10347294GPUs_1_month_SQRT_oversampling_NO_val_oversampling_100_epochs_NEW_GPU_SETUP_EVAL_ON_1_month_LAST_CKPT', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             # Debugging run on cluster: 'Run_20241213-170049_ID_926355overfitting_run_debugging_data_1_hour_5_min_splits'
 
             # Save data loader variables
-            's_save_prefix_data_loader_vars': '01_25', #
+            's_save_prefix_data_loader_vars': '01_25_NEW', #
             's_data_loader_vars_path': '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
 
             # Max number of frames in proccessed data set for debugging (validation + training)
@@ -772,7 +774,7 @@ if __name__ == '__main__':
             's_baseline_variable_name': 'extrapolation',
             's_num_input_frames_baseline': 4, # The number of input frames that was used to calculate the baseline
 
-            's_subsample_dataset_to_len': None, #Number of samples to subsample to for evaluation. Can be None
+            's_subsample_dataset_to_len': 5000, #None, #Number of samples to subsample to for evaluation. Can be None
 
             's_num_workers_data_loader': 16,  # Should correspond to number of cpus, also increases cpu ram --> FOR DEBUGGING SET TO 0
             's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
@@ -862,7 +864,7 @@ if __name__ == '__main__':
         settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
-        settings['s_max_epochs'] = 1
+        settings['s_max_epochs'] = 5
         settings['s_num_gpus'] = 1
 
         # ! TEST ON ALL DEBUG DATA from time to time to check what happens to discarded samples !

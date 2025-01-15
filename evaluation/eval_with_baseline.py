@@ -1,4 +1,5 @@
 import torch
+from pyarrow.dataset import dataset
 from torch.utils.data import DataLoader
 from load_data_xarray import FilteredDatasetXr
 import pytorch_lightning as pl
@@ -20,6 +21,7 @@ class EvaluateBaselineCallback(pl.Callback):
             self,
             linspace_binning_params,
             checkpoint_name,
+            dataset_name,
             samples_have_padding,
             settings,
     ):
@@ -41,6 +43,7 @@ class EvaluateBaselineCallback(pl.Callback):
         self.settings = settings
         self.linspace_binning_params = linspace_binning_params
         self.checkpoint_name = checkpoint_name
+        self.dataset_name = dataset_name
         self.samples_have_padding = samples_have_padding
 
         # Initialising logging lists
@@ -245,7 +248,7 @@ class EvaluateBaselineCallback(pl.Callback):
         })
 
         # Define CSV file path based on checkpoint_name
-        csv_file = os.path.join(evaluation_dir, f"{checkpoint_name_cleaned}_metrics.csv")
+        csv_file = os.path.join(evaluation_dir, f"dataset_{self.dataset_name}_ckpt_{checkpoint_name_cleaned}_metrics.csv")
 
         # Save DataFrame to CSV
         df.to_csv(csv_file, index=False)
@@ -290,7 +293,8 @@ class EvaluateBaselineCallback(pl.Callback):
 def ckpt_quick_eval_with_baseline(
         model,
         checkpoint_name,
-        sample_coords,
+        dataset,
+        dataset_name,
         radolan_statistics_dict,
         linspace_binning_params,
 
@@ -325,10 +329,21 @@ def ckpt_quick_eval_with_baseline(
     # Setting model to baseline mode, which chooses the right predict_step() method
     model.set_mode(mode='baseline')
 
+
     print('Initialize Dataset')
 
-    #  Data Set
-    data_set_eval_filtered = FilteredDatasetXr(
+    # Setting dataset attributes according to our needs
+    # dataset.mode = 'baseline'
+    # dataset.data_into_ram = True
+    # dataset.settings = ckpt_settings
+    # dataset.baseline_path = ckpt_settings['s_baseline_path']
+    # dataset.baseline_variable_name = ckpt_settings['s_baseline_variable_name']
+    # dataset.num_input_frames_baseline = ckpt_settings['s_num_input_frames_baseline']
+
+     # Data Set
+    # We have to initialize the dataset in baseline mode in order for baseline to work
+    sample_coords = dataset.sample_coords
+    dataset = FilteredDatasetXr(
         sample_coords,
         radolan_statistics_dict,
         mode='baseline',
@@ -342,24 +357,24 @@ def ckpt_quick_eval_with_baseline(
     print('Load "samples_have_padding"')
     # Boolean stating whether samples have input padding:F
     # If they do have padding, this is going to be removed by center cropping
-    samples_have_padding = data_set_eval_filtered.samples_have_padding
+    samples_have_padding = dataset.samples_have_padding
 
     # Subsampling
     sub_sampled = False
     if s_subsample_dataset_to_len is not None:
-        if s_subsample_dataset_to_len < len(data_set_eval_filtered):
-            print(f'Randomly subsample Dataset from length {len(data_set_eval_filtered)} to len {s_subsample_dataset_to_len}')
+        if s_subsample_dataset_to_len < len(dataset):
+            print(f'Randomly subsample Dataset from length {len(dataset)} to len {s_subsample_dataset_to_len}')
             # Randomly subsample dataset
-            subset_indices = random.sample(range(len(data_set_eval_filtered)), s_subsample_dataset_to_len)
+            subset_indices = random.sample(range(len(dataset)), s_subsample_dataset_to_len)
             # subset_indices = list(range(crop_dataset_to_len))  # Choose the first `desired_sample_size` samples
-            data_set_eval_filtered = Subset(data_set_eval_filtered, subset_indices)
+            dataset = Subset(dataset, subset_indices)
 
             sub_sampled = True
 
     if not sub_sampled:
         print(f'Len of dataset is {s_subsample_dataset_to_len}')
 
-    print(f'Actual length of the dataset for eval is: {len(data_set_eval_filtered)}')
+    print(f'Actual length of the dataset for eval is: {len(dataset)}')
 
 
     print('Initializing Dataloader')
@@ -367,7 +382,7 @@ def ckpt_quick_eval_with_baseline(
     # Data Loader
     # THIS FIXES FREEZING ISSUE!
     data_loader_eval_filtered = DataLoader(
-        data_set_eval_filtered,
+        dataset,
         shuffle=True,
         batch_size=s_batch_size,
         drop_last=True,
@@ -392,6 +407,7 @@ def ckpt_quick_eval_with_baseline(
     evaluate_baseline_callback = EvaluateBaselineCallback(
             linspace_binning_params,
             checkpoint_name,
+            dataset_name,
             samples_have_padding,
             ckpt_settings,
     )

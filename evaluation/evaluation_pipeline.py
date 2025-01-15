@@ -6,7 +6,10 @@ from plotting.plotting_pipeline import plot_logs_pipeline
 import time
 
 
-def evaluation_pipeline(data_set_vars, ckpt_settings, plotting=False):
+def evaluation_pipeline(
+        data_set_vars, ckpt_settings,
+        plot_training_logs=False
+):
     '''
     This Pipeline is executed right after training or in 'plotting_only' mode
     '''
@@ -22,58 +25,76 @@ def evaluation_pipeline(data_set_vars, ckpt_settings, plotting=False):
 
     save_dir = ckpt_settings['s_dirs']['save_dir']
 
-    checkpoint_names = get_checkpoint_names(save_dir)
+    all_checkpoint_names = get_checkpoint_names(save_dir)
 
     # Only do prediction for last checkpoint
     # TODO LOADING 'last' not 'best'
-    checkpoint_name = [name for name in checkpoint_names if 'best' in name][0]
+    checkpoints_to_evaluate = []
+    checkpoint_name_1 = [name for name in all_checkpoint_names if 'best' in name][0]
+    checkpoints_to_evaluate.append(checkpoint_name_1)
 
-    model = load_from_checkpoint(
-        save_dir,
-        checkpoint_name,
+    checkpoint_name_2 = [name for name in all_checkpoint_names if 'last' in name][0]
+    checkpoints_to_evaluate.append(checkpoint_name_2)
 
-        ckpt_settings,
-        **ckpt_settings,
-    )
+    datasets = {
+        'train': train_data_loader.dataset,
+        'val': validation_data_loader.dataset,
+    }
 
-    # --- Plot logs ---
-    if plotting:
-        plot_logs_pipeline(
-            training_steps_per_epoch,
-            model,
-            ckpt_settings, **ckpt_settings
-        )
 
-    # --- Quick evaluation and comparison to baseline over data set ---
-    print(f"\n STARTING EVALUATION ON BASELINE \n ...")
-    step_start_time = time.time()
+    for checkpoint_name in checkpoints_to_evaluate:
+        for dataset_name, dataset in datasets.items():
+            print(f"\n STARTING EVALUATION ON BASELINE AND MODEL \n ...")
+            print(f'\n Checkpoint: {checkpoint_name}, Dataset: {dataset_name} \n')
 
-    ckpt_quick_eval_with_baseline(
-        model,
-        checkpoint_name,
-        val_sample_coords,
-        radolan_statistics_dict,
-        linspace_binning_params,
 
-        ckpt_settings,
-        **ckpt_settings
-    )
-    print(f'\n DONE. Took {format_duration(time.time() - step_start_time)} \n')
+            model = load_from_checkpoint(
+                save_dir,
+                checkpoint_name,
 
-    # --- Generate predictions that are saved to a zarr ---
-    print(f"\n STARTING PREDICTIONS AND SAVING TO ZARR \n ...")
-    step_start_time = time.time()
-    ckpt_to_pred(
-        model,
-        checkpoint_name,
-        train_time_keys, val_time_keys, test_time_keys,
-        radolan_statistics_dict,
-        linspace_binning_params,
-        max_num_frames_per_split=3,
+                ckpt_settings,
+                **ckpt_settings,
+            )
 
-        splits_to_predict_on=['val'],
-        ckp_settings=ckpt_settings,
-        **ckpt_settings,
-    )
-    print(f'\n DONE. Took {format_duration(time.time() - step_start_time)} \n')
+            # --- Plot logs ---
+            if plot_training_logs:
+                plot_logs_pipeline(
+                    training_steps_per_epoch,
+                    model,
+                    ckpt_settings, **ckpt_settings
+                )
+
+            # --- Quick evaluation and comparison to baseline over data set ---
+            step_start_time = time.time()
+
+            ckpt_quick_eval_with_baseline(
+                model,
+                checkpoint_name,
+                dataset,
+                dataset_name,
+                radolan_statistics_dict,
+                linspace_binning_params,
+
+                ckpt_settings,
+                **ckpt_settings
+            )
+            print(f'\n DONE. Took {format_duration(time.time() - step_start_time)} \n')
+
+        # TODO: No enabled atm
+        # # --- Generate predictions that are saved to a zarr ---
+        # print(f"\n STARTING PREDICTIONS AND SAVING TO ZARR \n ...")
+        # step_start_time = time.time()
+        # ckpt_to_pred(
+        #     model,
+        #     checkpoint_name,
+        #     train_time_keys, val_time_keys, test_time_keys,
+        #     radolan_statistics_dict,
+        #     linspace_binning_params,
+        #     max_num_frames_per_split=3,
+        #
+        #     splits_to_predict_on=['val'],
+        #     ckp_settings=ckpt_settings,
+        #     **ckpt_settings,
+        # )
+        # print(f'\n DONE. Took {format_duration(time.time() - step_start_time)} \n')
 

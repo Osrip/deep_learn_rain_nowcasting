@@ -15,16 +15,18 @@ def plot_logged_metrics(train_df, val_df, train_mean_key, val_mean_key, train_st
     train_std = train_df[train_std_key].to_list()
     val_std = val_df[val_std_key].to_list()
 
-    if not len(train_mean) == len(val_mean):
-        raise ValueError('Length of train and validation data is not the same in the logs')
+    # TODO: Currently validatioon data is longer due to validatoon at epoch 0
+    # if not len(train_mean) == len(val_mean):
+    #     raise ValueError('Length of train and validation data is not the same in the logs')
 
-    epochs = np.arange(0, len(train_mean))
+    epochs_train = np.arange(0, len(train_mean))
+    epochs_val = np.arange(0, len(val_mean))
 
     plt.figure()
     ax = plt.subplot(111)
     plt.title(title)
-    ax.plot(epochs, train_mean, label='train', color='blue')
-    ax.plot(epochs, val_mean, label='validation', color='red')
+    ax.plot(epochs_train, train_mean, label='train', color='blue')
+    ax.plot(epochs_val, val_mean, label='validation', color='red')
 
     # Add shaded area for standard deviations
     # ax.fill_between(epochs, np.array(train_mean) - np.array(train_std), np.array(train_mean) + np.array(train_std), color='blue', alpha=0.2)
@@ -66,19 +68,22 @@ def plot_mean_predictions(train_df, val_df,
     train_target_stds = train_df[train_std_target_key].to_list()
     val_target_stds = val_df[val_std_target_key].to_list()
 
-    if not (len(train_pred_means) == len(val_pred_means) == len(train_target_means) == len(val_target_means) ==
-            len(train_pred_stds) == len(val_pred_stds) == len(train_target_stds) == len(val_target_stds)):
-        raise ValueError('Length of train and validation data is not the same in the logs')
+    if not (len(train_pred_means) == len(train_target_means) == len(train_pred_stds) == len(train_target_stds)):
+        raise ValueError("Length of train data is not consistent in the logs")
 
-    epochs = np.arange(0, len(train_pred_means))
+    if not (len(val_pred_means) == len(val_target_means) == len(val_pred_stds) == len(val_target_stds)):
+        raise ValueError("Length of validation data is not consistent in the logs")
+
+    epochs_train = np.arange(0, len(train_pred_means))
+    epochs_val = np.arange(0, len(val_pred_means))
 
     plt.figure()
     ax = plt.subplot(111)
     plt.title(title)
-    ax.plot(epochs, train_pred_means, label='prediction training', color='blue')
-    ax.plot(epochs, train_target_means, label='target training', color='blue', linestyle='dashed')
-    ax.plot(epochs, val_pred_means, label='prediction validation', color='red')
-    ax.plot(epochs, val_target_means, label='target validation', color='red', linestyle='dashed')
+    ax.plot(epochs_train, train_pred_means, label='prediction training', color='blue')
+    ax.plot(epochs_train, train_target_means, label='target training', color='blue', linestyle='dashed')
+    ax.plot(epochs_val, val_pred_means, label='prediction validation', color='red')
+    ax.plot(epochs_val, val_target_means, label='target validation', color='red', linestyle='dashed')
 
     if ylog:
         ax.set_yscale('log')
