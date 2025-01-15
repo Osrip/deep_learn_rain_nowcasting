@@ -362,8 +362,6 @@ def ckpt_quick_eval_with_baseline(
     print(f'Actual length of the dataset for eval is: {len(data_set_eval_filtered)}')
 
 
-
-
     print('Initializing Dataloader')
 
     # Data Loader

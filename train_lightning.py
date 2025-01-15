@@ -697,7 +697,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
@@ -728,7 +728,7 @@ if __name__ == '__main__':
             's_convnext': True,  # Use ConvNeXt instead of ours
 
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
-            's_plot_sim_name': 'Run_20241213-170049_ID_926355overfitting_run_debugging_data_1_hour_5_min_splits', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            's_plot_sim_name': 'Run_20250111-135138_ID_10347294GPUs_1_month_SQRT_oversampling_NO_val_oversampling_100_epochs_NEW_GPU_SETUP_EVAL_ON_1_month_LAST_CKPT', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             # Debugging run on cluster: 'Run_20241213-170049_ID_926355overfitting_run_debugging_data_1_hour_5_min_splits'
 
             # Save data loader variables
