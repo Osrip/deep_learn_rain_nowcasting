@@ -244,6 +244,7 @@ class EvaluateBaselineCallback(pl.Callback):
             "means_pred_model":     self.means_pred_model,
             "means_pred_baseline":  self.means_pred_baseline,
             "certainties_target_bin_model":    self.certainties_target_bin_model,
+            "certainties_max_pred": self.certainties_max_pred,
             "stds_model":           self.stds_model,
         })
 

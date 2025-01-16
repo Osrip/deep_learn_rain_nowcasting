@@ -703,7 +703,7 @@ if __name__ == '__main__':
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = '1_month_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_5000_samples_several_ckpts_datasets_val_on_untrained'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = '1_month_SQRT_oversampling_SQRT_val_oversampling_100_epochs_eval_on_5000_samples_3500train_1000_val_samples_per_epoch'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -740,7 +740,7 @@ if __name__ == '__main__':
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 30, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 100, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
             's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
@@ -749,7 +749,7 @@ if __name__ == '__main__':
             # Splitting training / validation
             's_split_chunk_duration': '1D',
             # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
-            's_ratio_train_val_test': (0.7, 0.15, 0.15), #(0.7, 0.15, 0.15), #(0.6, 0.2, 0.2), #,
+            's_ratio_train_val_test': (0.7, 0.15, 0.15), # TIME RATIO, DOES NOT DIRECTLY CORRESPOND THE SAMPLE RATIO DUE TO FILTERING This is the ratio that the dataset is split by according to the time period given by s_split_chunk_duration.
             # These are the splitting ratios between (train, val, test), adding up to 1
             's_split_seed': 42,
             # This is the seed that the train / prevalidation split is generated from (only applies to training of exactly the same time period of the data)
@@ -757,8 +757,8 @@ if __name__ == '__main__':
             # Number of steps per epoch in random sampler, can be None:
             # This basically makes the epoch notation more or less unnecessary (scheduler is also coup[led to training steps)
             # So this mainly influences how often things are logged
-            's_train_samples_per_epoch': None, #500 * 0.7,  # Can be None
-            's_val_samples_per_epoch': None, #500 * 0.15,  # Can be None
+            's_train_samples_per_epoch': 3500, #500 * 0.7,  # Can be None
+            's_val_samples_per_epoch': 1000, #500 * 0.15,  # Can be None
 
             # Load Radolan
             's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
