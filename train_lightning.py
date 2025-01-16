@@ -368,7 +368,7 @@ def create_data_loaders(
 
     # TODO: Try Log weights instead (--> apple note 'Bin Frequencies for Oversampling in xarray')
 
-    train_weighted_random_sampler = WeightedRandomSampler(weights=np.power(train_oversampling_weights, 0.5), # TODO: LOG WEIGHTS BETTER?
+    train_weighted_random_sampler = WeightedRandomSampler(weights=np.power(train_oversampling_weights, 0.5),
                                                           num_samples=train_samples_per_epoch,
                                                           replacement=True)
 
@@ -662,7 +662,7 @@ def train_l(
     # 'devices' argument is ignored when device == 'cpu'
     # Speed up advice: https://pytorch-lightning.readthedocs.io/en/1.8.6/guides/speed.html
 
-    # Doing one validation step on the untrained model
+    # Doing one validation epoch on the untrained model
     trainer.validate(model_l, dataloaders=validation_data_loader)
     # trainer.logger = logger
     trainer.fit(model_l, train_data_loader, validation_data_loader)
@@ -703,7 +703,7 @@ if __name__ == '__main__':
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = '1_month_SQRT_oversampling_NO_val_oversampling_30_epochs_eval_on_5000_samples_several_ckpts_datasets_val_on_untrained'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = '1_month_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_5000_samples_several_ckpts_datasets_val_on_untrained'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -830,7 +830,7 @@ if __name__ == '__main__':
             's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
 
             # Logging
-            's_oversample_validation': False,  # Oversample validation just like training, such that training and validations are directly copmparable
+            's_oversample_validation': True,  # Oversample validation just like training, such that training and validations are directly copmparable
             's_calc_baseline': False,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000, #TODO NO LONGER IN USE # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
@@ -864,7 +864,7 @@ if __name__ == '__main__':
         settings['s_data_loader_chunk_size'] = 1
         settings['s_testing'] = True  # Runs tests at the beginning
         settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
-        settings['s_max_epochs'] = 5
+        settings['s_max_epochs'] = 1
         settings['s_num_gpus'] = 1
 
         # ! TEST ON ALL DEBUG DATA from time to time to check what happens to discarded samples !

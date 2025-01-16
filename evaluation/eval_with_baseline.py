@@ -270,13 +270,22 @@ class EvaluateBaselineCallback(pl.Callback):
                     'baseline': torch.Tensor}
         '''
         print(f"\n Saving batch number {batch_idx} \n ...")
+        # Remove ".ckpt" from checkpoint_name if present
+        checkpoint_name_cleaned = self.checkpoint_name.replace(".ckpt", "")
+
         step_start_time = time.time()
         s_dirs = self.settings['s_dirs']
         batches_outputs_dir = s_dirs['batches_outputs']
+        batches_outputs_subdir = f'dataset_{self.dataset_name}_ckpt_{checkpoint_name_cleaned}'
         save_name_batches = f'batch_{batch_idx:04d}.pt'
         save_name_outputs = f'outputs_{batch_idx:04d}.pt'
-        save_path_batches = os.path.join(batches_outputs_dir, save_name_batches)
-        save_path_outputs = os.path.join(batches_outputs_dir, save_name_outputs)
+
+        # Create the subdirectory (and parents if needed)
+        subdir_full_path = os.path.join(batches_outputs_dir, batches_outputs_subdir)
+        os.makedirs(subdir_full_path, exist_ok=True)
+
+        save_path_batches = os.path.join(subdir_full_path, save_name_batches)
+        save_path_outputs = os.path.join(subdir_full_path, save_name_outputs)
 
         # Save batch
         keys = ['dynamic', 'static', 'baseline']
