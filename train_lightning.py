@@ -334,6 +334,7 @@ def create_data_loaders(
         s_batch_size,
         s_num_workers_data_loader,
         s_oversample_validation,
+        s_oversample_train,
         s_train_samples_per_epoch,
         s_val_samples_per_epoch,
         **__
@@ -382,16 +383,26 @@ def create_data_loaders(
     if not len(val_oversampling_weights) == len(val_data_set) == len(val_sample_coords):
         raise ValueError('Length of oversampling weights does not match length of data set or sample coords')
 
-    # Training data loader
-    train_data_loader = DataLoader(
-        train_data_set,
-        sampler=train_weighted_random_sampler,
-        # shuffle=True,  # remove this when using the random sampler
-        batch_size=s_batch_size,
-        drop_last=False, #  TODO: This discards unfilled batches Set to True when having a large optimized run
-        num_workers=s_num_workers_data_loader,
-        pin_memory=True
-    )
+    if s_oversample_train:
+        # ... with oversampling:
+        train_data_loader = DataLoader(
+            train_data_set,
+            sampler=train_weighted_random_sampler,  # <-- OVERSAMPLING
+            batch_size=s_batch_size,
+            drop_last=False,
+            num_workers=s_num_workers_data_loader,
+            pin_memory=True
+        )
+    else:
+        # ... without oversampling:
+        train_data_loader = DataLoader(
+            train_data_set,
+            batch_size=s_batch_size,
+            shuffle=True,
+            drop_last=False,
+            num_workers=s_num_workers_data_loader,
+            pin_memory=True
+        )
 
     # Validation data loader
     if s_oversample_validation:
@@ -699,11 +710,11 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = '1_month_SQRT_oversampling_SQRT_val_oversampling_100_epochs_eval_on_5000_samples_3500train_1000_val_samples_per_epoch'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = '_1_month_NO_oversampling_NO_val_oversampling_500_epochs_eval_on_5000_samples_3500train_1000_val_samples_per_epoch'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -740,11 +751,12 @@ if __name__ == '__main__':
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 100, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 500, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
             's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
             's_time_span_for_bin_frequencies': ['2019-01-01T08:00', '2019-01-01T09:00'], # Time span that bin frequencies are calculated for (EXTREMELY CPU expensive 1 hr --> 40 seconds locally, 15 minutes on cluster)
+
 
             # Splitting training / validation
             's_split_chunk_duration': '1D',
@@ -754,6 +766,9 @@ if __name__ == '__main__':
             's_split_seed': 42,
             # This is the seed that the train / prevalidation split is generated from (only applies to training of exactly the same time period of the data)
 
+            # DATALOADER
+            's_oversample_validation': False,
+            's_oversample_train': False,
             # Number of steps per epoch in random sampler, can be None:
             # This basically makes the epoch notation more or less unnecessary (scheduler is also coup[led to training steps)
             # So this mainly influences how often things are logged
@@ -830,12 +845,12 @@ if __name__ == '__main__':
             's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
 
             # Logging
-            's_oversample_validation': True,  # Oversample validation just like training, such that training and validations are directly copmparable
+
             's_calc_baseline': False,  # Baselines are calculated and plotted --> Optical flow baseline
             's_epoch_repetitions_baseline': 1000, #TODO NO LONGER IN USE # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
 
             's_testing': True,  # Runs tests before starting training
-            's_profiling': True,  # Runs profiler
+            's_profiling': False,  # Runs profiler
 
             # Plotting stuff
             's_no_plotting': False,  # This sets all plotting boos below to False

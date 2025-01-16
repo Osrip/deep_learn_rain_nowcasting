@@ -85,8 +85,7 @@ class EvaluateBaselineCallback(pl.Callback):
         print_ram_usage()
 
         # Save certain batches for plotting:
-        # TODO: FIXING FREEZING
-        if batch_idx <= 4:
+        if batch_idx <= 2:
             self.save_batch_output(batch, outputs, batch_idx)
 
         s_num_lead_time_steps = self.settings['s_num_lead_time_steps']
