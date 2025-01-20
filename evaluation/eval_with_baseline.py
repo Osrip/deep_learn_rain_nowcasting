@@ -53,13 +53,16 @@ class EvaluateBaselineCallback(pl.Callback):
         self.rmses_model = []
         self.rmses_baseline = []
 
+        self.l1_differences_model = []
+        self.l1_differences_baseline = []
+
         self.means_target = []
         self.means_pred_model = []
         self.means_pred_baseline = []
 
         self.certainties_target_bin_model = []
         self.certainties_max_pred = []
-        self.stds_model = []
+        self.stds_binning_model = []
 
     def on_predict_batch_end(
         self,
@@ -185,11 +188,14 @@ class EvaluateBaselineCallback(pl.Callback):
         # no XEntropy loss on deterministic baseline
 
         rmse_model_per_sample = torch.sqrt(torch.mean((pred_model_mm - target_mm) ** 2, dim=(1,2)))  # [batch]
-        rmse_baseline_per_sample = torch.sqrt(torch.mean((pred_baseline_mm - target_mm) ** 2, dim=(1,2)))  # [batch]
+        rmse_baseline_per_sample = torch.sqrt(torch.nanmean((pred_baseline_mm - target_mm) ** 2, dim=(1,2)))  # [batch]
+
+        l1_difference_model_per_sample = torch.abs(pred_model_mm - target_mm).mean(dim=(1, 2))
+        l1_difference_baseline_per_sample = torch.abs(pred_baseline_mm - target_mm).nanmean(dim=(1, 2))
 
         mean_target_per_sample = target_mm.mean(dim=(1,2))  # [batch]
         mean_pred_model_per_sample = pred_model_mm.mean(dim=(1,2))  # [batch]
-        mean_pred_baseline_per_sample = pred_baseline_mm.mean(dim=(1,2))  # [batch]
+        mean_pred_baseline_per_sample = pred_baseline_mm.nanmean(dim=(1,2))  # [batch]
 
         # Certainty per sample
         # Probability for correct bin in target (not good measure)
@@ -198,10 +204,10 @@ class EvaluateBaselineCallback(pl.Callback):
         certainty_max_pred = pred_model_binned_smax.max(dim=1).values.mean(dim=(1,2))
 
         # Std per sample (std across channels, then average spatial dims)
-        # First: std across channels -> shape: [batch, height, width]
-        std_model_per_sample = pred_model_binned_no_smax.std(dim=1)
+        # First: std across channels / binning -> shape: [batch, height, width]
+        std_binning_model_per_sample = pred_model_binned_no_smax.std(dim=1)
         # Average spatially to get a single scalar per sample
-        std_model_per_sample = std_model_per_sample.mean(dim=(1,2))  # [batch]
+        std_binning_model_per_sample = std_binning_model_per_sample.mean(dim=(1,2))  # [batch]
 
         # Append per-sample metrics to the logging lists
         self.losses_model.extend(model_losses.tolist())
@@ -210,13 +216,16 @@ class EvaluateBaselineCallback(pl.Callback):
         self.rmses_model.extend(rmse_model_per_sample.tolist())
         self.rmses_baseline.extend(rmse_baseline_per_sample.tolist())
 
+        self.l1_differences_model.extend(l1_difference_model_per_sample.tolist())
+        self.l1_differences_baseline.extend(l1_difference_baseline_per_sample.tolist())
+
         self.means_target.extend(mean_target_per_sample.tolist())
         self.means_pred_model.extend(mean_pred_model_per_sample.tolist())
         self.means_pred_baseline.extend(mean_pred_baseline_per_sample.tolist())
 
         self.certainties_max_pred.extend(certainty_max_pred.tolist())
         self.certainties_target_bin_model.extend(certainty_target_bin_per_sample.tolist())
-        self.stds_model.extend(std_model_per_sample.tolist())
+        self.stds_binning_model.extend(std_binning_model_per_sample.tolist())
 
     def on_predict_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"):
         self.save_evaluations_logs()
@@ -235,16 +244,18 @@ class EvaluateBaselineCallback(pl.Callback):
 
         # Convert metrics to a DataFrame
         df = pd.DataFrame({
-            "losses_model":         self.losses_model,
+            "losses_model":                     self.losses_model,
             # "losses_baseline":      self.losses_baseline,
-            "rmses_model":          self.rmses_model,
-            "rmses_baseline":       self.rmses_baseline,
-            "means_target":         self.means_target,
-            "means_pred_model":     self.means_pred_model,
-            "means_pred_baseline":  self.means_pred_baseline,
-            "certainties_target_bin_model":    self.certainties_target_bin_model,
-            "certainties_max_pred": self.certainties_max_pred,
-            "stds_model":           self.stds_model,
+            "rmses_model":                      self.rmses_model,
+            "rmses_baseline":                   self.rmses_baseline,
+            "l1_difference_model":              self.l1_differences_model,
+            "l1_difference_baseline":           self.l1_differences_baseline,
+            "means_target":                     self.means_target,
+            "means_pred_model":                 self.means_pred_model,
+            "means_pred_baseline":              self.means_pred_baseline,
+            "certainties_target_bin_model":     self.certainties_target_bin_model,
+            "certainties_max_pred":             self.certainties_max_pred,
+            "stds_binning_model":               self.stds_binning_model,
         })
 
         # Define CSV file path based on checkpoint_name
@@ -400,7 +411,7 @@ def ckpt_quick_eval_with_baseline(
         # timeout=0,  # TODO: Potentially try this to see whether the freezing happens during batch loading
     )
 
-    # Original Data Loader ---> THIS CAUSES GETTING STUCK
+    # Original Data Loader ---> THIS CAUSES FREEZING ISSUE
     # data_loader_eval_filtered = DataLoader(
     #     data_set_eval_filtered,
     #     shuffle=False,

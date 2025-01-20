@@ -710,11 +710,11 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = False
+    s_local_machine_mode = True
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = '_1_month_NO_oversampling_NO_val_oversampling_500_epochs_eval_on_5000_samples_3500train_1000_val_samples_per_epoch'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = '_2_months_NO_oversampling_NO_val_oversampling_20_epochs_eval_on_full_data'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -741,7 +741,7 @@ if __name__ == '__main__':
             's_convnext': True,  # Use ConvNeXt instead of ours
 
             's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
-            's_plot_sim_name': 'Run_20250111-135138_ID_10347294GPUs_1_month_SQRT_oversampling_NO_val_oversampling_100_epochs_NEW_GPU_SETUP_EVAL_ON_1_month_LAST_CKPT', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
+            's_plot_sim_name': 'Run_20250111-135138_ID_10347294GPUs_2_months_SQRT_oversampling_NO_val_oversampling_100_epochs_NEW_GPU_SETUP_EVAL_ON_1_month_LAST_CKPT', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
             # Debugging run on cluster: 'Run_20241213-170049_ID_926355overfitting_run_debugging_data_1_hour_5_min_splits'
 
             # Save data loader variables
@@ -751,10 +751,10 @@ if __name__ == '__main__':
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 500, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 20, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_crop_data_time_span': ['2019-01-01T00:00', '2019-03-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
             's_time_span_for_bin_frequencies': ['2019-01-01T08:00', '2019-01-01T09:00'], # Time span that bin frequencies are calculated for (EXTREMELY CPU expensive 1 hr --> 40 seconds locally, 15 minutes on cluster)
 
 
@@ -772,8 +772,8 @@ if __name__ == '__main__':
             # Number of steps per epoch in random sampler, can be None:
             # This basically makes the epoch notation more or less unnecessary (scheduler is also coup[led to training steps)
             # So this mainly influences how often things are logged
-            's_train_samples_per_epoch': 3500, #500 * 0.7,  # Can be None
-            's_val_samples_per_epoch': 1000, #500 * 0.15,  # Can be None
+            's_train_samples_per_epoch': None, #3500, #500 * 0.7,  # Can be None
+            's_val_samples_per_epoch': None, #1000, #500 * 0.15,  # Can be None
 
             # Load Radolan
             's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
@@ -795,7 +795,7 @@ if __name__ == '__main__':
             's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
             # Parameters related to lightning
-            's_num_gpus': 4, # TODO: SET DEVIDES TO !!! AUTO !!! REMOVE THIS!
+            's_num_gpus': 8, # TODO: SET DEVIDES TO !!! AUTO !!! REMOVE THIS!
             's_batch_size': 128, #our net on a100: 64  #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
             # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
             # Make this divisible by 8 or best 8 * 2^n
