@@ -249,7 +249,7 @@ class EvaluateBaselineCallback(pl.Callback):
             "rmses_model":                      self.rmses_model,
             "rmses_baseline":                   self.rmses_baseline,
             "l1_difference_model":              self.l1_differences_model,
-            "l1_difference_baseline":           self.l1_differences_baseline,   
+            "l1_difference_baseline":           self.l1_differences_baseline,
             "means_target":                     self.means_target,
             "means_pred_model":                 self.means_pred_model,
             "means_pred_baseline":              self.means_pred_baseline,

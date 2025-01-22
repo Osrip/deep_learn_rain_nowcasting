@@ -712,9 +712,9 @@ if __name__ == '__main__':
 
     s_local_machine_mode = True
 
-    s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
+    s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'plotting_only_Run_20250117-191818_ID_1063866_2_months' #'_1_month_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_full_data_reproduce_1st_good_run'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = '_2_months_SQRT_overasmpling_eval_on_all_data' #'_1_month_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_full_data_reproduce_1st_good_run'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -754,7 +754,7 @@ if __name__ == '__main__':
             's_max_epochs': 20, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-02-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_crop_data_time_span': ['2019-01-01T00:00', '2019-03-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
             's_time_span_for_bin_frequencies': ['2019-01-01T08:00', '2019-01-01T09:00'], # Time span that bin frequencies are calculated for (EXTREMELY CPU expensive 1 hr --> 40 seconds locally, 15 minutes on cluster)
 
 
