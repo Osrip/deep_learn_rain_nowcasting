@@ -33,11 +33,11 @@ def evaluation_pipeline(
     checkpoint_name_1 = [name for name in all_checkpoint_names if 'best' in name][0]
     checkpoints_to_evaluate.append(checkpoint_name_1)
 
-    checkpoint_name_2 = [name for name in all_checkpoint_names if 'last' in name][0]
-    checkpoints_to_evaluate.append(checkpoint_name_2)
+    # checkpoint_name_2 = [name for name in all_checkpoint_names if 'last' in name][0]
+    # checkpoints_to_evaluate.append(checkpoint_name_2)
 
     datasets = {
-        'train': train_data_loader.dataset,
+        # 'train': train_data_loader.dataset,
         'val': validation_data_loader.dataset,
     }
 

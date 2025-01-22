@@ -739,7 +739,7 @@ class FilteredDatasetXr(Dataset):
             tuple: Augmented (cropped) dictionaries in the order they were provided.
 
         Example:
-            augmented_dynamic, augmented_static = self.augment(dynamic_samples_dict, static_samples_dict)
+            augmented_dynamic, augmented_static = self.augment(dynamic_samples_dict,  )
         """
         cropped_dicts = self.random_crop(*sample_dicts)
         return cropped_dicts
