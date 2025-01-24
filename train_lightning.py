@@ -811,8 +811,8 @@ if __name__ == '__main__':
             # Let's cut that off ad-hoc (in mm/h) , everything above is sorted into the last bin
 
             # -- Everything related to the patching and space time of network input / ouyput --
-            's_input_height_width': 256, # width / height of input for network
-            's_input_padding': 32, # Additional padding of input for randomcrop augmentation. Dataloader returns patches of size s_input_height_width + s_input_padding
+            's_input_height_width': 256, #256, # width / height of input for network
+            's_input_padding': 32, #32, # Additional padding of input for randomcrop augmentation. Dataloader returns patches of size s_input_height_width + s_input_padding
             's_target_height_width': 32, # width / height of target - this is what is used to patch the data
             's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for prediction
             's_num_lead_time_steps': 3, # 0 --> 0 min prediction (target == last input) ; 1 --> 5 min predicition, 3 --> 15min etc
