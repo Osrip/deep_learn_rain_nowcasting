@@ -41,7 +41,6 @@ def evaluation_pipeline(
         'val': validation_data_loader.dataset,
     }
 
-
     for checkpoint_name in checkpoints_to_evaluate:
         for dataset_name, dataset in datasets.items():
             print(f"\n STARTING EVALUATION ON BASELINE AND MODEL \n ...")
