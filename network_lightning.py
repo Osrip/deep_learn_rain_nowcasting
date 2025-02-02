@@ -12,6 +12,7 @@ import torchvision.transforms as T
 import copy
 import einops
 from helper.pre_process_target_input import img_one_hot, inverse_normalize_data, invnorm_linspace_binning, normalize_data
+from helper.dlbd import dlbd_traget_pre_processing
 from helper.pre_process_target_input import set_nans_zero, pre_process_target_to_one_hot
 from pysteps import verification
 
@@ -201,13 +202,13 @@ class NetworkL(pl.LightningModule):
         input_sequence[nan_mask] = 0
         return input_sequence
 
-    def dlbd_target_pre_processing(self, extended_target_binned: torch.Tensor) -> torch.Tensor:
+    def dlbd_target_pre_processing(self, target_binned: torch.Tensor) -> torch.Tensor:
         '''
         Fast on-the-fly pre-processing of target in training/validation loop for DLBD
         This requires one-hot target that has been pre-precessed by pre_process_target() method
-        The target has to be the larger, extended version that is convolved by the gaussian Kernel
         '''
 
+        s_target_height_width = self.settings['s_target_height_width']
         s_sigma_target_smoothing = self.settings['s_sigma_target_smoothing']
         s_schedule_sigma_smoothing = self.settings['s_schedule_sigma_smoothing']
 
@@ -218,8 +219,12 @@ class NetworkL(pl.LightningModule):
             curr_sigma = s_sigma_target_smoothing
 
         # Pre-processing target for DLBD
-        target_binned = gaussian_smoothing_target(extended_target_binned, device=self.s_device, sigma=curr_sigma,
-                                                  kernel_size=128)
+        # TODO: adjust kernel_size to save compute
+        target_binned = dlbd_traget_pre_processing(input_tensor=target_binned,
+                                                   output_size=s_target_height_width,
+                                                   sigma=curr_sigma,
+                                                   kernel_size=None)
+
         return target_binned
 
     def train_val_and_predict_step(self, dynamic_samples_dict, static_samples_dict, batch_idx):
@@ -307,13 +312,16 @@ class NetworkL(pl.LightningModule):
         # Replace NaNs with Zeros in Input
         radolan_input_sequence = self.pre_process_input(radolan_input_sequence)
 
-        if s_gaussian_smoothing_target:
-            target_binned = self.dlbd_target_pre_processing(target_binned)
-
-        # Center crop target to correct size
         center_crop_target = transforms.CenterCrop(s_target_height_width)
-        target_binned = center_crop_target(target_binned)
         target = center_crop_target(target)
+
+        if s_gaussian_smoothing_target:
+            # This reduces H and W to s_target_height_width
+            target_binned = self.dlbd_target_pre_processing(target_binned)
+        else:
+            # Center crop target to correct size
+            target_binned = center_crop_target(target_binned)
+
 
         radolan_input_sequence = radolan_input_sequence.float()
         target_binned = target_binned.float()

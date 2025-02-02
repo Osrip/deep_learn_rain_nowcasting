@@ -840,9 +840,11 @@ if __name__ == '__main__':
             's_crps_loss': False,  # CRPS loss instead of X-entropy loss
 
             # DLBD, Gaussian smoothing
-            's_gaussian_smoothing_target': False,
-            's_sigma_target_smoothing': 0.1,  # In case of scheduling this is the initial sigma
+            's_gaussian_smoothing_target': True,
+            's_sigma_target_smoothing': 1,  # In case of scheduling this is the initial sigma
             's_schedule_sigma_smoothing': False,
+
+            # TODO: I think the smoothing stuff below does not work:
             's_gaussian_smoothing_multiple_sigmas': False, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing, s_schedule_multiple_sigmas activates scheduling for multiple sigmas
             's_multiple_sigmas': [0.1, 0.5, 1, 2], # FOR SCHEDULING MAKE SURE LARGEST SIGMA IS LAST, List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
             # ! left most sigma prediction is the one that is plotted. Usually this is close to zero such that it is almost pixel-wise!
