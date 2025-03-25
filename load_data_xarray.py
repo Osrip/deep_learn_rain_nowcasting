@@ -788,7 +788,7 @@ def create_patches(
 
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
 
-    data = xr.open_dataset(load_path, engine='zarr', chunks=None)
+    data = xr.open_dataset(load_path, engine='zarr', chunks={'step': 1, 'time': 1, 'y': 1200, 'x': 1100})
 
     if s_crop_data_time_span is not None:
         start_time, stop_time = np.datetime64(s_crop_data_time_span[0]), np.datetime64(s_crop_data_time_span[1])
@@ -1192,6 +1192,10 @@ def calc_statistics_on_valid_patches(
     Calculates 1st and 2nd moment of all valid batches
     This ignores NaNs, flattens the complete data and assumes log1p = log(x+1) for log moments
     '''
+
+    # Compute the boolean mask if it's a Dask array
+    valid_patches_boo = valid_patches_boo.compute()
+    
     # Only select the filtered patches by using the boolean mask (on data that includes NaNs)
     only_filtered_data = patches.where(valid_patches_boo,
                                        drop=True)  # I checked that this actually reduces length of time, y_outer and x_outer
