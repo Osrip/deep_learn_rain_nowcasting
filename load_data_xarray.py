@@ -1192,7 +1192,6 @@ def calc_statistics_on_valid_patches(
     Calculates 1st and 2nd moment of all valid batches
     This ignores NaNs, flattens the complete data and assumes log1p = log(x+1) for log moments
     '''
-
     # Compute the boolean mask if it's a Dask array
     valid_patches_boo = valid_patches_boo.compute()
     
