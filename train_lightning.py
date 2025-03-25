@@ -690,8 +690,8 @@ def create_s_dirs(sim_name, s_local_machine_mode):
         s_dirs['prediction_dir'] = f'/home/jan/Programming/weather_data/predictions/{sim_name}'
 
     else:
-        s_dirs['save_dir'] = '/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/{}'.format(sim_name)
-        s_dirs['prediction_dir'] = f'/mnt/qb/work2/butz1/bst981/weather_data/predictions/{sim_name}'
+        s_dirs['save_dir'] = f'/home/butz/bst981/nowcasting_project/results{sim_name}' #'/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/{}'.format(sim_name)
+        s_dirs['prediction_dir'] = f'/home/butz/bst981/nowcasting_project/output/predictions/{sim_name}' #f'/mnt/qb/work2/butz1/bst981/weather_data/predictions/{sim_name}'
 
 
     # s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
@@ -710,11 +710,11 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
-    s_force_data_preprocessing = False  # This forces data preprocessing instead of attempting to load preprocessed data
+    s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = '_2_months_SQRT_overasmpling_eval_on_all_data' #'_1_month_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_full_data_reproduce_1st_good_run'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = 'test_main_branch_on_lustre' #'_1_month_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_full_data_reproduce_1st_good_run'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
@@ -746,20 +746,20 @@ if __name__ == '__main__':
 
             # Save data loader variables
             's_save_prefix_data_loader_vars': '01_25_NEW', #
-            's_data_loader_vars_path': '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
+            's_data_loader_vars_path': '/home/butz/bst981/nowcasting_project/output/data_loader_vars', #'/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
 
             # Max number of frames in proccessed data set for debugging (validation + training)
             's_max_num_filter_hits': None,  # [Disabled when set to None]
 
-            's_max_epochs': 20, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+            's_max_epochs': 1, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
             #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
             #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-03-01T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
+            's_crop_data_time_span': ['2019-01-01T00:00', '2019-01-03T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
             's_time_span_for_bin_frequencies': ['2019-01-01T08:00', '2019-01-01T09:00'], # Time span that bin frequencies are calculated for (EXTREMELY CPU expensive 1 hr --> 40 seconds locally, 15 minutes on cluster)
 
 
             # Splitting training / validation
-            's_split_chunk_duration': '1D',
+            's_split_chunk_duration': '1h',
             # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
             's_ratio_train_val_test': (0.7, 0.15, 0.15), # TIME RATIO, DOES NOT DIRECTLY CORRESPOND THE SAMPLE RATIO DUE TO FILTERING This is the ratio that the dataset is split by according to the time period given by s_split_chunk_duration.
             # These are the splitting ratios between (train, val, test), adding up to 1
@@ -776,16 +776,16 @@ if __name__ == '__main__':
             's_val_samples_per_epoch': None, #1000, #500 * 0.15,  # Can be None
 
             # Load Radolan
-            's_folder_path': '/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
+            's_folder_path': '/home/butz/bst981/nowcasting_project/weather_data/radolan', #'/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
             's_data_file_name': 'RV_recalc.zarr',  #'yw_done.zarr',
             's_data_variable_name': 'RV_recalc',
 
             # Load DEM
-            's_dem_path': '/mnt/qb/work2/butz1/bst981/weather_data/dem/dem_benchmark_dataset_1200_1100.zarr',
+            's_dem_path': '/home/butz/bst981/nowcasting_project/weather_data/static/dem_benchmark_dataset_1200_1100.zarr', #'/mnt/qb/work2/butz1/bst981/weather_data/dem/dem_benchmark_dataset_1200_1100.zarr',
             's_dem_variable_name': 'dem',
 
             # Load baseline for evaluation:
-            's_baseline_path': '/mnt/qb/work2/butz1/bst981/weather_data/baselines_full_size/extrapolation_2019_2020.zarr',
+            's_baseline_path': '/home/butz/bst981/nowcasting_project/weather_data/baselines/extrapolation_2019_2020.zarr', #'/mnt/qb/work2/butz1/bst981/weather_data/baselines_full_size/extrapolation_2019_2020.zarr',
             's_baseline_variable_name': 'extrapolation',
             's_num_input_frames_baseline': 4, # The number of input frames that was used to calculate the baseline
 
