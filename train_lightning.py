@@ -511,6 +511,7 @@ def train_wrapper(
         s_train_samples_per_epoch, s_val_samples_per_epoch,
         s_calc_baseline,
         s_batch_size,
+        s_mode,
         **__
 ):
     """
@@ -553,10 +554,9 @@ def train_wrapper(
     os.environ["WANDB__SERVICE_WAIT"] = "600"
 
     # Different project names depending on mode:
-    if s_local_machine_mode:
-        wandb_project_name = 'local_testing'
-    else:
-        wandb_project_name = 'cluster_runs'
+
+    wandb_project_name = s_mode
+
 
     logger = WandbLogger(name=s_sim_name, project=wandb_project_name)
     # logger = None
@@ -684,17 +684,14 @@ def train_l(
     return model_l
 
 
-def create_s_dirs(sim_name, s_local_machine_mode):
-
+def create_s_dirs(sim_name, s_mode):
     s_dirs = {}
-    if s_local_machine_mode:
-        s_dirs['save_dir'] = 'runs/{}'.format(sim_name)
+    if s_mode in ['local', 'debug']:
+        s_dirs['save_dir'] = f'runs/{s_mode}/{sim_name}'
         s_dirs['prediction_dir'] = f'/home/jan/Programming/weather_data/predictions/{sim_name}'
-
-    else:
-        s_dirs['save_dir'] = f'/home/butz/bst981/nowcasting_project/results/{sim_name}' #'/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/{}'.format(sim_name)
-        s_dirs['prediction_dir'] = f'/home/butz/bst981/nowcasting_project/output/predictions/{sim_name}' #f'/mnt/qb/work2/butz1/bst981/weather_data/predictions/{sim_name}'
-
+    else:  # cluster mode
+        s_dirs['save_dir'] = f'/home/butz/bst981/nowcasting_project/results/{sim_name}'
+        s_dirs['prediction_dir'] = f'/home/butz/bst981/nowcasting_project/output/predictions/{sim_name}'
 
     # s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
     s_dirs['plot_dir']          = '{}/plots'.format(s_dirs['save_dir'])
@@ -803,7 +800,7 @@ if __name__ == '__main__':
 
     else:
         # --- Plotting only ---
-        load_dirs = create_s_dirs(settings['s_plot_sim_name'], settings['s_local_machine_mode'])
+        load_dirs = create_s_dirs(settings['s_plot_sim_name'], settings['s_mode'])
         training_steps_per_epoch = load_zipped_pickle('{}/training_steps_per_epoch'.format(load_dirs['data_dir']))
         sigma_schedule_mapping = load_zipped_pickle('{}/sigma_schedule_mapping'.format(load_dirs['data_dir']))
         ckpt_settings = load_zipped_pickle('{}/settings'.format(load_dirs['data_dir']))

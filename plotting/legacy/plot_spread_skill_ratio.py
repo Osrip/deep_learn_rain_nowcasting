@@ -12,7 +12,7 @@ def plot_spread_skill(model,
                       settings,
                       ps_device,
                       ps_runs_path,
-                      s_local_machine_mode,
+                      s_mode,
                       **__):
     with torch.no_grad():
         # Initialize an empty tensor for storing predictions
@@ -69,7 +69,7 @@ def plot_spread_skill(model,
 
         plt.figure()
         # plt.xscale('log')
-        if s_local_machine_mode:
+        if s_mode in ['local', 'debug']:
             plt.scatter(class_distance_np, maxed_predictions_np, s=0.3, alpha=0.2)
         else:
             # plt.scatter(class_distance_np, maxed_predictions_np, s=0.001, alpha=0.05)

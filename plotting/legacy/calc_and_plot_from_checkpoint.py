@@ -49,7 +49,7 @@ def plot_from_checkpoint_wrapper(settings, s_dirs, **__):
         'steps_num_workers': 16,
     }
 
-    if settings['s_local_machine_mode']:
+    if settings['s_mode'] in ['local', 'debug']:
         plot_crps_settings['crps_calc_on_every_n_th_batch'] = 100
         # leave away the .pickle.pgx extension
         plot_crps_settings['crps_steps_file_path'] = \

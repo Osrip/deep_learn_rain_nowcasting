@@ -79,7 +79,7 @@ def save_project_code(save_folder):
 
 def create_save_name_for_data_loader_vars(
         s_folder_path,
-        s_local_machine_mode,
+        s_mode,
         s_save_prefix_data_loader_vars,
         s_num_bins_crossentropy,
         s_linspace_binning_cut_off_unnormalized,
@@ -87,11 +87,6 @@ def create_save_name_for_data_loader_vars(
         s_crop_data_time_span,
         **__,
 ):
-
-    if s_local_machine_mode:
-        local_machine_str = 'local_machine_dataset'
-    else:
-        local_machine_str = 'big_dataset'
 
     if s_crop_data_time_span is None:
         time_crop_str = 'no_time_cropping'
@@ -103,7 +98,7 @@ def create_save_name_for_data_loader_vars(
 
     return (f'{s_save_prefix_data_loader_vars}_'
             f'{original_file_name}_'
-            f'{local_machine_str}_'
+            f'{s_mode}_'
             f'{s_num_bins_crossentropy}_'
             f'{s_linspace_binning_cut_off_unnormalized}_'
             f'{s_input_height_width}_'
