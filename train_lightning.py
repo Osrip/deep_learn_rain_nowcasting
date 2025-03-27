@@ -20,6 +20,7 @@ from load_data_xarray import (
 )
 from helper.pre_process_target_input import invnorm_linspace_binning, inverse_normalize_data
 from helper.memory_logging import format_duration, format_ram_usage
+from helper.settings_config_helper import load_settings, load_yaml_config
 from helper.helper_functions import (
     save_zipped_pickle,
     save_dict_pickle_csv,
@@ -690,7 +691,7 @@ def create_s_dirs(sim_name, s_local_machine_mode):
         s_dirs['prediction_dir'] = f'/home/jan/Programming/weather_data/predictions/{sim_name}'
 
     else:
-        s_dirs['save_dir'] = f'/home/butz/bst981/nowcasting_project/results{sim_name}' #'/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/{}'.format(sim_name)
+        s_dirs['save_dir'] = f'/home/butz/bst981/nowcasting_project/results/{sim_name}' #'/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/{}'.format(sim_name)
         s_dirs['prediction_dir'] = f'/home/butz/bst981/nowcasting_project/output/predictions/{sim_name}' #f'/mnt/qb/work2/butz1/bst981/weather_data/predictions/{sim_name}'
 
 
@@ -709,199 +710,56 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', type=str, default='cluster',
+                        choices=['cluster', 'local', 'debug'],
+                        help="Mode: cluster, local, or debug")
+    args = parser.parse_args()
 
-    s_local_machine_mode = False
+    # Load settings based on mode
+    settings = load_settings(args.mode)
 
-    s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
-
-    s_sim_name_suffix = 'test_chunking_in_preprocessing' #'_1_month_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_full_data_reproduce_1st_good_run'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
-
-    # Getting rid of all special characters except underscores
+    # Process simulation name suffix
+    s_sim_name_suffix = settings.get('s_sim_name_suffix', 'dlbd_training_one_month')
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    if s_local_machine_mode:
+    # Build simulation name based on mode.
+    if args.mode in ['local', 'debug']:
         s_sim_name = 'Run_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     else:
         s_sim_name = 'Run_{}_ID_{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
-                                           int(os.environ['SLURM_JOB_ID']))  # SLURM_ARRAY_TASK_ID
+                                           int(os.environ.get('SLURM_JOB_ID', 0)))
+    s_sim_name += s_sim_name_suffix
 
-    s_sim_name = s_sim_name + s_sim_name_suffix
-
-    s_dirs = create_s_dirs(s_sim_name, s_local_machine_mode)
-
-    settings = \
-        {
-            's_local_machine_mode': s_local_machine_mode,
-            's_force_data_preprocessing': s_force_data_preprocessing,
-            's_sim_name': s_sim_name,
-            's_sim_same_suffix': s_sim_name_suffix,
-
-            's_convnext': True,  # Use ConvNeXt instead of ours
-
-            's_plotting_only': False,  # If active loads sim s_plot_sim_name and runs plotting pipeline
-            's_plot_sim_name': 'Run_20250117-191818_ID_1063866_2_months_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_full_data', # 'Run_20240620-174257_ID_430381default_switching_region_32_bins_100mm_conv_next_fixed_logging_and_linspace_binning',  # _2_4_8_16_with_plotting_fixed_plotting', #'Run_20231005-144022TEST_several_sigmas_2_4_8_16_with_plotting_fixed_plotting',
-            # Debugging run on cluster: 'Run_20241213-170049_ID_926355overfitting_run_debugging_data_1_hour_5_min_splits'
-
-            # Save data loader variables
-            's_save_prefix_data_loader_vars': '01_25_NEW', #
-            's_data_loader_vars_path': '/home/butz/bst981/nowcasting_project/output/data_loader_vars', #'/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
-
-            # Max number of frames in proccessed data set for debugging (validation + training)
-            's_max_num_filter_hits': None,  # [Disabled when set to None]
-
-            's_max_epochs': 1, #100,  #10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
-            #  In case only a specific time period of data should be used i.e.: ['2021-01-01T00:00', '2021-01-01T05:00']
-            #  Otherwise set to None
-            's_crop_data_time_span': ['2019-01-01T00:00', '2019-01-03T00:00'], #['2019-01-01T00:00', '2019-02-01T00:00'],  # Influences RAM usage. This can also be 'None'
-            's_time_span_for_bin_frequencies': ['2019-01-01T08:00', '2019-01-01T09:00'], # Time span that bin frequencies are calculated for (EXTREMELY CPU expensive 1 hr --> 40 seconds locally, 15 minutes on cluster)
-
-
-            # Splitting training / validation
-            's_split_chunk_duration': '1h',
-            # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
-            's_ratio_train_val_test': (0.7, 0.15, 0.15), # TIME RATIO, DOES NOT DIRECTLY CORRESPOND THE SAMPLE RATIO DUE TO FILTERING This is the ratio that the dataset is split by according to the time period given by s_split_chunk_duration.
-            # These are the splitting ratios between (train, val, test), adding up to 1
-            's_split_seed': 42,
-            # This is the seed that the train / prevalidation split is generated from (only applies to training of exactly the same time period of the data)
-
-            # DATALOADER
-            's_oversample_validation': True,
-            's_oversample_train': True,
-            # Number of steps per epoch in random sampler, can be None:
-            # This basically makes the epoch notation more or less unnecessary (scheduler is also coup[led to training steps)
-            # So this mainly influences how often things are logged
-            's_train_samples_per_epoch': None, #3500, #500 * 0.7,  # Can be None
-            's_val_samples_per_epoch': None, #1000, #500 * 0.15,  # Can be None
-
-            # Load Radolan
-            's_folder_path': '/home/butz/bst981/nowcasting_project/weather_data/radolan', #'/mnt/qb/work2/butz1/bst981/weather_data/dwd_nc/zarr',  #'/mnt/qb/work2/butz1/bst981/weather_data/benchmark_data_set',
-            's_data_file_name': 'RV_recalc.zarr',  #'yw_done.zarr',
-            's_data_variable_name': 'RV_recalc',
-
-            # Load DEM
-            's_dem_path': '/home/butz/bst981/nowcasting_project/weather_data/static/dem_benchmark_dataset_1200_1100.zarr', #'/mnt/qb/work2/butz1/bst981/weather_data/dem/dem_benchmark_dataset_1200_1100.zarr',
-            's_dem_variable_name': 'dem',
-
-            # Load baseline for evaluation:
-            's_baseline_path': '/home/butz/bst981/nowcasting_project/weather_data/baselines/extrapolation_2019_2020.zarr', #'/mnt/qb/work2/butz1/bst981/weather_data/baselines_full_size/extrapolation_2019_2020.zarr',
-            's_baseline_variable_name': 'extrapolation',
-            's_num_input_frames_baseline': 4, # The number of input frames that was used to calculate the baseline
-
-            # TODO There is a bug creates around 600 data points at the moment when set to 5000
-            # TODO rename this such that it is ovious it is eval!
-            's_subsample_dataset_to_len': None, #None, #Number of samples to subsample to for evaluation. Can be None
-
-            's_num_workers_data_loader': 16,  # Should correspond to number of cpus, also increases cpu ram --> FOR DEBUGGING SET TO 0
-            's_check_val_every_n_epoch': 1,  # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
-
-            # Parameters related to lightning
-            's_num_gpus': 4, # TODO: SET DEVIDES TO !!! AUTO !!! REMOVE THIS!
-            's_batch_size': 128, #our net on a100: 64  #48, # 2080--> 18 läuft 2080-->14 --> 7GB /10GB; v100 --> 45  55; a100 --> 64, downgraded to 45 after memory issue on v100 with smoothing stuff
-            # resnet 34 original res blocks on a100 --> batch size 32 (tested 64, which did not work)
-            # Make this divisible by 8 or best 8 * 2^n
-
-            # Parameters that give the network architecture
-            's_upscale_c_to': 32,  # 64, #128, # 512,
-            's_num_bins_crossentropy': 32,  # 64, #256,
-
-            # Parameters that give binning
-            's_linspace_binning_cut_off_unnormalized': 100,
-            # Let's cut that off ad-hoc (in mm/h) , everything above is sorted into the last bin
-
-            # -- Everything related to the patching and space time of network input / ouyput --
-            's_input_height_width': 256, #256, # width / height of input for network
-            's_input_padding': 32, #32, # Additional padding of input for randomcrop augmentation. Dataloader returns patches of size s_input_height_width + s_input_padding
-            's_target_height_width': 32, # width / height of target - this is what is used to patch the data
-            's_num_input_time_steps': 4,  # The number of subsequent time steps that are used for prediction
-            's_num_lead_time_steps': 3, # 0 --> 0 min prediction (target == last input) ; 1 --> 5 min predicition, 3 --> 15min etc
-            # This is substracted by 2: settings['s_num_lead_time_steps'] = 's_num_lead_time_steps' -2 for following reasons:
-            # 5, # The number of pictures that are skipped from last input time step to target, starts with -1
-            # (starts counting at filtered_data_loader_indecies_dict['last_idx_input_sequence'], where last index is excess
-            # for arange ((np.arange(1:5) = [1,2,3,4])
-
-            # Filter conditions:
-            's_filter_threshold_mm_rain_each_pixel': 0.1,  # threshold for each pixel filter condition
-            's_filter_threshold_percentage_pixels': 0.5,
-
-            # TODO BELOW MOSTLY LEGACY, PROBABLY DOES NOT WORK?
-
-            's_save_trained_model': True,  # saves model every epoch <-- TODO not true, is this still in use?
-            's_load_model': False,
-            's_load_model_name': 'Run_·20230220-191041',
-            's_dirs': s_dirs,
-            'device': device,
-            's_learning_rate': 0.001, #Default AdamW: 0.001  # 0.0001
-            # For some reason the lr scheduler starts one order of magnitude below the given learning rate (10^-4, when 10^-3 is given)
-            's_lr_schedule': True,  # enables lr scheduler, takes s_learning_rate as initial rate
-
-            # Loss
-            's_crps_loss': False,  # CRPS loss instead of X-entropy loss
-
-            # DLBD, Gaussian smoothing
-            's_gaussian_smoothing_target': True,
-            's_sigma_target_smoothing': 1,  # In case of scheduling this is the initial sigma
-            's_schedule_sigma_smoothing': False,
-
-            # TODO: I think the smoothing stuff below does not work:
-            's_gaussian_smoothing_multiple_sigmas': False, # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing, s_schedule_multiple_sigmas activates scheduling for multiple sigmas
-            's_multiple_sigmas': [0.1, 0.5, 1, 2], # FOR SCHEDULING MAKE SURE LARGEST SIGMA IS LAST, List of sigmas in case s_gaussian_smoothing_multiple_sigmas == True; to create loss mean is taken of all losses that each single sigma would reate
-            # ! left most sigma prediction is the one that is plotted. Usually this is close to zero such that it is almost pixel-wise!
-            's_schedule_multiple_sigmas': False, # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial,
-
-            # Logging
-
-            's_calc_baseline': False,  # Baselines are calculated and plotted --> Optical flow baseline
-            's_epoch_repetitions_baseline': 1000, #TODO NO LONGER IN USE # Number of repetitions of baseline calculation; average is taken; each epoch is done on one batch by dataloader
-
-            's_testing': True,  # Runs tests before starting training
-            's_profiling': False,  # Runs profiler
-
-            # Plotting stuff
-            's_no_plotting': False,  # This sets all plotting boos below to False
-            's_plot_average_preds_boo': True,
-            's_plot_pixelwise_preds_boo': True,
-            's_plot_target_vs_pred_boo': True,
-            's_plot_mse_boo': True,
-            's_plot_losses_boo': True,
-            's_plot_img_histogram_boo': True,
+    # Create directories based on mode.
+    if args.mode in ['local', 'debug']:
+        s_dirs = {
+            'save_dir': f'runs/{s_sim_name}',
+            'prediction_dir': f'/home/jan/Programming/weather_data/predictions/{s_sim_name}'
         }
+    else:
+        s_dirs = {
+            'save_dir': f'/home/butz/bst981/nowcasting_project/results/{s_sim_name}',
+            'prediction_dir': f'/home/butz/bst981/nowcasting_project/output/predictions/{s_sim_name}'
+        }
+    # Append additional directory entries.
+    s_dirs['plot_dir'] = f"{s_dirs['save_dir']}/plots"
+    s_dirs['plot_dir_images'] = f"{s_dirs['plot_dir']}/images"
+    s_dirs['plot_dir_fss'] = f"{s_dirs['plot_dir']}/fss"
+    s_dirs['model_dir'] = f"{s_dirs['save_dir']}/model"
+    s_dirs['code_dir'] = f"{s_dirs['save_dir']}/code"
+    s_dirs['profile_dir'] = f"{s_dirs['save_dir']}/profile"
+    s_dirs['logs'] = f"{s_dirs['save_dir']}/logs"
+    s_dirs['data_dir'] = f"{s_dirs['save_dir']}/data"
+    s_dirs['batches_outputs'] = f"{s_dirs['save_dir']}/batches_outputs"
 
-    if settings['s_local_machine_mode']:
+    # Append extra keys to settings.
+    settings['s_dirs'] = s_dirs
+    settings['device'] = device
+    settings['s_sim_name'] = s_sim_name
 
-        settings['s_plotting_only'] = False
-        settings['s_plot_sim_name'] = 'Run_20241219-172522one_month_oversampling_but_no_val_oversampling'
-        settings['s_data_variable_name'] = 'RV_recalc'
-        settings['s_folder_path'] = 'dwd_nc/own_test_data'
-        settings['s_data_file_name'] = 'testdata_two_days_2019_01_01-02.zarr'
-        settings['s_dem_path'] = '/home/jan/Programming/weather_data/dem/dem_benchmark_dataset_1200_1100.zarr'
-        settings['s_baseline_path'] =   ('/home/jan/Programming/weather_data/baselines_two_days/'
-                                        'testdata_two_days_2019_01_01-02_extrapolation.zarr')
-        settings['s_baseline_variable_name'] = 'extrapolation'
-        settings['s_num_input_frames_baseline'] = 4
-        settings['s_upscale_c_to'] = 32  # 8
-        settings['s_batch_size'] = 4 #4  # 8
-        settings['s_data_loader_chunk_size'] = 1
-        settings['s_testing'] = True  # Runs tests at the beginning
-        settings['s_num_workers_data_loader'] = 0  # Debugging only works with zero workers
-        settings['s_max_epochs'] = 1
-        settings['s_num_gpus'] = 1
-
-        # ! TEST ON ALL DEBUG DATA from time to time to check what happens to discarded samples !
-        settings['s_crop_data_time_span'] = ['2019-01-01T08:00', '2019-01-01T09:00'] # ['2019-01-01T08:00', '2019-01-01T12:00']
-        settings['s_time_span_for_bin_frequencies'] = ['2019-01-01T08:00', '2019-01-01T08:05'] #['2019-01-01T08:00', '2019-01-01T08:05'] ['2019-01-01T08:00', '2019-01-01T08:05'] #['2019-01-01T08:00', '2019-01-01T08:05']
-        settings['s_split_chunk_duration'] = '5min' #'15min' #'1h'
-        settings['s_ratio_train_val_test'] = (0.4, 0.3, 0.3)
-
-        settings['s_train_samples_per_epoch'] = 4
-        settings['s_val_samples_per_epoch'] = 4
-
-        settings['s_multiple_sigmas'] = [2, 16]
-        settings['s_data_loader_vars_path'] = '/home/jan/Programming/weather_data/data_loader_vars' #'/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars' #
-
-        settings['s_max_num_filter_hits'] = None  # 4 # None or int
-        settings['s_subsample_dataset_to_len'] = 2
 
     if not settings['s_plotting_only']:
         for _, make_dir in s_dirs.items():
