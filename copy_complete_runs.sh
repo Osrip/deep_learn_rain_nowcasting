@@ -49,7 +49,7 @@ for sim_name in "$@"; do
 
   # Rsync everything except the model dir
 
-  rsync -avz -e "ssh" --exclude='/model/' bst981@134.2.168.43:"/mnt/qb/work2/butz1/bst981/first_CNN_on_Radolan/runs/$sim_name/" "$local_base_dir/$sim_name/" &&
+  rsync -avz -e "ssh" --exclude='/model/' bst981@134.2.168.43:"/home/butz/bst981/nowcasting_project/results/$sim_name/" "$local_base_dir/$sim_name/" &&
 
 
   # Rsync everything in the model directory

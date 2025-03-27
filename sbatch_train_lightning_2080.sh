@@ -14,5 +14,5 @@
 
 # insert your commands here
 #source venv/bin/activate
-python3 train_lightning.py
+python3 train_lightning.py --mode cluster
 

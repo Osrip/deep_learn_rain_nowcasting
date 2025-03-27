@@ -1,7 +1,10 @@
-s_sim_name_suffix: "test_config_set_up"
-
+# This is the default configuration for cluster mode.
 # s_force_data_preprocessing forces data preprocessing instead of attempting to load preprocessed data
-s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
+s_force_data_preprocessing: true  # This forces data preprocessing instead of attempting to load preprocessed data
+
+# s_sim_name_suffix defines the simulation name suffix.
+# Alternative values (commented out) are omitted; using the default below.
+s_sim_name_suffix: "dlbd_training_one_month"  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
 # Use ConvNeXt instead of our own network
 s_convnext: true
@@ -25,7 +28,7 @@ s_max_epochs: 1  # 100, 10  # default: 50 Max number of epochs, affects schedule
 # Influences RAM usage.
 s_crop_data_time_span:
   - "2019-01-01T00:00"
-  - "2019-01-03T00:00"
+  - "2019-03-01T00:00"
 
 # Time span that bin frequencies are calculated for
 # (EXTREMELY CPU expensive 1 hr --> 40 seconds locally, 15 minutes on cluster)
@@ -34,7 +37,7 @@ s_time_span_for_bin_frequencies:
   - "2019-01-01T09:00"
 
 # The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
-s_split_chunk_duration: "1h"
+s_split_chunk_duration: "1D"
 
 # TIME RATIO, DOES NOT DIRECTLY CORRESPOND THE SAMPLE RATIO DUE TO FILTERING.
 # This is the ratio that the dataset is split by according to the time period given by s_split_chunk_duration.
