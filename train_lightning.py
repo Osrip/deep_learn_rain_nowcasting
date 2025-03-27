@@ -4,6 +4,7 @@ from network_lightning import NetworkL
 import datetime
 import time
 import xarray as xr
+import argparse
 
 from load_data_xarray import (
     create_patches,
@@ -756,6 +757,7 @@ if __name__ == '__main__':
     s_dirs['batches_outputs'] = f"{s_dirs['save_dir']}/batches_outputs"
 
     # Append extra keys to settings.
+    settings['s_mode'] = args.mode
     settings['s_dirs'] = s_dirs
     settings['device'] = device
     settings['s_sim_name'] = s_sim_name
