@@ -1341,8 +1341,6 @@ def calc_bin_frequencies(
     # We are subsampling as groupby_bins is extremely CPU expensive
     # Speedup using numpy see: https://github.com/pydata/xarray/issues/6758
 
-
-
     # time_dim = data['time']
     # total_duration = time_dim[-1].values - time_dim[0].values
     # desired_duration = pd.to_timedelta(sample_period)

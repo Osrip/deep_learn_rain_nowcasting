@@ -710,11 +710,11 @@ def create_s_dirs(sim_name, s_local_machine_mode):
 
 if __name__ == '__main__':
 
-    s_local_machine_mode = True
+    s_local_machine_mode = False
 
     s_force_data_preprocessing = True  # This forces data preprocessing instead of attempting to load preprocessed data
 
-    s_sim_name_suffix = 'test_main_branch_on_lustre' #'_1_month_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_full_data_reproduce_1st_good_run'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
+    s_sim_name_suffix = 'test_chunking_in_preprocessing' #'_1_month_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_full_data_reproduce_1st_good_run'  # one_month_LOG_oversampling_but_no_val_oversampling_code_changes
 
     # Getting rid of all special characters except underscores
     s_sim_name_suffix = no_special_characters(s_sim_name_suffix)
