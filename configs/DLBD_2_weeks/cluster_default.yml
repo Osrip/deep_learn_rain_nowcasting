@@ -1,4 +1,4 @@
-s_sim_name_suffix: "xentropy_1_month_10_epochs"
+s_sim_name_suffix: "DLBD_2_weeks"
 
 # s_force_data_preprocessing forces data preprocessing instead of attempting to load preprocessed data
 s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
@@ -25,7 +25,7 @@ s_max_epochs: 3  # 100, 10  # default: 50 Max number of epochs, affects schedule
 # Influences RAM usage.
 s_crop_data_time_span:
   - "2019-01-01T00:00"
-  - "2019-02-01T00:00"
+  - "2019-01-15T00:00"
 
 # Time span that bin frequencies are calculated for
 # (EXTREMELY CPU expensive 1 hr --> 40 seconds locally, 15 minutes on cluster)
@@ -86,7 +86,7 @@ s_filter_threshold_mm_rain_each_pixel: 0.1  # threshold for each pixel filter co
 s_filter_threshold_percentage_pixels: 0.5
 
 #DLBD
-s_gaussian_smoothing_target: false
+s_gaussian_smoothing_target: true
 s_sigma_target_smoothing: 1  # In case of scheduling, this is the initial sigma
 s_schedule_sigma_smoothing: false
 
