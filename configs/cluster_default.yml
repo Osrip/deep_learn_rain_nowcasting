@@ -50,7 +50,7 @@ s_train_samples_per_epoch: null  # Can be None
 s_val_samples_per_epoch: null    # Can be None
 
 s_folder_path: "/home/butz/bst981/nowcasting_project/weather_data/radolan"
-s_data_file_name: "RV_recalc.zarr"
+s_data_file_name: "RV_recalc_rechunked.zarr"
 s_data_variable_name: "RV_recalc"
 
 s_dem_path: "/home/butz/bst981/nowcasting_project/weather_data/static/dem_benchmark_dataset_1200_1100.zarr"

@@ -4,8 +4,8 @@ s_plot_sim_name: "Run_20241219-172522one_month_oversampling_but_no_val_oversampl
 s_data_variable_name: "RV_recalc"
 s_folder_path: "/home/jan/nowcasting_project/weather_data/radolan"
 s_data_file_name: "RV_recalc.zarr"
-s_dem_path: "/home/jan/nowcasting_project/weather_data/static/dem.zarr"
-s_baseline_path: "/mnt/4tb/mustein_server_data_backup/baselines/datasets/test_extrapolation_2019_01_01-03.zarr"
+s_dem_path: "/home/jan/nowcasting_project/weather_data/static/tiny_dem_from_old_desktop/dem_benchmark_dataset_1200_1100.zarr"
+s_baseline_path: "/mnt/4tb/mustein_server_data_backup/baselines/datasets/extrapolation_test_from_old_desktop/testdata_two_days_2019_01_01-02_extrapolation.zarr"
 s_baseline_variable_name: "extrapolation"
 s_num_input_frames_baseline: 4
 s_upscale_c_to: 32  # 8
@@ -30,6 +30,7 @@ s_train_samples_per_epoch: 4
 s_val_samples_per_epoch: 4
 
 s_multiple_sigmas: [2, 16]
+s_force_data_preprocessing: true
 s_data_loader_vars_path: "/home/jan/nowcasting_project/weather_data/data_loader_vars"
 s_max_num_filter_hits: null  # 4 or None
 s_subsample_dataset_to_len: 2
