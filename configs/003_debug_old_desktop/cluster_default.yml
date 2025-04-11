@@ -1,0 +1,117 @@
+s_sim_name_suffix: "DLBD_2_weeks"
+
+# s_force_data_preprocessing forces data preprocessing instead of attempting to load preprocessed data
+s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
+
+# Use ConvNeXt instead of our own network
+s_convnext: true
+
+# If active loads sim s_plot_sim_name and runs plotting pipeline
+s_plotting_only: false
+
+# s_plot_sim_name: Simulation name for plotting
+s_plot_sim_name: "Run_20250117-191818_ID_1063866_2_months_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_full_data"
+# Save data loader variables
+s_save_prefix_data_loader_vars: "01_25_NEW"
+s_data_loader_vars_path: "/home/butz/bst981/nowcasting_project/output/data_loader_vars"  # '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
+
+# Max number of frames in processed data set for debugging (validation + training)
+# [Disabled when set to None]
+s_max_num_filter_hits: null
+
+s_max_epochs: 3  # 100, 10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+
+# In case only a specific time period of data should be used, otherwise set to None.
+# Influences RAM usage.
+s_crop_data_time_span:
+  - "2019-01-01T00:00"
+  - "2019-01-15T00:00"
+
+# Time span that bin frequencies are calculated for
+# (EXTREMELY CPU expensive 1 hr --> 40 seconds locally, 15 minutes on cluster)
+s_time_span_for_bin_frequencies:
+  - "2019-01-01T08:00"
+  - "2019-01-01T09:00"
+
+# The time duration of the chunks (1D --> 1 day, 1h --> 1 hour), goes into dataset.resample
+s_split_chunk_duration: "1D"
+
+# TIME RATIO, DOES NOT DIRECTLY CORRESPOND THE SAMPLE RATIO DUE TO FILTERING.
+# This is the ratio that the dataset is split by according to the time period given by s_split_chunk_duration.
+s_ratio_train_val_test: [0.7, 0.15, 0.15]
+
+# Seed for the train / prevalidation split (only applies to training of exactly the same time period of the data)
+s_split_seed: 42
+
+s_oversample_validation: true
+s_oversample_train: true
+# Number of steps per epoch in random sampler; can be None.
+s_train_samples_per_epoch: null  # Can be None
+s_val_samples_per_epoch: null    # Can be None
+
+s_folder_path: "/home/butz/bst981/nowcasting_project/weather_data/radolan"
+s_data_file_name: "RV_recalc.zarr"
+s_data_variable_name: "RV_recalc"
+
+s_dem_path: "/home/butz/bst981/nowcasting_project/weather_data/static/dem_benchmark_dataset_1200_1100.zarr"
+s_dem_variable_name: "dem"
+
+s_baseline_path: "/home/butz/bst981/nowcasting_project/weather_data/baselines/extrapolation_2019_2020.zarr"
+s_baseline_variable_name: "extrapolation"
+s_num_input_frames_baseline: 4  # The number of input frames that was used to calculate the baseline
+
+s_subsample_dataset_to_len: null  # Number of samples to subsample to for evaluation. Can be None
+
+s_num_workers_data_loader: 16  # Should correspond to number of cpus; also increases CPU RAM --> FOR DEBUGGING SET TO 0
+s_check_val_every_n_epoch: 1   # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
+
+s_num_gpus: 4  # TODO: SET DEVIDES TO !!! AUTO !!! REMOVE THIS!
+s_batch_size: 128  # our net on a100: 64, 48; 2080-->18, 2080-->14; 7GB/10GB; v100-->45,55; a100-->64, downgraded to 45 after memory issue on v100 with smoothing stuff.
+                  # Make this divisible by 8 or best 8 * 2^n
+
+s_upscale_c_to: 32  # 64, 128, 512
+s_num_bins_crossentropy: 32  # 64, 256
+
+s_linspace_binning_cut_off_unnormalized: 100  # Let's cut that off ad-hoc (in mm/h), everything above is sorted into the last bin
+
+s_input_height_width: 256  # width / height of input for network
+s_input_padding: 32       # Additional padding of input for randomcrop augmentation.
+                         # Dataloader returns patches of size s_input_height_width + s_input_padding
+s_target_height_width: 32   # width / height of target - this is what is used to patch the data
+s_num_input_time_steps: 4   # The number of subsequent time steps that are used for prediction
+s_num_lead_time_steps: 3    # 0 --> 0 min prediction (target == last input); 1 --> 5 min prediction, 3 --> 15 min, etc.
+                         # This is subtracted by 2.
+
+s_filter_threshold_mm_rain_each_pixel: 0.1  # threshold for each pixel filter condition
+s_filter_threshold_percentage_pixels: 0.5
+
+#DLBD
+s_gaussian_smoothing_target: true
+s_sigma_target_smoothing: 1  # In case of scheduling, this is the initial sigma
+s_schedule_sigma_smoothing: false
+
+s_gaussian_smoothing_multiple_sigmas: false  # ignores s_gaussian_smoothing_target, s_sigma_target_smoothing and s_schedule_sigma_smoothing;
+                                             # s_schedule_multiple_sigmas activates scheduling for multiple sigmas
+s_multiple_sigmas: [0.1, 0.5, 1, 2]  # FOR SCHEDULING MAKE SURE LARGEST SIGMA IS LAST.
+                                  # Left most sigma prediction is the one that is plotted.
+s_schedule_multiple_sigmas: false  # Bernstein scheduling: Schedule multiple sigmas with bernstein polynomial
+
+s_learning_rate: 0.001  # Default AdamW: 0.001 or 0.0001
+s_lr_schedule: true     # enables lr scheduler, takes s_learning_rate as initial rate
+
+s_crps_loss: false  # CRPS loss instead of X-entropy loss
+
+s_calc_baseline: false  # Baselines are calculated and plotted --> Optical flow baseline
+s_epoch_repetitions_baseline: 1000  # Number of repetitions of baseline calculation; average is taken;
+                                  # each epoch is done on one batch by dataloader
+
+s_testing: true  # Runs tests before starting training
+s_profiling: false  # Runs profiler
+
+s_no_plotting: false  # This sets all plotting booleans below to False
+s_plot_average_preds_boo: true
+s_plot_pixelwise_preds_boo: true
+s_plot_target_vs_pred_boo: true
+s_plot_mse_boo: true
+s_plot_losses_boo: true
+s_plot_img_histogram_boo: true
