@@ -8,6 +8,7 @@ from helper.checkpoint_handling import get_checkpoint_names, load_from_checkpoin
 from helper.memory_logging import format_duration
 from load_data_xarray import FilteredDatasetXr
 from plotting.plotting_pipeline import plot_logs_pipeline
+from evaluation.eval_with_baseline_fss import FSSEvaluationCallback
 import time
 
 
@@ -116,7 +117,9 @@ def ckpt_quick_eval_with_baseline(
         s_baseline_path,
         s_num_workers_data_loader,
         s_subsample_dataset_to_len,
-
+        s_fss,
+        s_fss_scales,
+        s_fss_thresholds,
         **__,
 ):
     """
@@ -225,11 +228,25 @@ def ckpt_quick_eval_with_baseline(
             ckpt_settings,
     )
 
+    if s_fss:
+        fss_callback = FSSEvaluationCallback(
+            scales=s_fss_scales,
+            thresholds=s_fss_thresholds,
+            linspace_binning_params=linspace_binning_params,
+            checkpoint_name=checkpoint_name,
+            dataset_name=dataset_name,
+            settings=ckpt_settings,
+        )
+
+        callbacks = [evaluate_baseline_callback, fss_callback]
+    else:
+        callbacks = evaluate_baseline_callback
+
 
     print('Initializing Trainer')
 
     trainer = pl.Trainer(
-        callbacks=evaluate_baseline_callback,
+        callbacks=callbacks,
     )
 
     print('Starting evaluation with trainer.predict')

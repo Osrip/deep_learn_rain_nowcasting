@@ -30,7 +30,7 @@ s_train_samples_per_epoch: 4
 s_val_samples_per_epoch: 4
 
 s_multiple_sigmas: [2, 16]
-s_force_data_preprocessing: true
+s_force_data_preprocessing: false
 s_data_loader_vars_path: "/home/jan/nowcasting_project/weather_data/data_loader_vars"
 s_max_num_filter_hits: null  # 4 or None
 s_subsample_dataset_to_len: 2
