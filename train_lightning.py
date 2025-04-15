@@ -1,5 +1,14 @@
-import helper.disable_dynamo_torch  # This disables dynamo for debugging
+# Fix typing issues before any imports to be able to debug on 5090 machine
 import os
+os.environ["TORCH_DYNAMO_DISABLE"] = "1"
+
+# Import and apply our typing fix
+from helper.type_fix import apply_typing_fixes
+apply_typing_fixes()
+
+print("PyTorch dynamo disabled and typing fixes applied for debugging")
+
+
 import torch
 from network_lightning import NetworkL
 import datetime
