@@ -1,3 +1,4 @@
+import helper.disable_dynamo_torch  # This disables dynamo for debugging
 import os
 import torch
 from network_lightning import NetworkL

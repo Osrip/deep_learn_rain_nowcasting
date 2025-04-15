@@ -22,8 +22,11 @@ conda config --env --set channel_priority strict
 # Install dependencies from conda-forge
 mamba install -y pytorch-lightning xarray zarr numpy matplotlib pandas scipy dask pyarrow psutil h5py pyyaml einops pysteps wandb hurry.filesize
 
-# Install PyTorch and related packages via pip3
+# Install PyTorch and related packages via pip3 (Nightly Cuda 12.8)
 pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+
+# Alternatively install torch with cuda 12.6
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
 ```
 
 ## Important Notes
