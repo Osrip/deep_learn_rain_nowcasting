@@ -26,7 +26,7 @@ class EvaluateBaselineCallback(pl.Callback):
             settings,
     ):
         '''
-        This callback handles saving of the predictions to zarr.
+        This callback calculates the evaluation metrics
         -------------------------------------------------------------
         ! All predictions are assigned to the FIRST INPUT time step !
         -------------------------------------------------------------
@@ -431,6 +431,8 @@ def ckpt_quick_eval_with_baseline(
             samples_have_padding,
             ckpt_settings,
     )
+
+
 
     print('Initializing Trainer')
 
