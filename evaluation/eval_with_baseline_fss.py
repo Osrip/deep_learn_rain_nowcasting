@@ -158,7 +158,7 @@ class FSSEvaluationCallback(pl.Callback):
         self.save_fss_evaluations()
 
     def save_fss_evaluations(self):
-        """Save sample-level FSS evaluations to zarr format using xarray."""
+        """Save sample-level FSS evaluations to NetCDF file with compression."""
         s_dirs = self.settings['s_dirs']
         log_dir = s_dirs['logs']
         evaluation_dir = os.path.join(log_dir, "evaluation")
@@ -225,9 +225,17 @@ class FSSEvaluationCallback(pl.Callback):
         ds.attrs['dataset_name'] = self.dataset_name
         ds.attrs['creation_time'] = str(pd.Timestamp.now())
 
-        # Save to zarr format instead of NetCDF
-        zarr_path = os.path.join(fss_dir,
-                                 f"dataset_{self.dataset_name}_ckpt_{checkpoint_name_cleaned}_fss.zarr")
-        ds.to_zarr(zarr_path, consolidated=True)  # consolidated=True improves access performance
+        # Save to NetCDF with compression
+        nc_file = os.path.join(fss_dir,
+                               f"dataset_{self.dataset_name}_ckpt_{checkpoint_name_cleaned}_fss.nc")
 
-        print(f"Saved FSS evaluations to {zarr_path}")
+        # Using compression settings:
+        # - zlib=True enables compression
+        # - complevel=9 is maximum compression (1-9)
+        # - fletcher32=True adds checksum for data integrity
+        encoding = {var: {'zlib': True, 'complevel': 9, 'fletcher32': True}
+                    for var in ds.data_vars}
+
+        ds.to_netcdf(nc_file, encoding=encoding)
+
+        print(f"Saved FSS evaluations to {nc_file}")
