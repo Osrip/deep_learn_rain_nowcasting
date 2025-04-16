@@ -229,10 +229,7 @@ class FSSEvaluationCallback(pl.Callback):
         nc_file = os.path.join(fss_dir,
                                f"dataset_{self.dataset_name}_ckpt_{checkpoint_name_cleaned}_fss.nc")
 
-        # Using compression settings:
-        # - zlib=True enables compression
-        # - complevel=9 is maximum compression (1-9)
-        # - fletcher32=True adds checksum for data integrity
+        # Apply compression to all data variables
         encoding = {var: {'zlib': True, 'complevel': 9, 'fletcher32': True}
                     for var in ds.data_vars}
 

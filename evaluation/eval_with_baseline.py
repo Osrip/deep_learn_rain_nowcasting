@@ -40,20 +40,19 @@ class EvaluateBaselineCallback(pl.Callback):
         self.dataset_name = dataset_name
         self.samples_have_padding = samples_have_padding
 
-        # Initialising logging lists
-        self.losses_model = []
-        # self.losses_baseline = []
+        # Add sample counter to track samples across batches
+        self.sample_idx_counter = 0
 
+        # Initialising logging lists
+        self.sample_indices = []  # Add this to track sample indices
+        self.losses_model = []
         self.rmses_model = []
         self.rmses_baseline = []
-
         self.l1_differences_model = []
         self.l1_differences_baseline = []
-
         self.means_target = []
         self.means_pred_model = []
         self.means_pred_baseline = []
-
         self.certainties_target_bin_model = []
         self.certainties_max_pred = []
         self.stds_binning_model = []
@@ -132,7 +131,6 @@ class EvaluateBaselineCallback(pl.Callback):
             pl_module,
         )
 
-
     def evaluate_batch(
             self,
             pred_model_mm,
@@ -171,61 +169,53 @@ class EvaluateBaselineCallback(pl.Callback):
         # Gather probabilities of the correct bin in the target
         pred_probs_correct = pred_model_binned_smax.gather(dim=1, index=bin_idx)  # shape: [batch, 1, height, width]
 
-
-        # TODO: Make this XEntropy loss, ideally drawing loss function directly from pl_modul
-        #  We have to do this again, as the loss is only calculated for the whole batch.
         if not isinstance(pl_module.loss_func, torch.nn.CrossEntropyLoss):
             raise ValueError('Loss was expected to be xrossentropy in Validation')
 
-        model_losses = torch.nn.CrossEntropyLoss(reduction='none')(pred_model_binned_no_smax, torch.argmax(target_one_hot, dim=1))  # [batch]
-        model_losses = model_losses.mean(dim=(1,2))
-        # no XEntropy loss on deterministic baseline
+        model_losses = torch.nn.CrossEntropyLoss(reduction='none')(pred_model_binned_no_smax,
+                                                                   torch.argmax(target_one_hot, dim=1))  # [batch]
+        model_losses = model_losses.mean(dim=(1, 2))
 
-        rmse_model_per_sample = torch.sqrt(torch.mean((pred_model_mm - target_mm) ** 2, dim=(1,2)))  # [batch]
-        rmse_baseline_per_sample = torch.sqrt(torch.nanmean((pred_baseline_mm - target_mm) ** 2, dim=(1,2)))  # [batch]
+        rmse_model_per_sample = torch.sqrt(torch.mean((pred_model_mm - target_mm) ** 2, dim=(1, 2)))  # [batch]
+        rmse_baseline_per_sample = torch.sqrt(torch.nanmean((pred_baseline_mm - target_mm) ** 2, dim=(1, 2)))  # [batch]
 
         l1_difference_model_per_sample = torch.abs(pred_model_mm - target_mm).mean(dim=(1, 2))
         l1_difference_baseline_per_sample = torch.abs(pred_baseline_mm - target_mm).nanmean(dim=(1, 2))
 
-        mean_target_per_sample = target_mm.mean(dim=(1,2))  # [batch]
-        mean_pred_model_per_sample = pred_model_mm.mean(dim=(1,2))  # [batch]
-        mean_pred_baseline_per_sample = pred_baseline_mm.nanmean(dim=(1,2))  # [batch]
+        mean_target_per_sample = target_mm.mean(dim=(1, 2))  # [batch]
+        mean_pred_model_per_sample = pred_model_mm.mean(dim=(1, 2))  # [batch]
+        mean_pred_baseline_per_sample = pred_baseline_mm.nanmean(dim=(1, 2))  # [batch]
 
         # Certainty per sample
-        # Probability for correct bin in target (not good measure)
-        certainty_target_bin_per_sample = pred_probs_correct.mean(dim=(1,2,3))  # [batch]
-        # Probability
-        certainty_max_pred = pred_model_binned_smax.max(dim=1).values.mean(dim=(1,2))
+        certainty_target_bin_per_sample = pred_probs_correct.mean(dim=(1, 2, 3))  # [batch]
+        certainty_max_pred = pred_model_binned_smax.max(dim=1).values.mean(dim=(1, 2))
 
-        # Std per sample (std across channels, then average spatial dims)
-        # First: std across channels / binning -> shape: [batch, height, width]
+        # Std per sample
         std_binning_model_per_sample = pred_model_binned_no_smax.std(dim=1)
-        # Average spatially to get a single scalar per sample
-        std_binning_model_per_sample = std_binning_model_per_sample.mean(dim=(1,2))  # [batch]
+        std_binning_model_per_sample = std_binning_model_per_sample.mean(dim=(1, 2))  # [batch]
 
-        # Append per-sample metrics to the logging lists
+        # Get batch size to increment sample indices
+        batch_size = pred_model_mm.shape[0]
+
+        # Create sample indices for this batch
+        batch_sample_indices = list(range(self.sample_idx_counter, self.sample_idx_counter + batch_size))
+        self.sample_idx_counter += batch_size
+
+        # Append sample indices and metrics
+        self.sample_indices.extend(batch_sample_indices)
         self.losses_model.extend(model_losses.tolist())
-        # self.losses_baseline.extend(baseline_losses.tolist())
-
         self.rmses_model.extend(rmse_model_per_sample.tolist())
         self.rmses_baseline.extend(rmse_baseline_per_sample.tolist())
-
         self.l1_differences_model.extend(l1_difference_model_per_sample.tolist())
         self.l1_differences_baseline.extend(l1_difference_baseline_per_sample.tolist())
-
         self.means_target.extend(mean_target_per_sample.tolist())
         self.means_pred_model.extend(mean_pred_model_per_sample.tolist())
         self.means_pred_baseline.extend(mean_pred_baseline_per_sample.tolist())
-
         self.certainties_max_pred.extend(certainty_max_pred.tolist())
         self.certainties_target_bin_model.extend(certainty_target_bin_per_sample.tolist())
         self.stds_binning_model.extend(std_binning_model_per_sample.tolist())
 
-    def on_predict_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"):
-        self.save_evaluations_logs()
-
     def save_evaluations_logs(self):
-
         s_dirs = self.settings['s_dirs']
         log_dir = s_dirs['logs']
         evaluation_dir = os.path.join(log_dir, "evaluation")
@@ -236,29 +226,32 @@ class EvaluateBaselineCallback(pl.Callback):
         # Remove ".ckpt" from checkpoint_name if present
         checkpoint_name_cleaned = self.checkpoint_name.replace(".ckpt", "")
 
-        # Convert metrics to a DataFrame
+        # Convert metrics to a DataFrame - now include sample_idx
         df = pd.DataFrame({
-            "losses_model":                     self.losses_model,
-            # "losses_baseline":      self.losses_baseline,
-            "rmses_model":                      self.rmses_model,
-            "rmses_baseline":                   self.rmses_baseline,
-            "l1_difference_model":              self.l1_differences_model,
-            "l1_difference_baseline":           self.l1_differences_baseline,
-            "means_target":                     self.means_target,
-            "means_pred_model":                 self.means_pred_model,
-            "means_pred_baseline":              self.means_pred_baseline,
-            "certainties_target_bin_model":     self.certainties_target_bin_model,
-            "certainties_max_pred":             self.certainties_max_pred,
-            "stds_binning_model":               self.stds_binning_model,
+            "sample_idx": self.sample_indices,  # Add sample index
+            "losses_model": self.losses_model,
+            "rmses_model": self.rmses_model,
+            "rmses_baseline": self.rmses_baseline,
+            "l1_difference_model": self.l1_differences_model,
+            "l1_difference_baseline": self.l1_differences_baseline,
+            "means_target": self.means_target,
+            "means_pred_model": self.means_pred_model,
+            "means_pred_baseline": self.means_pred_baseline,
+            "certainties_target_bin_model": self.certainties_target_bin_model,
+            "certainties_max_pred": self.certainties_max_pred,
+            "stds_binning_model": self.stds_binning_model,
         })
 
         # Define CSV file path based on checkpoint_name
-        csv_file = os.path.join(evaluation_dir, f"dataset_{self.dataset_name}_ckpt_{checkpoint_name_cleaned}_metrics.csv")
+        csv_file = os.path.join(evaluation_dir,
+                                f"dataset_{self.dataset_name}_ckpt_{checkpoint_name_cleaned}_metrics.csv")
 
         # Save DataFrame to CSV
         df.to_csv(csv_file, index=False)
         print(f"Saved evaluation logs to {csv_file}")
 
+    def on_predict_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"):
+        self.save_evaluations_logs()
 
     def save_batch_output(self, batch, outputs, batch_idx):
         '''
@@ -302,10 +295,3 @@ class EvaluateBaselineCallback(pl.Callback):
         outputs = move_to_device(outputs, device='cpu')
         torch.save(outputs, save_path_outputs)
         print(f'\n Done saving the batch. Took {format_duration(time.time() - step_start_time)} \n')
-
-
-
-
-
-
-
