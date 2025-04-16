@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 import pandas as pd
 import numpy as np
 import os
+import xarray as xr  # Add this import for xarray
 from pysteps import verification
 from torch.utils.data import Subset, DataLoader
 
@@ -157,37 +158,76 @@ class FSSEvaluationCallback(pl.Callback):
         self.save_fss_evaluations()
 
     def save_fss_evaluations(self):
-        """
-        Save sample-level FSS evaluations to CSV files.
-        Creates two files: one for model FSS and one for baseline FSS.
-        Each row represents a sample, and columns represent threshold-scale combinations.
-        """
+        """Save sample-level FSS evaluations to NetCDF file using xarray."""
         s_dirs = self.settings['s_dirs']
         log_dir = s_dirs['logs']
         evaluation_dir = os.path.join(log_dir, "evaluation")
         fss_dir = os.path.join(evaluation_dir, "fss")
-
-        # Create evaluation directory if it doesn't exist
         os.makedirs(fss_dir, exist_ok=True)
 
-        # Remove ".ckpt" from checkpoint_name if present
         checkpoint_name_cleaned = self.checkpoint_name.replace(".ckpt", "")
 
-        # Convert sample data lists to DataFrames
-        df_model = pd.DataFrame(self.fss_model_samples)
-        df_baseline = pd.DataFrame(self.fss_baseline_samples)
+        # Prepare data
+        n_samples = self.sample_idx_counter
 
-        # Set sample_idx as the index
-        df_model = df_model.set_index('sample_idx')
-        df_baseline = df_baseline.set_index('sample_idx')
+        # Create 3D arrays [sample, threshold, scale]
+        model_data = np.full((n_samples, len(self.thresholds), len(self.scales)), np.nan)
+        baseline_data = np.full((n_samples, len(self.thresholds), len(self.scales)), np.nan)
 
-        # Save DataFrames to CSV
-        model_csv_file = os.path.join(fss_dir,
-                                      f"dataset_{self.dataset_name}_ckpt_{checkpoint_name_cleaned}_fss_model.csv")
-        baseline_csv_file = os.path.join(fss_dir,
-                                         f"dataset_{self.dataset_name}_ckpt_{checkpoint_name_cleaned}_fss_baseline.csv")
+        # Fill arrays with FSS values
+        for sample_data in self.fss_model_samples:
+            sample_idx = sample_data['sample_idx']
+            for t_idx, threshold in enumerate(self.thresholds):
+                for s_idx, scale in enumerate(self.scales):
+                    key = f"threshold_{threshold}_scale_{scale}"
+                    if key in sample_data:
+                        model_data[sample_idx, t_idx, s_idx] = sample_data[key]
 
-        df_model.to_csv(model_csv_file)
-        df_baseline.to_csv(baseline_csv_file)
+        for sample_data in self.fss_baseline_samples:
+            sample_idx = sample_data['sample_idx']
+            for t_idx, threshold in enumerate(self.thresholds):
+                for s_idx, scale in enumerate(self.scales):
+                    key = f"threshold_{threshold}_scale_{scale}"
+                    if key in sample_data:
+                        baseline_data[sample_idx, t_idx, s_idx] = sample_data[key]
 
-        print(f"Saved FSS evaluations to {fss_dir}")
+        # Create xarray DataArrays
+        model_da = xr.DataArray(
+            data=model_data,
+            dims=['sample', 'threshold', 'scale'],
+            coords={
+                'sample': np.arange(n_samples),
+                'threshold': self.thresholds,
+                'scale': self.scales
+            },
+            name='fss_model'
+        )
+
+        baseline_da = xr.DataArray(
+            data=baseline_data,
+            dims=['sample', 'threshold', 'scale'],
+            coords={
+                'sample': np.arange(n_samples),
+                'threshold': self.thresholds,
+                'scale': self.scales
+            },
+            name='fss_baseline'
+        )
+
+        # Combine into Dataset
+        ds = xr.Dataset({
+            'fss_model': model_da,
+            'fss_baseline': baseline_da
+        })
+
+        # Add metadata
+        ds.attrs['checkpoint_name'] = self.checkpoint_name
+        ds.attrs['dataset_name'] = self.dataset_name
+        ds.attrs['creation_time'] = str(pd.Timestamp.now())
+
+        # Save to NetCDF
+        nc_file = os.path.join(fss_dir,
+                               f"dataset_{self.dataset_name}_ckpt_{checkpoint_name_cleaned}_fss.nc")
+        ds.to_netcdf(nc_file)
+
+        print(f"Saved FSS evaluations to {nc_file}")
