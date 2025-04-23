@@ -821,6 +821,10 @@ if __name__ == '__main__':
         ckpt_settings['s_baseline_variable_name']   = settings['s_baseline_variable_name']
         ckpt_settings['s_num_input_frames_baseline']= settings['s_num_input_frames_baseline']
 
+        ckpt_settings['s_fss'] = settings['s_fss']
+        ckpt_settings['s_fss_scales'] = settings['s_fss_scales']
+        ckpt_settings['s_fss_thresholds'] = settings['s_fss_thresholds']
+
         # Pass settings of the loaded run to get the according data_set_vars
         data_set_vars = data_loading(ckpt_settings, **ckpt_settings)
 

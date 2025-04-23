@@ -120,6 +120,8 @@ def ckpt_quick_eval_with_baseline(
         s_fss,
         s_fss_scales,
         s_fss_thresholds,
+        s_dlbd=True,  # New parameter to enable/disable DLBD evaluation (enabled by default)
+        s_sigmas_dlbd=None,  # New parameter for DLBD sigma values
         **__,
 ):
     """
@@ -139,12 +141,15 @@ def ckpt_quick_eval_with_baseline(
             slice of y coordinates,
             slice of x coordinates],
             ...]
+        s_dlbd: bool, optional
+            Whether to enable DLBD evaluation. Default is True.
+        s_sigmas_dlbd: list of float, optional
+            List of sigma values for DLBD evaluation. If None and s_dlbd is True, default values [0.5, 1.0, 2.0, 4.0] are used.
     """
     print(f'Baseline path is {s_baseline_path}')
     print('Set model mode')
     # Setting model to baseline mode, which chooses the right predict_step() method
     model.set_mode(mode='baseline')
-
 
     print('Initialize Dataset')
 
@@ -156,7 +161,7 @@ def ckpt_quick_eval_with_baseline(
     # dataset.baseline_variable_name = ckpt_settings['s_baseline_variable_name']
     # dataset.num_input_frames_baseline = ckpt_settings['s_num_input_frames_baseline']
 
-     # Data Set
+    # Data Set
     # We have to initialize the dataset in baseline mode in order for baseline to work
     sample_coords = dataset.sample_coords
     dataset = FilteredDatasetXr(
@@ -192,7 +197,6 @@ def ckpt_quick_eval_with_baseline(
 
     print(f'Actual length of the dataset for eval is: {len(dataset)}')
 
-
     print('Initializing Dataloader')
 
     # Data Loader
@@ -202,8 +206,8 @@ def ckpt_quick_eval_with_baseline(
         shuffle=True,
         batch_size=s_batch_size,
         drop_last=True,
-        num_workers=0, # EITHER THIS
-        pin_memory=False, # OR THIS FIXES FREEZING
+        num_workers=0,  # EITHER THIS
+        pin_memory=False,  # OR THIS FIXES FREEZING
         # timeout=0,  # TODO: Potentially try this to see whether the freezing happens during batch loading
     )
 
@@ -217,16 +221,29 @@ def ckpt_quick_eval_with_baseline(
     #     pin_memory=True,
     # )
 
-    print('Initialising Callback')
+    print('Initialising Callbacks')
+
+    # Set default sigma values for DLBD if needed
+    if s_dlbd and s_sigmas_dlbd is None:
+        s_sigmas_dlbd = [0.5, 1.0, 2.0, 4.0]
+
+    # If DLBD is disabled, pass None for sigmas_dlbd
+    dlbd_sigmas = s_sigmas_dlbd if s_dlbd else None
+
+    if dlbd_sigmas:
+        print(f'DLBD evaluation enabled with sigmas: {dlbd_sigmas}')
 
     # Callbacks
     evaluate_baseline_callback = EvaluateBaselineCallback(
-            linspace_binning_params,
-            checkpoint_name,
-            dataset_name,
-            samples_have_padding,
-            ckpt_settings,
+        linspace_binning_params,
+        checkpoint_name,
+        dataset_name,
+        samples_have_padding,
+        ckpt_settings,
+        sigmas_dlbd=dlbd_sigmas,
     )
+
+    callbacks = [evaluate_baseline_callback]
 
     if s_fss:
         fss_callback = FSSEvaluationCallback(
@@ -238,10 +255,7 @@ def ckpt_quick_eval_with_baseline(
             settings=ckpt_settings,
         )
 
-        callbacks = [evaluate_baseline_callback, fss_callback]
-    else:
-        callbacks = evaluate_baseline_callback
-
+        callbacks.append(fss_callback)
 
     print('Initializing Trainer')
 
@@ -254,5 +268,6 @@ def ckpt_quick_eval_with_baseline(
     trainer.predict(
         model=model,
         dataloaders=data_loader_eval_filtered,
-        return_predictions=False  # By default, lightning aggregates the output of all batches, disable this to prevent memory overflow
+        return_predictions=False
+        # By default, lightning aggregates the output of all batches, disable this to prevent memory overflow
     )

@@ -4,6 +4,7 @@ import torchvision.transforms as T
 from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data
 from helper.helper_functions import move_to_device
 from helper.memory_logging import print_gpu_memory, print_ram_usage, format_duration
+from helper.dlbd import dlbd_traget_pre_processing
 import time
 import pandas as pd
 import os
@@ -18,6 +19,7 @@ class EvaluateBaselineCallback(pl.Callback):
             dataset_name,
             samples_have_padding,
             settings,
+            sigmas_dlbd=None,  # Added sigmas_dlbd parameter
     ):
         '''
         This callback calculates the evaluation metrics
@@ -31,6 +33,8 @@ class EvaluateBaselineCallback(pl.Callback):
             ...
             samples_have_padding: bool
                 If True this indicates an input padding, therefore we will center crop to s_width_height
+            sigmas_dlbd: list of float, optional
+                List of sigma values for DLBD evaluation. If None, DLBD evaluation is skipped.
         '''
 
         super().__init__()
@@ -39,6 +43,22 @@ class EvaluateBaselineCallback(pl.Callback):
         self.checkpoint_name = checkpoint_name
         self.dataset_name = dataset_name
         self.samples_have_padding = samples_have_padding
+
+        # Initialize sigmas for DLBD evaluation
+        if sigmas_dlbd is None:
+            self.sigmas_dlbd = []
+            self.do_dlbd_eval = False
+        else:
+            self.sigmas_dlbd = list(sigmas_dlbd)
+            self.do_dlbd_eval = True
+
+        # Check if training sigma should be included in evaluation
+        training_sigma = self.settings.get('s_sigma_target_smoothing', None)
+        if self.do_dlbd_eval and training_sigma is not None and training_sigma not in self.sigmas_dlbd:
+            self.sigmas_dlbd.append(training_sigma)
+
+        # Sort the sigmas for consistency
+        self.sigmas_dlbd = sorted(self.sigmas_dlbd)
 
         # Add sample counter to track samples across batches
         self.sample_idx_counter = 0
@@ -57,14 +77,17 @@ class EvaluateBaselineCallback(pl.Callback):
         self.certainties_max_pred = []
         self.stds_binning_model = []
 
+        # Initialize lists for DLBD metrics for each sigma value
+        self.dlbd_metrics = {f"dlbd_sigma_{sigma:.2f}": [] for sigma in self.sigmas_dlbd}
+
     def on_predict_batch_end(
-        self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
-        outputs,
-        batch,
-        batch_idx: int,
-        dataloader_idx: int = 0  # Default to 0 if no data_loader_list is passed to trainer
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch,
+            batch_idx: int,
+            dataloader_idx: int = 0  # Default to 0 if no data_loader_list is passed to trainer
     ):
         """
         Input:
@@ -96,10 +119,6 @@ class EvaluateBaselineCallback(pl.Callback):
 
         # Model Prediction
 
-        # pred_model_softmaxed = torch.nn.Softmax(dim=1)(pred_model_binned_no_smax)
-        # pred_model_argmaxed = torch.argmax(pred_model_softmaxed, dim=1)
-
-        # TODO: AM I DOING THIS FOR THE PREDICTION PIPELINE TOO?
         # Converting prediction from one-hot to (lognormed) mm
         _, _, linspace_binning = pl_module._linspace_binning_params
         pred_model_normed = one_hot_to_lognormed_mm(pred_model_binned_no_smax, linspace_binning, channel_dim=1)
@@ -107,12 +126,12 @@ class EvaluateBaselineCallback(pl.Callback):
         # Inverse normalize target and prediction
 
         pred_model_mm = inverse_normalize_data(pred_model_normed,
-                                         pl_module.mean_filtered_log_data,
-                                         pl_module.std_filtered_log_data)
+                                               pl_module.mean_filtered_log_data,
+                                               pl_module.std_filtered_log_data)
 
         target_mm = inverse_normalize_data(target_normed,
-                                        pl_module.mean_filtered_log_data,
-                                        pl_module.std_filtered_log_data)
+                                           pl_module.mean_filtered_log_data,
+                                           pl_module.std_filtered_log_data)
 
         pred_baseline_mm = baseline
         # pred_baseline_mm = baseline[:, s_num_lead_time_steps, :, :]
@@ -194,6 +213,31 @@ class EvaluateBaselineCallback(pl.Callback):
         std_binning_model_per_sample = pred_model_binned_no_smax.std(dim=1)
         std_binning_model_per_sample = std_binning_model_per_sample.mean(dim=(1, 2))  # [batch]
 
+        # Calculate DLBD metrics for each sigma value if enabled
+        if self.do_dlbd_eval:
+            s_target_height_width = self.settings['s_target_height_width']
+
+            for sigma in self.sigmas_dlbd:
+                # Apply gaussian smoothing to target one-hot for current sigma
+                target_one_hot_blurred = dlbd_traget_pre_processing(
+                    input_tensor=target_one_hot,
+                    output_size=s_target_height_width,
+                    sigma=sigma,
+                    kernel_size=None
+                )
+
+                # Calculate cross-entropy loss between blurred target and model prediction
+                dlbd_losses = torch.nn.CrossEntropyLoss(reduction='none')(
+                    pred_model_binned_no_smax,
+                    torch.argmax(target_one_hot_blurred, dim=1)
+                )
+
+                # Average over spatial dimensions to get per-sample loss
+                dlbd_losses_per_sample = dlbd_losses.mean(dim=(1, 2))
+
+                # Store in the appropriate list
+                self.dlbd_metrics[f"dlbd_sigma_{sigma:.2f}"].extend(dlbd_losses_per_sample.tolist())
+
         # Get batch size to increment sample indices
         batch_size = pred_model_mm.shape[0]
 
@@ -226,8 +270,8 @@ class EvaluateBaselineCallback(pl.Callback):
         # Remove ".ckpt" from checkpoint_name if present
         checkpoint_name_cleaned = self.checkpoint_name.replace(".ckpt", "")
 
-        # Convert metrics to a DataFrame - now include sample_idx
-        df = pd.DataFrame({
+        # Create a dictionary with all metrics
+        metrics_dict = {
             "sample_idx": self.sample_indices,  # Add sample index
             "losses_model": self.losses_model,
             "rmses_model": self.rmses_model,
@@ -240,7 +284,15 @@ class EvaluateBaselineCallback(pl.Callback):
             "certainties_target_bin_model": self.certainties_target_bin_model,
             "certainties_max_pred": self.certainties_max_pred,
             "stds_binning_model": self.stds_binning_model,
-        })
+        }
+
+        # Add DLBD metrics to the dictionary if they exist
+        if self.do_dlbd_eval:
+            for sigma_key, dlbd_values in self.dlbd_metrics.items():
+                metrics_dict[sigma_key] = dlbd_values
+
+        # Convert metrics to a DataFrame - now include sample_idx
+        df = pd.DataFrame(metrics_dict)
 
         # Define CSV file path based on checkpoint_name
         csv_file = os.path.join(evaluation_dir,

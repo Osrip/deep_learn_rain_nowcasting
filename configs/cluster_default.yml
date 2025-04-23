@@ -1,4 +1,4 @@
-s_sim_name_suffix: "plotting" # xentropy_1_month_10_epochs
+s_sim_name_suffix: "plotting_xentropy" # xentropy_1_month_10_epochs
 
 # s_force_data_preprocessing forces data preprocessing instead of attempting to load preprocessed data
 s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
@@ -10,7 +10,7 @@ s_convnext: true
 s_plotting_only: true
 
 # s_plot_sim_name: Simulation name for plotting
-s_plot_sim_name: "Run_20250408-214230_ID_1304205dlbd_1_month_10_epochs"
+s_plot_sim_name: "Run_20250409-072955_ID_1304206xentropy_1_month_10_epochs"
 # Save data loader variables
 s_save_prefix_data_loader_vars: "01_25_NEW"
 s_data_loader_vars_path: "/home/butz/bst981/nowcasting_project/output/data_loader_vars"  # '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
@@ -61,10 +61,16 @@ s_baseline_variable_name: "extrapolation"
 s_num_input_frames_baseline: 4  # The number of input frames that was used to calculate the baseline
 
 # Evaluation stuff
+# FSS evaluation
 s_fss: true # Evaluate the fractions skill score
 s_fss_scales: [5, 11]
 s_fss_thresholds: [0.78, 1.51, 3.53, 7.07, 12.14]
 s_subsample_dataset_to_len: null  # Number of samples to subsample to for evaluation. Can be None
+
+# DLBD evaluation metrics
+s_dlbd: true # Enable DLBD evaluation metrics
+s_sigmas_dlbd: [0.5, 1.0, 1.5, 2.0, 4.0, 8.0] # Sigma values for DLBD evaluation
+
 
 s_num_workers_data_loader: 16  # Should correspond to number of cpus; also increases CPU RAM --> FOR DEBUGGING SET TO 0
 s_check_val_every_n_epoch: 1   # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
