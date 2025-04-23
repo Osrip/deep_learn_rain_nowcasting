@@ -1,4 +1,4 @@
-s_sim_name_suffix: "xentropy_1_month_10_epochs"
+s_sim_name_suffix: "plotting" # xentropy_1_month_10_epochs
 
 # s_force_data_preprocessing forces data preprocessing instead of attempting to load preprocessed data
 s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
@@ -7,10 +7,10 @@ s_force_data_preprocessing: false  # This forces data preprocessing instead of a
 s_convnext: true
 
 # If active loads sim s_plot_sim_name and runs plotting pipeline
-s_plotting_only: false
+s_plotting_only: true
 
 # s_plot_sim_name: Simulation name for plotting
-s_plot_sim_name: "Run_20250117-191818_ID_1063866_2_months_SQRT_oversampling_SQRT_val_oversampling_20_epochs_eval_on_full_data"
+s_plot_sim_name: "Run_20250408-214230_ID_1304205dlbd_1_month_10_epochs"
 # Save data loader variables
 s_save_prefix_data_loader_vars: "01_25_NEW"
 s_data_loader_vars_path: "/home/butz/bst981/nowcasting_project/output/data_loader_vars"  # '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
