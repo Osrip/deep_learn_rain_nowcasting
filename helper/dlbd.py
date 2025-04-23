@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 
-def dlbd_traget_pre_processing(input_tensor, output_size, sigma=1.0, kernel_size=None):
+def dlbd_target_pre_processing(input_tensor, output_size, sigma=1.0, kernel_size=None):
     """
     Sped up version using two 1D convolutions (vertical then horizontal) that always produces the desired output size.
 

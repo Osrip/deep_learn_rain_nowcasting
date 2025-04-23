@@ -1,10 +1,10 @@
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms as T
-from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data
+from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data, img_one_hot
 from helper.helper_functions import move_to_device
 from helper.memory_logging import print_gpu_memory, print_ram_usage, format_duration
-from helper.dlbd import dlbd_traget_pre_processing
+from helper.dlbd import dlbd_target_pre_processing
 import time
 import pandas as pd
 import os
@@ -19,7 +19,7 @@ class EvaluateBaselineCallback(pl.Callback):
             dataset_name,
             samples_have_padding,
             settings,
-            sigmas_dlbd=None,  # Added sigmas_dlbd parameter
+            sigmas_dlbd_eval=None,  # Renamed parameter
     ):
         '''
         This callback calculates the evaluation metrics
@@ -33,7 +33,7 @@ class EvaluateBaselineCallback(pl.Callback):
             ...
             samples_have_padding: bool
                 If True this indicates an input padding, therefore we will center crop to s_width_height
-            sigmas_dlbd: list of float, optional
+            sigmas_dlbd_eval: list of float, optional
                 List of sigma values for DLBD evaluation. If None, DLBD evaluation is skipped.
         '''
 
@@ -45,20 +45,20 @@ class EvaluateBaselineCallback(pl.Callback):
         self.samples_have_padding = samples_have_padding
 
         # Initialize sigmas for DLBD evaluation
-        if sigmas_dlbd is None:
-            self.sigmas_dlbd = []
+        if sigmas_dlbd_eval is None:
+            self.sigmas_dlbd_eval = []
             self.do_dlbd_eval = False
         else:
-            self.sigmas_dlbd = list(sigmas_dlbd)
+            self.sigmas_dlbd_eval = list(sigmas_dlbd_eval)
             self.do_dlbd_eval = True
 
         # Check if training sigma should be included in evaluation
         training_sigma = self.settings.get('s_sigma_target_smoothing', None)
-        if self.do_dlbd_eval and training_sigma is not None and training_sigma not in self.sigmas_dlbd:
-            self.sigmas_dlbd.append(training_sigma)
+        if self.do_dlbd_eval and training_sigma is not None and training_sigma not in self.sigmas_dlbd_eval:
+            self.sigmas_dlbd_eval.append(training_sigma)
 
         # Sort the sigmas for consistency
-        self.sigmas_dlbd = sorted(self.sigmas_dlbd)
+        self.sigmas_dlbd_eval = sorted(self.sigmas_dlbd_eval)
 
         # Add sample counter to track samples across batches
         self.sample_idx_counter = 0
@@ -78,7 +78,7 @@ class EvaluateBaselineCallback(pl.Callback):
         self.stds_binning_model = []
 
         # Initialize lists for DLBD metrics for each sigma value
-        self.dlbd_metrics = {f"dlbd_sigma_{sigma:.2f}": [] for sigma in self.sigmas_dlbd}
+        self.dlbd_metrics = {f"dlbd_sigma_{sigma:.2f}": [] for sigma in self.sigmas_dlbd_eval}
 
     def on_predict_batch_end(
             self,
@@ -96,8 +96,10 @@ class EvaluateBaselineCallback(pl.Callback):
                 {'pred': torch.Tensor,
                 'target:
                 'target_binned'
-                'baseline'}
-
+                'baseline'
+                'target_uncropped' (for DLBD eval)
+                'target_normalized_uncropped' (for DLBD eval)
+                }
         """
 
         print_gpu_memory()
@@ -117,14 +119,15 @@ class EvaluateBaselineCallback(pl.Callback):
         target_one_hot = outputs['target_binned']
         baseline = outputs['baseline']
 
-        # Model Prediction
+        # Get uncropped versions for DLBD eval if available
+        target_normed_uncropped = outputs.get('target_normalized_uncropped', None)
 
+        # Model Prediction
         # Converting prediction from one-hot to (lognormed) mm
         _, _, linspace_binning = pl_module._linspace_binning_params
         pred_model_normed = one_hot_to_lognormed_mm(pred_model_binned_no_smax, linspace_binning, channel_dim=1)
 
         # Inverse normalize target and prediction
-
         pred_model_mm = inverse_normalize_data(pred_model_normed,
                                                pl_module.mean_filtered_log_data,
                                                pl_module.std_filtered_log_data)
@@ -133,21 +136,28 @@ class EvaluateBaselineCallback(pl.Callback):
                                            pl_module.mean_filtered_log_data,
                                            pl_module.std_filtered_log_data)
 
+        # Center crop baseline for regular metrics
         pred_baseline_mm = baseline
-        # pred_baseline_mm = baseline[:, s_num_lead_time_steps, :, :]
+        pred_baseline_mm_cropped = T.CenterCrop(size=s_target_height_width)(pred_baseline_mm)
 
-        pred_baseline_mm = T.CenterCrop(size=s_target_height_width)(pred_baseline_mm)
+        # Check if we have uncropped targets for DLBD evaluation
+        if self.do_dlbd_eval:
+            if target_normed_uncropped is None:
+                # If we don't have uncropped targets, we can't do DLBD eval
+                print(
+                    "Warning: DLBD evaluation is enabled but no uncropped targets provided. DLBD evaluation will be skipped.")
+                self.do_dlbd_eval = False
 
-        # Double-checked alignment visually (See apple notes Science/testing code/Testing on predict_batch_end())
-
+        # Evaluate with standard metrics (using cropped tensors)
         self.evaluate_batch(
             pred_model_mm,
             pred_model_binned_no_smax,
-            pred_baseline_mm,
+            pred_baseline_mm_cropped,
             target_mm,
             target_one_hot,
             loss,
             pl_module,
+            target_normed_uncropped
         )
 
     def evaluate_batch(
@@ -159,6 +169,7 @@ class EvaluateBaselineCallback(pl.Callback):
             target_one_hot,
             loss,
             pl_module,
+            target_normed_uncropped=None,
     ):
         """
         Input:
@@ -173,6 +184,8 @@ class EvaluateBaselineCallback(pl.Callback):
             target_one_hot: torch.Tensor
                 shape: [batch, channels, height, width]
             loss: torch.Tensor (single scalar) representing batch loss from the model
+            target_normed_uncropped: torch.Tensor, optional
+                Uncropped normalized target for DLBD evaluation
         """
 
         # Check if pred_model_binned is already soft maxed
@@ -214,13 +227,22 @@ class EvaluateBaselineCallback(pl.Callback):
         std_binning_model_per_sample = std_binning_model_per_sample.mean(dim=(1, 2))  # [batch]
 
         # Calculate DLBD metrics for each sigma value if enabled
-        if self.do_dlbd_eval:
+        if self.do_dlbd_eval and target_normed_uncropped is not None:
             s_target_height_width = self.settings['s_target_height_width']
 
-            for sigma in self.sigmas_dlbd:
-                # Apply gaussian smoothing to target one-hot for current sigma
-                target_one_hot_blurred = dlbd_traget_pre_processing(
-                    input_tensor=target_one_hot,
+            # Create one-hot encoded uncropped target using the same binning
+            _, _, linspace_binning = self.linspace_binning_params
+            s_num_bins_crossentropy = self.settings['s_num_bins_crossentropy']
+
+            # Create one-hot encoded target from the uncropped normalized target
+            target_one_hot_uncropped = img_one_hot(target_normed_uncropped, s_num_bins_crossentropy, linspace_binning)
+            target_one_hot_uncropped = torch.permute(target_one_hot_uncropped, (0, 3, 1, 2))  # b w h c -> b c w h
+
+            for sigma in self.sigmas_dlbd_eval:
+                # Apply gaussian smoothing to the uncropped one-hot target for current sigma
+                # The dlbd_target_pre_processing will handle cropping the output to s_target_height_width
+                target_one_hot_blurred = dlbd_target_pre_processing(
+                    input_tensor=target_one_hot_uncropped,
                     output_size=s_target_height_width,
                     sigma=sigma,
                     kernel_size=None
@@ -289,9 +311,10 @@ class EvaluateBaselineCallback(pl.Callback):
         # Add DLBD metrics to the dictionary if they exist
         if self.do_dlbd_eval:
             for sigma_key, dlbd_values in self.dlbd_metrics.items():
-                metrics_dict[sigma_key] = dlbd_values
+                if dlbd_values:  # Only add non-empty lists
+                    metrics_dict[sigma_key] = dlbd_values
 
-        # Convert metrics to a DataFrame - now include sample_idx
+        # Convert metrics to a DataFrame
         df = pd.DataFrame(metrics_dict)
 
         # Define CSV file path based on checkpoint_name

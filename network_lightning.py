@@ -12,7 +12,7 @@ import torchvision.transforms as T
 import copy
 import einops
 from helper.pre_process_target_input import img_one_hot, inverse_normalize_data, invnorm_linspace_binning, normalize_data
-from helper.dlbd import dlbd_traget_pre_processing
+from helper.dlbd import dlbd_target_pre_processing
 from helper.pre_process_target_input import set_nans_zero, pre_process_target_to_one_hot
 from pysteps import verification
 
@@ -202,7 +202,7 @@ class NetworkL(pl.LightningModule):
         input_sequence[nan_mask] = 0
         return input_sequence
 
-    def dlbd_target_pre_processing(self, target_binned: torch.Tensor) -> torch.Tensor:
+    def dlbd_method(self, target_binned: torch.Tensor) -> torch.Tensor:
         '''
         Fast on-the-fly pre-processing of target in training/validation loop for DLBD
         This requires one-hot target that has been pre-precessed by pre_process_target() method
@@ -220,7 +220,7 @@ class NetworkL(pl.LightningModule):
 
         # Pre-processing target for DLBD
         # TODO: adjust kernel_size to save compute
-        target_binned = dlbd_traget_pre_processing(input_tensor=target_binned,
+        target_binned = dlbd_target_pre_processing(input_tensor=target_binned,
                                                    output_size=s_target_height_width,
                                                    sigma=curr_sigma,
                                                    kernel_size=None)
@@ -291,7 +291,7 @@ class NetworkL(pl.LightningModule):
         # of the input + augmentation padding and time-wise starts with the first input sequence and ends on the
         # target sequence
 
-        # Normalize data
+        # Normalize radolan data
         radolan_statistics = self.dynamic_statistics_dict_train_data['radolan']
         mean_filtered_log_data_radolan = radolan_statistics['mean_filtered_log_data']
         std_filtered_log_data_radolan = radolan_statistics['std_filtered_log_data']
@@ -317,7 +317,7 @@ class NetworkL(pl.LightningModule):
 
         if s_gaussian_smoothing_target:
             # This reduces H and W to s_target_height_width
-            target_binned = self.dlbd_target_pre_processing(target_binned)
+            target_binned = self.dlbd_method(target_binned)
         else:
             # Center crop target to correct size
             target_binned = center_crop_target(target_binned)
@@ -359,7 +359,7 @@ class NetworkL(pl.LightningModule):
         return {
             'loss': loss,  # Loss cannot be NaN
             'pred': pred,  # Pred is inherently not NaN
-            'target': target,  # Target can have NaNs (depending on filter condition in pre-processing)
+            'target': target,  # Target can have NaNs (depending on filter condition in pre-processing), and is normalized!
             'target_binned': target_binned  # In target binned for all values that have been NaNs in target simply all bins have been set to zero
         }
 
@@ -395,9 +395,45 @@ class NetworkL(pl.LightningModule):
 
     def _predict_step_mode_baseline_(self, batched_samples, batch_idx: int, dataloader_idx: int = 0):
         dynamic_samples_dict, static_samples_dict, baseline = batched_samples
-        out_dict = self.train_val_and_predict_step(dynamic_samples_dict, static_samples_dict, batch_idx)
-        out_dict['baseline'] = baseline['baseline']
-        return out_dict
+
+        # Check if DLBD evaluation is enabled in settings
+        s_dlbd_eval = self.settings.get('s_dlbd_eval', False)
+
+        if s_dlbd_eval:
+            # DLBD evaluation is enabled - use this ugly ass version that adds uncropped target
+
+            # Store the original (uncropped) data for DLBD evaluation
+            # First, extract the target from the dynamic samples (before any center cropping)
+            radolan_spacetime_batch = dynamic_samples_dict['radolan']
+
+            # Normalize data
+            radolan_statistics = self.dynamic_statistics_dict_train_data['radolan']
+            mean_filtered_log_data = radolan_statistics['mean_filtered_log_data']
+            std_filtered_log_data = radolan_statistics['std_filtered_log_data']
+
+            radolan_spacetime_batch_normalized = normalize_data(
+                radolan_spacetime_batch,
+                mean_filtered_log_data,
+                std_filtered_log_data
+            )
+
+            # Save the normalized uncropped target
+            target_normalized_uncropped = radolan_spacetime_batch_normalized[:, -1, :, :]
+
+            # Continue with the normal processing
+            out_dict = self.train_val_and_predict_step(dynamic_samples_dict, static_samples_dict, batch_idx)
+
+            # Add the baseline and uncropped target to the output dictionary
+            out_dict['baseline'] = baseline['baseline']
+            # WE NEED THE UNCROPPED TARGET FOR DLBD CALCULATIONS
+            out_dict['target_normalized_uncropped'] = target_normalized_uncropped
+
+            return out_dict
+        else:
+            # DLBD evaluation is disabled - use the original clean implementation
+            out_dict = self.train_val_and_predict_step(dynamic_samples_dict, static_samples_dict, batch_idx)
+            out_dict['baseline'] = baseline['baseline']
+            return out_dict
 
 
 

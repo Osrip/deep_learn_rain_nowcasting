@@ -68,8 +68,8 @@ s_fss_thresholds: [0.78, 1.51, 3.53, 7.07, 12.14]
 s_subsample_dataset_to_len: null  # Number of samples to subsample to for evaluation. Can be None
 
 # DLBD evaluation metrics
-s_dlbd: true # Enable DLBD evaluation metrics
-s_sigmas_dlbd: [0.5, 1.0, 1.5, 2.0, 4.0, 8.0] # Sigma values for DLBD evaluation
+s_dlbd_eval: true # Enable DLBD evaluation metrics
+s_sigmas_dlbd_eval: [0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 4.0, 8.0] # Sigma values for DLBD evaluation
 
 
 s_num_workers_data_loader: 16  # Should correspond to number of cpus; also increases CPU RAM --> FOR DEBUGGING SET TO 0

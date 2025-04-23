@@ -120,8 +120,8 @@ def ckpt_quick_eval_with_baseline(
         s_fss,
         s_fss_scales,
         s_fss_thresholds,
-        s_dlbd=True,  # New parameter to enable/disable DLBD evaluation (enabled by default)
-        s_sigmas_dlbd=None,  # New parameter for DLBD sigma values
+        s_dlbd_eval=True,  # Renamed parameter (enabled by default)
+        s_sigmas_dlbd_eval=None,  # Renamed parameter for DLBD sigma values
         **__,
 ):
     """
@@ -141,10 +141,10 @@ def ckpt_quick_eval_with_baseline(
             slice of y coordinates,
             slice of x coordinates],
             ...]
-        s_dlbd: bool, optional
+        s_dlbd_eval: bool, optional
             Whether to enable DLBD evaluation. Default is True.
-        s_sigmas_dlbd: list of float, optional
-            List of sigma values for DLBD evaluation. If None and s_dlbd is True, default values [0.5, 1.0, 2.0, 4.0] are used.
+        s_sigmas_dlbd_eval: list of float, optional
+            List of sigma values for DLBD evaluation. If None and s_dlbd_eval is True, default values [0.5, 1.0, 2.0, 4.0] are used.
     """
     print(f'Baseline path is {s_baseline_path}')
     print('Set model mode')
@@ -224,11 +224,11 @@ def ckpt_quick_eval_with_baseline(
     print('Initialising Callbacks')
 
     # Set default sigma values for DLBD if needed
-    if s_dlbd and s_sigmas_dlbd is None:
-        s_sigmas_dlbd = [0.5, 1.0, 2.0, 4.0]
+    if s_dlbd_eval and s_sigmas_dlbd_eval is None:
+        s_sigmas_dlbd_eval = [0.5, 1.0, 2.0, 4.0]
 
-    # If DLBD is disabled, pass None for sigmas_dlbd
-    dlbd_sigmas = s_sigmas_dlbd if s_dlbd else None
+    # If DLBD is disabled, pass None for sigmas_dlbd_eval
+    dlbd_sigmas = s_sigmas_dlbd_eval if s_dlbd_eval else None
 
     if dlbd_sigmas:
         print(f'DLBD evaluation enabled with sigmas: {dlbd_sigmas}')
@@ -240,7 +240,7 @@ def ckpt_quick_eval_with_baseline(
         dataset_name,
         samples_have_padding,
         ckpt_settings,
-        sigmas_dlbd=dlbd_sigmas,
+        sigmas_dlbd_eval=dlbd_sigmas,
     )
 
     callbacks = [evaluate_baseline_callback]
