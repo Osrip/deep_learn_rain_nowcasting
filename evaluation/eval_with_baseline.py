@@ -1,7 +1,7 @@
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms as T
-from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data, img_one_hot
+from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data, img_one_hot, normalize_data
 from helper.helper_functions import move_to_device
 from helper.memory_logging import print_gpu_memory, print_ram_usage, format_duration
 from helper.dlbd import dlbd_target_pre_processing
@@ -77,8 +77,12 @@ class EvaluateBaselineCallback(pl.Callback):
         self.certainties_max_pred = []
         self.stds_binning_model = []
 
-        # Initialize lists for DLBD metrics for each sigma value
-        self.dlbd_metrics = {f"dlbd_sigma_{sigma:.2f}": [] for sigma in self.sigmas_dlbd_eval}
+        # Initialize lists for DLBD metrics with separate model and baseline tracking
+        self.dlbd_metrics = {}
+        for sigma in self.sigmas_dlbd_eval:
+            sigma_str = f"{sigma:.2f}"
+            self.dlbd_metrics[f"dlbd_model_sigma_{sigma_str}"] = []
+            self.dlbd_metrics[f"dlbd_baseline_sigma_{sigma_str}"] = []
 
     def on_predict_batch_end(
             self,
@@ -236,11 +240,32 @@ class EvaluateBaselineCallback(pl.Callback):
 
             # Create one-hot encoded target from the uncropped normalized target
             target_one_hot_uncropped = img_one_hot(target_normed_uncropped, s_num_bins_crossentropy, linspace_binning)
+            target_one_hot_uncropped = target_one_hot_uncropped.float()  # Convert to float
             target_one_hot_uncropped = torch.permute(target_one_hot_uncropped, (0, 3, 1, 2))  # b w h c -> b c w h
 
+            # We need to convert baseline mm values to one-hot for DLBD calculation
+            # First normalize baseline
+            baseline_normed = normalize_data(
+                pred_baseline_mm,
+                pl_module.mean_filtered_log_data,
+                pl_module.std_filtered_log_data
+            )
+
+            # Convert to one-hot
+            baseline_one_hot = img_one_hot(baseline_normed, s_num_bins_crossentropy, linspace_binning)
+            baseline_one_hot = baseline_one_hot.float()  # Convert to float
+            baseline_one_hot = torch.permute(baseline_one_hot, (0, 3, 1, 2))  # b w h c -> b c w h
+
+            # Convert to logits-like format for cross-entropy calculation
+            # Explicitly create as float32 tensor
+            baseline_logits = torch.zeros_like(baseline_one_hot, dtype=torch.float32).to(baseline_one_hot.device)
+            max_indices = torch.argmax(baseline_one_hot, dim=1, keepdim=True)
+            baseline_logits.scatter_(1, max_indices, 10.0)  # Large value at the max index
+
             for sigma in self.sigmas_dlbd_eval:
+                sigma_str = f"{sigma:.2f}"
+
                 # Apply gaussian smoothing to the uncropped one-hot target for current sigma
-                # The dlbd_target_pre_processing will handle cropping the output to s_target_height_width
                 target_one_hot_blurred = dlbd_target_pre_processing(
                     input_tensor=target_one_hot_uncropped,
                     output_size=s_target_height_width,
@@ -248,17 +273,23 @@ class EvaluateBaselineCallback(pl.Callback):
                     kernel_size=None
                 )
 
-                # Calculate cross-entropy loss between blurred target and model prediction
-                dlbd_losses = torch.nn.CrossEntropyLoss(reduction='none')(
+                # 1. Calculate DLBD for model predictions
+                dlbd_losses_model = torch.nn.CrossEntropyLoss(reduction='none')(
                     pred_model_binned_no_smax,
                     torch.argmax(target_one_hot_blurred, dim=1)
                 )
+                dlbd_losses_model_per_sample = dlbd_losses_model.mean(dim=(1, 2))
 
-                # Average over spatial dimensions to get per-sample loss
-                dlbd_losses_per_sample = dlbd_losses.mean(dim=(1, 2))
+                # 2. Calculate DLBD for baseline predictions
+                dlbd_losses_baseline = torch.nn.CrossEntropyLoss(reduction='none')(
+                    baseline_logits,
+                    torch.argmax(target_one_hot_blurred, dim=1)
+                )
+                dlbd_losses_baseline_per_sample = dlbd_losses_baseline.mean(dim=(1, 2))
 
-                # Store in the appropriate list
-                self.dlbd_metrics[f"dlbd_sigma_{sigma:.2f}"].extend(dlbd_losses_per_sample.tolist())
+                # Store metrics with clear naming
+                self.dlbd_metrics[f"dlbd_model_sigma_{sigma_str}"].extend(dlbd_losses_model_per_sample.tolist())
+                self.dlbd_metrics[f"dlbd_baseline_sigma_{sigma_str}"].extend(dlbd_losses_baseline_per_sample.tolist())
 
         # Get batch size to increment sample indices
         batch_size = pred_model_mm.shape[0]
@@ -308,11 +339,11 @@ class EvaluateBaselineCallback(pl.Callback):
             "stds_binning_model": self.stds_binning_model,
         }
 
-        # Add DLBD metrics to the dictionary if they exist
+        # Add DLBD metrics to the dictionary
         if self.do_dlbd_eval:
-            for sigma_key, dlbd_values in self.dlbd_metrics.items():
+            for metric_key, dlbd_values in self.dlbd_metrics.items():
                 if dlbd_values:  # Only add non-empty lists
-                    metrics_dict[sigma_key] = dlbd_values
+                    metrics_dict[metric_key] = dlbd_values
 
         # Convert metrics to a DataFrame
         df = pd.DataFrame(metrics_dict)

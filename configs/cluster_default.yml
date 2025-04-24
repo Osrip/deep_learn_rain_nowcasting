@@ -1,16 +1,16 @@
-s_sim_name_suffix: "plotting_xentropy" # xentropy_1_month_10_epochs
+s_sim_name_suffix: "normal_32_target_patches_xentropy_dlbd_eval" # xentropy_1_month_10_epochs
 
 # s_force_data_preprocessing forces data preprocessing instead of attempting to load preprocessed data
-s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
+s_force_data_preprocessing: true  # This forces data preprocessing instead of attempting to load preprocessed data
 
 # Use ConvNeXt instead of our own network
 s_convnext: true
 
 # If active loads sim s_plot_sim_name and runs plotting pipeline
-s_plotting_only: true
+s_plotting_only: false
 
 # s_plot_sim_name: Simulation name for plotting
-s_plot_sim_name: "Run_20250409-072955_ID_1304206xentropy_1_month_10_epochs"
+s_plot_sim_name: "Run_20250408-214230_ID_1304205dlbd_1_month_10_epochs"
 # Save data loader variables
 s_save_prefix_data_loader_vars: "01_25_NEW"
 s_data_loader_vars_path: "/home/butz/bst981/nowcasting_project/output/data_loader_vars"  # '/mnt/qb/work2/butz1/bst981/weather_data/data_loader_vars',
@@ -84,10 +84,10 @@ s_num_bins_crossentropy: 32  # 64, 256
 
 s_linspace_binning_cut_off_unnormalized: 100  # Let's cut that off ad-hoc (in mm/h), everything above is sorted into the last bin
 
-s_input_height_width: 256  # width / height of input for network
+s_input_height_width: 256 #256  # width / height of input for network
 s_input_padding: 32       # Additional padding of input for randomcrop augmentation.
                          # Dataloader returns patches of size s_input_height_width + s_input_padding
-s_target_height_width: 32   # width / height of target - this is what is used to patch the data
+s_target_height_width: 32 #32   # width / height of target - this is what is used to patch the data
 s_num_input_time_steps: 4   # The number of subsequent time steps that are used for prediction
 s_num_lead_time_steps: 3    # 0 --> 0 min prediction (target == last input); 1 --> 5 min prediction, 3 --> 15 min, etc.
                          # This is subtracted by 2.
