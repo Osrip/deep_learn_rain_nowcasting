@@ -12,7 +12,7 @@
 source ~/.bashrc
 
 # Now activate the environment
-mamba activate /home/butz/bst981/.conda/first_CNN_on_Radolan_10/first_CNN_on_Radolan_10
+conda activate /home/butz/bst981/.conda/first_CNN_on_Radolan_10/first_CNN_on_Radolan_10
 
 # Run the Python script
 python3 train_lightning.py --mode cluster

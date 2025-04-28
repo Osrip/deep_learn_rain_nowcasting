@@ -3,7 +3,7 @@ s_plotting_only: false  # Ensure plotting is enabled for debug runs
 s_plot_sim_name: "Run_20241219-172522one_month_oversampling_but_no_val_oversampling"
 s_data_variable_name: "RV_recalc"
 s_folder_path: "/home/jan/nowcasting_project/weather_data/radolan"
-s_data_file_name: "RV_recalc.zarr"
+s_data_file_name: "RV_recalc_rechunked.zarr"
 s_dem_path: "/home/jan/nowcasting_project/weather_data/static/tiny_dem_from_old_desktop/dem_benchmark_dataset_1200_1100.zarr"
 s_baseline_path: "/mnt/4tb/mustein_server_data_backup/baselines/datasets/extrapolation_test_from_old_desktop/testdata_two_days_2019_01_01-02_extrapolation.zarr"
 s_baseline_variable_name: "extrapolation"

@@ -107,7 +107,14 @@ class FilteredDatasetXr(Dataset):
         # Radolan
         load_path_radolan = '{}/{}'.format(s_folder_path, s_data_file_name)
 
-        radolan_data = xr.open_dataset(load_path_radolan, engine='zarr', chunks=None)
+        # Loading all radolan into RAM:
+        # radolan_data = xr.open_dataset(load_path_radolan, engine='zarr', chunks=None, decode_timedelta=True)
+        # Loading Radolan from disk:
+        radolan_data = xr.open_dataset(load_path_radolan,
+                                       engine='zarr',
+                                       chunks={'step': 1, 'time': 1, 'y': 1200, 'x': 1100},
+                                       decode_timedelta=True)
+
 
         # In case only certain time span is used, do some cropping to save RAM
         if s_crop_data_time_span is not None:
@@ -788,7 +795,8 @@ def create_patches(
 
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
 
-    data = xr.open_dataset(load_path, engine='zarr', chunks={'step': 1, 'time': 1, 'y': 1200, 'x': 1100})
+    data = xr.open_dataset(load_path, engine='zarr', chunks={'step': 1, 'time': 1, 'y': 1200, 'x': 1100},
+                           decode_timedelta=True)
 
     if s_crop_data_time_span is not None:
         start_time, stop_time = np.datetime64(s_crop_data_time_span[0]), np.datetime64(s_crop_data_time_span[1])

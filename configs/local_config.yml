@@ -3,7 +3,7 @@ s_plotting_only: false  # Ensure plotting is enabled for debug runs
 s_plot_sim_name: "Run_20250408-214230_ID_1304205dlbd_1_month_10_epochs"
 s_data_variable_name: "RV_recalc"
 s_folder_path: "/home/jan/nowcasting_project/weather_data/radolan"
-s_data_file_name: "RV_recalc.zarr"
+s_data_file_name: "RV_recalc_rechunked.zarr"
 s_dem_path: "/home/jan/nowcasting_project/weather_data/static/tiny_dem_from_old_desktop/dem_benchmark_dataset_1200_1100.zarr"
 s_baseline_path: "/mnt/4tb/mustein_server_data_backup/baselines/datasets/extrapolation_test_from_old_desktop/testdata_two_days_2019_01_01-02_extrapolation.zarr"
 s_baseline_variable_name: "extrapolation"
@@ -12,14 +12,14 @@ s_upscale_c_to: 32  # 8
 s_batch_size: 128  # 4, 8
 s_data_loader_chunk_size: 1
 s_testing: true  # Runs tests at the beginning
-s_num_workers_data_loader: 0  # Debugging only works with zero workers
+s_num_workers_data_loader: 32  # Debugging only works with zero workers
 s_max_epochs: 1000
 s_num_gpus: 1
 
 # TEST ON ALL DEBUG DATA from time to time to check what happens to discarded samples!
 s_crop_data_time_span:
   - "2019-01-01T00:00"
-  - "2019-01-02T00:00"
+  - "2019-01-10T00:00"
 s_time_span_for_bin_frequencies:
   - "2019-01-01T08:00"
   - "2019-01-01T08:05"
