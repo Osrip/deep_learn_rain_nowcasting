@@ -150,12 +150,15 @@ def preprocess_data(
         s_folder_path,
         s_data_file_name,
         s_time_span_for_bin_frequencies,
+        s_oversampling_enabled=True,  # Default to True for backward compatibility
         **__,
 ):
     '''
     Patches refer to targets
     Samples refer to the data delivered by data loader
     '''
+    print('Preprocess Radolan data:')
+    start_time = time.time()
     print('Preprocess Radolan data:')
     start_time = time.time()
 
@@ -236,25 +239,28 @@ def preprocess_data(
     print(f"Done. Took {format_duration(time.time() - step_start_time)}")
 
     # --- CALC BIN FREQUENCIES FOR OVERSAMPLING ---
-    print(f"Calculate bin frequencies for oversampling ... {format_ram_usage()}"); step_start_time = time.time()
+    if s_oversampling_enabled:
+        print(f"Calculate bin frequencies for oversampling ... {format_ram_usage()}"); step_start_time = time.time()
 
-    # Load specific time span to calculate bin frequencies on - quick & dirty
-    # as this calculation is extremely expensive
+        # Load specific time span to calculate bin frequencies on - quick & dirty
+        # as this calculation is extremely expensive
+        load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
+        data_set = xr.open_dataset(load_path, engine='zarr', chunks=None)
+        crop_start, crop_end = np.datetime64(s_time_span_for_bin_frequencies[0]), np.datetime64(s_time_span_for_bin_frequencies[1])
+        crop_slice = slice(crop_start, crop_end)
 
-    load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
-    data_set = xr.open_dataset(load_path, engine='zarr', chunks=None)
-    crop_start, crop_end = np.datetime64(s_time_span_for_bin_frequencies[0]), np.datetime64(s_time_span_for_bin_frequencies[1])
-    crop_slice = slice(crop_start, crop_end)
+        data_subsampled = data_set.sel(time=crop_slice)
 
-    data_subsampled = data_set.sel(time=crop_slice)
-
-    bin_frequencies = calc_bin_frequencies(
-        data_subsampled,
-        linspace_binning_params,
-        mean_filtered_log_data, std_filtered_log_data,
-        **settings,
-    )
-    print(f"Done. Took {format_duration(time.time() - step_start_time)}")
+        bin_frequencies = calc_bin_frequencies(
+            data_subsampled,
+            linspace_binning_params,
+            mean_filtered_log_data, std_filtered_log_data,
+            **settings,
+        )
+        print(f"Done. Took {format_duration(time.time() - step_start_time)}")
+    else:
+        print(f"Skipping bin frequencies calculation (oversampling disabled)")
+        bin_frequencies = None
 
     # --- INDEX CONVERSION from patch to sample ---
     print(f"Convert patch indices to sample coordinates ... {format_ram_usage()}"); step_start_time = time.time()
@@ -312,20 +318,26 @@ def preprocess_data(
     print(f"Done. Took {format_duration(time.time() - step_start_time)}")
 
     # --- CREATE OVERSAMPLING ---
-    print(f"Create oversampling weights ... {format_ram_usage()}"); step_start_time = time.time()
-    # THIS USES NUMPY! NOT OPTIMIZED FOR CHUNKING!
-    train_oversampling_weights, val_oversampling_weights = create_oversampling_weights(
-        # Using the updated version of valid_datetime_idx_permuts, where the samples that have been dropped in previous
-        # step have been removed
-        (train_valid_datetime_idx_permuts, val_valid_datetime_idx_permuts),
-        patches,
-        bin_frequencies,
-        linspace_binning_params,
-        mean_filtered_log_data,
-        std_filtered_log_data,
-        **settings
-    )
-    print(f"Done. Took {format_duration(time.time() - step_start_time)}")
+    if s_oversampling_enabled:
+        print(f"Create oversampling weights ... {format_ram_usage()}");
+        step_start_time = time.time()
+        # THIS USES NUMPY! NOT OPTIMIZED FOR CHUNKING!
+        train_oversampling_weights, val_oversampling_weights = create_oversampling_weights(
+            # Using the updated version of valid_datetime_idx_permuts, where the samples that have been dropped in previous
+            # step have been removed
+            (train_valid_datetime_idx_permuts, val_valid_datetime_idx_permuts),
+            patches,
+            bin_frequencies,
+            linspace_binning_params,
+            mean_filtered_log_data,
+            std_filtered_log_data,
+            **settings
+        )
+        print(f"Done. Took {format_duration(time.time() - step_start_time)}")
+    else:
+        print(f"Skipping oversampling weights calculation (oversampling disabled)")
+        train_oversampling_weights, val_oversampling_weights = None, None
+
     print(f"Preprocessing complete. Total time: {format_duration(time.time() - start_time)}")
 
     return (
@@ -341,7 +353,6 @@ def create_data_loaders(
         train_sample_coords, val_sample_coords,
         train_oversampling_weights, val_oversampling_weights,
         radolan_statistics_dict,
-
         settings,
         s_batch_size,
         s_num_workers_data_loader,
@@ -349,6 +360,7 @@ def create_data_loaders(
         s_oversample_train,
         s_train_samples_per_epoch,
         s_val_samples_per_epoch,
+        s_oversampling_enabled=True,  # Default to True for backward compatibility
         **__
 ):
     '''
@@ -379,24 +391,45 @@ def create_data_loaders(
     else:
         val_samples_per_epoch = len(val_data_set)
 
-    # TODO: Try Log weights instead (--> apple note 'Bin Frequencies for Oversampling in xarray')
+    # If oversampling is disabled globally, ignore s_oversample_train and s_oversample_validation settings
+    if not s_oversampling_enabled:
+        if s_oversample_train or s_oversample_validation:
+            print(
+                "NOTE: s_oversample_train and s_oversample_validation settings are ignored because s_oversampling_enabled is False.")
+        use_train_oversampling = False
+        use_val_oversampling = False
+    else:
+        use_train_oversampling = s_oversample_train
+        use_val_oversampling = s_oversample_validation
 
-    train_weighted_random_sampler = WeightedRandomSampler(weights=np.power(train_oversampling_weights, 0.5),
-                                                          num_samples=train_samples_per_epoch,
-                                                          replacement=True)
+        # Validate oversampling weights are available and have correct dimensions
+        if train_oversampling_weights is None or val_oversampling_weights is None:
+            print("WARNING: Oversampling is enabled but weights are None. Falling back to standard sampling.")
+            use_train_oversampling = False
+            use_val_oversampling = False
+        else:
+            if not len(train_oversampling_weights) == len(train_data_set) == len(train_sample_coords):
+                raise ValueError('Length of oversampling weights does not match length of data set or sample coords')
+            if not len(val_oversampling_weights) == len(val_data_set) == len(val_sample_coords):
+                raise ValueError('Length of oversampling weights does not match length of data set or sample coords')
 
-    val_weighted_random_sampler = WeightedRandomSampler(weights=np.power(val_oversampling_weights, 0.5), #Taking sqrt
-                                                        num_samples=val_samples_per_epoch,
-                                                        replacement=True)
+    # Create weighted samplers if needed
+    if use_train_oversampling:
+        train_weighted_random_sampler = WeightedRandomSampler(
+            weights=np.power(train_oversampling_weights, 0.5),
+            num_samples=train_samples_per_epoch,
+            replacement=True
+        )
 
-    if not len(train_oversampling_weights) == len(train_data_set) == len(train_sample_coords):
-        raise ValueError('Length of oversampling weights does not match length of data set or sample coords')
+    if use_val_oversampling:
+        val_weighted_random_sampler = WeightedRandomSampler(
+            weights=np.power(val_oversampling_weights, 0.5),
+            num_samples=val_samples_per_epoch,
+            replacement=True
+        )
 
-    if not len(val_oversampling_weights) == len(val_data_set) == len(val_sample_coords):
-        raise ValueError('Length of oversampling weights does not match length of data set or sample coords')
-
-    if s_oversample_train:
-        # ... with oversampling:
+    # Train data loader
+    if use_train_oversampling:
         train_data_loader = DataLoader(
             train_data_set,
             sampler=train_weighted_random_sampler,  # <-- OVERSAMPLING
@@ -406,7 +439,6 @@ def create_data_loaders(
             pin_memory=True
         )
     else:
-        # ... without oversampling:
         train_data_loader = DataLoader(
             train_data_set,
             batch_size=s_batch_size,
@@ -417,26 +449,24 @@ def create_data_loaders(
         )
 
     # Validation data loader
-    if s_oversample_validation:
-        # ... with oversampling:
+    if use_val_oversampling:
         validation_data_loader = DataLoader(
             val_data_set,
-            sampler=val_weighted_random_sampler, # <-- OVERSAMPLING
+            sampler=val_weighted_random_sampler,  # <-- OVERSAMPLING
             batch_size=s_batch_size,
             drop_last=False,
             num_workers=s_num_workers_data_loader,
-            pin_memory=True)
+            pin_memory=True
+        )
     else:
-        # ... without oversampling:
         validation_data_loader = DataLoader(
             val_data_set,
             batch_size=s_batch_size,
             shuffle=True,
             drop_last=False,
             num_workers=s_num_workers_data_loader,
-            pin_memory=True)
-
-
+            pin_memory=True
+        )
 
     return train_data_loader, validation_data_loader, train_samples_per_epoch, val_samples_per_epoch
 

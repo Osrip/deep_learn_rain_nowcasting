@@ -43,6 +43,10 @@ s_ratio_train_val_test: [0.7, 0.15, 0.15]
 # Seed for the train / prevalidation split (only applies to training of exactly the same time period of the data)
 s_split_seed: 42
 
+# Set to false to disable oversampling completely (saves CPU/memory in preprocessing)
+# --> When False s_oversample_validation and s_oversample_train are ignored
+s_oversampling_enabled: false
+
 s_oversample_validation: true
 s_oversample_train: true
 # Number of steps per epoch in random sampler; can be None.

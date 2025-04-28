@@ -65,6 +65,8 @@ def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: Union[torc
 def bin_to_one_hot_index(mm_data: torch.Tensor, linspace_binning: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
     if isinstance(linspace_binning, np.ndarray):
         linspace_binning = torch.from_numpy(linspace_binning).to(mm_data.device)
+    # Make mm_data contiguous before bucketize to avoid performance penalty
+    mm_data = mm_data.contiguous()
     # For some reason we need right = True here instead of right = False as in np digitize to get the same behaviour
     indecies = torch.bucketize(mm_data, linspace_binning, right=True) - 1
     return indecies

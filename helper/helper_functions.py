@@ -85,14 +85,16 @@ def create_save_name_for_data_loader_vars(
         s_linspace_binning_cut_off_unnormalized,
         s_input_height_width,
         s_crop_data_time_span,
+        s_oversampling_enabled=True,  # Default to True for backward compatibility
         **__,
 ):
-
     if s_crop_data_time_span is None:
         time_crop_str = 'no_time_cropping'
     else:
         time_crop_str = f'cropped_{s_crop_data_time_span[0]}_to_{s_crop_data_time_span[1]}'
 
+    # Add oversampling status to filename
+    oversampling_str = 'oversampling' if s_oversampling_enabled else 'no_oversampling'
 
     original_file_name = s_folder_path.split('/')[-1]
 
@@ -102,8 +104,8 @@ def create_save_name_for_data_loader_vars(
             f'{s_num_bins_crossentropy}_'
             f'{s_linspace_binning_cut_off_unnormalized}_'
             f'{s_input_height_width}_'
-            f'{time_crop_str}')
-
+            f'{time_crop_str}_'
+            f'{oversampling_str}')
 
 def save_data_loader_vars(data_loader_vars, settings, s_data_loader_vars_path, **__):
     file_name = create_save_name_for_data_loader_vars(**settings)
