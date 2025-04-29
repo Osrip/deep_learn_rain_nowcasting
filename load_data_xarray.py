@@ -25,7 +25,7 @@ class FilteredDatasetXr(Dataset):
             mode,
             settings,
             test_variable_alignment_on_first_batch = True,
-            data_into_ram=True,
+            data_into_ram=False,
             baseline_path = None,
             baseline_variable_name = None,
             num_input_frames_baseline = None,
@@ -107,13 +107,20 @@ class FilteredDatasetXr(Dataset):
         # Radolan
         load_path_radolan = '{}/{}'.format(s_folder_path, s_data_file_name)
 
-        # Loading all radolan into RAM:
-        # radolan_data = xr.open_dataset(load_path_radolan, engine='zarr', chunks=None, decode_timedelta=True)
-        # Loading Radolan from disk:
-        radolan_data = xr.open_dataset(load_path_radolan,
-                                       engine='zarr',
-                                       chunks={'step': 1, 'time': 1, 'y': 1200, 'x': 1100},
-                                       decode_timedelta=True)
+
+        if data_into_ram:
+            # Load radolan unchunked when reading from RAM
+            radolan_data = xr.open_dataset(load_path_radolan, engine='zarr', chunks=None, decode_timedelta=False)
+
+        else:
+            # Load data chunked when reading from disk
+            # radolan_data = xr.open_dataset(load_path_radolan, engine='zarr', chunks=None, decode_timedelta=False)
+            # radolan_data = xr.open_dataset(load_path_radolan,
+            #                                engine='zarr',
+            #                                chunks={'step': 1, 'time': 1, 'y': 1200, 'x': 1100},
+            #                                decode_timedelta=False)
+
+            radolan_data = xr.open_zarr(load_path_radolan, chunks=None, decode_timedelta=False)
 
 
         # In case only certain time span is used, do some cropping to save RAM
@@ -136,7 +143,9 @@ class FilteredDatasetXr(Dataset):
         # Squeeze empty dimension
         radolan_data = radolan_data.squeeze()
         # set all values below 0 to 0
-        radolan_data = radolan_data.where(radolan_data >= 0, 0)
+
+        # TODO Fixme
+        # radolan_data = radolan_data.where(radolan_data >= 0, 0)
 
         #  !!! DONT CALC Z-NORM STATISTICS HERE FOR DYNAMIC DATA AS THIS HAS TO BE DONE ON TRAINING DATA ONLY !!!
 

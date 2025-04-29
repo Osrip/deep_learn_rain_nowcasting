@@ -1,36 +1,68 @@
 # Debug configuration overrides for local machine debugging.
-s_plotting_only: false  # Ensure plotting is enabled for debug runs
-s_plot_sim_name: "Run_20241219-172522one_month_oversampling_but_no_val_oversampling"
-s_data_variable_name: "RV_recalc"
-s_folder_path: "/home/jan/nowcasting_project/weather_data/radolan"
-s_data_file_name: "RV_recalc_rechunked.zarr"
-s_dem_path: "/home/jan/nowcasting_project/weather_data/static/tiny_dem_from_old_desktop/dem_benchmark_dataset_1200_1100.zarr"
-s_baseline_path: "/mnt/4tb/mustein_server_data_backup/baselines/datasets/extrapolation_test_from_old_desktop/testdata_two_days_2019_01_01-02_extrapolation.zarr"
-s_baseline_variable_name: "extrapolation"
-s_num_input_frames_baseline: 4
-s_upscale_c_to: 32  # 8
-s_batch_size: 4  # 4, 8
-s_data_loader_chunk_size: 1
-s_testing: true  # Runs tests at the beginning
-s_num_workers_data_loader: 0  # Debugging only works with zero workers
-s_max_epochs: 1
-s_num_gpus: 1
+s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
 
-# TEST ON ALL DEBUG DATA from time to time to check what happens to discarded samples!
+# If active loads sim s_plot_sim_name and runs plotting pipeline
+s_plotting_only: false
+
+# s_plot_sim_name: Simulation name for plotting
+s_plot_sim_name: "Run_20241219-172522one_month_oversampling_but_no_val_oversampling"
+
+# Save data loader variables
+s_data_loader_vars_path: "/home/jan/nowcasting_project/weather_data/data_loader_vars"
+
+# Max number of frames in processed data set for debugging (validation + training)
+# [Disabled when set to None]
+s_max_num_filter_hits: null
+
+s_max_epochs: 1  # Max number of epochs, affects scheduler
+
+# In case only a specific time period of data should be used, otherwise set to None.
+# Influences RAM usage.
 s_crop_data_time_span:
   - "2019-01-01T08:00"
   - "2019-01-01T09:00"
+
+# Time span that bin frequencies are calculated for
 s_time_span_for_bin_frequencies:
   - "2019-01-01T08:00"
   - "2019-01-01T08:05"
+
+# The time duration of the chunks, goes into dataset.resample
 s_split_chunk_duration: "5min"
+
+# TIME RATIO, DOES NOT DIRECTLY CORRESPOND THE SAMPLE RATIO DUE TO FILTERING.
 s_ratio_train_val_test: [0.4, 0.3, 0.3]
 
+# Number of steps per epoch in random sampler
 s_train_samples_per_epoch: 4
 s_val_samples_per_epoch: 4
 
-s_multiple_sigmas: [2, 16]
-s_force_data_preprocessing: false
-s_data_loader_vars_path: "/home/jan/nowcasting_project/weather_data/data_loader_vars"
-s_max_num_filter_hits: null  # 4 or None
+# Data paths and variables
+s_folder_path: "/home/jan/nowcasting_project/weather_data/radolan"
+s_data_file_name: "RV_recalc_rechunked.zarr"
+s_data_variable_name: "RV_recalc"
+
+s_dem_path: "/home/jan/nowcasting_project/weather_data/static/tiny_dem_from_old_desktop/dem_benchmark_dataset_1200_1100.zarr"
+
+# Baseline paths and settings
+s_baseline_path: "/mnt/4tb/mustein_server_data_backup/baselines/datasets/extrapolation_test_from_old_desktop/testdata_two_days_2019_01_01-02_extrapolation.zarr"
+s_baseline_variable_name: "extrapolation"
+s_num_input_frames_baseline: 4
+
+# Evaluation settings
 s_subsample_dataset_to_len: 2
+
+# Hardware settings
+s_num_workers_data_loader: 0  # Debugging only works with zero workers
+s_num_gpus: 1
+
+# Model parameters
+s_batch_size: 4
+s_upscale_c_to: 32
+
+# DLBD settings
+s_multiple_sigmas: [2, 16]
+
+# Testing settings
+s_testing: true  # Runs tests at the beginning
+s_data_loader_chunk_size: 1

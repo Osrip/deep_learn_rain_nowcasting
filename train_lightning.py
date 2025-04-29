@@ -462,7 +462,7 @@ def create_data_loaders(
         validation_data_loader = DataLoader(
             val_data_set,
             batch_size=s_batch_size,
-            shuffle=True,
+            shuffle=False,
             drop_last=False,
             num_workers=s_num_workers_data_loader,
             pin_memory=True
@@ -676,6 +676,7 @@ def train_l(
         s_max_epochs,
         s_num_gpus,
         s_check_val_every_n_epoch,
+        s_validate_on_epoch_0,
         **__):
     '''
     Train loop, keep this clean!
@@ -715,8 +716,12 @@ def train_l(
     # 'devices' argument is ignored when device == 'cpu'
     # Speed up advice: https://pytorch-lightning.readthedocs.io/en/1.8.6/guides/speed.html
 
-    # Doing one validation epoch on the untrained model
-    trainer.validate(model_l, dataloaders=validation_data_loader)
+    # Optionally perform validation on the untrained model (epoch 0)
+    if s_validate_on_epoch_0:
+        print("Validating on initialized model (epoch 0)...")
+        trainer.validate(model_l, dataloaders=validation_data_loader)
+    else:
+        print("Skipping validation on initialized model (epoch 0)")
     # trainer.logger = logger
     trainer.fit(model_l, train_data_loader, validation_data_loader)
 
