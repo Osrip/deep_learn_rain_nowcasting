@@ -1,7 +1,7 @@
 import zarr
 
 # Access the Zarr store directly
-zarr_store = zarr.open('RV_recalc_rechunked.zarr')
+zarr_store = zarr.open('optical_flow_2019_2020.zarr')
 
 # Print the structure of the Zarr store
 print("Zarr store top-level contents:")

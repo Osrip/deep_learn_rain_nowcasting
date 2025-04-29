@@ -1,5 +1,7 @@
+s_sim_name_suffix: "local_mode_2_epochs_10_days_no_oversampling"
+
 # Debug configuration overrides for local machine debugging.
-s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
+s_force_data_preprocessing: true  # This forces data preprocessing instead of attempting to load preprocessed data
 
 # If active loads sim s_plot_sim_name and runs plotting pipeline
 s_plotting_only: false  # Ensure plotting is enabled for debug runs
@@ -14,13 +16,13 @@ s_data_loader_vars_path: "/home/jan/nowcasting_project/weather_data/data_loader_
 # [Disabled when set to None]
 s_max_num_filter_hits: null  # 4 or None
 
-s_max_epochs: 1000  # Max number of epochs, affects scheduler
+s_max_epochs: 2  # Max number of epochs, affects scheduler
 
 # In case only a specific time period of data should be used, otherwise set to None.
 # Influences RAM usage.
 s_crop_data_time_span:
   - "2019-01-01T00:00"
-  - "2019-01-10T00:00"
+  - "2019-02-01T00:00"
 
 # Time span that bin frequencies are calculated for
 s_time_span_for_bin_frequencies:

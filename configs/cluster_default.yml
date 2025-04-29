@@ -1,7 +1,7 @@
-s_sim_name_suffix: "normal_32_target_patches_dlbd_dlbd_baseline_eval_5_epochs" # xentropy_1_month_10_epochs
+s_sim_name_suffix: "2_years_xentropy_no_oversampling" # xentropy_1_month_10_epochs
 
 # s_force_data_preprocessing forces data preprocessing instead of attempting to load preprocessed data
-s_force_data_preprocessing: true  # This forces data preprocessing instead of attempting to load preprocessed data
+s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
 
 # Use ConvNeXt instead of our own network
 s_convnext: true
@@ -19,13 +19,13 @@ s_data_loader_vars_path: "/home/butz/bst981/nowcasting_project/output/data_loade
 # [Disabled when set to None]
 s_max_num_filter_hits: null
 
-s_max_epochs: 5  # 100, 10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
+s_max_epochs: 1  # 100, 10  # default: 50 Max number of epochs, affects scheduler (if None: runs infinitely, does not work with scheduler)
 
 # In case only a specific time period of data should be used, otherwise set to None.
 # Influences RAM usage.
-s_crop_data_time_span:
-  - "2019-01-01T00:00"
-  - "2019-01-10T00:00"
+s_crop_data_time_span: None
+#  - "2019-01-01T00:00"
+#  - "2019-01-10T00:00"
 
 # Time span that bin frequencies are calculated for
 # (EXTREMELY CPU expensive 1 hr --> 40 seconds locally, 15 minutes on cluster)
@@ -45,7 +45,7 @@ s_split_seed: 42
 
 # Set to false to disable oversampling completely (saves CPU/memory in preprocessing)
 # --> When False s_oversample_validation and s_oversample_train are ignored
-s_oversampling_enabled: false
+s_oversampling_enabled: true
 
 s_oversample_validation: true
 s_oversample_train: true
@@ -79,7 +79,7 @@ s_dlbd_eval: true # Enable DLBD evaluation metrics
 s_sigmas_dlbd_eval: [0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 4.0, 8.0] # Sigma values for DLBD evaluation
 
 
-s_num_workers_data_loader: 16  # Should correspond to number of cpus; also increases CPU RAM --> FOR DEBUGGING SET TO 0
+s_num_workers_data_loader: 8  # Should correspond to number of cpus; also increases CPU RAM --> FOR DEBUGGING SET TO 0
 s_check_val_every_n_epoch: 1   # Calculate validation every nth epoch for speed up, NOT SURE WHETHER PLOTTING CAN DEAL WITH THIS BEING LARGER THAN 1 !!
 
 s_num_gpus: 4  # TODO: SET DEVIDES TO !!! AUTO !!! REMOVE THIS!
@@ -103,7 +103,7 @@ s_filter_threshold_mm_rain_each_pixel: 0.1  # threshold for each pixel filter co
 s_filter_threshold_percentage_pixels: 0.5
 
 #DLBD
-s_gaussian_smoothing_target: true
+s_gaussian_smoothing_target: false
 s_sigma_target_smoothing: 1  # In case of scheduling, this is the initial sigma
 s_schedule_sigma_smoothing: false
 
