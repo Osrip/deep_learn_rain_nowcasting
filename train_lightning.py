@@ -245,7 +245,7 @@ def preprocess_data(
         # Load specific time span to calculate bin frequencies on - quick & dirty
         # as this calculation is extremely expensive
         load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
-        data_set = xr.open_dataset(load_path, engine='zarr', chunks=None)
+        data_set = xr.open_zarr(load_path, chunks=None)
         crop_start, crop_end = np.datetime64(s_time_span_for_bin_frequencies[0]), np.datetime64(s_time_span_for_bin_frequencies[1])
         crop_slice = slice(crop_start, crop_end)
 

@@ -51,7 +51,7 @@ s_num_input_frames_baseline: 4
 
 
 # Hardware settings
-s_num_workers_data_loader: 0
+s_num_workers_data_loader: 31
 s_num_gpus: 1
 
 # Model parameters

@@ -110,7 +110,7 @@ class FilteredDatasetXr(Dataset):
 
         if data_into_ram:
             # Load radolan unchunked when reading from RAM
-            radolan_data = xr.open_dataset(load_path_radolan, engine='zarr', chunks=None, decode_timedelta=False)
+            radolan_data = xr.open_zarr(load_path_radolan, chunks=None, decode_timedelta=False)
 
         else:
             # Load data chunked when reading from disk
@@ -133,7 +133,7 @@ class FilteredDatasetXr(Dataset):
             radolan_data = radolan_data.load()  # loading into RAM
 
         # DEM (always loaded into RAM)
-        dem_data = xr.open_dataset(s_dem_path, engine='zarr', chunks=None)
+        dem_data = xr.open_zarr(s_dem_path, chunks=None)
 
         if data_into_ram:
             dem_data = dem_data.load() # loading into RAM
@@ -804,7 +804,7 @@ def create_patches(
 
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
 
-    data = xr.open_dataset(load_path, engine='zarr', chunks={'step': 1, 'time': 1, 'y': 1200, 'x': 1100},
+    data = xr.open_zarr(load_path, chunks={'step': 1, 'time': 1, 'y': 1200, 'x': 1100},
                            decode_timedelta=True)
 
     if s_crop_data_time_span is not None:
