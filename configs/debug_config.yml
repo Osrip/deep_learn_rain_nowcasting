@@ -37,6 +37,9 @@ s_ratio_train_val_test: [0.4, 0.3, 0.3]
 s_train_samples_per_epoch: 4
 s_val_samples_per_epoch: 4
 
+s_save_dir: 'runs/debug/'
+s_prediction_dir: '/home/jan/Programming/weather_data/predictions/'
+
 # Data paths and variables
 s_folder_path: "/home/jan/nowcasting_project/weather_data/radolan"
 s_data_file_name: "RV_recalc_rechunked.zarr"

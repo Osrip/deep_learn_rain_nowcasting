@@ -677,6 +677,7 @@ def train_l(
         s_num_gpus,
         s_check_val_every_n_epoch,
         s_validate_on_epoch_0,
+        s_save_dir,
         **__):
     '''
     Train loop, keep this clean!
@@ -729,14 +730,10 @@ def train_l(
     return model_l
 
 
-def create_s_dirs(sim_name, s_mode):
+def create_s_dirs(sim_name, s_mode, s_save_dir, s_prediction_dir, **__):
     s_dirs = {}
-    if s_mode in ['local', 'debug']:
-        s_dirs['save_dir'] = f'runs/{s_mode}/{sim_name}'
-        s_dirs['prediction_dir'] = f'/home/jan/Programming/weather_data/predictions/{sim_name}'
-    else:  # cluster mode
-        s_dirs['save_dir'] = f'/home/butz/bst981/nowcasting_project/results/{sim_name}'
-        s_dirs['prediction_dir'] = f'/home/butz/bst981/nowcasting_project/output/predictions/{sim_name}'
+    s_dirs['save_dir'] = os.path.join(s_save_dir, sim_name)
+    s_dirs['prediction_dir'] = os.path.join(s_prediction_dir, sim_name)
 
     # s_dirs['save_dir'] = 'runs/{}'.format(s_sim_name)
     s_dirs['plot_dir']          = '{}/plots'.format(s_dirs['save_dir'])
@@ -845,7 +842,7 @@ if __name__ == '__main__':
 
     else:
         # --- Plotting only ---
-        load_dirs = create_s_dirs(settings['s_plot_sim_name'], settings['s_mode'])
+        load_dirs = create_s_dirs(settings['s_plot_sim_name'], **settings)
         training_steps_per_epoch = load_zipped_pickle('{}/training_steps_per_epoch'.format(load_dirs['data_dir']))
         sigma_schedule_mapping = load_zipped_pickle('{}/sigma_schedule_mapping'.format(load_dirs['data_dir']))
         ckpt_settings = load_zipped_pickle('{}/settings'.format(load_dirs['data_dir']))
