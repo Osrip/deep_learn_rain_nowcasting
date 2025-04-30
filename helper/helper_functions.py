@@ -91,6 +91,8 @@ def create_save_name_for_data_loader_vars(
     if s_crop_data_time_span is None:
         time_crop_str = 'no_time_cropping'
     else:
+        # Keep the exact same format that was used in the original function
+        # This ensures backward compatibility with existing files
         time_crop_str = f'cropped_{s_crop_data_time_span[0]}_to_{s_crop_data_time_span[1]}'
 
     # Add oversampling status to filename
@@ -106,6 +108,7 @@ def create_save_name_for_data_loader_vars(
             f'{s_input_height_width}_'
             f'{time_crop_str}_'
             f'{oversampling_str}')
+
 
 def save_data_loader_vars(data_loader_vars, settings, s_data_loader_vars_path, **__):
     file_name = create_save_name_for_data_loader_vars(**settings)

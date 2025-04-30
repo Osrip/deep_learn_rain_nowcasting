@@ -800,8 +800,6 @@ def create_patches(
     """
 
     # Loading data into xarray
-
-
     load_path = '{}/{}'.format(s_folder_path, s_data_file_name)
 
     data = xr.open_zarr(load_path, chunks={'step': 1, 'time': 1, 'y': 1200, 'x': 1100},
@@ -848,7 +846,6 @@ def create_patches(
     # Dimensions without coordinates: y_outer, y_inner, x_outer, x_inner
 
     return patches, data, data_shortened
-
 
 def filter_patches(
         patches,
