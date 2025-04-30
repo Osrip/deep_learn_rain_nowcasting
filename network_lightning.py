@@ -3,18 +3,13 @@ from torchvision import transforms
 import pytorch_lightning as pl
 
 from helper.calc_CRPS import crps_vectorized
-from modules_blocks import Network
+from legacy.modules_blocks import Network
 from modules_blocks_convnext import ConvNeXtUNet
 import torch.nn as nn
-from helper.gaussian_smoothing_helper import gaussian_smoothing_target
-from helper.sigma_scheduler_helper import bernstein_polynomial, linear_schedule_0_to_1
-import torchvision.transforms as T
 import copy
 import einops
-from helper.pre_process_target_input import img_one_hot, inverse_normalize_data, invnorm_linspace_binning, normalize_data
+from helper.pre_process_target_input import img_one_hot, invnorm_linspace_binning, normalize_data
 from helper.dlbd import dlbd_target_pre_processing
-from helper.pre_process_target_input import set_nans_zero, pre_process_target_to_one_hot
-from pysteps import verification
 
 
 class NetworkL(pl.LightningModule):

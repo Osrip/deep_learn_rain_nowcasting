@@ -1,5 +1,6 @@
 import torch
-from modules_blocks import MetDilBlock, MetResModule, SampleModule
+from legacy.modules_blocks import MetResModule
+
 # device = torch.device('cuda')
 device = torch.device('cpu')
 
