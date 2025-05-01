@@ -841,7 +841,13 @@ if __name__ == '__main__':
         sigma_schedule_mapping = load_zipped_pickle('{}/sigma_schedule_mapping'.format(load_dirs['data_dir']))
         ckpt_settings = load_zipped_pickle('{}/settings'.format(load_dirs['data_dir']))
 
+        ckpt_settings['s_dirs']['save_dir'] = load_dirs['save_dir']
+
         # Convert some of the loaded settings to the current settings
+        ckpt_settings['s_baseline_path']            = settings['s_baseline_path']
+        ckpt_settings['s_baseline_variable_name']   = settings['s_baseline_variable_name']
+        ckpt_settings['s_num_input_frames_baseline'] = settings['s_num_input_frames_baseline']
+
         ckpt_settings['s_num_gpus']                 = settings['s_num_gpus']
         ckpt_settings['s_baseline_path']            = settings['s_baseline_path']
         ckpt_settings['s_baseline_variable_name']   = settings['s_baseline_variable_name']

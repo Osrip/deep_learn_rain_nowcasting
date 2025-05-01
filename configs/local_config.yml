@@ -7,7 +7,7 @@ s_force_data_preprocessing: false  # This forces data preprocessing instead of a
 s_plotting_only: true  # Ensure plotting is enabled for debug runs
 
 # s_plot_sim_name: Simulation name for plotting
-s_plot_sim_name: "Run_20250408-214230_ID_1304205dlbd_1_month_10_epochs"
+s_plot_sim_name: "Run_20250430-174941BIG_RUN_local_mode_1_epoch_2_years_no_oversampling_xentropy"
 
 # Save data loader variables
 s_data_loader_vars_path: "/home/jan/nowcasting_project/weather_data/data_loader_vars"
@@ -50,7 +50,7 @@ s_data_variable_name: "RV_recalc"
 s_dem_path: "/home/jan/nowcasting_project/weather_data/static/tiny_dem_from_old_desktop/dem_benchmark_dataset_1200_1100.zarr"
 
 # Baseline paths and settings
-s_baseline_path: "/mnt/4tb/mustein_server_data_backup/baselines/datasets/extrapolation_test_from_old_desktop/extrapolation_2019_2020.zarr"
+s_baseline_path: "/mnt/4tb/mustein_server_data_backup/baselines/datasets/extrapolation_2019_2020.zarr"
 s_baseline_variable_name: "extrapolation"
 s_num_input_frames_baseline: 4
 
