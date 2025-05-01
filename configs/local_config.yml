@@ -1,10 +1,10 @@
-s_sim_name_suffix: "TEST_local_mode_1_epoch_2_years_no_oversampling_xentropy"
+s_sim_name_suffix: "BIG_RUN_local_mode_1_epoch_2_years_no_oversampling_xentropy"
 
 # Debug configuration overrides for local machine debugging.
 s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
 
 # If active loads sim s_plot_sim_name and runs plotting pipeline
-s_plotting_only: false  # Ensure plotting is enabled for debug runs
+s_plotting_only: true  # Ensure plotting is enabled for debug runs
 
 # s_plot_sim_name: Simulation name for plotting
 s_plot_sim_name: "Run_20250408-214230_ID_1304205dlbd_1_month_10_epochs"
@@ -25,7 +25,7 @@ s_max_epochs: 1  # Max number of epochs, affects scheduler
 # Influences RAM usage.
 s_crop_data_time_span:
   - "2019-01-01T00:00"
-  - "2019-01-10T00:00"
+  - "2020-12-01T00:00"
 
 # Time span that bin frequencies are calculated for
 s_time_span_for_bin_frequencies:
@@ -50,7 +50,7 @@ s_data_variable_name: "RV_recalc"
 s_dem_path: "/home/jan/nowcasting_project/weather_data/static/tiny_dem_from_old_desktop/dem_benchmark_dataset_1200_1100.zarr"
 
 # Baseline paths and settings
-s_baseline_path: "/mnt/4tb/mustein_server_data_backup/baselines/datasets/extrapolation_test_from_old_desktop/testdata_two_days_2019_01_01-02_extrapolation.zarr"
+s_baseline_path: "/mnt/4tb/mustein_server_data_backup/baselines/datasets/extrapolation_test_from_old_desktop/extrapolation_2019_2020.zarr"
 s_baseline_variable_name: "extrapolation"
 s_num_input_frames_baseline: 4
 

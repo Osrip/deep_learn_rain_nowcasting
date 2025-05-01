@@ -773,17 +773,11 @@ if __name__ == '__main__':
                                            int(os.environ.get('SLURM_JOB_ID', 0)))
     s_sim_name += s_sim_name_suffix
 
-    # Create directories based on mode.
-    if args.mode in ['local', 'debug']:
-        s_dirs = {
-            'save_dir': f'runs/{s_sim_name}',
-            'prediction_dir': f'/home/jan/Programming/weather_data/predictions/{s_sim_name}'
-        }
-    else:
-        s_dirs = {
-            'save_dir': f'/home/butz/bst981/nowcasting_project/results/{s_sim_name}',
-            'prediction_dir': f'/home/butz/bst981/nowcasting_project/output/predictions/{s_sim_name}'
-        }
+    s_dirs = {
+        'save_dir': os.path.join(settings.get('s_save_dir'), s_sim_name),
+        'prediction_dir': os.path.join(settings.get('s_prediction_dir'), s_sim_name)
+    }
+
     # Append additional directory entries.
     s_dirs['plot_dir'] = f"{s_dirs['save_dir']}/plots"
     s_dirs['plot_dir_images'] = f"{s_dirs['plot_dir']}/images"
