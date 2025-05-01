@@ -1,4 +1,4 @@
-s_sim_name_suffix: "BIG_RUN_local_mode_1_epoch_2_years_no_oversampling_xentropy"
+s_sim_name_suffix: "plotting_only_BIG_RUN_local_mode_1_epoch_2_years_no_oversampling_xentropy"
 
 # Debug configuration overrides for local machine debugging.
 s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
@@ -54,6 +54,8 @@ s_baseline_path: "/mnt/4tb/mustein_server_data_backup/baselines/datasets/extrapo
 s_baseline_variable_name: "extrapolation"
 s_num_input_frames_baseline: 4
 
+# Evaluation stuff
+# s_subsample_dataset_to_len: 10000
 
 # Hardware settings
 s_num_workers_data_loader: 6
