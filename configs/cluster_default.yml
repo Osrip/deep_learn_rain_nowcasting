@@ -1,7 +1,7 @@
-s_sim_name_suffix: "2_years_xentropy_no_oversampling_cropping_active" # xentropy_1_month_10_epochs
+s_sim_name_suffix: "1_month_xentropy_no_oversampling_cropping_active_force_pre_processing" # xentropy_1_month_10_epochs
 
 # s_force_data_preprocessing forces data preprocessing instead of attempting to load preprocessed data
-s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
+s_force_data_preprocessing: true  # This forces data preprocessing instead of attempting to load preprocessed data
 
 # Use ConvNeXt instead of our own network
 s_convnext: true
@@ -25,7 +25,7 @@ s_max_epochs: 1  # 100, 10  # default: 50 Max number of epochs, affects schedule
 # Influences RAM usage.
 s_crop_data_time_span:
   - "2019-01-01T00:00"
-  - "2020-12-01T00:00"
+  - "2019-02-01T00:00"
 
 # Time span that bin frequencies are calculated for
 # (EXTREMELY CPU expensive 1 hr --> 40 seconds locally, 15 minutes on cluster)

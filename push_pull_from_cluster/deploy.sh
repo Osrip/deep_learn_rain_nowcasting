@@ -38,4 +38,4 @@ source_dir="/Users/jan/Programming/first_CNN_on_Radolan/"
 
 # Rsync files excluding specified folders
 rsync -auvh --exclude 'venv' --exclude 'runs' --exclude 'dwd_nc' --exclude 'mlruns' --exclude 'lightning_logs' \
-      -e "ssh" "${source_dir}"* "${remote_user}@${remote_host}:$remote_dir"
+      --exclude 'notebooks' -e "ssh" "${source_dir}"* "${remote_user}@${remote_host}:$remote_dir"
