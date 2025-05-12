@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --ntasks=1                # Number of tasks (see below)
+#SBATCH --ntasks-per-node=1                # Number of tasks (see below)
 #SBATCH --nodes=1                 # Ensure that all cores are on one machine
 #SBATCH --time=3-00:00            # Runtime in D-HH:MM
 #SBATCH --gres=gpu:4              # optionally type and number of gpus
@@ -15,4 +15,4 @@ source ~/.bashrc
 conda activate /home/butz/bst981/.conda/first_CNN_on_Radolan_10/first_CNN_on_Radolan_10
 
 # Run the Python script
-python3 train_lightning.py --mode cluster
+srun python3 train_lightning.py --mode cluster
