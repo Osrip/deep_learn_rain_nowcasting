@@ -8,91 +8,92 @@ from helper.dlbd import dlbd_target_pre_processing
 import time
 import pandas as pd
 import os
+import numpy as np
+import pysteps.verification.detcatscores as detcatscores
 
 
 class EvaluateBaselineCallback(pl.Callback):
-    class EvaluateBaselineCallback(pl.Callback):
 
-        def __init__(
-                self,
-                linspace_binning_params,
-                checkpoint_name,
-                dataset_name,
-                samples_have_padding,
-                settings,
-                sigmas_dlbd_eval=None,  # Renamed parameter
-        ):
-            '''
-            This callback calculates the evaluation metrics
-            -------------------------------------------------------------
-            ! All predictions are assigned to the FIRST INPUT time step !
-            -------------------------------------------------------------
-            This design choice has been made, as the datetimes of the split dataset always refer to the target times
-             due to filtering on targets
+    def __init__(
+            self,
+            linspace_binning_params,
+            checkpoint_name,
+            dataset_name,
+            samples_have_padding,
+            settings,
+            sigmas_dlbd_eval=None,  # Renamed parameter
+    ):
+        '''
+        This callback calculates the evaluation metrics
+        -------------------------------------------------------------
+        ! All predictions are assigned to the FIRST INPUT time step !
+        -------------------------------------------------------------
+        This design choice has been made, as the datetimes of the split dataset always refer to the target times
+         due to filtering on targets
 
-            Input
-                ...
-                samples_have_padding: bool
-                    If True this indicates an input padding, therefore we will center crop to s_width_height
-                sigmas_dlbd_eval: list of float, optional
-                    List of sigma values for DLBD evaluation. If None, DLBD evaluation is skipped.
-            '''
+        Input
+            ...
+            samples_have_padding: bool
+                If True this indicates an input padding, therefore we will center crop to s_width_height
+            sigmas_dlbd_eval: list of float, optional
+                List of sigma values for DLBD evaluation. If None, DLBD evaluation is skipped.
+        '''
 
-            super().__init__()
-            self.settings = settings
-            self.linspace_binning_params = linspace_binning_params
-            self.checkpoint_name = checkpoint_name
-            self.dataset_name = dataset_name
-            self.samples_have_padding = samples_have_padding
+        super().__init__()
+        self.settings = settings
+        self.linspace_binning_params = linspace_binning_params
+        self.checkpoint_name = checkpoint_name
+        self.dataset_name = dataset_name
+        self.samples_have_padding = samples_have_padding
 
-            # Initialize sigmas for DLBD evaluation
-            if sigmas_dlbd_eval is None:
-                self.sigmas_dlbd_eval = []
-                self.do_dlbd_eval = False
-            else:
-                self.sigmas_dlbd_eval = list(sigmas_dlbd_eval)
-                self.do_dlbd_eval = True
+        # Initialize sigmas for DLBD evaluation
+        if sigmas_dlbd_eval is None:
+            self.sigmas_dlbd_eval = []
+            self.do_dlbd_eval = False
+        else:
+            self.sigmas_dlbd_eval = list(sigmas_dlbd_eval)
+            self.do_dlbd_eval = True
 
-            # Check if training sigma should be included in evaluation
-            training_sigma = self.settings.get('s_sigma_target_smoothing', None)
-            if self.do_dlbd_eval and training_sigma is not None and training_sigma not in self.sigmas_dlbd_eval:
-                self.sigmas_dlbd_eval.append(training_sigma)
+        # Check if training sigma should be included in evaluation
+        training_sigma = self.settings.get('s_sigma_target_smoothing', None)
+        if self.do_dlbd_eval and training_sigma is not None and training_sigma not in self.sigmas_dlbd_eval:
+            self.sigmas_dlbd_eval.append(training_sigma)
 
-            # Sort the sigmas for consistency
-            self.sigmas_dlbd_eval = sorted(self.sigmas_dlbd_eval)
+        # Sort the sigmas for consistency
+        self.sigmas_dlbd_eval = sorted(self.sigmas_dlbd_eval)
 
-            # Add sample counter to track samples across batches
-            self.sample_idx_counter = 0
+        # Add sample counter to track samples across batches
+        self.sample_idx_counter = 0
 
-            # Initialising logging lists
-            self.sample_indices = []  # Add this to track sample indices
-            self.losses_model = []
-            self.rmses_model = []
-            self.rmses_baseline = []
-            self.l1_differences_model = []
-            self.l1_differences_baseline = []
-            self.means_target = []
-            self.means_pred_model = []
-            self.means_pred_baseline = []
-            self.certainties_target_bin_model = []
-            self.certainties_max_pred = []
-            self.stds_binning_model = []
+        # Initialising logging lists
+        self.sample_indices = []  # Add this to track sample indices
+        self.losses_model = []
+        self.rmses_model = []
+        self.rmses_baseline = []
+        self.l1_differences_model = []
+        self.l1_differences_baseline = []
+        self.means_target = []
+        self.means_pred_model = []
+        self.means_pred_baseline = []
+        self.certainties_target_bin_model = []
+        self.certainties_max_pred = []
+        self.stds_binning_model = []
 
-            # Initialize lists for DLBD metrics with separate model and baseline tracking
-            self.dlbd_metrics = {}
-            for sigma in self.sigmas_dlbd_eval:
-                sigma_str = f"{sigma:.2f}"
-                self.dlbd_metrics[f"dlbd_model_sigma_{sigma_str}"] = []
-                self.dlbd_metrics[f"dlbd_baseline_sigma_{sigma_str}"] = []
+        # Initialize lists for DLBD metrics with separate model and baseline tracking
+        self.dlbd_metrics = {}
+        for sigma in self.sigmas_dlbd_eval:
+            sigma_str = f"{sigma:.2f}"
+            self.dlbd_metrics[f"dlbd_model_sigma_{sigma_str}"] = []
+            self.dlbd_metrics[f"dlbd_baseline_sigma_{sigma_str}"] = []
 
-            # Define precipitation thresholds for categorical metrics
-            self.precip_thresholds = [0.5, 2.0, 8.0, 20.0]  # in mm/h
+        # Define precipitation thresholds for categorical metrics
+        self.precip_thresholds = [0.5, 2.0, 8.0, 20.0]  # in mm/h
 
-            # Initialize dictionaries to store CSI and Accuracy metrics
-            self.csi_model = {thr: [] for thr in self.precip_thresholds}
-            self.csi_baseline = {thr: [] for thr in self.precip_thresholds}
-            self.acc_model = {thr: [] for thr in self.precip_thresholds}
-            self.acc_baseline = {thr: [] for thr in self.precip_thresholds}
+        # Initialize dictionaries to store CSI and Accuracy metrics
+        self.csi_model = {thr: [] for thr in self.precip_thresholds}
+        self.csi_baseline = {thr: [] for thr in self.precip_thresholds}
+        self.acc_model = {thr: [] for thr in self.precip_thresholds}
+        self.acc_baseline = {thr: [] for thr in self.precip_thresholds}
 
     def on_predict_batch_end(
             self,
@@ -268,7 +269,6 @@ class EvaluateBaselineCallback(pl.Callback):
 
         # Calculate DLBD metrics for each sigma value if enabled
         if self.do_dlbd_eval and target_normed_uncropped is not None:
-            # [DLBD evaluation code remains unchanged]
             s_target_height_width = self.settings['s_target_height_width']
 
             # Create one-hot encoded uncropped target using the same binning
@@ -300,7 +300,6 @@ class EvaluateBaselineCallback(pl.Callback):
             baseline_logits.scatter_(1, max_indices, 10.0)  # Large value at the max index
 
             for sigma in self.sigmas_dlbd_eval:
-                # [DLBD calculations remain unchanged]
                 sigma_str = f"{sigma:.2f}"
 
                 # Apply gaussian smoothing to the uncropped one-hot target for current sigma
