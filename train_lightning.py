@@ -678,6 +678,7 @@ def train_l(
         s_check_val_every_n_epoch,
         s_validate_on_epoch_0,
         s_save_dir,
+        s_mode,
         **__):
     '''
     Train loop, keep this clean!
@@ -700,6 +701,11 @@ def train_l(
         training_steps_per_epoch=training_steps_per_epoch,
         **settings)
 
+    if s_mode == 'cluster':
+        num_gpus = os.environ.get('SLURM_GPUS_ON_NODE')
+    else:
+        num_gpus = 1
+
     trainer = pl.Trainer(
         accelerator='gpu',
         callbacks=callback_list,
@@ -707,7 +713,7 @@ def train_l(
         max_epochs=s_max_epochs,
         log_every_n_steps=100, # 100 TODO Does this lead to slow-down?
         logger=logger,
-        devices='auto',
+        devices=num_gpus,#'auto',
         check_val_every_n_epoch=s_check_val_every_n_epoch,
         strategy='ddp',
         num_sanity_val_steps=0

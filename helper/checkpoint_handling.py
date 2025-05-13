@@ -14,6 +14,7 @@ def load_from_checkpoint(
         settings,
         device,
         s_num_gpus,
+        s_mode,
         **__):
     '''
     This directly loads the NetworkL class.
@@ -23,8 +24,13 @@ def load_from_checkpoint(
 
     print("Loading checkpoint '{}'".format(checkpoint_path))
 
+    if s_mode == 'cluster':
+        num_gpus = os.environ.get('SLURM_GPUS_ON_NODE')
+    else:
+        num_gpus = 1
+
     model = NetworkL.load_from_checkpoint(checkpoint_path=checkpoint_path,
-                                          devices=s_num_gpus, )
+                                          devices=num_gpus)
 
     model = model.to(device)
     return model

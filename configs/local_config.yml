@@ -4,7 +4,7 @@ s_sim_name_suffix: "plotting_only_BIG_RUN_local_mode_1_epoch_2_years_no_oversamp
 s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
 
 # If active loads sim s_plot_sim_name and runs plotting pipeline
-s_plotting_only: true  # Ensure plotting is enabled for debug runs
+s_plotting_only: false  # Ensure plotting is enabled for debug runs
 
 # s_plot_sim_name: Simulation name for plotting
 s_plot_sim_name: "Run_20250430-174941BIG_RUN_local_mode_1_epoch_2_years_no_oversampling_xentropy"
@@ -25,7 +25,7 @@ s_max_epochs: 1  # Max number of epochs, affects scheduler
 # Influences RAM usage.
 s_crop_data_time_span:
   - "2019-01-01T00:00"
-  - "2020-12-01T00:00"
+  - "2019-01-10T00:00"
 
 # Time span that bin frequencies are calculated for
 s_time_span_for_bin_frequencies:
