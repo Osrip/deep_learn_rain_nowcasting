@@ -175,6 +175,10 @@ class EvaluateBaselineCallback(pl.Callback):
             target_normed_uncropped
         )
 
+        if batch_idx % 50 == 0:
+            # Save evaluation logs every 50 batches
+            self.save_evaluations_logs()
+
     def evaluate_batch(
             self,
             pred_model_mm,

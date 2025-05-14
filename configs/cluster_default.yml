@@ -1,4 +1,4 @@
-s_sim_name_suffix: "2_years_data_fix_multi_gpu_num_gpu_no_srun_n_tasks_xentropy" # xentropy_1_month_10_epochs
+s_sim_name_suffix: "evaluation_only_xentropy_long_run_save_every_50_batches" # xentropy_1_month_10_epochs
 
 # s_force_data_preprocessing forces data preprocessing instead of attempting to load preprocessed data
 s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
@@ -7,7 +7,7 @@ s_force_data_preprocessing: false  # This forces data preprocessing instead of a
 s_convnext: true
 
 # If active loads sim s_plot_sim_name and runs plotting pipeline
-s_plotting_only: false
+s_plotting_only: true
 
 # s_plot_sim_name: Simulation name for plotting
 s_plot_sim_name: "Run_20250509-182459_ID_15005832_years_xentropy_no_oversampling_cropping_active_long_run"

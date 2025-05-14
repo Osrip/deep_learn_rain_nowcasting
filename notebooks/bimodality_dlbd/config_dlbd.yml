@@ -1,0 +1,26 @@
+# Paths and data settings
+s_folder_path: "/home/jan/nowcasting_project/weather_data/radolan"
+s_data_file_name: "RV_recalc_rechunked.zarr"
+s_data_variable_name: "RV_recalc"
+s_crop_data_time_span:
+  - "2019-01-01T00:00"
+  - "2019-03-01T00:00"  # Start with a 2-month window to test
+s_data_loader_vars_path: "/home/jan/nowcasting_project/weather_data/data_loader_vars"
+specific_data_loader_vars_file: '01_25_NEW_radolan_local_32_100_256_cropped_2019-01-01T00:00_to_2020-12-01T00:00_no_oversampling.pickle.pgz'  # Set to a specific filename if needed
+
+# Processing settings
+s_batch_size: 4
+s_kernel_size: 33  # Should be odd
+s_sigma: 1.0  # DLBD smoothing sigma
+
+# Bimodality detection parameters
+s_bimodality_threshold: 0.1  # Minimum depth between peaks
+s_min_peak_height: 0.05  # Minimum normalized peak height
+s_min_peak_prominence: 0.05  # Minimum normalized peak prominence
+s_max_samples_per_batch: 50  # Maximum number of bimodal distribution samples to store per batch
+
+# Performance settings
+s_report_every_n_batches: 10
+s_output_dir: "./dlbd_results"
+s_num_workers: 4  # DataLoader workers
+s_use_gpu: true

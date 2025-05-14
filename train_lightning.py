@@ -572,6 +572,22 @@ def train_wrapper(
           (f" (different for validation: {validation_data_loader.batch_size})"
            if train_data_loader.batch_size != validation_data_loader.batch_size else ""))
 
+    # Debug information
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    print(f"CUDA device count: {torch.cuda.device_count()}")
+    print(f"CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'Not set')}")
+    for i in range(torch.cuda.device_count()):
+        print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
+
+    if s_mode == 'cluster':
+        # Also print SLURM-specific environment variables
+        slurm_vars = [
+            "SLURM_JOB_ID", "SLURM_NTASKS", "SLURM_NTASKS_PER_NODE",
+            "SLURM_NODELIST", "SLURM_PROCID", "SLURM_LOCALID"
+        ]
+        for var in slurm_vars:
+            print(f"{var}: {os.environ.get(var, 'Not set')}")
+
     train_logger, val_logger, base_train_logger, base_val_logger = create_loggers(**settings)
 
     # This is used to save checkpoints of the model
@@ -642,6 +658,8 @@ def train_wrapper(
         sigma_schedule_mapping,
         settings,
         **settings)
+
+
 
     print(f'\n DONE. Took {format_duration(time.time() - step_start_time)} \n')
 
