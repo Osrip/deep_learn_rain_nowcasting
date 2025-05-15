@@ -307,6 +307,7 @@ def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
 
         # If there are too many valid pixels, randomly sample a subset
         # to analyze more thoroughly for bimodality
+        # TODO er sampled randomly 1000 Pixel !!
         sample_indices = None
         if n_valid > 1000:
             sample_size = min(1000, n_valid)
@@ -316,6 +317,7 @@ def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
             sample_indices = valid_coords
 
         # Analyze sampled pixels for bimodality
+
         for i in range(sample_indices[0].size(0)):
             h, w = sample_indices[0][i], sample_indices[1][i]
 
