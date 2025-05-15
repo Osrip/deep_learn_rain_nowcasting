@@ -94,7 +94,7 @@ s_batch_size: 128  # our net on a100: 64, 48; 2080-->18, 2080-->14; 7GB/10GB; v1
 s_upscale_c_to: 32  # 64, 128, 512
 s_num_bins_crossentropy: 32  # 64, 256
 
-s_linspace_binning_cut_off_unnormalized: 100  # Let's cut that off ad-hoc (in mm/h), everything above is sorted into the last bin
+s_linspace_binning_cut_off_unnormalized: 10 #100  # Let's cut that off ad-hoc (in mm/h), everything above is sorted into the last bin
 
 s_input_height_width: 256 #256  # width / height of input for network
 s_input_padding: 32       # Additional padding of input for randomcrop augmentation.
