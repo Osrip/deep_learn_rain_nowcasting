@@ -108,7 +108,7 @@ def plot_bimodal_distributions(file_path):
 
 
 # Full path to the file
-file_path = "/home/jan/Programming/remote/first_CNN_on_Radolan/notebooks/bimodality_dlbd/dlbd_results/bimodal_distributions_20250515_175524.csv"
+file_path = "/home/jan/Programming/remote/first_CNN_on_Radolan/notebooks/bimodality_dlbd/dlbd_results/bimodal_distributions_20250515_183543.csv"
 
 # Run the function
 plot_bimodal_distributions(file_path)
