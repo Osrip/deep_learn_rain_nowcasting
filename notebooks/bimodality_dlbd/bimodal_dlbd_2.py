@@ -413,6 +413,7 @@ def process_data(settings_dlbd, linspace_binning_params):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     results_file = os.path.join(settings_dlbd['s_output_dir'], f'bimodality_results_{timestamp}.csv')
     bimodal_distributions_file = os.path.join(settings_dlbd['s_output_dir'], f'bimodal_distributions_{timestamp}.csv')
+    aggregated_metrics_file = os.path.join(settings_dlbd['s_output_dir'], f'aggregated_metrics_{timestamp}.csv')
 
     # Save settings for reference
     with open(os.path.join(settings_dlbd['s_output_dir'], f'settings_{timestamp}.yaml'), 'w') as f:
@@ -577,19 +578,59 @@ def process_data(settings_dlbd, linspace_binning_params):
                 samples_per_second = (settings_dlbd['s_report_every_n_batches'] * settings_dlbd[
                     's_batch_size']) / elapsed_batch_time
 
+                # Calculate total pixels (valid pixels)
+                total_pixels = total_bimodal_pixels + total_nonbimodal_pixels
+
+                # Calculate percentages
+                bimodal_percentage = 100 * total_bimodal_pixels / total_pixels if total_pixels > 0 else 0
+                nonbimodal_percentage = 100 * total_nonbimodal_pixels / total_pixels if total_pixels > 0 else 0
+                exceeding_0_2mm_percentage = 100 * total_pixels_exceeding_0_2mm / total_pixels if total_pixels > 0 else 0
+                exceeding_1mm_percentage = 100 * total_pixels_exceeding_1mm / total_pixels if total_pixels > 0 else 0
+                exceeding_5mm_percentage = 100 * total_pixels_exceeding_5mm / total_pixels if total_pixels > 0 else 0
+
+                # Print progress with percentages
                 print(f"Processed {total_processed_samples} samples ({total_processed_batches} batches)")
                 print(
                     f"Last {settings_dlbd['s_report_every_n_batches']} batches took {elapsed_batch_time:.2f}s ({samples_per_second:.2f} samples/s)")
-                print(f"Total bimodal pixels: {total_bimodal_pixels}")
-                print(f"Total non-bimodal pixels: {total_nonbimodal_pixels}")
-                print(f"Total pixels exceeding 0.2mm/h: {total_pixels_exceeding_0_2mm}")
-                print(f"Total pixels exceeding 1mm/h: {total_pixels_exceeding_1mm}")
-                print(f"Total pixels exceeding 5mm/h: {total_pixels_exceeding_5mm}")
+                print(f"Total pixels: {total_pixels}")
+                print(f"Total bimodal pixels: {total_bimodal_pixels} ({bimodal_percentage:.2f}%)")
+                print(f"Total non-bimodal pixels: {total_nonbimodal_pixels} ({nonbimodal_percentage:.2f}%)")
+                print(
+                    f"Total pixels exceeding 0.2mm/h: {total_pixels_exceeding_0_2mm} ({exceeding_0_2mm_percentage:.2f}%)")
+                print(f"Total pixels exceeding 1mm/h: {total_pixels_exceeding_1mm} ({exceeding_1mm_percentage:.2f}%)")
+                print(f"Total pixels exceeding 5mm/h: {total_pixels_exceeding_5mm} ({exceeding_5mm_percentage:.2f}%)")
 
-                # If any bimodal pixels found, report percentage
-                if total_bimodal_pixels + total_nonbimodal_pixels > 0:
-                    bimodal_percentage = 100 * total_bimodal_pixels / (total_bimodal_pixels + total_nonbimodal_pixels)
-                    print(f"Bimodal percentage: {bimodal_percentage:.2f}%")
+                # Save aggregated metrics to CSV
+                metrics_data = {
+                    'Metric': [
+                        'Total pixels',
+                        'Total bimodal pixels',
+                        'Total non-bimodal pixels',
+                        'Total pixels exceeding 0.2mm/h',
+                        'Total pixels exceeding 1mm/h',
+                        'Total pixels exceeding 5mm/h'
+                    ],
+                    'Count': [
+                        total_pixels,
+                        total_bimodal_pixels,
+                        total_nonbimodal_pixels,
+                        total_pixels_exceeding_0_2mm,
+                        total_pixels_exceeding_1mm,
+                        total_pixels_exceeding_5mm
+                    ],
+                    'Percentage': [
+                        100.0,  # Total pixels is 100% of itself
+                        bimodal_percentage,
+                        nonbimodal_percentage,
+                        exceeding_0_2mm_percentage,
+                        exceeding_1mm_percentage,
+                        exceeding_5mm_percentage
+                    ]
+                }
+
+                # Create DataFrame and save to CSV (overwrite existing file)
+                metrics_df = pd.DataFrame(metrics_data)
+                metrics_df.to_csv(aggregated_metrics_file, index=False)
 
                 # Reset batch timer
                 batch_start_time = current_time
@@ -599,6 +640,16 @@ def process_data(settings_dlbd, linspace_binning_params):
         import traceback
         traceback.print_exc()
     finally:
+        # Calculate total pixels
+        total_pixels = total_bimodal_pixels + total_nonbimodal_pixels
+
+        # Calculate final percentages
+        bimodal_percentage = 100 * total_bimodal_pixels / total_pixels if total_pixels > 0 else 0
+        nonbimodal_percentage = 100 * total_nonbimodal_pixels / total_pixels if total_pixels > 0 else 0
+        exceeding_0_2mm_percentage = 100 * total_pixels_exceeding_0_2mm / total_pixels if total_pixels > 0 else 0
+        exceeding_1mm_percentage = 100 * total_pixels_exceeding_1mm / total_pixels if total_pixels > 0 else 0
+        exceeding_5mm_percentage = 100 * total_pixels_exceeding_5mm / total_pixels if total_pixels > 0 else 0
+
         # Calculate total processing time
         total_time = time.time() - start_time
         hours, remainder = divmod(total_time, 3600)
@@ -606,18 +657,47 @@ def process_data(settings_dlbd, linspace_binning_params):
 
         print("Processing complete or interrupted.")
         print(f"Total processing time: {int(hours)}h {int(minutes)}m {seconds:.2f}s")
-        print(f"Total bimodal pixels: {total_bimodal_pixels}")
-        print(f"Total non-bimodal pixels: {total_nonbimodal_pixels}")
-        print(f"Total pixels exceeding 0.2mm/h: {total_pixels_exceeding_0_2mm}")
-        print(f"Total pixels exceeding 1mm/h: {total_pixels_exceeding_1mm}")
-        print(f"Total pixels exceeding 5mm/h: {total_pixels_exceeding_5mm}")
+        print(f"Total pixels: {total_pixels}")
+        print(f"Total bimodal pixels: {total_bimodal_pixels} ({bimodal_percentage:.2f}%)")
+        print(f"Total non-bimodal pixels: {total_nonbimodal_pixels} ({nonbimodal_percentage:.2f}%)")
+        print(f"Total pixels exceeding 0.2mm/h: {total_pixels_exceeding_0_2mm} ({exceeding_0_2mm_percentage:.2f}%)")
+        print(f"Total pixels exceeding 1mm/h: {total_pixels_exceeding_1mm} ({exceeding_1mm_percentage:.2f}%)")
+        print(f"Total pixels exceeding 5mm/h: {total_pixels_exceeding_5mm} ({exceeding_5mm_percentage:.2f}%)")
 
-        # If any bimodal pixels found, report percentage
-        if total_bimodal_pixels + total_nonbimodal_pixels > 0:
-            bimodal_percentage = 100 * total_bimodal_pixels / (total_bimodal_pixels + total_nonbimodal_pixels)
-            print(f"Bimodal percentage: {bimodal_percentage:.2f}%")
+        # Save final aggregated metrics to CSV
+        metrics_data = {
+            'Metric': [
+                'Total pixels',
+                'Total bimodal pixels',
+                'Total non-bimodal pixels',
+                'Total pixels exceeding 0.2mm/h',
+                'Total pixels exceeding 1mm/h',
+                'Total pixels exceeding 5mm/h'
+            ],
+            'Count': [
+                total_pixels,
+                total_bimodal_pixels,
+                total_nonbimodal_pixels,
+                total_pixels_exceeding_0_2mm,
+                total_pixels_exceeding_1mm,
+                total_pixels_exceeding_5mm
+            ],
+            'Percentage': [
+                100.0,  # Total pixels is 100% of itself
+                bimodal_percentage,
+                nonbimodal_percentage,
+                exceeding_0_2mm_percentage,
+                exceeding_1mm_percentage,
+                exceeding_5mm_percentage
+            ]
+        }
+
+        # Create DataFrame and save to CSV (final version)
+        metrics_df = pd.DataFrame(metrics_data)
+        metrics_df.to_csv(aggregated_metrics_file, index=False)
 
         print(f"Results saved to {settings_dlbd['s_output_dir']}")
+
 
 def main():
     # Default config file path
