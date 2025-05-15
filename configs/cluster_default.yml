@@ -1,4 +1,4 @@
-s_sim_name_suffix: "evaluation_only_xentropy_long_run_save_every_50_batches" # xentropy_1_month_10_epochs
+s_sim_name_suffix: "xentropy_run_2_years_128_target" # xentropy_1_month_10_epochs
 
 # s_force_data_preprocessing forces data preprocessing instead of attempting to load preprocessed data
 s_force_data_preprocessing: false  # This forces data preprocessing instead of attempting to load preprocessed data
@@ -99,7 +99,7 @@ s_linspace_binning_cut_off_unnormalized: 100  # Let's cut that off ad-hoc (in mm
 s_input_height_width: 256 #256  # width / height of input for network
 s_input_padding: 32       # Additional padding of input for randomcrop augmentation.
                          # Dataloader returns patches of size s_input_height_width + s_input_padding
-s_target_height_width: 32 #32   # width / height of target - this is what is used to patch the data
+s_target_height_width: 128 #32   # width / height of target - this is what is used to patch the data
 s_num_input_time_steps: 4   # The number of subsequent time steps that are used for prediction
 s_num_lead_time_steps: 3    # 0 --> 0 min prediction (target == last input); 1 --> 5 min prediction, 3 --> 15 min, etc.
                          # This is subtracted by 2.

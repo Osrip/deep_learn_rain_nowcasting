@@ -22,5 +22,5 @@ s_max_samples_per_batch: 50  # Maximum number of bimodal distribution samples to
 # Performance settings
 s_report_every_n_batches: 10
 s_output_dir: "./dlbd_results"
-s_num_workers: 4  # DataLoader workers
+s_num_workers: 1  # DataLoader workers
 s_use_gpu: true

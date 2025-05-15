@@ -7,12 +7,15 @@ to precipitation radar data and analyzes the resulting distributions for bimodal
 keeping operations on GPU for maximum efficiency.
 """
 
+# disable dynamo for debugging:
+import helper.disable_dynamo_torch
+
 import os
 import torch
 import numpy as np
 import xarray as xr
 import pandas as pd
-from typing import Union, Tuple, Dict, List
+from typing import Union, Tuple, Dict, List, Any
 import einops
 import gzip
 import pickle
@@ -97,7 +100,30 @@ class RadolanDataset(Dataset):
         data = self.dataset.sel(time=time)[self.variable_name].values
         # Convert to tensor
         data = torch.from_numpy(data).float()
-        return {'data': data, 'time': time}
+        # Convert time to string to avoid issues with batching datetime64 objects
+        time_str = str(time)
+        return {'data': data, 'time': time_str, 'time_orig': time}
+
+
+def custom_collate_fn(batch):
+    """
+    Custom collate function to handle numpy.datetime64 objects.
+
+    Args:
+        batch: List of samples from the dataset
+
+    Returns:
+        Properly collated batch
+    """
+    data_batch = torch.stack([item['data'] for item in batch])
+    time_str_batch = [item['time'] for item in batch]
+    time_orig_batch = [item['time_orig'] for item in batch]
+
+    return {
+        'data': data_batch,
+        'time': time_str_batch,
+        'time_orig': time_orig_batch
+    }
 
 
 def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
@@ -374,7 +400,8 @@ def process_data(settings_dlbd, linspace_binning_params):
         shuffle=False,
         num_workers=settings_dlbd['s_num_workers'],
         pin_memory=True,
-        prefetch_factor=2
+        prefetch_factor=2,
+        collate_fn=custom_collate_fn  # Use custom collate function
     )
 
     # Prepare output directory
@@ -388,10 +415,6 @@ def process_data(settings_dlbd, linspace_binning_params):
     # Save settings for reference
     with open(os.path.join(settings_dlbd['s_output_dir'], f'settings_{timestamp}.yaml'), 'w') as f:
         yaml.dump(settings_dlbd, f, default_flow_style=False)
-
-    # Save linspace binning for reference
-    np.save(os.path.join(settings_dlbd['s_output_dir'], f'linspace_binning_params_{timestamp}.npy'),
-            linspace_binning_params)
 
     # Initialize counters
     total_bimodal_pixels = 0
@@ -425,6 +448,7 @@ def process_data(settings_dlbd, linspace_binning_params):
             current_batch_size = batch['data'].shape[0]
             data = batch['data'].to(device)  # Shape: [batch_size, height, width]
             times = batch['time']  # Shape: [batch_size]
+            times_orig = batch['time_orig']  # Original datetime64 objects for later use
 
             # Create nan mask
             nan_mask = torch.isnan(data)
@@ -435,21 +459,34 @@ def process_data(settings_dlbd, linspace_binning_params):
             # Convert to one-hot
             data_one_hot = img_one_hot(data_for_onehot, num_bins, linspace_binning_tensor)
             # Rearrange dimensions to [batch, bins, height, width]
+
+            # Using permute instead of rearrange due to package dependency issue with einops
+            # related to torch dynamo on gpu machine
+            # data_one_hot.permute(0, 3, 1, 2)
             data_one_hot = einops.rearrange(data_one_hot, 'b h w c -> b c h w')
 
             # Apply DLBD preprocessing
             sigma = settings_dlbd['s_sigma']
             kernel_size = settings_dlbd['s_kernel_size']
 
+            # The negative padding determines by how much the dlbd processed output size is smaller than the input
+            # this is determined by the kernel size, as the kernel reduces the output size
+
+            # Kernel size has to be odd
+            if kernel_size % 2 == 1:
+                negative_padding = (kernel_size - 1) // 2
+            else:
+                raise ValueError('The kernel size has to be odd')
+
             # Get output dimensions (may not be square)
-            output_h, output_w = data.shape[1], data.shape[2]
+            output_h, output_w = data.shape[1] - negative_padding, data.shape[2] - negative_padding
 
             # Apply DLBD with same output size as input
             blurred_one_hot = dlbd_target_pre_processing(
                 input_tensor=data_one_hot,
                 output_size=(output_h, output_w),
                 sigma=sigma,
-                kernel_size=kernel_size
+                kernel_size=None
             )
 
             # Free memory
@@ -474,7 +511,8 @@ def process_data(settings_dlbd, linspace_binning_params):
             # Create batch results
             batch_results = []
             for b in range(current_batch_size):
-                time_str = pd.Timestamp(times[b].item()).isoformat()
+                # Use time string stored in batch
+                time_str = times[b]
                 batch_results.append({
                     'time': time_str,
                     'num_pixels_bimodal': int(bimodal_counts[b]),
@@ -488,7 +526,7 @@ def process_data(settings_dlbd, linspace_binning_params):
             batch_bimodal_dist_records = []
             for i, dist_data in enumerate(batch_bimodal_dists):
                 b = dist_data['batch_idx']
-                time_str = pd.Timestamp(times[b].item()).isoformat()
+                time_str = times[b]
                 batch_bimodal_dist_records.append({
                     'time': time_str,
                     'h': dist_data['h'],
