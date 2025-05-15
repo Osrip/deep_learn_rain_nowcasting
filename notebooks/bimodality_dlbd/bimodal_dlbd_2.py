@@ -425,7 +425,7 @@ def process_data(settings_dlbd, linspace_binning_params):
     total_processed_batches = 0
     total_processed_samples = 0
 
-    # Initialize counters for threshold values
+    # Initialize counters for threshold values based on analyzed pixels
     total_pixels_exceeding_0_2mm = 0
     total_pixels_exceeding_1mm = 0
     total_pixels_exceeding_5mm = 0
@@ -464,15 +464,6 @@ def process_data(settings_dlbd, linspace_binning_params):
             # Create nan mask
             nan_mask = torch.isnan(data)
 
-            # Count pixels exceeding thresholds (excluding NaNs)
-            pixels_exceeding_thresholds = []
-            for threshold in precip_thresholds:
-                # Calculate valid pixels that exceed the threshold (not NaN AND value > threshold)
-                valid_exceeding = torch.logical_and(~nan_mask, data > threshold)
-                # Sum over height and width dimensions for each batch item
-                counts = valid_exceeding.sum(dim=(1, 2)).cpu().numpy()
-                pixels_exceeding_thresholds.append(counts)
-
             # Handle NaNs for one-hot conversion
             data_for_onehot = torch.nan_to_num(data, nan=0.0)
 
@@ -509,12 +500,55 @@ def process_data(settings_dlbd, linspace_binning_params):
             del data_one_hot
             torch.cuda.empty_cache()
 
+            # For each batch, analyze the same subset of pixels for both bimodality and thresholds
+            analyzed_pixels_per_batch = torch.zeros(current_batch_size, dtype=torch.int32, device=device)
+            exceeding_0_2mm_per_batch = torch.zeros(current_batch_size, dtype=torch.int32, device=device)
+            exceeding_1mm_per_batch = torch.zeros(current_batch_size, dtype=torch.int32, device=device)
+            exceeding_5mm_per_batch = torch.zeros(current_batch_size, dtype=torch.int32, device=device)
+
             # Find bimodal distributions using improved detection
+            # and track threshold-exceeding pixels for the SAME sampled points
             bimodal_counts, non_bimodal_counts, batch_bimodal_dists = analyze_batch_bimodality(
                 blurred_one_hot,
                 nan_mask,
                 bimodality_params
             )
+
+            # Process each batch separately
+            for b in range(current_batch_size):
+                # Create a valid pixels mask (not NaN)
+                valid_mask = ~nan_mask[b]
+
+                # Convert the valid mask to indices
+                valid_coords = valid_mask.nonzero(as_tuple=True)
+                n_valid = valid_coords[0].size(0)
+
+                # Sample the same pixels for both bimodality and threshold analysis
+                sample_indices = None
+                if n_valid > 1000:
+                    sample_size = min(1000, n_valid)
+                    # Use the same random seed for each batch to ensure consistency
+                    torch.manual_seed(b + batch_idx)
+                    perm = torch.randperm(n_valid, device=device)[:sample_size]
+                    sample_indices = (valid_coords[0][perm], valid_coords[1][perm])
+                else:
+                    sample_indices = valid_coords
+
+                # Count the total number of analyzed pixels
+                num_analyzed = sample_indices[0].size(0)
+                analyzed_pixels_per_batch[b] = num_analyzed
+
+                # Count threshold-exceeding pixels in the SAME sampled subset
+                for i, threshold in enumerate(precip_thresholds):
+                    # Get data values at the sampled locations
+                    sampled_data = data[b, sample_indices[0], sample_indices[1]]
+                    # Count pixels exceeding threshold
+                    if i == 0:  # 0.2mm threshold
+                        exceeding_0_2mm_per_batch[b] = (sampled_data > threshold).sum()
+                    elif i == 1:  # 1mm threshold
+                        exceeding_1mm_per_batch[b] = (sampled_data > threshold).sum()
+                    elif i == 2:  # 5mm threshold
+                        exceeding_5mm_per_batch[b] = (sampled_data > threshold).sum()
 
             # Free memory
             del blurred_one_hot
@@ -523,6 +557,12 @@ def process_data(settings_dlbd, linspace_binning_params):
             # Move counts to CPU for processing
             bimodal_counts = bimodal_counts.cpu().numpy()
             non_bimodal_counts = non_bimodal_counts.cpu().numpy()
+
+            # Move threshold counts to CPU
+            analyzed_pixels = analyzed_pixels_per_batch.cpu().numpy()
+            exceeding_0_2mm = exceeding_0_2mm_per_batch.cpu().numpy()
+            exceeding_1mm = exceeding_1mm_per_batch.cpu().numpy()
+            exceeding_5mm = exceeding_5mm_per_batch.cpu().numpy()
 
             # Create batch results
             batch_results = []
@@ -533,9 +573,9 @@ def process_data(settings_dlbd, linspace_binning_params):
                     'time': time_str,
                     'num_pixels_bimodal': int(bimodal_counts[b]),
                     'num_pixels_not_bimodal': int(non_bimodal_counts[b]),
-                    'num_pixels_exceeding_0_2mm': int(pixels_exceeding_thresholds[0][b]),
-                    'num_pixels_exceeding_1mm': int(pixels_exceeding_thresholds[1][b]),
-                    'num_pixels_exceeding_5mm': int(pixels_exceeding_thresholds[2][b])
+                    'num_pixels_exceeding_0_2mm': int(exceeding_0_2mm[b]),
+                    'num_pixels_exceeding_1mm': int(exceeding_1mm[b]),
+                    'num_pixels_exceeding_5mm': int(exceeding_5mm[b])
                 })
 
             # Stream results to CSV instead of keeping in memory
@@ -562,10 +602,10 @@ def process_data(settings_dlbd, linspace_binning_params):
             total_bimodal_pixels += batch_bimodal_sum
             total_nonbimodal_pixels += batch_nonbimodal_sum
 
-            # Update threshold pixel counts
-            total_pixels_exceeding_0_2mm += pixels_exceeding_thresholds[0].sum()
-            total_pixels_exceeding_1mm += pixels_exceeding_thresholds[1].sum()
-            total_pixels_exceeding_5mm += pixels_exceeding_thresholds[2].sum()
+            # Update threshold pixel counts (from the same analyzed subset)
+            total_pixels_exceeding_0_2mm += exceeding_0_2mm.sum()
+            total_pixels_exceeding_1mm += exceeding_1mm.sum()
+            total_pixels_exceeding_5mm += exceeding_5mm.sum()
 
             total_processed_batches += 1
             total_processed_samples += current_batch_size
@@ -578,32 +618,34 @@ def process_data(settings_dlbd, linspace_binning_params):
                 samples_per_second = (settings_dlbd['s_report_every_n_batches'] * settings_dlbd[
                     's_batch_size']) / elapsed_batch_time
 
-                # Calculate total pixels (valid pixels)
-                total_pixels = total_bimodal_pixels + total_nonbimodal_pixels
+                # Calculate total pixels from bimodality analysis
+                total_analyzed_pixels = total_bimodal_pixels + total_nonbimodal_pixels
 
-                # Calculate percentages
-                bimodal_percentage = 100 * total_bimodal_pixels / total_pixels if total_pixels > 0 else 0
-                nonbimodal_percentage = 100 * total_nonbimodal_pixels / total_pixels if total_pixels > 0 else 0
-                exceeding_0_2mm_percentage = 100 * total_pixels_exceeding_0_2mm / total_pixels if total_pixels > 0 else 0
-                exceeding_1mm_percentage = 100 * total_pixels_exceeding_1mm / total_pixels if total_pixels > 0 else 0
-                exceeding_5mm_percentage = 100 * total_pixels_exceeding_5mm / total_pixels if total_pixels > 0 else 0
+                # Calculate percentages (all relative to total_analyzed_pixels)
+                bimodal_percentage = 100 * total_bimodal_pixels / total_analyzed_pixels if total_analyzed_pixels > 0 else 0
+                nonbimodal_percentage = 100 * total_nonbimodal_pixels / total_analyzed_pixels if total_analyzed_pixels > 0 else 0
 
-                # Print progress with percentages
-                print(f"Processed {total_processed_samples} samples ({total_processed_batches} batches)")
+                # Now all threshold percentages are also relative to total_analyzed_pixels
+                exceeding_0_2mm_percentage = 100 * total_pixels_exceeding_0_2mm / total_analyzed_pixels if total_analyzed_pixels > 0 else 0
+                exceeding_1mm_percentage = 100 * total_pixels_exceeding_1mm / total_analyzed_pixels if total_analyzed_pixels > 0 else 0
+                exceeding_5mm_percentage = 100 * total_pixels_exceeding_5mm / total_analyzed_pixels if total_analyzed_pixels > 0 else 0
+
+                # Print progress with percentages - using comma separator for large numbers
+                print(f"Processed {total_processed_samples:,} samples ({total_processed_batches:,} batches)")
                 print(
                     f"Last {settings_dlbd['s_report_every_n_batches']} batches took {elapsed_batch_time:.2f}s ({samples_per_second:.2f} samples/s)")
-                print(f"Total pixels: {total_pixels}")
-                print(f"Total bimodal pixels: {total_bimodal_pixels} ({bimodal_percentage:.2f}%)")
-                print(f"Total non-bimodal pixels: {total_nonbimodal_pixels} ({nonbimodal_percentage:.2f}%)")
+                print(f"Total analyzed pixels: {total_analyzed_pixels:,}")
+                print(f"Total bimodal pixels: {total_bimodal_pixels:,} ({bimodal_percentage:.4f}%)")
+                print(f"Total non-bimodal pixels: {total_nonbimodal_pixels:,} ({nonbimodal_percentage:.4f}%)")
                 print(
-                    f"Total pixels exceeding 0.2mm/h: {total_pixels_exceeding_0_2mm} ({exceeding_0_2mm_percentage:.2f}%)")
-                print(f"Total pixels exceeding 1mm/h: {total_pixels_exceeding_1mm} ({exceeding_1mm_percentage:.2f}%)")
-                print(f"Total pixels exceeding 5mm/h: {total_pixels_exceeding_5mm} ({exceeding_5mm_percentage:.2f}%)")
+                    f"Total pixels exceeding 0.2mm/h: {total_pixels_exceeding_0_2mm:,} ({exceeding_0_2mm_percentage:.4f}%)")
+                print(f"Total pixels exceeding 1mm/h: {total_pixels_exceeding_1mm:,} ({exceeding_1mm_percentage:.4f}%)")
+                print(f"Total pixels exceeding 5mm/h: {total_pixels_exceeding_5mm:,} ({exceeding_5mm_percentage:.4f}%)")
 
                 # Save aggregated metrics to CSV
                 metrics_data = {
                     'Metric': [
-                        'Total pixels',
+                        'Total analyzed pixels',
                         'Total bimodal pixels',
                         'Total non-bimodal pixels',
                         'Total pixels exceeding 0.2mm/h',
@@ -611,7 +653,7 @@ def process_data(settings_dlbd, linspace_binning_params):
                         'Total pixels exceeding 5mm/h'
                     ],
                     'Count': [
-                        total_pixels,
+                        total_analyzed_pixels,
                         total_bimodal_pixels,
                         total_nonbimodal_pixels,
                         total_pixels_exceeding_0_2mm,
@@ -619,7 +661,7 @@ def process_data(settings_dlbd, linspace_binning_params):
                         total_pixels_exceeding_5mm
                     ],
                     'Percentage': [
-                        100.0,  # Total pixels is 100% of itself
+                        100.0,  # Total analyzed pixels is 100% of itself
                         bimodal_percentage,
                         nonbimodal_percentage,
                         exceeding_0_2mm_percentage,
@@ -640,15 +682,17 @@ def process_data(settings_dlbd, linspace_binning_params):
         import traceback
         traceback.print_exc()
     finally:
-        # Calculate total pixels
-        total_pixels = total_bimodal_pixels + total_nonbimodal_pixels
+        # Calculate total analyzed pixels from bimodality analysis
+        total_analyzed_pixels = total_bimodal_pixels + total_nonbimodal_pixels
 
-        # Calculate final percentages
-        bimodal_percentage = 100 * total_bimodal_pixels / total_pixels if total_pixels > 0 else 0
-        nonbimodal_percentage = 100 * total_nonbimodal_pixels / total_pixels if total_pixels > 0 else 0
-        exceeding_0_2mm_percentage = 100 * total_pixels_exceeding_0_2mm / total_pixels if total_pixels > 0 else 0
-        exceeding_1mm_percentage = 100 * total_pixels_exceeding_1mm / total_pixels if total_pixels > 0 else 0
-        exceeding_5mm_percentage = 100 * total_pixels_exceeding_5mm / total_pixels if total_pixels > 0 else 0
+        # Calculate final percentages (all relative to total_analyzed_pixels)
+        bimodal_percentage = 100 * total_bimodal_pixels / total_analyzed_pixels if total_analyzed_pixels > 0 else 0
+        nonbimodal_percentage = 100 * total_nonbimodal_pixels / total_analyzed_pixels if total_analyzed_pixels > 0 else 0
+
+        # All threshold percentages are also relative to total_analyzed_pixels
+        exceeding_0_2mm_percentage = 100 * total_pixels_exceeding_0_2mm / total_analyzed_pixels if total_analyzed_pixels > 0 else 0
+        exceeding_1mm_percentage = 100 * total_pixels_exceeding_1mm / total_analyzed_pixels if total_analyzed_pixels > 0 else 0
+        exceeding_5mm_percentage = 100 * total_pixels_exceeding_5mm / total_analyzed_pixels if total_analyzed_pixels > 0 else 0
 
         # Calculate total processing time
         total_time = time.time() - start_time
@@ -657,17 +701,17 @@ def process_data(settings_dlbd, linspace_binning_params):
 
         print("Processing complete or interrupted.")
         print(f"Total processing time: {int(hours)}h {int(minutes)}m {seconds:.2f}s")
-        print(f"Total pixels: {total_pixels}")
-        print(f"Total bimodal pixels: {total_bimodal_pixels} ({bimodal_percentage:.2f}%)")
-        print(f"Total non-bimodal pixels: {total_nonbimodal_pixels} ({nonbimodal_percentage:.2f}%)")
-        print(f"Total pixels exceeding 0.2mm/h: {total_pixels_exceeding_0_2mm} ({exceeding_0_2mm_percentage:.2f}%)")
-        print(f"Total pixels exceeding 1mm/h: {total_pixels_exceeding_1mm} ({exceeding_1mm_percentage:.2f}%)")
-        print(f"Total pixels exceeding 5mm/h: {total_pixels_exceeding_5mm} ({exceeding_5mm_percentage:.2f}%)")
+        print(f"Total analyzed pixels: {total_analyzed_pixels:,}")
+        print(f"Total bimodal pixels: {total_bimodal_pixels:,} ({bimodal_percentage:.4f}%)")
+        print(f"Total non-bimodal pixels: {total_nonbimodal_pixels:,} ({nonbimodal_percentage:.4f}%)")
+        print(f"Total pixels exceeding 0.2mm/h: {total_pixels_exceeding_0_2mm:,} ({exceeding_0_2mm_percentage:.4f}%)")
+        print(f"Total pixels exceeding 1mm/h: {total_pixels_exceeding_1mm:,} ({exceeding_1mm_percentage:.4f}%)")
+        print(f"Total pixels exceeding 5mm/h: {total_pixels_exceeding_5mm:,} ({exceeding_5mm_percentage:.4f}%)")
 
         # Save final aggregated metrics to CSV
         metrics_data = {
             'Metric': [
-                'Total pixels',
+                'Total analyzed pixels',
                 'Total bimodal pixels',
                 'Total non-bimodal pixels',
                 'Total pixels exceeding 0.2mm/h',
@@ -675,7 +719,7 @@ def process_data(settings_dlbd, linspace_binning_params):
                 'Total pixels exceeding 5mm/h'
             ],
             'Count': [
-                total_pixels,
+                total_analyzed_pixels,
                 total_bimodal_pixels,
                 total_nonbimodal_pixels,
                 total_pixels_exceeding_0_2mm,
@@ -683,7 +727,7 @@ def process_data(settings_dlbd, linspace_binning_params):
                 total_pixels_exceeding_5mm
             ],
             'Percentage': [
-                100.0,  # Total pixels is 100% of itself
+                100.0,  # Total analyzed pixels is 100% of itself
                 bimodal_percentage,
                 nonbimodal_percentage,
                 exceeding_0_2mm_percentage,

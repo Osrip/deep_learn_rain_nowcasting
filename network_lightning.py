@@ -219,6 +219,11 @@ class NetworkL(pl.LightningModule):
                                                    output_size=s_target_height_width,
                                                    sigma=curr_sigma,
                                                    kernel_size=None)
+        sums = target_binned.sum(dim=1)
+        # check all close to 1
+        if not torch.allclose(sums, torch.ones_like(sums), atol=1e-6):
+            max_dev = (sums - 1).abs().max().item()
+            raise ValueError(f"Channel‐sum check failed: max deviation {max_dev:.2e}")
 
         return target_binned
 
