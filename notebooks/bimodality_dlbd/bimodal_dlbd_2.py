@@ -271,7 +271,7 @@ def detect_bimodality(distribution: torch.Tensor,
 
 def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
                              nan_mask: torch.Tensor,
-                             bimodality_params: Dict) -> Tuple[torch.Tensor, torch.Tensor, List]:
+                             bimodality_params: Dict) -> Tuple[torch.Tensor, torch.Tensor, List, List]:
     """
     Analyze the bimodality of each pixel in a batch of distributions.
 
@@ -281,7 +281,7 @@ def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
         bimodality_params: Dictionary of parameters for bimodality detection
 
     Returns:
-        Tuple of (bimodal_counts, non_bimodal_counts, sample_bimodal_dists)
+        Tuple of (bimodal_counts, non_bimodal_counts, sample_bimodal_dists, sampled_pixel_coords)
     """
     batch_size, num_bins, height, width = blurred_one_hot.shape
     device = blurred_one_hot.device
@@ -296,6 +296,9 @@ def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
     # Lists to store sample distributions
     sample_bimodal_dists = []
 
+    # List to store sampled pixel coordinates for each batch item
+    sampled_pixel_coords = []
+
     # Process each batch item
     for b in range(batch_size):
         # Create a valid pixels mask (not NaN)
@@ -307,7 +310,6 @@ def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
 
         # If there are too many valid pixels, randomly sample a subset
         # to analyze more thoroughly for bimodality
-        # TODO er sampled randomly 1000 Pixel !!
         sample_indices = None
         if n_valid > 1000:
             sample_size = min(1000, n_valid)
@@ -316,8 +318,14 @@ def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
         else:
             sample_indices = valid_coords
 
-        # Analyze sampled pixels for bimodality
+        # Store coordinates of sampled pixels for this batch item
+        batch_sample_coords = []
+        for i in range(sample_indices[0].size(0)):
+            h, w = sample_indices[0][i].item(), sample_indices[1][i].item()
+            batch_sample_coords.append((h, w))
+        sampled_pixel_coords.append(batch_sample_coords)
 
+        # Analyze sampled pixels for bimodality
         for i in range(sample_indices[0].size(0)):
             h, w = sample_indices[0][i], sample_indices[1][i]
 
@@ -346,7 +354,7 @@ def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
             else:
                 non_bimodal_counts[b] += 1
 
-    return bimodal_counts, non_bimodal_counts, sample_bimodal_dists
+    return bimodal_counts, non_bimodal_counts, sample_bimodal_dists, sampled_pixel_coords
 
 
 def write_results_chunk(results, file_path, mode='a'):
@@ -500,15 +508,6 @@ def process_data(settings_dlbd, linspace_binning_params):
             # Create nan mask
             nan_mask = torch.isnan(data)
 
-            # Count pixels exceeding thresholds (excluding NaNs)
-            pixels_exceeding_thresholds = []
-            for threshold in precip_thresholds:
-                # Calculate valid pixels that exceed the threshold (not NaN AND value > threshold)
-                valid_exceeding = torch.logical_and(~nan_mask, data > threshold)
-                # Sum over height and width dimensions for each batch item
-                counts = valid_exceeding.sum(dim=(1, 2)).cpu().numpy()
-                pixels_exceeding_thresholds.append(counts)
-
             # Handle NaNs for one-hot conversion
             data_for_onehot = torch.nan_to_num(data, nan=0.0)
 
@@ -546,7 +545,7 @@ def process_data(settings_dlbd, linspace_binning_params):
             torch.cuda.empty_cache()
 
             # Find bimodal distributions using improved detection
-            bimodal_counts, non_bimodal_counts, batch_bimodal_dists = analyze_batch_bimodality(
+            bimodal_counts, non_bimodal_counts, batch_bimodal_dists, sampled_pixel_coords = analyze_batch_bimodality(
                 blurred_one_hot,
                 nan_mask,
                 bimodality_params
@@ -559,6 +558,18 @@ def process_data(settings_dlbd, linspace_binning_params):
             # Move counts to CPU for processing
             bimodal_counts = bimodal_counts.cpu().numpy()
             non_bimodal_counts = non_bimodal_counts.cpu().numpy()
+
+            # Count pixels exceeding thresholds, but ONLY on the sampled pixels
+            pixels_exceeding_thresholds = [np.zeros(current_batch_size) for _ in precip_thresholds]
+
+            for b in range(current_batch_size):
+                # For each sampled pixel in this batch item
+                for h, w in sampled_pixel_coords[b]:
+                    # Check against each threshold
+                    for t_idx, threshold in enumerate(precip_thresholds):
+                        # Only count if it's not NaN and exceeds threshold
+                        if not torch.isnan(data[b, h, w]) and data[b, h, w] > threshold:
+                            pixels_exceeding_thresholds[t_idx][b] += 1
 
             # Create batch results
             batch_results = []
