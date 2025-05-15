@@ -762,7 +762,6 @@ def process_data(settings_dlbd, linspace_binning_params):
 
         print(f"Results saved to {settings_dlbd['s_output_dir']}")
 
-
 def main():
     # Default config file path
     config_path = "config_dlbd.yml"
