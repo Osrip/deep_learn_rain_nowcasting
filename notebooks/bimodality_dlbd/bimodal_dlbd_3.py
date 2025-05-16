@@ -8,7 +8,7 @@ keeping operations on GPU for maximum efficiency.
 """
 
 # disable dynamo for debugging:
-import helper.disable_dynamo_torch
+# import helper.disable_dynamo_torch
 
 import os
 import torch
@@ -25,8 +25,11 @@ from torch.utils.data import Dataset, DataLoader
 import time
 import glob
 
+# Use correct wdir
+# os.chdir('../../..')
+
 # Import the DLBD function
-from helper.dlbd import dlbd_target_pre_processing
+# from helper.dlbd import dlbd_target_pre_processing
 
 def load_zipped_pickle(file):
     """Load compressed pickle file"""

@@ -4,6 +4,8 @@ import numpy as np
 import random
 import os
 
+# Use correct wdir
+os.chdir('../../..')
 
 def plot_bimodal_distributions(file_path):
     """
