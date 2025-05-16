@@ -28,7 +28,6 @@ import glob
 # Import the DLBD function
 from helper.dlbd import dlbd_target_pre_processing
 
-
 def load_zipped_pickle(file):
     """Load compressed pickle file"""
     with gzip.GzipFile(file + '.pickle.pgz', 'rb') as f:
@@ -162,9 +161,9 @@ def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: Union[torc
 
 
 def detect_bimodality(distribution: torch.Tensor,
-                      threshold: float = 0.1,
-                      min_peak_height: float = 0.2,
-                      min_peak_prominence: float = 0.5) -> bool:
+                      threshold: float = 0.9,
+                      min_peak_height: float = 0.9,
+                      min_peak_prominence: float = 0.9) -> bool:
     """
     Enhanced algorithm to detect if a distribution is bimodal.
 
@@ -514,7 +513,8 @@ def process_data(settings_dlbd, linspace_binning_params):
             # Convert to one-hot
             data_one_hot = img_one_hot(data_for_onehot, num_bins, linspace_binning_tensor)
             # Rearrange dimensions to [batch, bins, height, width]
-            data_one_hot = einops.rearrange(data_one_hot, 'b h w c -> b c h w')
+            # data_one_hot = einops.rearrange(data_one_hot, 'b h w c -> b c h w')
+            data_one_hot = data_one_hot.permute(0, 3, 1, 2)
 
             # Apply DLBD preprocessing
             sigma = settings_dlbd['s_sigma']
@@ -808,9 +808,11 @@ def main():
             's_batch_size': 4,
             's_kernel_size': 33,  # Should be odd
             's_sigma': 1.0,
+
             's_bimodality_threshold': 0.1,  # Sensitivity for bimodal detection
             's_min_peak_height': 0.05,  # Minimum normalized peak height
             's_min_peak_prominence': 0.05,  # Minimum normalized peak prominence
+
             's_max_samples_per_batch': 50,  # Max bimodal distributions to sample per batch
             's_report_every_n_batches': 10,
             's_output_dir': "./dlbd_results",
