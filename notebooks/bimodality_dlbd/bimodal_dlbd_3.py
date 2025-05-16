@@ -177,11 +177,12 @@ def detect_bimodality(distribution: torch.Tensor,
         threshold: Minimum normalized depth between peaks to consider bimodal
         min_peak_height: Minimum height of peaks relative to max value
         min_peak_prominence: Minimum prominence of peaks relative to max value
+            Prominence is peak height minus highest minimum to left and right
 
     Returns:
         bool: True if the distribution is bimodal
     """
-    # Normalize the distribution
+    # Normalize the distribution with max value --> DISTRIBUTIONS DONT SUM UP TO 1 ANYMORE
     if torch.max(distribution) > 0:
         normalized_dist = distribution / torch.max(distribution)
     else:
@@ -191,7 +192,8 @@ def detect_bimodality(distribution: torch.Tensor,
     # A point is a peak if strictly greater than both neighbors
     is_peak = torch.zeros_like(normalized_dist, dtype=torch.bool)
 
-    # Handle interior points
+    # --- PEAK DETECTION ---
+    # Interior peaks: a point is a peak if greater than both neighbors
     interior_peaks = (normalized_dist[1:-1] > normalized_dist[:-2]) & (normalized_dist[1:-1] > normalized_dist[2:])
     is_peak[1:-1] = interior_peaks
 
@@ -203,6 +205,8 @@ def detect_bimodality(distribution: torch.Tensor,
     if normalized_dist[-1] > normalized_dist[-2]:
         is_peak[-1] = True
 
+    # --- PEAK FILTERING ---
+    # Only keeps peaks that exceed the minimum height threshold
     # Filter peaks by minimum height
     is_peak = is_peak & (normalized_dist > min_peak_height)
 
@@ -213,6 +217,7 @@ def detect_bimodality(distribution: torch.Tensor,
     if num_peaks < 2:
         return False
 
+    # --- PEAK PROMINENCE CALCULATION ---
     # Calculate prominence of each peak
     # For each peak, find the lowest point (min value) to left and right
     # until encountering a higher peak or edge
@@ -230,6 +235,7 @@ def detect_bimodality(distribution: torch.Tensor,
                 break
             left_min = min(left_min, normalized_dist[j])
 
+
         # Find lowest point to the right (until higher peak or edge)
         right_min = peak_val
         for j in range(peak_pos + 1, len(normalized_dist)):
@@ -237,7 +243,7 @@ def detect_bimodality(distribution: torch.Tensor,
                 break
             right_min = min(right_min, normalized_dist[j])
 
-        # Prominence is peak height minus highest minimum
+        # Prominence is peak height minus highest minimum to left and right
         prominence = peak_val - max(left_min, right_min)
         peak_prominences.append((prominence, peak_val, peak_pos))
 
