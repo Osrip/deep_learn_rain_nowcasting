@@ -24,12 +24,14 @@ import yaml
 from torch.utils.data import Dataset, DataLoader
 import time
 import glob
+import sys
 
-# Use correct wdir
-# os.chdir('../../..')
+# Add project root to Python path without changing the working directory
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.append(project_root)
 
 # Import the DLBD function
-# from helper.dlbd import dlbd_target_pre_processing
+from helper.dlbd import dlbd_target_pre_processing
 
 def load_zipped_pickle(file):
     """Load compressed pickle file"""
