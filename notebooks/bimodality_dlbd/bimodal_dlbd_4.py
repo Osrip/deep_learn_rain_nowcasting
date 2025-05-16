@@ -166,118 +166,124 @@ def img_one_hot(data_arr: torch.Tensor, num_c: int, linspace_binning: Union[torc
 
 
 def detect_bimodality(distribution: torch.Tensor,
-                      threshold: float = 0.9,
-                      min_peak_height: float = 0.9,
-                      min_peak_prominence: float = 0.9) -> bool:
+                      threshold: float = 0.2,
+                      min_peak_height: float = 0.5,
+                      min_num_bins_between_peaks: int = 3,
+                      num_bins_below_thr_betw_peaks: int = 2,
+                      valley_depth_threshold: float = 0.3) -> bool:
     """
-    Enhanced algorithm to detect if a distribution is bimodal.
+    Enhanced algorithm to detect if a distribution is bimodal, focusing on
+    bin spacing and valley depth between peaks.
 
     Args:
         distribution: Tensor distribution [num_bins]
-        threshold: Minimum normalized depth between peaks to consider bimodal
+        threshold: Minimum normalized depth of valley between peaks
         min_peak_height: Minimum height of peaks relative to max value
-        min_peak_prominence: Minimum prominence of peaks relative to max value
-            Prominence is peak height minus highest minimum to left and right
+        min_num_bins_between_peaks: Minimum number of bins between peaks
+        num_bins_below_thr_betw_peaks: Minimum number of bins below threshold between peaks
+        valley_depth_threshold: Relative depth threshold for identifying valleys between peaks
 
     Returns:
         bool: True if the distribution is bimodal
     """
-    # Normalize the distribution with max value --> DISTRIBUTIONS DONT SUM UP TO 1 ANYMORE
+    # Normalize the distribution with max value
     if torch.max(distribution) > 0:
         normalized_dist = distribution / torch.max(distribution)
     else:
         return False  # No signal
 
-    # Find peaks (local maxima) with a more robust approach
+    # Find peaks (local maxima)
     # A point is a peak if strictly greater than both neighbors
     is_peak = torch.zeros_like(normalized_dist, dtype=torch.bool)
 
-    # --- PEAK DETECTION ---
     # Interior peaks: a point is a peak if greater than both neighbors
-    interior_peaks = (normalized_dist[1:-1] > normalized_dist[:-2]) & (normalized_dist[1:-1] > normalized_dist[2:])
-    is_peak[1:-1] = interior_peaks
+    if len(normalized_dist) >= 3:  # Need at least 3 bins for interior peaks
+        interior_peaks = (normalized_dist[1:-1] > normalized_dist[:-2]) & (normalized_dist[1:-1] > normalized_dist[2:])
+        is_peak[1:-1] = interior_peaks
 
     # Handle endpoints
-    # Left endpoint is peak if greater than its right neighbor
-    if normalized_dist[0] > normalized_dist[1]:
-        is_peak[0] = True
-    # Right endpoint is peak if greater than its left neighbor
-    if normalized_dist[-1] > normalized_dist[-2]:
-        is_peak[-1] = True
+    if len(normalized_dist) >= 2:  # Need at least 2 bins for endpoints
+        # Left endpoint is peak if greater than its right neighbor
+        if normalized_dist[0] > normalized_dist[1]:
+            is_peak[0] = True
+        # Right endpoint is peak if greater than its left neighbor
+        if normalized_dist[-1] > normalized_dist[-2]:
+            is_peak[-1] = True
 
-    # --- PEAK FILTERING ---
-    # Only keeps peaks that exceed the minimum height threshold min_peak_height
     # Filter peaks by minimum height
     is_peak = is_peak & (normalized_dist > min_peak_height)
 
+    # Get peak positions
+    peak_indices = torch.nonzero(is_peak)
+    if peak_indices.numel() == 0:
+        return False  # No peaks at all
+
+    peak_positions = peak_indices.squeeze(-1)
+
     # Count number of significant peaks
-    peak_positions = torch.nonzero(is_peak).squeeze(-1)
     num_peaks = peak_positions.numel()
-
     if num_peaks < 2:
-        return False
+        return False  # Need at least 2 peaks for bimodality
 
-    # --- PEAK PROMINENCE CALCULATION ---
-    # Calculate prominence of each peak
-    # For each peak, find the lowest point (min value) to left and right
-    # until encountering a higher peak or edge
-    peak_prominences = []
+    # Find the best pair of peaks based on valley depth and separation
+    best_score = -1.0
+    is_bimodal = False
 
-    for i, peak_pos in enumerate(peak_positions):
-        # Convert to int for slicing
-        peak_pos = int(peak_pos.item())
-        peak_val = normalized_dist[peak_pos]
+    for i in range(num_peaks):
+        for j in range(i + 1, num_peaks):
+            peak1_pos = peak_positions[i]
+            peak2_pos = peak_positions[j]
 
-        # Find lowest point to the left (until higher peak or edge)
-        left_min = peak_val
-        for j in range(peak_pos - 1, -1, -1):
-            if normalized_dist[j] > peak_val:  # Higher peak, stop
-                break
-            left_min = min(left_min, normalized_dist[j])
+            # Check if peaks are far enough apart
+            bin_distance = torch.abs(peak2_pos - peak1_pos)
+            if bin_distance < min_num_bins_between_peaks:
+                continue
 
+            # Order from left to right
+            left_idx = min(peak1_pos, peak2_pos).item()
+            right_idx = max(peak1_pos, peak2_pos).item()
 
-        # Find lowest point to the right (until higher peak or edge)
-        right_min = peak_val
-        for j in range(peak_pos + 1, len(normalized_dist)):
-            if normalized_dist[j] > peak_val:  # Higher peak, stop
-                break
-            right_min = min(right_min, normalized_dist[j])
+            # Check the valley between peaks
+            between_peaks = normalized_dist[left_idx:right_idx + 1]
+            min_val_idx = torch.argmin(between_peaks) + left_idx  # Global index
+            valley_min_val = normalized_dist[min_val_idx]
 
-        # Prominence is peak height minus highest minimum to left and right
-        prominence = peak_val - max(left_min, right_min)
-        peak_prominences.append((prominence, peak_val, peak_pos))
+            # Peak values
+            peak1_val = normalized_dist[peak1_pos]
+            peak2_val = normalized_dist[peak2_pos]
 
-    # Sort peaks by prominence (descending)
-    peak_prominences.sort(reverse=True)
+            # Calculate relative depths from each peak to the minimum valley
+            # Use minimum of both depths to handle asymmetric cases
+            relative_depth1 = (peak1_val - valley_min_val) / peak1_val
+            relative_depth2 = (peak2_val - valley_min_val) / peak2_val
+            min_relative_depth = min(relative_depth1, relative_depth2)
 
-    # We need at least 2 peaks with sufficient prominence
-    if len(peak_prominences) < 2 or peak_prominences[1][0] < min_peak_prominence:
-        return False
+            # Check if valley is deep enough
+            if min_relative_depth <= threshold:
+                continue
 
-    # Get positions of the two most prominent peaks
-    peak1_pos = peak_prominences[0][2]
-    peak2_pos = peak_prominences[1][2]
+            # Check if there are enough bins below threshold in the valley
+            # Only examine the region between peaks (exclusive)
+            if right_idx - left_idx <= 1:  # Adjacent peaks
+                continue
 
-    # Find minimum between peaks
-    left_idx = min(peak1_pos, peak2_pos)
-    right_idx = max(peak1_pos, peak2_pos)
+            valley_region = normalized_dist[left_idx + 1:right_idx]
+            if valley_region.numel() == 0:  # Sanity check
+                continue
 
-    if left_idx == right_idx:  # Should never happen but check anyway
-        return False
+            valley_threshold = min(peak1_val, peak2_val) * (1 - valley_depth_threshold)
+            bins_below_threshold = torch.sum(valley_region < valley_threshold)
 
-    between_peaks = normalized_dist[left_idx:right_idx + 1]
-    min_val = torch.min(between_peaks)
+            if bins_below_threshold >= num_bins_below_thr_betw_peaks:
+                # Calculate a score for this bimodal pair
+                # Score based on separation distance and valley depth
+                score = bin_distance * min_relative_depth
 
-    # Highest and second highest peak values
-    peak1_val = normalized_dist[peak1_pos]
-    peak2_val = normalized_dist[peak2_pos]
+                if score > best_score:
+                    best_score = score
+                    is_bimodal = True
 
-    # Calculate relative depths from each peak to the minimum
-    relative_depth1 = (peak1_val - min_val) / peak1_val
-    relative_depth2 = (peak2_val - min_val) / peak2_val
-
-    return relative_depth1 > threshold and relative_depth2 > threshold
-
+    return is_bimodal
 
 def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
                              nan_mask: torch.Tensor,
@@ -319,7 +325,6 @@ def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
         n_valid = valid_coords[0].size(0)
 
         # If there are too many valid pixels, randomly sample a subset
-        # to analyze more thoroughly for bimodality
         sample_indices = None
         if n_valid > 1000:
             sample_size = min(1000, n_valid)
@@ -342,12 +347,14 @@ def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
             # Get distribution for this pixel
             dist = blurred_one_hot[b, :, h, w]
 
-            # Check if bimodal using improved detection
+            # Check if bimodal using improved detection with defaults for new parameters
             is_bimodal = detect_bimodality(
                 dist,
-                threshold=bimodality_params['threshold'],
-                min_peak_height=bimodality_params['min_peak_height'],
-                min_peak_prominence=bimodality_params['min_peak_prominence']
+                threshold=bimodality_params.get('threshold', 0.2),
+                min_peak_height=bimodality_params.get('min_peak_height', 0.5),
+                min_num_bins_between_peaks=bimodality_params.get('min_num_bins_between_peaks', 3),
+                num_bins_below_thr_betw_peaks=bimodality_params.get('num_bins_below_thr_betw_peaks', 2),
+                valley_depth_threshold=bimodality_params.get('valley_depth_threshold', 0.3)
             )
 
             if is_bimodal:
@@ -365,7 +372,6 @@ def analyze_batch_bimodality(blurred_one_hot: torch.Tensor,
                 non_bimodal_counts[b] += 1
 
     return bimodal_counts, non_bimodal_counts, sample_bimodal_dists, sampled_pixel_coords
-
 
 def write_results_chunk(results, file_path, mode='a'):
     """Write a chunk of results to CSV, creating file with header if needed"""
@@ -484,7 +490,9 @@ def process_data(settings_dlbd, linspace_binning_params):
     bimodality_params = {
         'threshold': settings_dlbd['s_bimodality_threshold'],
         'min_peak_height': settings_dlbd['s_min_peak_height'],
-        'min_peak_prominence': settings_dlbd['s_min_peak_prominence'],
+        'min_num_bins_between_peaks': settings_dlbd['s_min_num_bins_between_peaks'],
+        'num_bins_below_thr_betw_peaks': settings_dlbd['s_num_bins_below_thr_betw_peaks'],
+        'valley_depth_threshold': settings_dlbd['s_valley_depth_threshold'],
         'max_samples_per_batch': settings_dlbd['s_max_samples_per_batch']
     }
 
@@ -820,9 +828,12 @@ def main():
             's_kernel_size': 33,  # Should be odd
             's_sigma': 1.0,
 
-            's_bimodality_threshold': 0.1,  # Sensitivity for bimodal detection
-            's_min_peak_height': 0.05,  # Minimum normalized peak height
-            's_min_peak_prominence': 0.05,  # Minimum normalized peak prominence
+            # Updated bimodality detection parameters
+            's_bimodality_threshold': 0.2,  # Minimum relative depth of valley between peaks
+            's_min_peak_height': 0.5,  # Minimum normalized peak height relative to max value
+            's_min_num_bins_between_peaks': 3,  # Minimum number of bins between peaks
+            's_num_bins_below_thr_betw_peaks': 2,  # Minimum number of bins below threshold in valley
+            's_valley_depth_threshold': 0.3,  # Threshold for determining if a bin is part of a valley
 
             's_max_samples_per_batch': 50,  # Max bimodal distributions to sample per batch
             's_report_every_n_batches': 10,
