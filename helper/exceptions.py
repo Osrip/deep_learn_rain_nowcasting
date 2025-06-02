@@ -1,3 +1,0 @@
-class CountException(Exception):
-    pass
-

@@ -30,7 +30,6 @@ class SkipConnection(nn.Module):
     Skip connection implementation by Manu
     avg. pooling for downscaling (both in space and channel), using einops.reduce
     Simply duplicating elemnts for upscaling (both space and channel), using einops.repeat
-    Manu experienced better gradient pass-through compared to to conv rescaling in the scip connection.
     """
     def __init__(
             self,

@@ -1,9 +1,9 @@
-from load_data_xarray import (
+from data_pre_processing.load_data_xarray import (
     create_patches,
     all_patches_to_datetime_idx_permuts,
-    patch_indices_to_sample_coords,
-    FilteredDatasetXr
+    patch_indices_to_sample_coords
 )
+from data_pre_processing.dataset import FilteredDatasetXr
 from helper.memory_logging import print_ram_usage, print_gpu_memory
 from helper.helper_functions import center_crop_1d
 
@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import xarray as xr
 import einops
-from load_data_xarray import convert_float_tensor_to_datetime64_array, split_data_from_time_keys
+from data_pre_processing.load_data_xarray import convert_float_tensor_to_datetime64_array, split_data_from_time_keys
 import numpy as np
 
 

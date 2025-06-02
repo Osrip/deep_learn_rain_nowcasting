@@ -2,7 +2,7 @@
 from plotting.plot_lr_scheduler import plot_lr_schedule
 
 from helper.plotting_helper import load_data_from_logs
-from plotting.legacy.plot_from_log import plot_logged_metrics, plot_mean_predictions
+from plotting.plot_from_log import plot_logged_metrics, plot_mean_predictions
 
 
 def plot_logs_pipeline(training_steps_per_epoch, model_l, settings,

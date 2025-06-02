@@ -14,7 +14,7 @@ from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_nor
 from helper.memory_logging import print_gpu_memory, print_ram_usage, format_duration
 import torchvision.transforms as T
 
-from load_data_xarray import FilteredDatasetXr
+from data_pre_processing.dataset import FilteredDatasetXr
 
 
 class FSSEvaluationCallback(pl.Callback):

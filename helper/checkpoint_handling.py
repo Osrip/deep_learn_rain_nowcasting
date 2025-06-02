@@ -1,6 +1,6 @@
 import os
 
-from network_lightning import NetworkL
+from model.network_lightning import NetworkL
 from helper.helper_functions import load_zipped_pickle
 from torch.utils.data import DataLoader
 # from load_data import PrecipitationFilteredDataset

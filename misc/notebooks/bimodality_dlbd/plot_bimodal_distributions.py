@@ -5,7 +5,7 @@ import random
 import os
 
 # Use correct wdir
-os.chdir('../../..')
+os.chdir('../../../..')
 
 def plot_bimodal_distributions(file_path):
     """
@@ -44,6 +44,7 @@ def plot_bimodal_distributions(file_path):
 
     # Create a 10x10 grid (or adjust if fewer samples)
     rows = cols = 10
+    # rows = cols = 5
     if sample_size < 100:
         rows = cols = int(np.ceil(np.sqrt(sample_size)))
 
@@ -110,7 +111,7 @@ def plot_bimodal_distributions(file_path):
 
 
 # Full path to the file
-file_path = "/home/jan/Programming/remote/first_CNN_on_Radolan/notebooks/bimodality_dlbd/dlbd_results/bimodal_distributions_20250516_113223_BIG_RUN.csv"
+file_path = "/home/jan/Programming/remote/first_CNN_on_Radolan/notebooks/bimodality_dlbd/dlbd_results/bimodal_distributions_20250519_145151_mini.csv"
 
 # Run the function
 plot_bimodal_distributions(file_path)

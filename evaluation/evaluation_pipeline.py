@@ -6,7 +6,7 @@ from torch.utils.data import Subset, DataLoader
 from evaluation.eval_with_baseline import EvaluateBaselineCallback
 from helper.checkpoint_handling import get_checkpoint_names, load_from_checkpoint
 from helper.memory_logging import format_duration
-from load_data_xarray import FilteredDatasetXr
+from data_pre_processing.dataset import FilteredDatasetXr
 from plotting.plotting_pipeline import plot_logs_pipeline
 from evaluation.eval_with_baseline_fss import FSSEvaluationCallback
 import time

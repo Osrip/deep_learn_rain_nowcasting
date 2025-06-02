@@ -3,7 +3,7 @@ from torchvision import transforms
 import pytorch_lightning as pl
 
 from helper.calc_CRPS import crps_vectorized
-from legacy.modules_blocks import Network
+from misc.legacy_models.modules_blocks import Network
 from modules_blocks_convnext import ConvNeXtUNet
 import torch.nn as nn
 import copy
