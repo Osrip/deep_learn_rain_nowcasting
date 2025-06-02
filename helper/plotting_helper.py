@@ -4,7 +4,7 @@ from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
 
 
-def load_data_from_logs(s_calc_baseline, s_dirs,
+def load_data_from_logs(s_dirs,
     rel_path_train='logs/train_log/version_0/metrics.csv',
     rel_path_val='logs/val_log/version_0/metrics.csv',
     rel_path_base_train='logs/base_train_log/version_0/metrics.csv',
@@ -15,12 +15,9 @@ def load_data_from_logs(s_calc_baseline, s_dirs,
 
     train_df = pd.read_csv('{}/{}'.format(save_dir, rel_path_train))
     val_df = pd.read_csv('{}/{}'.format(save_dir, rel_path_val))
-    if s_calc_baseline:
-        base_train_df = pd.read_csv('{}/{}'.format(save_dir, rel_path_base_train))
-        base_val_df = pd.read_csv('{}/{}'.format(save_dir, rel_path_base_val))
-    else:
-        base_train_df = None
-        base_val_df = None
+
+    base_train_df = None
+    base_val_df = None
 
     return train_df, val_df, base_train_df, base_val_df
 

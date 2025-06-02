@@ -6,7 +6,6 @@ import torch
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.profilers import PyTorchProfiler
 
-from baselines import LKBaseline
 from helper.helper_functions import save_project_code
 from helper.memory_logging import format_duration
 from helper.sigma_scheduler_helper import create_scheduler_mapping
@@ -28,7 +27,6 @@ def train_wrapper(
         s_dirs, s_profiling, s_max_epochs, s_sim_name,
         s_gaussian_smoothing_target, s_sigma_target_smoothing, s_schedule_sigma_smoothing,
         s_train_samples_per_epoch, s_val_samples_per_epoch,
-        s_calc_baseline,
         s_batch_size,
         s_mode,
         **__
@@ -142,18 +140,6 @@ def train_wrapper(
 
     print(f'\n DONE. Took {format_duration(time.time() - step_start_time)} \n')
 
-    if s_calc_baseline:
-        calc_baselines(**settings,
-                       data_loader_list=[train_data_loader, validation_data_loader],
-                       logs_callback_list=[BaselineTrainingLogsCallback, BaselineValidationLogsCallback],
-                       logger_list=[base_train_logger, base_val_logger],
-                       logging_type_list=['train', 'val'],
-                       mean_filtered_log_data_list=[radolan_statistics_dict['mean_filtered_log_data'],
-                                                radolan_statistics_dict['mean_filtered_log_data']],
-                       std_filtered_log_data_list=[radolan_statistics_dict['std_filtered_log_data'],
-                                                  radolan_statistics_dict['std_filtered_log_data']],
-                       settings=settings
-                       )
 
     # Network_l, training_steps_per_epoch is returned to be able to plot lr_scheduler
     return model_l, training_steps_per_epoch, sigma_schedule_mapping
