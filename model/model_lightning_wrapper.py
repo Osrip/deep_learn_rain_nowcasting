@@ -4,7 +4,7 @@ import pytorch_lightning as pl
 
 from helper.calc_CRPS import crps_vectorized
 from misc.legacy_models.modules_blocks import Network
-from modules_blocks_convnext import ConvNeXtUNet
+from conv_next_unet import ConvNeXtUNet
 import torch.nn as nn
 import copy
 import einops
