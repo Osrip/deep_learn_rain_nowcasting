@@ -1,7 +1,8 @@
 import os
 
-from model import NetworkL
-from helper import load_zipped_pickle
+# Keep this a direct import to avoid circular dependencies:
+from model.model_lightning_wrapper import NetworkL
+from .helper_functions import load_zipped_pickle
 
 
 

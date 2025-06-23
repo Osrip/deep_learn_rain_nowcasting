@@ -4,7 +4,8 @@ import time
 import pytorch_lightning as pl
 from torch.utils.data import Subset, DataLoader
 
-from evaluation import EvaluateBaselineCallback, FSSEvaluationCallback
+from .eval_with_baseline import EvaluateBaselineCallback
+from .eval_with_baseline_fss import FSSEvaluationCallback
 from helper import get_checkpoint_names, load_from_checkpoint, format_duration
 from data_pre_processing import FilteredDatasetXr
 from plotting import plot_logs_pipeline

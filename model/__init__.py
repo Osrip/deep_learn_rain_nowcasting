@@ -3,5 +3,7 @@ from .model_lightning_wrapper import NetworkL
 from .logger import (
     TrainingLogsCallback,
     ValidationLogsCallback,
-    create_loggers
+    create_loggers,
+    BaselineTrainingLogsCallback,
+    BaselineValidationLogsCallback
 )

@@ -5,8 +5,12 @@ import torch.nn as nn
 import copy
 import einops
 
-from helper import crps_vectorized, img_one_hot, invnorm_linspace_binning, normalize_data, dlbd_target_pre_processing
-from model import ConvNeXtUNet
+# Direct imports to avoid cricular dependencies
+from helper.calc_CRPS import crps_vectorized
+from helper.pre_process_target_input import img_one_hot, invnorm_linspace_binning, normalize_data
+from helper.dlbd import dlbd_target_pre_processing
+
+from .conv_next_unet import ConvNeXtUNet
 
 
 class NetworkL(pl.LightningModule):
