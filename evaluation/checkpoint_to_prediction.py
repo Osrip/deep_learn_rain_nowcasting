@@ -1,4 +1,4 @@
-from data_pre_processing.load_data_xarray import (
+from data_pre_processing.data_pre_processing_utils import (
     create_patches,
     all_patches_to_datetime_idx_permuts,
     patch_indices_to_sample_coords
@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import xarray as xr
 import einops
-from data_pre_processing.load_data_xarray import convert_float_tensor_to_datetime64_array, split_data_from_time_keys
+from data_pre_processing.data_pre_processing_utils import convert_float_tensor_to_datetime64_array, split_data_from_time_keys
 import numpy as np
 
 
