@@ -3,8 +3,7 @@ import os
 from model.model_lightning_wrapper import NetworkL
 from helper.helper_functions import load_zipped_pickle
 from torch.utils.data import DataLoader
-# from load_data import PrecipitationFilteredDataset
-# TODO REWRITE THIS TO HANDLE XARRAY STUFF
+
 
 
 def load_from_checkpoint(
@@ -34,51 +33,6 @@ def load_from_checkpoint(
 
     model = model.to(device)
     return model
-
-
-def create_data_loaders_ckpt_plotting(
-        transform_f,
-        filtered_indecies_training,
-        filtered_indecies_validation,
-        linspace_binning_params,
-        filter_and_normalization_params,
-        settings
-):
-    # TODO !remove this funktion as this is still part of old plotting pipeline!
-    linspace_binning_min, linspace_binning_max, linspace_binning = linspace_binning_params
-
-    filtered_indecies, mean_filtered_log_data, std_filtered_log_data, _, _, linspace_binning_min_unnormalized,\
-        linspace_binning_max_unnormalized = filter_and_normalization_params
-
-    train_data_set = PrecipitationFilteredDataset(filtered_indecies_training, mean_filtered_log_data, std_filtered_log_data,
-                                                  linspace_binning_min, linspace_binning_max, linspace_binning,
-                                                  transform_f, settings, **settings)
-
-    validation_data_set = PrecipitationFilteredDataset(filtered_indecies_validation, mean_filtered_log_data,
-                                                       std_filtered_log_data,
-                                                       linspace_binning_min, linspace_binning_max, linspace_binning,
-                                                       transform_f, settings, **settings)
-
-    train_data_loader = DataLoader(
-        train_data_set,
-        batch_size=settings['s_batch_size'],
-        shuffle=True,
-        drop_last=True,
-        num_workers=settings['s_num_workers_data_loader'],
-        pin_memory=True)
-
-    validation_data_loader = DataLoader(
-        validation_data_set,
-        batch_size=settings['s_batch_size'],
-        shuffle=True,
-        drop_last=True,
-        num_workers=settings['s_num_workers_data_loader'],
-        pin_memory=True)
-
-    # Pin Memory: If you load your samples in the Dataset on CPU and would like to push it during training to the GPU, you can speed
-    # up the host to device transfer by enabling pin_memory.
-
-    return train_data_loader, validation_data_loader
 
 
 def load_data_from_run(runs_path, run_name):
