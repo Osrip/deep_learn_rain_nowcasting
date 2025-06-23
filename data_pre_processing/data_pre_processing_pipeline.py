@@ -4,7 +4,7 @@ import numpy as np
 import xarray as xr
 
 from helper.memory_logging import format_ram_usage, format_duration
-from data_pre_processing.load_data_xarray import create_patches, filter_patches, create_split_time_keys, split_data_from_time_keys, \
+from data_pre_processing.data_pre_processing_utils import create_patches, filter_patches, create_split_time_keys, split_data_from_time_keys, \
     calc_statistics_on_valid_patches, calc_linspace_binning, calc_bin_frequencies, patches_boo_to_datetime_idx_permuts, \
     patch_indices_to_sample_coords, create_oversampling_weights
 
