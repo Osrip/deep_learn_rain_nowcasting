@@ -1,15 +1,17 @@
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms as T
-from helper.pre_process_target_input import one_hot_to_lognormed_mm, inverse_normalize_data, img_one_hot, normalize_data
-from helper.helper_functions import move_to_device
-from helper.memory_logging import print_gpu_memory, print_ram_usage, format_duration
-from helper.dlbd import dlbd_target_pre_processing
 import time
 import pandas as pd
 import os
 import numpy as np
 import pysteps.verification.detcatscores as detcatscores
+
+from helper import (
+    one_hot_to_lognormed_mm, inverse_normalize_data, img_one_hot, normalize_data,
+    move_to_device, print_gpu_memory, print_ram_usage, format_duration,
+    dlbd_target_pre_processing
+)
 
 
 class EvaluateBaselineCallback(pl.Callback):

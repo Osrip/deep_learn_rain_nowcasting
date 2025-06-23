@@ -1,8 +1,7 @@
 # Fix typing issues before any imports to be able to debug on 5090 machine
 import os
 
-from training_utils.preprocessing_cache import data_loading
-from training_utils.training import train_wrapper
+from training_utils import data_loading, train_wrapper
 
 os.environ["TORCH_DYNAMO_DISABLE"] = "1"
 
@@ -17,16 +16,10 @@ import torch
 import datetime
 import argparse
 
-from helper.settings_config_helper import load_settings
-from helper.helper_functions import (
-    load_zipped_pickle
-)
-
-from plotting.plotting_pipeline import plot_logs_pipeline
-from helper.helper_functions import no_special_characters
-
-from tests.test_basic_functions import test_all
-from evaluation.evaluation_pipeline import evaluation_pipeline
+from helper import load_settings, load_zipped_pickle, no_special_characters
+from plotting import plot_logs_pipeline
+from tests import test_all
+from evaluation import evaluation_pipeline
 
 
 def create_s_dirs(sim_name, s_mode, s_save_dir, s_prediction_dir, **__):

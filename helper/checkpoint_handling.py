@@ -1,7 +1,7 @@
 import os
 
-from model.model_lightning_wrapper import NetworkL
-from helper.helper_functions import load_zipped_pickle
+from model import NetworkL
+from helper import load_zipped_pickle
 
 
 

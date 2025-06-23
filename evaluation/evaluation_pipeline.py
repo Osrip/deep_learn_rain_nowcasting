@@ -1,15 +1,13 @@
 import random
+import time
 
 import pytorch_lightning as pl
 from torch.utils.data import Subset, DataLoader
 
-from evaluation.eval_with_baseline import EvaluateBaselineCallback
-from helper.checkpoint_handling import get_checkpoint_names, load_from_checkpoint
-from helper.memory_logging import format_duration
-from data_pre_processing.dataset import FilteredDatasetXr
-from plotting.plotting_pipeline import plot_logs_pipeline
-from evaluation.eval_with_baseline_fss import FSSEvaluationCallback
-import time
+from evaluation import EvaluateBaselineCallback, FSSEvaluationCallback
+from helper import get_checkpoint_names, load_from_checkpoint, format_duration
+from data_pre_processing import FilteredDatasetXr
+from plotting import plot_logs_pipeline
 
 
 def evaluation_pipeline(

@@ -1,7 +1,7 @@
 import numpy as np
 from torch.utils.data import WeightedRandomSampler, DataLoader
 
-from data_pre_processing.dataset import FilteredDatasetXr
+from data_pre_processing import FilteredDatasetXr
 
 
 def create_data_loaders(
