@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.transforms import functional as TF
 
-from data_pre_processing.load_data_xarray import convert_datetime64_array_to_float_tensor
+from data_pre_processing.data_pre_processing_utils import convert_datetime64_array_to_float_tensor
 
 
 class FilteredDatasetXr(Dataset):
