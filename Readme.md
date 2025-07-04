@@ -2,6 +2,21 @@
 
 A deep learning project for short-term precipitation forecasting using ConvNeXt U-Net architecture with PyTorch Lightning. The project focuses on predicting precipitation patterns using radar data (RADOLAN) and digital elevation models (DEM).
 
+## Preliminary Results
+
+<p align="center">
+  <img src="readme_plots/Run_20250501-192855_ID_14722792_years_dlbd_no_oversampling_cropping_active_skill_score_threshold_based_log_scale.png" alt="RMSE Skill Score Analysis" width="80%">
+</p>
+
+Our ConvNeXt U-Net model demonstrates consistent improvements over the optical flow baseline across different precipitation intensities. These results were achieved after training for **just one epoch** on a 2-year dataset (2019-2020) with a daily-based train (70%) - validation (15%) - test (15%) split. The RMSE Skill Score analysis on validation data shows:
+
+- **Consistent outperformance**: The model achieves positive skill scores of **~10%** across all precipitation thresholds, indicating superior performance compared to the baseline
+- **Peak performance**: Maximum skill improvement (~10%) occurs around moderate precipitation intensities (1-2 mm/h)
+- **Robust across intensities**: The model maintains skill advantages from light drizzle (0.1 mm/h) to heavy precipitation (6+ mm/h)
+- **Statistical significance**: Results are based on extensive validation data with sample sizes ranging from ~10⁴ to ~10⁵ depending on precipitation threshold
+
+*Note: These results demonstrate the model's effectiveness after minimal training. This analysis focuses on RMSE-based performance metrics. Comprehensive evaluation including FSS, CSI, and other meteorological skill scores will be presented in future work.*
+
 ## Features
 
 - **ConvNeXt U-Net Architecture**: Modern CNN architecture for precipitation nowcasting
@@ -235,5 +250,3 @@ results/
 - Verify zarr file paths and structure
 - Check coordinate reference systems match
 - Ensure proper chunking for your data size
-
-
