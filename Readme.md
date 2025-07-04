@@ -15,6 +15,14 @@ Our ConvNeXt U-Net model demonstrates consistent improvements over the optical f
 - **Robust across intensities**: The model maintains skill advantages from light drizzle (0.1 mm/h) to heavy precipitation (6+ mm/h)
 - **Statistical significance**: Results are based on extensive validation data with sample sizes ranging from ~10⁴ to ~10⁵ depending on precipitation threshold
 
+### Sample Predictions
+
+<p align="center">
+  <img src="readme_plots/predictions.png" alt="Sample Precipitation Predictions" width="90%">
+</p>
+
+The above examples demonstrate the model's ability to predict complex precipitation patterns. Each row shows: input radar sequence (4 time steps), ground truth target (15-min forecast), baseline prediction (optical flow extrapolation), model prediction, and model certainty. The RMSE values show the model consistently outperforming the baseline across diverse meteorological scenarios.
+
 *Note: These results demonstrate the model's effectiveness after minimal training. This analysis focuses on RMSE-based performance metrics. Comprehensive evaluation including FSS, CSI, and other meteorological skill scores will be presented in future work.*
 
 ## Features
@@ -25,7 +33,7 @@ Our ConvNeXt U-Net model demonstrates consistent improvements over the optical f
 - **Comprehensive Evaluation**: FSS (Fractions Skill Score), DLBD, and categorical metrics
 - **Data Preprocessing Pipeline**: Efficient data loading with caching support
 - **Multiple Execution Modes**: Debug, local, and cluster deployment options
-- **Baseline Comparison**: Optical flow baseline for performance evaluation
+- **Baseline Comparison**: Optical flow extrapolation baseline for performance evaluation
 
 ## Project Structure
 
@@ -130,7 +138,7 @@ python train_lightning.py --mode cluster
 ```
 
 **Cluster mode characteristics:**
-- Uses full datasets (2-year time spans) 
+- Uses full datasets (2-year time spans, ~1TB size) 
 - Large batch sizes (batch_size=128)
 - Multi-GPU support (4 GPUs)
 - Extensive evaluation metrics
